@@ -1,0 +1,49 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Title</title>
+  <script>
+    function runGame() {
+      try {
+        fetch('/rungame', {
+          headers: {
+            "Content-Type": "application/json"
+          },
+          method: 'post',
+          body: JSON.stringify({
+            "board": document.getElementById("board").value,
+            "num_gens": parseInt(document.getElementById("num_gens").value)
+          }),
+        })
+        .then(response => response.json())
+        .then(data => {
+          const result = document.getElementById("result");
+          result.innerHTML = data["resultBoard"]
+        });
+      } catch (err) {
+        console.error(`Error: ${err}`);
+      }
+    }
+  </script>
+</head>
+<body style="font-family: Helvetica">
+  <div style="display: flex; flex-direction: column; align-items: center">
+    <h1>Game of Life</h1>
+    <br>
+    <form style="display: flex; flex-direction: column; align-items: center">
+      <div style="display: flex; flex-direction: row; justify-content: space-between; align-items: start; width: 500px">
+        <div>
+          Board: <input type="text" id="board" placeholder="[[1,1],[0,1]]">
+        </div>
+        <div>
+          Generations: <input type="number" id="num_gens" placeholder="1">
+        </div>
+      </div>
+      <button style="margin-top: 48px" type="button" id="run_game" onClick="runGame()">Run Game</button>
+    </form>
+    <div style="margin-top: 48px;">Result:</div>
+    <div style="margin-top: 8px; white-space: pre-line; font-weight: bold" id="result"></div>
+  </div>
+</body>
+</html>

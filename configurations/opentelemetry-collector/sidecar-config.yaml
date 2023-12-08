@@ -1,0 +1,33 @@
+# This example defines a sidecar Collector, that exports data to another Collector.
+# It also showcases the resource detection processor, which will set resource attributes
+# necessary for getting the hostname, tags right on certain environments (e.g. EC2).
+
+receivers:
+  otlp:
+    protocols:
+      http:
+
+processors:
+  # resourcedetection detects the environment where the Collector is running. 
+  # When running the Collector as a sidecar, it needs to be present in the sidecar 
+  # so that the hostname is correctly detected.
+  # https://github.com/open-telemetry/opentelemetry-collector-contrib/tree/main/processor/resourcedetectionprocessor
+  #
+  # Kubernetes has its own processor (k8sattributes), for which we have an example in docs
+  # https://docs.datadoghq.com/tracing/setup_overview/open_standards/#example-kubernetes-opentelemetry-collector-configuration
+  resourcedetection:
+    # Defines the detectors used. If a detector fails it will fall back to the next one, so
+    # this list can be used on any environment.
+    detectors: [gce, ecs, ec2, azure, system]
+    override: true
+
+exporters:
+  # otlp exporter exports using gRPC. The otlphttp exporter exports using HTTP.
+  otlp:
+    endpoint: otelcol2:4317
+
+service:
+  pipelines:
+    receivers: [otlp]
+    processors: [resourcedetection]
+    exporters: [otlp]

@@ -1,0 +1,100 @@
+version: "3"
+services:
+  zookeeper-dd:
+    image: confluentinc/cp-zookeeper:latest
+    environment:
+      ZOOKEEPER_CLIENT_PORT: 2181
+      ZOOKEEPER_TICK_TIME: 2000
+    ports:
+      - 22181:2181
+
+  kafka-dd:
+    image: confluentinc/cp-kafka:latest
+    depends_on:
+      - zookeeper-dd
+    ports:
+      - 29092:29092
+    environment:
+      KAFKA_BROKER_ID: 1
+      KAFKA_ZOOKEEPER_CONNECT: zookeeper-dd:2181
+      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://kafka-dd:9092,PLAINTEXT_HOST://localhost:29092
+      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: PLAINTEXT:PLAINTEXT,PLAINTEXT_HOST:PLAINTEXT
+      KAFKA_INTER_BROKER_LISTENER_NAME: PLAINTEXT
+      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
+    healthcheck:
+      test: nc -z kafka-dd 9092
+      start_period: 10s
+      interval: 5s
+      timeout: 10s
+      retries: 10
+
+  redis-dd:
+    image: redis:alpine
+    container_name: redis-dd
+    user: redis
+    deploy:
+      resources:
+        limits:
+          memory: 20M
+    restart: always
+
+  calendar-producer-java-dd:
+    depends_on:
+      kafka-dd:
+        condition: service_healthy
+      datadog-agent-kafka-dd:
+        condition: service_started
+      redis-dd:
+        condition: service_started
+    container_name: calendar-producer-java-dd
+    build:
+      context: .
+      dockerfile: Dockerfile.calendar.java.dd
+    environment:
+      - DD_SERVICE=calendar-producer-java-dd
+      - DD_AGENT_HOST=datadog-agent-kafka-dd
+      - DD_TRACE_AGENT_URL=http://datadog-agent-kafka-dd:8126
+      - DD_ENV=dd-kafka
+      - SERVER_PORT=9090
+      - KAFKA_SERVERS=kafka-dd:9092
+      - REDIS_HOST=redis-dd
+    ports:
+      - "9090:9090"
+
+  calendar-consumer-go-dd:
+    depends_on:
+      kafka-dd:
+        condition: service_healthy
+      redis-dd:
+        condition: service_started
+    container_name: calendar-consumer-go-dd
+    build:
+      context: .
+      dockerfile: Dockerfile.calendar.go.dd
+    environment:
+      - DD_SERVICE=calendar-consumer-go-dd
+      - DD_AGENT_HOST=datadog-agent-kafka-dd
+      - DD_ENV=dd-kafka
+      - REDIS_HOST=redis-dd
+      - KAFKA_SERVERS=kafka-dd:9092
+
+  datadog-agent-kafka-dd:
+    container_name: datadog-agent-kafka-dd
+    image: "gcr.io/datadoghq/agent:latest"
+    pid: host
+    ports:
+      - 8125:8125
+      - 8126:8126
+      - 4317:4317
+      - 4318:4318
+    environment:
+      - DD_API_KEY=${DD_API_KEY}
+      - DD_SITE=datadoghq.com
+      - DD_APM_NON_LOCAL_TRAFFIC=true
+      - DD_DOGSTATSD_NON_LOCAL_TRAFFIC=true
+      - DD_OTLP_CONFIG_RECEIVER_PROTOCOLS_GRPC_ENDPOINT=0.0.0.0:4317
+      - DD_OTLP_CONFIG_RECEIVER_PROTOCOLS_HTTP_ENDPOINT=0.0.0.0:4318
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+      - /proc/:/host/proc/:ro
+      - /sys/fs/cgroup:/host/sys/fs/cgroup:ro

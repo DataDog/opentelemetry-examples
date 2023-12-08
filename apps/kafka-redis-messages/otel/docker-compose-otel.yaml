@@ -1,0 +1,99 @@
+version: "3"
+services:
+  zookeeper-otel:
+    image: confluentinc/cp-zookeeper:latest
+    environment:
+      ZOOKEEPER_CLIENT_PORT: 2181
+      ZOOKEEPER_TICK_TIME: 2000
+    ports:
+      - 22181:2181
+
+  kafka-otel:
+    image: confluentinc/cp-kafka:latest
+    depends_on:
+      - zookeeper-otel
+    ports:
+      - 29092:29092
+    environment:
+      KAFKA_BROKER_ID: 1
+      KAFKA_ZOOKEEPER_CONNECT: zookeeper-otel:2181
+      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://kafka-otel:9092,PLAINTEXT_HOST://localhost:29092
+      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: PLAINTEXT:PLAINTEXT,PLAINTEXT_HOST:PLAINTEXT
+      KAFKA_INTER_BROKER_LISTENER_NAME: PLAINTEXT
+      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
+    healthcheck:
+      test: nc -z kafka-otel 9092
+      start_period: 10s
+      interval: 5s
+      timeout: 10s
+      retries: 10
+
+  redis-otel:
+    image: redis:alpine
+    container_name: redis-otel
+    user: redis
+    deploy:
+      resources:
+        limits:
+          memory: 20M
+    restart: always
+
+  calendar-producer-java-otel:
+    depends_on:
+      kafka-otel:
+        condition: service_healthy
+      datadog-agent-kafka-otel:
+        condition: service_started
+      redis-otel:
+        condition: service_started
+    container_name: calendar-producer-java-otel
+    build:
+      context: .
+      dockerfile: Dockerfile.calendar.java.otel
+    environment:
+      - OTEL_SERVICE_NAME=calendar-producer-java-otel
+      - OTEL_EXPORTER_OTLP_ENDPOINT=http://datadog-agent-kafka-otel:4317
+      - OTEL_RESOURCE_ATTRIBUTES=deployment.environment=otel-kafka,host.name=otelcol-docker
+      - SERVER_PORT=9090
+      - KAFKA_SERVERS=kafka-otel:9092
+      - REDIS_HOST=redis-otel
+    ports:
+      - "9090:9090"
+
+  calendar-consumer-go-otel:
+    depends_on:
+      kafka-otel:
+        condition: service_healthy
+      redis-otel:
+        condition: service_started
+    container_name: calendar-consumer-go-otel
+    build:
+      context: .
+      dockerfile: Dockerfile.calendar.go.otel
+    environment:
+      - OTEL_SERVICE_NAME=calendar-consumer-go-otel
+      - OTEL_EXPORTER_OTLP_ENDPOINT=http://datadog-agent-kafka-otel:4317
+      - OTEL_RESOURCE_ATTRIBUTES=deployment.environment=otel-kafka,host.name=otelcol-docker
+      - REDIS_HOST=redis-otel
+      - KAFKA_SERVERS=kafka-otel:9092
+
+  datadog-agent-kafka-otel:
+    container_name: datadog-agent-kafka-otel
+    image: "gcr.io/datadoghq/agent:latest"
+    pid: host
+    ports:
+      - 8125:8125
+      - 8126:8126
+      - 4317:4317
+      - 4318:4318
+    environment:
+      - DD_API_KEY=${DD_API_KEY}
+      - DD_SITE=datadoghq.com
+      - DD_APM_NON_LOCAL_TRAFFIC=true
+      - DD_DOGSTATSD_NON_LOCAL_TRAFFIC=true
+      - DD_OTLP_CONFIG_RECEIVER_PROTOCOLS_GRPC_ENDPOINT=0.0.0.0:4317
+      - DD_OTLP_CONFIG_RECEIVER_PROTOCOLS_HTTP_ENDPOINT=0.0.0.0:4318
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+      - /proc/:/host/proc/:ro
+      - /sys/fs/cgroup:/host/sys/fs/cgroup:ro

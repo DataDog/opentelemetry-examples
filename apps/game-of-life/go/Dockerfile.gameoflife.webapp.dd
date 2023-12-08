@@ -1,0 +1,19 @@
+# Unless explicitly stated otherwise all files in this repository are licensed
+# under the Apache 2.0 License.
+#
+FROM golang:1.20
+
+WORKDIR /app
+COPY game-of-life-dd game-of-life/
+COPY pb pb/
+
+WORKDIR /app/game-of-life
+RUN go mod download
+
+WORKDIR /app/game-of-life/webapp
+RUN go build -o /webapp
+
+EXPOSE 8080
+
+WORKDIR /
+CMD ./webapp -httpPort $HTTP_PORT -host $SERVER_ADDRESS -resources /app/game-of-life/webapp/resources

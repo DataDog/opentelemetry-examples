@@ -1,0 +1,56 @@
+version: "3.9"
+services:
+  calendar-java-dd:
+    depends_on:
+      - datadog-agent
+      - calendar-py-otel
+    container_name: calendar-java-dd
+    build:
+      context: .
+      dockerfile: Dockerfile.calendar.java.dd
+    environment:
+      - DD_SERVICE=calendar-java-dd
+      - DD_TRACE_AGENT_URL=http://datadog-agent:8126
+      - DD_ENV=docker
+      - DD_TRACE_PROPAGATION_STYLE=tracecontext
+      - DD_TRACE_128_BIT_TRACEID_GENERATION_ENABLED=true
+      - CALENDAR_SERVICE_URL=http://calendar-py-otel:9090
+      - SERVER_PORT=8080
+    ports:
+      - "8080:8080"
+
+  calendar-py-otel:
+    container_name: calendar-py-otel
+    build:
+      context: .
+      dockerfile: Dockerfile.calendar.py.otel
+    environment:
+      - OTEL_SERVICE_NAME=calendar-py-otel
+      - OTEL_EXPORTER_OTLP_ENDPOINT=http://datadog-agent:4317
+      - OTEL_RESOURCE_ATTRIBUTES=deployment.environment=docker,host.name=otelcol-docker
+      - OTEL_TRACES_EXPORTER=otlp
+      - OTEL_METRICS_EXPORTER=otlp
+      - SERVER_PORT=9090
+    ports:
+      - "9090:9090"
+
+  datadog-agent:
+    container_name: datadog-agent
+    image: "gcr.io/datadoghq/agent:latest"
+    pid: host
+    ports:
+      - 8125:8125
+      - 8126:8126
+      - 4317:4317
+      - 4318:4318
+    environment:
+      - DD_API_KEY
+      - DD_SITE=datadoghq.com
+      - DD_APM_NON_LOCAL_TRAFFIC=true
+      - DD_DOGSTATSD_NON_LOCAL_TRAFFIC=true
+      - DD_OTLP_CONFIG_RECEIVER_PROTOCOLS_GRPC_ENDPOINT=0.0.0.0:4317
+      - DD_OTLP_CONFIG_RECEIVER_PROTOCOLS_HTTP_ENDPOINT=0.0.0.0:4318
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+      - /proc/:/host/proc/:ro
+      - /sys/fs/cgroup:/host/sys/fs/cgroup:ro

@@ -1,0 +1,37 @@
+receivers:
+  otlp:
+    protocols:
+      grpc:
+        endpoint: 0.0.0.0:4317
+      http:
+        endpoint: 0.0.0.0:4318
+exporters:
+  logging:
+    verbosity: detailed
+  datadog:
+    traces:
+      span_name_as_resource_name: true
+    hostname: "otelcol-docker"
+    api:
+      key: ${DD_API_KEY}
+processors:
+  batch:
+  # using the dd processor to retain stats
+  datadog/processor:
+  # using the sampler
+  probabilistic_sampler:
+    sampling_percentage: 30
+service:
+  pipelines:
+    traces:
+      receivers: [otlp]
+      processors: [batch, datadog/processor]
+      exporters: [datadog]
+    metrics:
+      receivers: [otlp]
+      processors: [batch]
+      exporters: [datadog]
+    logs:
+      receivers: [otlp]
+      processors: [batch]
+      exporters: [datadog]

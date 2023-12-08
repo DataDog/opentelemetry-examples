@@ -1,0 +1,38 @@
+version: "3.9"
+services:
+  random-date-dotnet-dd:
+    depends_on:
+      - datadog-agent
+    container_name: random-date-dotnet-dd
+    build:
+      context: .
+      dockerfile: Dockerfile.RandomDateAPI.dd
+    environment:
+      - DD_SERVICE=random-date-dotnet-dd
+      - DD_ENV=docker
+      - DD_AGENT_HOST=datadog-agent
+      - DD_LOGS_INJECTION=true
+      - DD_RUNTIME_METRICS_ENABLED=true
+      - ASPNETCORE_URLS=http://+:5077
+    ports:
+      - "5077:5077"
+  datadog-agent:
+    container_name: datadog-agent
+    image: "gcr.io/datadoghq/agent:latest"
+    pid: host
+    ports:
+      - 8125:8125
+      - 8126:8126
+      - 4317:4317
+      - 4318:4318
+    environment:
+      - DD_API_KEY
+      - DD_SITE=datadoghq.com
+      - DD_APM_NON_LOCAL_TRAFFIC=true
+      - DD_DOGSTATSD_NON_LOCAL_TRAFFIC=true
+      - DD_OTLP_CONFIG_RECEIVER_PROTOCOLS_GRPC_ENDPOINT=0.0.0.0:4317
+      - DD_OTLP_CONFIG_RECEIVER_PROTOCOLS_HTTP_ENDPOINT=0.0.0.0:4318
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+      - /proc/:/host/proc/:ro
+      - /sys/fs/cgroup:/host/sys/fs/cgroup:ro

@@ -1,0 +1,34 @@
+agents:
+  nodeSelector:
+    alpha.eksctl.io/nodegroup-name: ng-2
+clusterAgent:
+  nodeSelector:
+    alpha.eksctl.io/nodegroup-name: ng-2
+datadog:
+  env:
+    # If set to true the OpenTelemetry span name will used in the Datadog resource name.
+    # If set to false the resource name will be filled with the instrumentation library name + span kind.
+    - name: DD_OTLP_CONFIG_TRACES_SPAN_NAME_AS_RESOURCE_NAME
+      value: true
+  dogstatsd:
+    port: 8125
+    useHostPort: true
+    nonLocalTraffic: true
+  collectEvents: true
+  apm:
+    portEnabled: true
+  logs:
+    enabled: true
+    containerCollectAll: true
+  networkMonitoring:
+    enabled: true
+  processAgent:
+    enabled: true
+    processCollection: true
+  otlp:
+    receiver:
+      protocols:
+        grpc:
+          enabled: true
+        http:
+          enabled: true

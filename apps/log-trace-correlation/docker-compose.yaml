@@ -1,0 +1,43 @@
+version: "3.9"
+services:
+
+  log-correlation-go-client:
+    depends_on:
+      - log-correlation-go-server
+    container_name: log-correlation-go-client
+    build:
+      context: .
+      dockerfile: Dockerfile.client
+    environment:
+      - OTEL_EXPORTER_OTLP_ENDPOINT=http://datadog-agent:4317
+      - OTEL_RESOURCE_ATTRIBUTES=service.name=log-correlation-go-client,deployment.environment=docker,service.version=0.1
+
+  log-correlation-go-server:
+    depends_on:
+      - datadog-agent
+    container_name: log-correlation-go-server
+    build:
+      context: .
+      dockerfile: Dockerfile.server
+    environment:
+      - OTEL_EXPORTER_OTLP_ENDPOINT=http://datadog-agent:4317
+      - OTEL_RESOURCE_ATTRIBUTES=service.name=log-correlation-go-server,deployment.environment=docker,service.version=0.1
+    ports:
+      - 3000:3000
+
+  datadog-agent:
+    container_name: datadog-agent
+    image: "gcr.io/datadoghq/agent:latest"
+    pid: host
+    ports:
+      - 4317:4317
+    environment:
+      - DD_API_KEY
+      - DD_OTLP_CONFIG_RECEIVER_PROTOCOLS_GRPC_ENDPOINT=0.0.0.0:4317
+      - DD_LOGS_ENABLED=true
+      - DD_LOGS_CONFIG_CONTAINER_COLLECT_ALL=true
+      - DD_CONTAINER_EXCLUDE=name:datadog-agent
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+      - /proc/:/host/proc/:ro
+      - /sys/fs/cgroup:/host/sys/fs/cgroup:ro

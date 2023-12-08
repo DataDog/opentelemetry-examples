@@ -1,0 +1,79 @@
+# This is a more complicated configuration: it does dual-shipping to EU and US,
+# and has two metrics pipelines. 
+# Explanations for parts present in minimal-config.yaml are omitted here.
+
+receivers:
+  otlp:
+    protocols:
+      grpc:
+  # The statsd receiver listens on localhost:8125 by default.
+  # https://github.com/open-telemetry/opentelemetry-collector-contrib/tree/main/receiver/statsdreceiver#readme
+  statsd:
+  # The hostmetrics receiver gets system metrics related to CPU, disk, memory...
+  hostmetrics:
+    # collect metrics every 10 seconds.
+    collection_interval: 10s
+    scrapers:
+      cpu:
+      disk:
+      filesystem:
+      memory:
+      network:
+      load:
+      paging:
+      processes:
+
+
+processors:
+  batch:
+   timeout: 10s
+  # resource modifies OTLP payloads resource section. Resource includes metadata like attributes (tags).
+  # https://github.com/open-telemetry/opentelemetry-collector-contrib/tree/main/processor/resourceprocessor#readme
+  resource:
+    attributes:
+      # Insert or overwrite the 'pipeline.name' attribute with value "metrics/statsd".
+      # Some names are special and defined in the OpenTelemetry specification.
+      # They are known as 'semantic conventions': https://github.com/open-telemetry/opentelemetry-specification/blob/main/specification/resource/semantic_conventions/README.md
+      - key: pipeline.name
+        value: "metrics/statsd"
+        action: upsert
+
+exporters:
+  # We define two datadog exporters that export to us1 and eu sites.
+  # The name needs to start with `datadog/`.
+  datadog/us:
+    api:
+      key: ${DD_API_KEY_US}
+    # Add resource attributes as tags
+    resource_attributes_as_tags: true
+  datadog/eu:
+    api:
+      key: ${DD_API_KEY_EU}
+      # site defines the Datadog site to send payloads to. By default it is us1.
+      site: datadoghq.eu
+    resource_attributes_as_tags: true
+
+# extensions are available for tasks that do not involve processing telemetry data.
+extensions:
+  # pprof exposes profiling Collector data.
+  pprof:
+
+service:
+  telemetry:
+    logs:
+      level: info
+
+  # extensions don't belong to a specific pipeline.
+  extensions: [pprof]
+
+  # pipelines defines the data pipelines. Multiple data pipelines for a type may be defined.
+  pipelines:
+    # Pipelines starting with `metrics` or `metrics/` define a metrics pipeline.
+    metrics/statsd:
+      receivers: [statsd, hostmetrics] # Order does not matter
+      processors: [batch, resource] # Processor transformations are applied in order
+      exporters: [datadog/eu, datadog/us] # Order does not matter
+    metrics/otlp:
+      receivers: [otlp] # Order does not matter
+      processors: [batch] # Processor transformations are applied in order
+      exporters: [datadog/us, datadog/eu] # Order does not matter

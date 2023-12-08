@@ -1,0 +1,65 @@
+mode: daemonset
+resources:
+  limits:
+    cpu: 512m
+    memory: 2Gi
+useGOMEMLIMIT: true
+nodeSelector:
+  alpha.eksctl.io/nodegroup-name: ng-experiment-1
+extraEnvs:
+  - name: POD_IP
+    valueFrom:
+      fieldRef:
+        fieldPath: status.podIP
+  - name: OTEL_RESOURCE_ATTRIBUTES
+    value: "k8s.pod.ip=$(POD_IP)"
+  - name: DD_API_KEY
+    valueFrom:
+      secretKeyRef:
+        name: datadog-secrets
+        key: api-key
+        optional: false
+  - name: OTEL_K8S_NAMESPACE
+    valueFrom:
+      fieldRef:
+        apiVersion: v1
+        fieldPath: metadata.namespace
+config:
+  receivers:
+    jaeger: null
+    zipkin: null
+    otlp:
+      protocols:
+        grpc:
+          endpoint: 0.0.0.0:4317
+        http:
+          endpoint: 0.0.0.0:4318
+  processors:
+    resourcedetection:
+      detectors: [env, eks]
+      timeout: 2s
+      override: false
+  exporters:
+    datadog:
+      metrics:
+        resource_attributes_as_tags: true
+        histograms:
+          mode: "counters"
+          send_count_sum_metrics: true
+      api:
+        key: "$DD_API_KEY"
+  service:
+    telemetry:
+      logs:
+        encoding: "json"
+        initial_fields:
+          - service: "otel-collector"
+    pipelines:
+      metrics:
+        receivers: [otlp]
+        processors: [resourcedetection, batch]
+        exporters: [datadog]
+      traces:
+        receivers: [otlp]
+        processors: [resourcedetection, batch]
+        exporters: [datadog]

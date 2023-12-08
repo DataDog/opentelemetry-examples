@@ -1,0 +1,67 @@
+# This is the minimal pipeline configuration we support for exporting to Datadog.
+# This file defines two pipelines, one for metrics and one for traces.
+#
+# Both of the pipelines do the following:
+#    OTLP receiver → Batch processor → Datadog exporter
+
+# The first three sections define the pipeline components.
+# Pipeline components MUST be included into a pipeline for them to be used, and
+# may be used by multiple pipelines at once. Not all components support all pipeline types.
+
+# `receivers` are how data gets into the Collector.
+receivers:
+  # The otlp receiver is the most common receiver. It is the default way to send data from
+  # OpenTelemetry instrumentation libraries. Documentation on the receiver is available here:
+  # https://github.com/open-telemetry/opentelemetry-collector/tree/main/receiver/otlpreceiver#readme
+  otlp:
+    # Protocols defines the protocols enabled for this receiver. At least one protocol must be enabled.
+    protocols:
+      # The presence of the http section enables the HTTP server on the default port (4318)
+      http:
+      # The presence of the gRPC section enables the gRPC server on the default port (4317)
+      grpc:
+
+# `processors` apply transformations to telemetry data.
+# Some processors are recommended in all pipelines:
+# https://github.com/open-telemetry/opentelemetry-collector/tree/main/processor#recommended-processors
+processors:
+  # The batch processor batches telemetry data into larger payloads.
+  # It is necessary for the Datadog traces exporter to work properly, and is recommended for any pipeline.
+  batch:
+    # The 10s timeout is necessary for the traces stats to work properly.
+    timeout: 10s
+
+# `exporters` are how data gets out of the Collector.
+exporters:
+  # The datadog exporter is necessary for exporting telemetry signals to Datadog.
+  # Other vendors use native OTLP ingestion (so they use the otlp exporters) but we don't support this.
+  # https://github.com/open-telemetry/opentelemetry-collector-contrib/tree/main/exporter/datadogexporter
+  datadog:
+    # The minimal configuration for the Datadog exporter is to set the api::key value with a valid API key.
+    api:
+      # You can use the "${ENV_VARIABLE}" syntax to pass values from environment variables.
+      # This is recommended for sensitive configuration fields like API keys.
+      key: ${DD_API_KEY}
+
+# `service` defines the Collector pipelines, observability settings and extensions.
+service:
+  # `telemetry` allows you to customize the Collector's own telemetry.
+  telemetry:
+    logs:
+      # Set the log level to info (the default)
+      level: info
+
+  # `pipelines` defines the data pipelines. Multiple data pipelines for a type may be defined.
+  pipelines:
+    # Pipelines starting with `metrics` or `metrics/` define a metrics pipeline.
+    metrics:
+      # This pipeline has an OTLP receiver, a batch processor and a Datadog exporter.
+      receivers: [otlp]
+      processors: [batch]
+      exporters: [datadog]
+    # Pipelines starting with `traces` or `traces/` define a traces pipeline.
+    traces:
+      # This pipeline has an OTLP receiver, a batch processor and a Datadog exporter.
+      receivers: [otlp]
+      processors: [batch]
+      exporters: [datadog]

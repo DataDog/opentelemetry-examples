@@ -1,0 +1,113 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: manual-container-metrics-app
+  labels:
+    helm.sh/chart: manual-container-metrics-app-0.1.0
+    app.kubernetes.io/name: manual-container-metrics-app
+    app.kubernetes.io/instance: manual-container-metrics-app
+    app.kubernetes.io/version: "1.16.0"
+    app.kubernetes.io/managed-by: Helm
+spec:
+  type: ClusterIP
+  ports:
+    - port: 3000
+      targetPort: http
+      protocol: TCP
+      name: http
+  selector:
+    app.kubernetes.io/name: manual-container-metrics-app
+    app.kubernetes.io/instance: manual-container-metrics-app
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: manual-container-metrics-app
+  labels:
+    helm.sh/chart: manual-container-metrics-app-0.1.0
+    app.kubernetes.io/name: manual-container-metrics-app
+    app.kubernetes.io/instance: manual-container-metrics-app
+    app.kubernetes.io/version: "1.16.0"
+    app.kubernetes.io/managed-by: Helm
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: manual-container-metrics-app
+      app.kubernetes.io/instance: manual-container-metrics-app
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: manual-container-metrics-app
+        app.kubernetes.io/instance: manual-container-metrics-app
+    spec:
+      securityContext:
+        {}
+      containers:
+        - name: manual-container-metrics-app
+          securityContext:
+            {}
+          image: "stanleyliu855/manual-container-metrics-app:v1.0.5"
+          imagePullPolicy: IfNotPresent
+          ports:
+            - name: http
+              containerPort: 3000
+              protocol: TCP
+          livenessProbe:
+            httpGet:
+              path: /liveness
+              port: http
+          readinessProbe:
+            httpGet:
+              path: /readiness
+              port: http
+          env:
+            - name: OTEL_SERVICE_NAME
+              value: manual-container-metrics-app
+            - name: OTEL_CONTAINER_NAME
+              value: manual-container-metrics-app
+            - name: OTEL_K8S_CONTAINER_ID
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.uid
+            - name: OTEL_K8S_NAMESPACE
+              valueFrom:
+                fieldRef:
+                  apiVersion: v1
+                  fieldPath: metadata.namespace
+            - name: OTEL_K8S_NODE_NAME
+              valueFrom:
+                fieldRef:
+                  apiVersion: v1
+                  fieldPath: spec.nodeName
+            - name: OTEL_K8S_POD_NAME
+              valueFrom:
+                fieldRef:
+                  apiVersion: v1
+                  fieldPath: metadata.name
+            - name: HOST_IP
+              valueFrom:
+                fieldRef:
+                  fieldPath: status.hostIP
+            - name: OTLP_GRPC_PORT
+              value: "4317"
+            - name: OTEL_EXPORTER_OTLP_ENDPOINT
+              value: 'http://$(HOST_IP):$(OTLP_GRPC_PORT)'
+            - name: OTEL_RESOURCE_ATTRIBUTES
+              value: >-
+                service.name=$(OTEL_SERVICE_NAME),
+                k8s.namespace.name=$(OTEL_K8S_NAMESPACE),
+                k8s.node.name=$(OTEL_K8S_NODE_NAME),
+                k8s.pod.name=$(OTEL_K8S_POD_NAME),
+                k8s.container.name=manual-container-metrics-app,
+                host.name=$(OTEL_K8S_NODE_NAME),
+                deployment.environment=$(OTEL_K8S_NAMESPACE),
+                container.name=$(OTEL_CONTAINER_NAME),
+                container.id=$(OTEL_K8S_CONTAINER_ID)
+          resources:
+            limits:
+              cpu: 1
+              memory: 1Gi
+            requests:
+              cpu: 1
+              memory: 1Gi

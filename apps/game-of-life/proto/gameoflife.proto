@@ -1,0 +1,25 @@
+syntax = "proto3";
+
+package gameoflifepb;
+
+option go_package = "github.com/DataDog/opentelemetry-examples/apps/game-of-life/go/pb";
+
+// Interface exported by the server.
+service GameOfLife { rpc RunGame(GameRequest) returns (GameResponse); }
+
+message GameRequest {
+  string board = 1;
+  int32 num_gens = 2;
+}
+
+enum ResponseCode {
+  UNKNOWN = 0;
+  OK = 1;
+  BAD_REQUEST = 2;
+}
+
+message GameResponse {
+  ResponseCode code = 1;
+  string error_message = 2;
+  string board = 3;
+}

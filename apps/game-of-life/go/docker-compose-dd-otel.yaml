@@ -1,0 +1,89 @@
+version: "3.9"
+services:
+  game-of-life-webapp-dd:
+    depends_on:
+      - datadog-agent
+    container_name: game-of-life-webapp-dd
+    build:
+      context: .
+      dockerfile: Dockerfile.gameoflife.webapp.dd
+    environment:
+      - DD_SERVICE=game-of-life-webapp-dd
+      - DD_ENV=docker
+      - DD_AGENT_HOST=datadog-agent
+      - DD_TRACE_AGENT_PORT=8126
+      - DD_RUNTIME_METRICS_ENABLED=true
+      - HTTP_PORT=8080
+      - SERVER_ADDRESS=game-of-life-server-dd:8081
+    ports:
+      - "8080:8080"
+  game-of-life-server-dd:
+    depends_on:
+      - datadog-agent
+    container_name: game-of-life-server-dd
+    build:
+      context: .
+      dockerfile: Dockerfile.gameoflife.server.dd
+    environment:
+      - DD_SERVICE=game-of-life-server-dd
+      - DD_ENV=docker
+      - DD_AGENT_HOST=datadog-agent
+      - DD_TRACE_AGENT_PORT=8126
+      - DD_RUNTIME_METRICS_ENABLED=true
+      - GRPC_PORT=8081
+      - HTTP_PORT=8082
+    ports:
+      - "8081:8081"
+      - "8082:8082"
+  game-of-life-webapp-otel:
+    depends_on:
+      - datadog-agent
+    container_name: game-of-life-webapp-otel
+    build:
+      context: .
+      dockerfile: Dockerfile.gameoflife.webapp.otel
+    environment:
+      - OTEL_SERVICE_NAME=game-of-life-webapp-otel
+      - OTEL_EXPORTER_OTLP_ENDPOINT=http://datadog-agent:4317
+      - OTEL_RESOURCE_ATTRIBUTES=deployment.environment=docker,host.name=otelcol-docker
+      - HTTP_PORT=8083
+      - SERVER_ADDRESS=game-of-life-server-otel:8084
+    ports:
+      - "8083:8083"
+  game-of-life-server-otel:
+    depends_on:
+      - datadog-agent
+    container_name: game-of-life-server-otel
+    build:
+      context: .
+      dockerfile: Dockerfile.gameoflife.server.otel
+    environment:
+      - OTEL_SERVICE_NAME=game-of-life-server-otel
+      - OTEL_EXPORTER_OTLP_ENDPOINT=http://datadog-agent:4317
+      - OTEL_RESOURCE_ATTRIBUTES=deployment.environment=docker,host.name=otelcol-docker
+      - GRPC_PORT=8084
+      - HTTP_PORT=8085
+    ports:
+      - "8084:8084"
+      - "8085:8085"
+  datadog-agent:
+    container_name: datadog-agent
+    image: "gcr.io/datadoghq/agent:latest"
+    pid: host
+    ports:
+      - 8125:8125
+      - 8126:8126
+      - 4317:4317
+      - 4318:4318
+    environment:
+      - DD_API_KEY
+      - DD_SITE=datadoghq.com
+      - DD_APM_ENABLED=true
+      - DD_APM_NON_LOCAL_TRAFFIC=true
+      - DD_DOGSTATSD_NON_LOCAL_TRAFFIC=true
+      - DD_OTLP_CONFIG_RECEIVER_PROTOCOLS_GRPC_ENDPOINT=0.0.0.0:4317
+      - DD_OTLP_CONFIG_RECEIVER_PROTOCOLS_HTTP_ENDPOINT=0.0.0.0:4318
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+      - /proc/:/host/proc/:ro
+      - /sys/fs/cgroup:/host/sys/fs/cgroup:ro

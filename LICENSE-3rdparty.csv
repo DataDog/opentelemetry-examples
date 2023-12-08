@@ -1,0 +1,122 @@
+Component,Origin,License,Copyright
+logrus,github.com/sirupsen/logrus,MIT,Copyright (c) 2014 Simon Eskildsen
+dd-trace-go,gopkg.in/DataDog/dd-trace-go.v1,Apache-2.0,"Copyright (c) 2016-Present, Datadog <info@datadoghq.com>"
+mock,github.com/golang/mock,Apache-2.0,Copyright 2022 Google LLC
+go-grpc-middleware,github.com/grpc-ecosystem/go-grpc-middleware,Apache-2.0,Copyright (c) The go-grpc-middleware Authors
+errors,github.com/pkg/errors,BSD-2-Clause,"Copyright (c) 2015, Dave Cheney <dave@cheney.net>"
+zap,go.uber.org/zap,MIT,"Copyright (c) 2016-2017 Uber Technologies, Inc."
+grpc,google.golang.org/grpc,Apache-2.0,Copyright 2023 gRPC authors
+testify,github.com/stretchr/testify,MIT,"Copyright (c) 2012-2020 Mat Ryer, Tyler Bunnell and contributors"
+otelgrpc,go.opentelemetry.io/contrib/instrumentation/google.golang.org/grpc/otelgrpc,Apache-2.0,Copyright The OpenTelemetry Authors
+otelhttp,go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp,Apache-2.0,Copyright The OpenTelemetry Authors
+otel-runtime,go.opentelemetry.io/contrib/instrumentation/runtime,Apache-2.0,Copyright The OpenTelemetry Authors
+otel,go.opentelemetry.io/otel,Apache-2.0,Copyright The OpenTelemetry Authors
+otlpmetricgrpc,go.opentelemetry.io/otel/exporters/otlp/otlpmetric/otlpmetricgrpc,Apache-2.0,Copyright The OpenTelemetry Authors
+otlptracegrpc,go.opentelemetry.io/otel/exporters/otlp/otlptrace/otlptracegrpc,Apache-2.0,Copyright The OpenTelemetry Authors
+otel-metric,go.opentelemetry.io/otel/metric,Apache-2.0,Copyright The OpenTelemetry Authors
+otel-sdk,go.opentelemetry.io/otel/sdk,Apache-2.0,Copyright The OpenTelemetry Authors
+otel-sdk-metric,go.opentelemetry.io/otel/sdk/metric,Apache-2.0,Copyright The OpenTelemetry Authors
+otel-trace,go.opentelemetry.io/otel/trace,Apache-2.0,Copyright The OpenTelemetry Authors
+protobuf,google.golang.org/protobuf,BSD-3-Clause,Copyright (c) 2018 The Go Authors
+sarama,github.com/Shopify/sarama,MIT,"Copyright (c) 2013 Shopify, Copyright (c) 2023 IBM Corporation"
+otelsarama,go.opentelemetry.io/contrib/instrumentation/github.com/Shopify/sarama/otelsarama,Apache-2.0,Copyright The OpenTelemetry Authors
+go-redis,github.com/go-redis/redis/v8,BSD-2-Clause,Copyright (c) 2013 The github.com/redis/go-redis Authors
+go-redis-otel,github.com/redis/go-redis/extra/redisotel/v9,BSD-2-Clause,Copyright (c) 2013 The github.com/go-redis/redis Authors
+stdoutmetric,go.opentelemetry.io/otel/exporters/stdout/stdoutmetric,Apache-2.0,Copyright The OpenTelemetry Authors
+opencensus,go.opencensus.io,Apache-2.0,"Copyright 2019, OpenCensus Authors"
+opencensus-bridge,go.opentelemetry.io/otel/bridge/opencensus,Apache-2.0,Copyright The OpenTelemetry Authors
+
+spring-boot-starter-web,org.springframework.boot,Apache-2.0,
+spring-boot-starter-test,org.springframework.boot,Apache-2.0,
+jedis,redis.clients,MIT,
+logstash-logback-encoder,net.logstash.logback,Apache-2.0,
+logback-classic,ch.qos.logback,EPL-1.0,
+logback-core,ch.qos.logback,EPL-1.0,
+sl4j-api,org.slf4j,MIT,
+kafka-clients,org.apache.kafka,Apache-2.0,
+opentracing-api,io.opentracing,Apache-2.0,
+opentracing-util,io.opentracing,Apache-2.0,
+opentelemetry-api,io.opentelemetry,Apache-2.0,Copyright The OpenTelemetry Authors
+opentelemetry-sdk,io.opentelemetry,Apache-2.0,Copyright The OpenTelemetry Authors
+opentelemetry-kafka-clients,io.opentelemetry.instrumentation,Apache-2.0,Copyright The OpenTelemetry Authors
+opentelemetry-logback-appender,io.opentelemetry.instrumentation,Apache-2.0,Copyright The OpenTelemetry Authors
+
+aspnetcore-openapi,Microsoft.AspNetCore.OpenApi,MIT,Copyright (c) .NET Foundation and Contributors
+swashbuckle-aspnetcore,Swashbuckle.AspNetCore,MIT,Copyright (c) 2016 Richard Morris
+opentelemetry-exporter-console,OpenTelemetry.Exporter.Console,Apache-2.0,Copyright The OpenTelemetry Authors
+opentelemetry-exporter-opentelemetryprotocol,OpenTelemetry.Exporter.OpenTelemetryProtocol,Apache-2.0,Copyright The OpenTelemetry Authors
+opentelemetry-extensions-hosting,OpenTelemetry.Extensions.Hosting,Apache-2.0,Copyright The OpenTelemetry Authors
+opentelemetry-instrumentation-aspnetcore,OpenTelemetry.Instrumentation.AspNetCore,Apache-2.0,Copyright The OpenTelemetry Authors
+opentelemetry-instrumentation-runtime,OpenTelemetry.Instrumentation.Runtime,Apache-2.0,Copyright The OpenTelemetry Authors
+
+opentelemetry/api,@opentelemetry/api,Apache-2.0,Copyright The OpenTelemetry Authors
+opentelemetry/auto-instrumentations-node,@opentelemetry/auto-instrumentations-node,Apache-2.0,Copyright The OpenTelemetry Authors
+opentelemetry/instrumentation-pg,@opentelemetry/instrumentation-pg,Apache-2.0,Copyright The OpenTelemetry Authors
+body-parser,body-parser,MIT,Copyright(c) 2014-2015 Douglas Christopher Wilson
+express,express,MIT,Copyright (c) 2014-2015 Douglas Christopher Wilson <doug@somethingdoug.com>
+node-postgres,pg,MIT,Copyright (c) 2010 - 2021 Brian Carlson
+node-sqlite3,sqlite3,BSD-3-Clause,Copyright (c) MapBox
+
+blinker,blinker,MIT,Copyright 2010 Jason Kirtland
+brotli,Brotli,MIT,"Copyright (c) 2009, 2010, 2013-2016 by the Brotli Authors"
+python-certifi,certifi,MPL-2.0,
+charset-normalizer,charset-normalizer,MIT,Copyright (c) 2019 TAHRI Ahmed R
+click,click,BSD-3-Clause,Copyright 2014 Pallets
+configargparse,ConfigArgParse,MIT,Copyright (c) 2015 bw2
+flask,Flask,BSD-3-Clause,Copyright 2010 Pallets
+flask-basicauth,Flask-BasicAuth,BSD-3-Clause,"Copyright (c) 2013, Janne Vanhala"
+flask-cors,Flask-Cors,MIT,"Copyright (C) 2016 Cory Dolphin, Olin College"
+gevent,gevent,MIT,"Denis Bilenko and the contributors, http://www.gevent.org"
+geventhttpclient,geventhttpclient,MIT,Antonin Amand <antonin.amand@gmail.com>
+greenlet,greenlet,MIT,"Copyright (c) Armin Rigo, Christian Tismer and contributors"
+idna,idna,BSD-3-Clause,"Copyright (c) 2013-2022, Kim Davies and contributors"
+importlib-metadata,importlib-metadata,Apache-2.0,
+itsdangerous,itsdangerous,BSD-3-Clause,Copyright 2011 Pallets
+jinja,Jinja2,BSD-3-Clause,Copyright 2007 Pallets
+locust,locust,MIT,"Copyright (c) 2009-2010, Carl Byström, Jonatan Heyman"
+markupsafe,MarkupSafe,BSD-3-Clause,Copyright 2010 Pallets
+msgpack,msgpack,Apache-2.0,Copyright (C) 2008-2011 INADA Naoki <songofacandy@gmail.com>
+psutil,psutil,BSD-3-Clause,"Copyright (c) 2009, Jay Loden, Dave Daeschler, Giampaolo Rodola"
+pyzmq,pyzmq,BSD-3-Clause,"Copyright (c) 2009-2012, Brian Granger, Min Ragan-Kelley"
+requests,requests,Apache-2.0,Copyright 2019 Kenneth Reitz
+roundrobin,roundrobin,MIT,Copyright (c) 2020 Vyacheslav Linnik
+six,six,MIT,Copyright (c) 2010-2020 Benjamin Peterson
+urllib3,urllib3,MIT,Copyright (c) 2008-2020 Andrey Petrov and contributors
+werkzeug,Werkzeug,BSD-3-Clause,Copyright 2007 Pallets
+zipp,zipp,MIT,
+zope.event,zope.event,ZPL-2.1,"2010-2018, Zope Foundation and Contributors"
+zope.interface,zope.interface,ZPL-2.1,"2012-2023, Zope Foundation contributors"
+backoff,backoff,MIT,"Copyright (c) 2014 litl, LLC"
+certifi,certifi,MPL-2.0,
+deprecated,Deprecated,MIT,Copyright (c) 2017 Laurent LAPORTE
+googleapis-common-protos,googleapis-common-protos,Apache-2.0,Copyright 2023 Google LLC
+grpcio,grpcio,Apache-2.0,Copyright 2023 The gRPC Authors
+opentelemetry-api,opentelemetry-api,Apache-2.0,Copyright The OpenTelemetry Authors
+opentelemetry-distro,opentelemetry-distro,Apache-2.0,Copyright The OpenTelemetry Authors
+opentelemetry-exporter-otlp,opentelemetry-exporter-otlp,Apache-2.0,Copyright The OpenTelemetry Authors
+opentelemetry-exporter-otlp-proto-common,opentelemetry-exporter-otlp-proto-common,Apache-2.0,Copyright The OpenTelemetry Authors
+opentelemetry-exporter-otlp-proto-grpc,opentelemetry-exporter-otlp-proto-grpc,Apache-2.0,Copyright The OpenTelemetry Authors
+opentelemetry-exporter-otlp-proto-http,opentelemetry-exporter-otlp-proto-http,Apache-2.0,Copyright The OpenTelemetry Authors
+opentelemetry-instrumentation,opentelemetry-instrumentation,Apache-2.0,Copyright The OpenTelemetry Authors
+opentelemetry-instrumentation-aws-lambda,opentelemetry-instrumentation-aws-lambda,Apache-2.0,Copyright The OpenTelemetry Authors
+opentelemetry-instrumentation-dbapi,opentelemetry-instrumentation-dbapi,Apache-2.0,Copyright The OpenTelemetry Authors
+opentelemetry-instrumentation-flask,opentelemetry-instrumentation-flask,Apache-2.0,Copyright The OpenTelemetry Authors
+opentelemetry-instrumentation-grpc,opentelemetry-instrumentation-grpc,Apache-2.0,Copyright The OpenTelemetry Authors
+opentelemetry-instrumentation-jinja2,opentelemetry-instrumentation-jinja2,Apache-2.0,Copyright The OpenTelemetry Authors
+opentelemetry-instrumentation-logging,opentelemetry-instrumentation-logging,Apache-2.0,Copyright The OpenTelemetry Authors
+opentelemetry-instrumentation-requests,opentelemetry-instrumentation-requests,Apache-2.0,Copyright The OpenTelemetry Authors
+opentelemetry-instrumentation-sqlite3,opentelemetry-instrumentation-sqlite3,Apache-2.0,Copyright The OpenTelemetry Authors
+opentelemetry-instrumentation-urllib,opentelemetry-instrumentation-urllib,Apache-2.0,Copyright The OpenTelemetry Authors
+opentelemetry-instrumentation-urllib3,opentelemetry-instrumentation-urllib3,Apache-2.0,Copyright The OpenTelemetry Authors
+opentelemetry-instrumentation-wsgi,opentelemetry-instrumentation-wsgi,Apache-2.0,Copyright The OpenTelemetry Authors
+opentelemetry-propagator-aws-xray,opentelemetry-propagator-aws-xray,Apache-2.0,Copyright The OpenTelemetry Authors
+opentelemetry-proto,opentelemetry-proto,Apache-2.0,Copyright The OpenTelemetry Authors
+opentelemetry-sdk,opentelemetry-sdk,Apache-2.0,Copyright The OpenTelemetry Authors
+opentelemetry-semantic-conventions,opentelemetry-semantic-conventions,Apache-2.0,Copyright The OpenTelemetry Authors
+opentelemetry-util-http,opentelemetry-util-http,Apache-2.0,Copyright The OpenTelemetry Authors
+packaging,packaging,Apache-2.0,Copyright (c) Donald Stufft and individual contributors
+protobuf,protobuf,BSD-3-Clause,Copyright 2008 Google Inc. All rights reserved.
+typing-extensions,typing_extensions,PSF-2.0,"Copyright (c) 1991 - 1995, Stichting Mathematisch Centrum Amsterdam, The Netherlands.  All rights reserved."
+wrapt,wrapt,BSD-2-Clause,"Copyright (c) 2013-2023, Graham Dumpleton All rights reserved."
+psycopg2-binary,psycopg2-binary,LGPL-3.0-or-later,"2001-2021, Federico Di Gregorio, Daniele Varrazzo, The Psycopg Team"
+ddtrace,ddtrace,Apache-2.0,"Copyright (c) 2016, Datadog <info@datadoghq.com>"

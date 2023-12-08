@@ -1,0 +1,42 @@
+version: '3.9'
+networks:
+  default:
+    name: opentelemetry-demo
+    driver: bridge
+services:
+  calendar:
+    depends_on:
+      - otelcol
+    container_name: calendar
+    build:
+      context: ../../
+      dockerfile: deploys/Dockerfile.otel
+    image: calendar-rest.otel
+    environment:
+      - OTEL_SERVICE_NAME=calendar-otel
+      - OTEL_EXPORTER_OTLP_ENDPOINT=http://otelcol:4317
+      - OTEL_LOGS_EXPORTER=otlp
+      - OTEL_RESOURCE_ATTRIBUTES=deployment.environment=docker,host.name=otelcol-docker
+    ports:
+      - "9090:9090"
+  # open-telemetry collector
+  otelcol:
+    image: otel/opentelemetry-collector-contrib:latest
+    container_name: otel-col
+    deploy:
+      resources:
+        limits:
+          memory: 100M
+    environment:
+      - DD_API_KEY
+    restart: always
+    command: ["--config=/etc/otelcol-config.yml"]
+    volumes:
+      - ../../src/main/resources/otelcol-config.yaml:/etc/otelcol-config.yml
+    ports:
+      - "4317:4317" # OTLP over gRPC receiver
+      - "4318:4318" # OTLP over HTTP receiver
+      - "9464" # Prometheus exporter
+      - "8888" # metrics endpoint
+
+#

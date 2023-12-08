@@ -1,0 +1,57 @@
+receivers:
+  otlp:
+    protocols:
+      grpc:
+      http:
+  hostmetrics:
+    collection_interval: 10s
+    scrapers:
+      cpu:
+      disk:
+      filesystem:
+      load:
+      memory:
+      network:
+  filelog:
+    include:
+      - log.json
+    include_file_path: true
+    include_file_path_resolved: true
+    include_file_name_resolved: true
+    start_at: end
+    poll_interval: 500ms
+    operators:
+      # Detect pod, namespace, and container names from the file name.
+      - id: parse_body
+        type: json_parser
+
+exporters:
+  logging:
+    loglevel: debug
+  datadog/api:
+    host_metadata:
+      tags:
+        - otlp:true
+        - example:tag
+    api:
+      key: "${DD_API_KEY}"
+
+processors:
+  batch:
+    timeout: 10s
+  resourcedetection:
+    detectors: [system]
+
+service:
+  telemetry:
+    logs:
+      level: debug
+  pipelines:
+    traces:
+      receivers: [otlp]
+      processors: [batch,resourcedetection]
+      exporters: [logging, datadog/api]
+    logs:
+      receivers: [filelog]
+      processors: [batch, resourcedetection]
+      exporters: [datadog/api]

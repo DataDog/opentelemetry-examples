@@ -1,0 +1,31 @@
+mode: daemonset
+config:
+  receivers:
+    otlp:
+      protocols:
+        grpc:
+          endpoint: ${env:MY_POD_IP}:5317
+        http:
+          endpoint: ${env:MY_POD_IP}:5318
+  exporters:
+    datadog:
+      api:
+        key: "$DD_API_KEY"
+  service:
+    telemetry:
+      metrics:
+        address: ":8888"
+    pipelines:
+      traces:
+        receivers:
+          - otlp
+        exporters:
+          - datadog
+
+extraEnvs:
+  - name: DD_API_KEY
+    valueFrom:
+      secretKeyRef:
+        name: datadog-secrets
+        key: api-key
+        optional: false

@@ -1,0 +1,90 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "calendar.fullname" . }}
+  labels:
+    {{- include "calendar.labels" . | nindent 4 }}
+spec:
+  {{- if not .Values.autoscaling.enabled }}
+  replicas: {{ .Values.replicaCount }}
+  {{- end }}
+  selector:
+    matchLabels:
+      {{- include "calendar.selectorLabels" . | nindent 6 }}
+  template:
+    metadata:
+      {{- with .Values.podAnnotations }}
+      annotations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      labels:
+        {{- include "calendar.selectorLabels" . | nindent 8 }}
+    spec:
+      {{- with .Values.imagePullSecrets }}
+      imagePullSecrets:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      securityContext:
+        {{- toYaml .Values.podSecurityContext | nindent 8 }}
+      volumes:
+        - hostPath:
+              path: /var/run/datadog/
+          name: dsdsocket
+      containers:
+        - name: {{ .Chart.Name }}
+          securityContext:
+            {{- toYaml .Values.securityContext | nindent 12 }}
+          image: "{{ .Values.image.repository }}:{{ .Values.image.tag | default .Chart.AppVersion }}"
+          imagePullPolicy: {{ .Values.image.pullPolicy }}
+          volumeMounts:
+            - name: dsdsocket
+              mountPath: /var/run/datadog
+              readOnly: true
+          ports:
+            - name: http
+              containerPort: {{ .Values.service.port }}
+              protocol: TCP
+          livenessProbe:
+            grpc:
+              port: {{ .Values.service.port }}
+          readinessProbe:
+            grpc:
+              port: {{ .Values.service.port }}
+          env:
+            - name: DD_SERVICE
+              value: {{ include "calendar.fullname" . }}
+            - name: DD_ENV
+              valueFrom:
+                fieldRef:
+                  apiVersion: v1
+                  fieldPath: metadata.namespace
+            - name: HOST_IP
+              valueFrom:
+               fieldRef:
+                  fieldPath: status.hostIP
+            - name: DD_VERSION
+              value: "1.0-beta"
+            - name: DD_TRACE_OTEL_ENABLED
+              value: "true"
+            - name: DD_TRACE_PROPAGATION_STYLE_INJECT
+              value: "tracecontext"
+            - name: DD_TRACE_PROPAGATION_STYLE_EXTRACT
+              value: "tracecontext"
+            - name: SERVER_PORT
+              value: "9090"
+            - name: DD_AGENT_HOST
+              value: $(HOST_IP)
+          resources:
+            {{- toYaml .Values.resources | nindent 12 }}
+      {{- with .Values.node_group }}
+      nodeSelector:
+        alpha.eksctl.io/nodegroup-name: {{ $.Values.node_group}}
+      {{- end }}
+      {{- with .Values.affinity }}
+      affinity:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.tolerations }}
+      tolerations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}

@@ -1,0 +1,19 @@
+# Unless explicitly stated otherwise all files in this repository are licensed
+# under the Apache 2.0 License.
+#
+FROM openjdk:17-buster
+
+RUN apt-get update -y; apt-get install curl -y --no-install-recommends
+
+WORKDIR /home/otel
+RUN curl -Lo dd-java-agent.jar https://dtdg.co/latest-java-tracer
+
+COPY . calendar/  
+
+WORKDIR /home/otel/calendar
+
+#Compile with gradle
+RUN ./gradlew build
+
+ENTRYPOINT ["java","-javaagent:../dd-java-agent.jar",  "-jar" , "build/libs/calendar-0.0.1-SNAPSHOT.jar"]
+EXPOSE 8080

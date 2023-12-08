@@ -1,0 +1,56 @@
+version: "3.9"
+services:
+  game-of-life-webapp:
+    depends_on:
+      - datadog-agent
+    container_name: game-of-life-webapp
+    build:
+      context: .
+      dockerfile: Dockerfile.gameoflife.webapp.dd
+    environment:
+      - DD_SERVICE=game-of-life-webapp-dd
+      - DD_ENV=docker
+      - DD_AGENT_HOST=datadog-agent
+      - DD_TRACE_AGENT_PORT=8126
+      - DD_RUNTIME_METRICS_ENABLED=true
+      - HTTP_PORT=8080
+      - SERVER_ADDRESS=game-of-life-server:8081
+    ports:
+      - "8080:8080"
+  game-of-life-server:
+    depends_on:
+      - datadog-agent
+    container_name: game-of-life-server
+    build:
+      context: .
+      dockerfile: Dockerfile.gameoflife.server.dd
+    environment:
+      - DD_SERVICE=game-of-life-server-dd
+      - DD_ENV=docker
+      - DD_AGENT_HOST=datadog-agent
+      - DD_TRACE_AGENT_PORT=8126
+      - DD_RUNTIME_METRICS_ENABLED=true
+      - GRPC_PORT=8081
+      - HTTP_PORT=8082
+    ports:
+      - "8081:8081"
+      - "8082:8082"
+  datadog-agent:
+    container_name: datadog-agent
+    image: "gcr.io/datadoghq/agent:latest"
+    pid: host
+    ports:
+      - 8125:8125
+      - 8126:8126
+      - 4317:4317
+      - 4318:4318
+    environment:
+      - DD_API_KEY
+      - DD_SITE=datadoghq.com
+      - DD_APM_ENABLED=true
+      - DD_APM_NON_LOCAL_TRAFFIC=true
+      - DD_DOGSTATSD_NON_LOCAL_TRAFFIC=true
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+      - /proc/:/host/proc/:ro
+      - /sys/fs/cgroup:/host/sys/fs/cgroup:ro

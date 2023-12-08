@@ -1,0 +1,45 @@
+version: '3.9'
+networks:
+  default:
+    name: opentelemetry-demo
+    driver: bridge
+services:
+  calendar:
+    depends_on:
+      - datadog-agent
+    container_name: calendar
+    build:
+      context: ../../
+      dockerfile: deploys/Dockerfile.calendar.java.dd
+    image: calendar-rest.dd
+    environment:
+      - DD_SERVICE=calendar-dd
+      - DD_ENV=docker
+      - DD_VERSION=1.0-beta
+      - DD_TRACE_OTEL_ENABLED=true
+      - OTEL_LOGS_EXPORTER=otlp
+      - DD_TRACE_PROPAGATION_STYLE_INJECT=tracecontext
+      - DD_TRACE_PROPAGATION_STYLE_EXTRACT=tracecontext
+      - SERVER_PORT=9090
+      - DD_AGENT_HOST=datadog-agent
+    ports:
+      - "9090:9090"
+  datadog-agent:
+    container_name: datadog-agent
+    image: "datadog/agent-dev:master"
+    pid: host
+    ports:
+      - 4317:4317
+    environment:
+      - DD_API_KEY
+      - DD_OTLP_CONFIG_RECEIVER_PROTOCOLS_GRPC_ENDPOINT=0.0.0.0:4317
+      - DD_OTLP_CONFIG_LOGS_ENABLED=true
+      - DD_APM_NON_LOCAL_TRAFFIC=true
+      - DD_DOGSTATSD_NON_LOCAL_TRAFFIC=true
+      - DD_LOGS_ENABLED=true
+      - DD_LOGS_CONFIG_CONTAINER_COLLECT_ALL=true
+      - DD_CONTAINER_EXCLUDE=name:datadog-agent
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+      - /proc/:/host/proc/:ro
+      - /sys/fs/cgroup:/host/sys/fs/cgroup:ro
