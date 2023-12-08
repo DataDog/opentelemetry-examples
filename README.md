@@ -6,20 +6,20 @@ This repository includes example applications and configurations for Datadog use
 
 ## Index
 
-| Example  | Use Cases |
-| ------------- | ------------- |
-| [Game of Life][2]  | Go client-server app using gRPC, OTel Go and dd-trace-go instrumentations  |
-| [Kafka Redis Messages][3] | Distributed app with Kafka and Redis, OTel and Datadog instrumentations  |
-| [Log Trace Correlation][4] | Go client-server app demonstrating log trace correlation in Datadog, OTel instrumentation with Datadog Agent |
-| [Manual Container Metrics][5] | Go server demonstrating container metrics correlating with traces in the Datadog trace app, OTel Go instrumentation with OTel Collector  |
-| .[NET REST Service][6] | .NET API app, OTel .NET and dd-trace-dotnet instrumentations  |
-| [Go REST Service][7] | Go HTTP app, OTel Go instrumentation  |
-| [Java REST Service][8] | Java HTTP app, OTel Java and dd-trace-java instrumentation, probabilistic sampler processor |
-| [JavaScript REST Service][9] | Node.js API app, OTel Node.js auto instrumentation |
-| [Python REST Service][10] | CRUD API apps for both SQLite & Postgres, OTel Python auto instrumentation  |
-| [RPC][11] | Go client-server gRPC app, OpenCensus gRPC plug-in, OpenCensus Bridge from OpenTelemetry, OTLP exporter  |
-| [Span Links][12] | Distributed app with OTel span links, OTel Go and Java instrumentations |
-| [W3C Trace Context][13] | Java and Python app to demonstrate W3C trace context propagation between OTel and DD instrumented apps |
+| Example  | Description | Monitoring Capabilities |
+| ------------- | ------------- | ------------- |
+| [Game of Life][2]  | Go client-server app using gRPC, OTel Go and dd-trace-go instrumentations | Tracing gRPC and HTTP endpoints, OTLP metrics and logs, runtime metrics |
+| [Kafka Redis Messages][3] | Distributed app with Kafka and Redis, OTel and Datadog instrumentations | Kafka, Redis |
+| [Log Trace Correlation][4] | Go client-server app automatically generating traces and logs, OTel instrumentation with Datadog Agent | Log trace correlation |
+| [Manual Container Metrics][5] | Go server manually generating OTel container metrics, OTel Go instrumentation with OTel Collector | Container metrics correlating with traces in the trace app |
+| .[NET REST Service][6] | .NET API app, OTel .NET and dd-trace-dotnet instrumentations | Tracing, runtime metrics |
+| [Go REST Service][7] | Go HTTP app, OTel Go instrumentation | Tracing HTTP endpoint, OTel metrics, runtime metrics |
+| [Java REST Service][8] | Java HTTP app, OTel Java and dd-trace-java instrumentation, probabilistic sampler processor | Ingestion sampling, runtime metrics |
+| [JavaScript REST Service][9] | Node.js API app, OTel Node.js auto instrumentation | Auto instrumented traces |
+| [Python REST Service][10] | CRUD API apps, OTel Python auto instrumentation | SQLite & Postgres |
+| [RPC][11] | Go client-server gRPC Hello World app | Tracing gRPC endpoint, gRPC metrics using OpenCensus bridge |
+| [Span Links][12] | Distributed app with Kafka messages, OTel Go and Java instrumentations | OTel span links |
+| [W3C Trace Context][13] | Java and Python app to demonstrate W3C trace context propagation between OTel and DD instrumented apps | W3C trace context, runtime metrics |
 
 
 [1]: https://opentelemetry.io/
