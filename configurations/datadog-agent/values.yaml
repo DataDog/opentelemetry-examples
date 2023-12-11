@@ -1,9 +1,3 @@
-agents:
-  nodeSelector:
-    alpha.eksctl.io/nodegroup-name: ng-2
-clusterAgent:
-  nodeSelector:
-    alpha.eksctl.io/nodegroup-name: ng-2
 datadog:
   env:
     # If set to true the OpenTelemetry span name will used in the Datadog resource name.
