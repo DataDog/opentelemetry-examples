@@ -34,7 +34,7 @@ require (
 	github.com/rogpeppe/go-internal v1.8.1 // indirect
 	github.com/secure-systems-lab/go-securesystemslib v0.4.0 // indirect
 	github.com/stretchr/testify v1.8.2 // indirect
-	github.com/theupdateframework/go-tuf v0.3.0 // indirect
+	github.com/theupdateframework/go-tuf v0.3.2 // indirect
 	github.com/tinylib/msgp v1.1.6 // indirect
 	go.uber.org/atomic v1.10.0 // indirect
 	go.uber.org/goleak v1.2.1 // indirect
