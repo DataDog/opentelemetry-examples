@@ -23,8 +23,6 @@ spec:
         app.kubernetes.io/name: calendar-rest-go
         app.kubernetes.io/instance: calendar-rest-go
     spec:
-      nodeSelector:
-        alpha.eksctl.io/nodegroup-name: ng-experiment-1
       containers:
         - name: calendar-rest-go
           image: dineshgurumurthydd/apps:calendar-go-rest-0.6

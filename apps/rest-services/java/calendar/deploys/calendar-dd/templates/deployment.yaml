@@ -74,10 +74,6 @@ spec:
               value: $(HOST_IP)
           resources:
             {{- toYaml .Values.resources | nindent 12 }}
-      {{- with .Values.node_group }}
-      nodeSelector:
-        alpha.eksctl.io/nodegroup-name: {{ $.Values.node_group}}
-      {{- end }}
       {{- with .Values.affinity }}
       affinity:
         {{- toYaml . | nindent 8 }}

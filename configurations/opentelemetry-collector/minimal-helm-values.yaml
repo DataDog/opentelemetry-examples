@@ -4,8 +4,6 @@ resources:
     cpu: 512m
     memory: 2Gi
 useGOMEMLIMIT: true
-nodeSelector:
-  alpha.eksctl.io/nodegroup-name: ng-experiment-1
 extraEnvs:
   - name: POD_IP
     valueFrom:
