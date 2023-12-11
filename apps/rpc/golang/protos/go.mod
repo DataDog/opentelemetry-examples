@@ -3,7 +3,7 @@ module github.com/DataDog/opentelemetry-examples/apps/rpc/protos
 go 1.20
 
 require (
-	google.golang.org/grpc v1.57.0
+	google.golang.org/grpc v1.57.1
 	google.golang.org/protobuf v1.31.0
 )
 
