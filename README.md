@@ -1,6 +1,6 @@
 # OpenTelemetry Examples
 
-This repository includes example applications and configurations for Datadog users, engineers, and support to understand how Datadog support of [OpenTelemetry][1] works today. These examples are intended to serve as references for learning how to integrate OpenTelemetry instrumented applications with Datadog products, and can be run independently to experiment with OpenTelemetry behaviors. Available resources are:
+The repository includes example applications and configurations for Datadog users, engineers, and support to understand how Datadog support of [OpenTelemetry][1] works today. These examples provide reference material for integrating OpenTelemetry instrumented applications with Datadog products and allow independent experimentation with OpenTelemetry behaviors. The available resources include:
 - [Common mistakes][14] for common mistakes or confusions end-users face when using OpenTelemetry.
 - [Configurations][15] for configuration examples of the Datadog Agent and the OpenTelemetry Collector.
 
@@ -11,7 +11,7 @@ This repository includes example applications and configurations for Datadog use
 | [Game of Life][2]  | Go client-server app using gRPC, OTel Go and dd-trace-go instrumentations | Tracing gRPC and HTTP endpoints, OTLP metrics and logs, runtime metrics |
 | [Kafka Redis Messages][3] | Distributed app with Kafka and Redis, OTel and Datadog instrumentations | Kafka, Redis |
 | [Log Trace Correlation][4] | Go client-server app automatically generating traces and logs, OTel instrumentation with Datadog Agent | Log trace correlation |
-| [Manual Container Metrics][5] | Go server manually generating OTel container metrics, OTel Go instrumentation with OTel Collector | Container metrics correlating with traces in the trace app |
+| [Manual Container Metrics][5] | Go server manually generating OTel container metrics, OTel Go instrumentation with OTel Collector | Container metrics correlation in the trace app |
 | .[NET REST Service][6] | .NET API app, OTel .NET and dd-trace-dotnet instrumentations | Tracing, runtime metrics |
 | [Go REST Service][7] | Go HTTP app, OTel Go instrumentation | Tracing HTTP endpoint, OTel metrics, runtime metrics |
 | [Java REST Service][8] | Java HTTP app, OTel Java and dd-trace-java instrumentation, probabilistic sampler processor | Ingestion sampling, runtime metrics |
