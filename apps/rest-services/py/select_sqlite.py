@@ -31,8 +31,7 @@ def create_app(test_config=None):
     def get_user(user_id):
         with get_db() as conn:
             cur = conn.cursor()
-            sql = f"select * from users whee id ={user_id}"
-            cur.execute(sql)
+            cur.execute("select * from users where id = ?", user_id)
             user = cur.fetchone()
         if user:
             return jsonify(user)
