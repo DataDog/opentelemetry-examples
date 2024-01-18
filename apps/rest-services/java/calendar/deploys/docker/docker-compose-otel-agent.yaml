@@ -1,0 +1,41 @@
+version: '3.9'
+networks:
+  default:
+    name: opentelemetry-demo
+    driver: bridge
+services:
+  calendar:
+    depends_on:
+      - datadog-agent
+    container_name: calendar
+    build:
+      context: ../../
+      dockerfile: deploys/Dockerfile.otel
+    image: calendar-rest.otel
+    environment:
+      - OTEL_SERVICE_NAME=calendar-otel-agent
+      - OTEL_EXPORTER_OTLP_ENDPOINT=http://datadog-agent:4317
+      - OTEL_LOGS_EXPORTER=otlp
+      - OTEL_RESOURCE_ATTRIBUTES=deployment.environment=docker,host.name=otelcol-docker
+    ports:
+      - "9090:9090"
+  # Agent
+  datadog-agent:
+    container_name: datadog-agent
+    image: "datadog/agent:7.51.0-rc.3"
+    pid: host
+    ports:
+      - 4317:4317
+    environment:
+      - DD_API_KEY
+      - DD_OTLP_CONFIG_RECEIVER_PROTOCOLS_GRPC_ENDPOINT=0.0.0.0:4317
+      - DD_OTLP_CONFIG_LOGS_ENABLED=true
+      - DD_APM_NON_LOCAL_TRAFFIC=true
+      - DD_DOGSTATSD_NON_LOCAL_TRAFFIC=true
+      - DD_LOGS_ENABLED=true
+      - DD_LOGS_CONFIG_CONTAINER_COLLECT_ALL=true
+      - DD_CONTAINER_EXCLUDE=name:datadog-agent
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+      - /proc/:/host/proc/:ro
+      - /sys/fs/cgroup:/host/sys/fs/cgroup:ro
