@@ -1,0 +1,89 @@
+version: '3.9'
+
+services:
+  zookeeper:
+    image: confluentinc/cp-zookeeper:latest
+    environment:
+      ZOOKEEPER_CLIENT_PORT: 2181
+      ZOOKEEPER_TICK_TIME: 2000
+      KAFKA_OPTS: "-Dzookeeper.4lw.commands.whitelist=*"
+    ports:
+      - 2181:2181
+  
+  kafka:
+    image: confluentinc/cp-kafka:latest
+    depends_on:
+      - zookeeper
+    ports:
+      - 29092:29092
+      - 9092:9092
+    environment:
+      KAFKA_BROKER_ID: 1
+      KAFKA_ZOOKEEPER_CONNECT: zookeeper:2181
+      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://kafka:9092,PLAINTEXT_HOST://localhost:29092
+      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: PLAINTEXT:PLAINTEXT,PLAINTEXT_HOST:PLAINTEXT
+      KAFKA_INTER_BROKER_LISTENER_NAME: PLAINTEXT
+      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
+      KAFKA_JMX_OPTS: "-Dcom.sun.management.jmxremote=true -Dcom.sun.management.jmxremote.authenticate=false -Dcom.sun.management.jmxremote.ssl=false -Djava.rmi.server.hostname=kafka -Dcom.sun.management.jmxremote.port=1099 -Dcom.sun.management.jmxremote.rmi.port=1099"
+      JMX_PORT: 1099
+
+  producer:
+    depends_on:
+      - kafka
+    container_name: producer
+    build:
+      context: .
+      dockerfile: ./Dockerfile.producer
+    environment:
+      KAFKA_SERVICE_ADDR: kafka:9092
+
+  consumer:
+    depends_on:
+      - kafka
+    container_name: consumer
+    build:
+      context: .
+      dockerfile: ./Dockerfile.consumer
+    environment:
+      KAFKA_ZOOKEEPER_CONNECT: zookeeper:2181 
+      KAFKA_SERVICE_ADDR: kafka:9092
+
+  otelcol:
+    depends_on:
+      - consumer
+      - producer
+      - kafka
+    image: otel/opentelemetry-collector-contrib:0.93.0
+    container_name: otel-col
+    restart: always
+    volumes:
+      - ./otel-collector-config-gatherer.yaml:/etc/otelcol-contrib/config.yaml
+    ports:
+      - "4317:4317"
+      - "4318:4318"
+    environment:
+      - DD_API_KEY
+
+  kafka-gatherer:
+    depends_on:
+      - kafka
+    container_name: kafka-gatherer
+    build:
+      context: .
+      dockerfile: ./Dockerfile.kafka-gatherer
+
+  consumer-gatherer:
+    depends_on:
+      - consumer
+    container_name: consumer-gatherer
+    build:
+      context: .
+      dockerfile: ./Dockerfile.consumer-gatherer
+
+  producer-gatherer:
+    depends_on:
+      - producer
+    container_name: producer-gatherer
+    build:
+      context: .
+      dockerfile: ./Dockerfile.producer-gatherer

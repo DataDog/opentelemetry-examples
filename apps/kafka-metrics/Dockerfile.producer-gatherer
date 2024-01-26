@@ -1,0 +1,21 @@
+FROM alpine:latest as prep
+
+# JMX Metrics Gatherer Jar
+ARG JMX_GATHERER_JAR_VERSION=1.27.0
+ADD https://github.com/open-telemetry/opentelemetry-java-contrib/releases/download/v${JMX_GATHERER_JAR_VERSION}/opentelemetry-jmx-metrics.jar /opt/opentelemetry-jmx-metrics.jar
+# nonroot user id (https://groups.google.com/g/distroless-users/c/-DpzCr7xRDY/m/eQqJmJroCgAJ)
+ARG USER_UID=65532
+RUN chown ${USER_UID} /opt/opentelemetry-jmx-metrics.jar
+
+FROM gcr.io/distroless/java11-debian11:nonroot
+
+COPY --from=prep /opt/opentelemetry-jmx-metrics.jar /opt/opentelemetry-jmx-metrics.jar
+
+EXPOSE 4317 55680 55679
+ENTRYPOINT ["java"]
+CMD ["-Dotel.jmx.service.url=service:jmx:rmi:///jndi/rmi://producer:1098/jmxrmi", \
+"-Dotel.jmx.target.system=kafka-producer", \
+"-Dotel.metrics.exporter=otlp", \
+"-Dotel.exporter.otlp.endpoint=http://otelcol:4317", \
+"-jar", \
+"/opt/opentelemetry-jmx-metrics.jar"]

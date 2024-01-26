@@ -1,6 +1,6 @@
 # Kafka Metrics
 
-This project consists of a Java Producer and Consumer, a kafka broker, a zookeeper instance and the OpenTelemetry Collector.
+This project consists of a Java Producer and Consumer, a kafka broker, a zookeeper instance and the OpenTelemetry Collector and JMX Metrics Gatherer.
 
 The Producer produces messages to topic orders, which the consumer consumes. The producer outputs the order ID it produced, and the consumer outputs the order ID it consumed, e.g.
 ```
@@ -22,7 +22,15 @@ producer                   | log4j2: 14:08:13.341 [main] INFO  Producer - Messag
 consumer                   | log4j2: 14:08:13.360 [main] INFO  Consumer - Consumed Message. Received Order # 20
 ```
 
-The Collector uses the JMX Receiver and kafka metrics receiver in order to collect kafka metrics. This gives access to the "Kafka, Zookeeper and Kafka Consumer Overview" OOTB Dashboard:
+This examples collects kafka metrics using the kafka metrics receiver and the JMX Receiver or JMX Metrics Gatherer to collect the JMX based kafka metrics. These metrics give access to the "Kafka, Zookeeper and Kafka Consumer Overview" OOTB Dashboard.
+
+- `docker-compose.jmxmetricsgatherer.yaml` showcases how to collect the JMX Based kafka metrics using the JMX Metrics Gatherer.
+
+- `docker-compose.jmxmetricsgatherer.yaml` showcases how to collect the JMX Based kafka metrics using the JMX Receiver.
+
+Both have a collector using the kafka metrics receiver.
+
+In addition, the producer and consumer send logs via the OTLP exporter to the Collector. These logs are tagged by source:kafka by an attributes processor, and will show up in the "Kafka, Zookeeper and Kafka Consumer Overview" OOTB Dashboard.
 
 
 *Note:* Metrics `kafka.request.fetch_follower.time.avg`, `kafka.request.fetch_consumer.time.avg`, and `kafka.request.produce.time.avg` will be missing until v1.33.0 of [opentelemetry-jmx-metrics](https://github.com/open-telemetry/opentelemetry-java-contrib/releases) is released.
@@ -33,7 +41,8 @@ Retrieve your API_KEY from datadoghq, and expose your key on the shell:
 export DD_API_KEY=xx
 ```
 
-Bring up the client, server & datadog-agent:
+*JMX RECEIVER*
+Bring up the client, server & collector:
 ```
 docker-compose -f docker-compose.jmxreceiver.yaml build
 docker-compose -f docker-compose.jmxreceiver.yaml up
@@ -42,4 +51,16 @@ docker-compose -f docker-compose.jmxreceiver.yaml up
 Spin down the client, server & datadog-agent:
 ```
 docker -f docker-compose.jmxreceiver.yaml compose down || Ctrl+C
+```
+
+*JMX METRICS GATHERER*
+Bring up the client, server, collector and JMX Metrics Gatherer:
+```
+docker-compose -f docker-compose.jmxmetricsgatherer.yaml build
+docker-compose -f docker-compose.jmxmetricsgatherer.yaml up
+```
+
+Spin down the client, server & datadog-agent:
+```
+docker -f docker-compose.jmxmetricsgatherer.yaml compose down || Ctrl+C
 ```
