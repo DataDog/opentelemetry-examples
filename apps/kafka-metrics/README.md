@@ -24,13 +24,13 @@ consumer                   | log4j2: 14:08:13.360 [main] INFO  Consumer - Consum
 
 This examples collects kafka metrics using the kafka metrics receiver and the JMX Receiver or JMX Metrics Gatherer to collect the JMX based kafka metrics. These metrics give access to the "Kafka, Zookeeper and Kafka Consumer Overview" OOTB Dashboard.
 
-- `docker-compose.jmxmetricsgatherer.yaml` showcases how to collect the JMX Based kafka metrics using the JMX Metrics Gatherer.
+- `docker-compose.jmxreceiver.yaml` showcases how to collect the JMX Based kafka metrics using the JMX Receiver.
 
-- `docker-compose.jmxmetricsgatherer.yaml` showcases how to collect the JMX Based kafka metrics using the JMX Receiver.
+- `docker-compose.jmxmetricsgatherer.yaml` showcases how to collect the JMX Based kafka metrics using the JMX Metrics Gatherer.
 
 Both have a collector using the kafka metrics receiver.
 
-In addition, the producer and consumer send logs via the OTLP exporter to the Collector. These logs are tagged by source:kafka by an attributes processor, and will show up in the "Kafka, Zookeeper and Kafka Consumer Overview" OOTB Dashboard.
+In addition, the producer and consumer send logs via the OTLP exporter to the Collector. These logs are tagged by `source:kafka` by an attributes processor, and will show up in the "Kafka, Zookeeper and Kafka Consumer Overview" OOTB Dashboard.
 
 
 *Note:* Metrics `kafka.request.fetch_follower.time.avg`, `kafka.request.fetch_consumer.time.avg`, and `kafka.request.produce.time.avg` will be missing until v1.33.0 of [opentelemetry-jmx-metrics](https://github.com/open-telemetry/opentelemetry-java-contrib/releases) is released.
@@ -41,26 +41,28 @@ Retrieve your API_KEY from datadoghq, and expose your key on the shell:
 export DD_API_KEY=xx
 ```
 
-*JMX RECEIVER*
+*JMX RECEIVER:*
+
 Bring up the client, server & collector:
 ```
 docker-compose -f docker-compose.jmxreceiver.yaml build
 docker-compose -f docker-compose.jmxreceiver.yaml up
 ```
 
-Spin down the client, server & datadog-agent:
+Spin down the client, server & collector:
 ```
 docker -f docker-compose.jmxreceiver.yaml compose down || Ctrl+C
 ```
 
-*JMX METRICS GATHERER*
+*JMX METRICS GATHERER:*
+
 Bring up the client, server, collector and JMX Metrics Gatherer:
 ```
 docker-compose -f docker-compose.jmxmetricsgatherer.yaml build
 docker-compose -f docker-compose.jmxmetricsgatherer.yaml up
 ```
 
-Spin down the client, server & datadog-agent:
+Spin down the client, server, collector and JMX Metrics Gatherer:
 ```
 docker -f docker-compose.jmxmetricsgatherer.yaml compose down || Ctrl+C
 ```
