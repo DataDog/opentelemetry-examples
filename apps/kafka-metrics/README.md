@@ -25,8 +25,7 @@ consumer                   | log4j2: 14:08:13.360 [main] INFO  Consumer - Consum
 The Collector uses the JMX Receiver and kafka metrics receiver in order to collect kafka metrics. This gives access to the "Kafka, Zookeeper and Kafka Consumer Overview" OOTB Dashboard:
 
 
-*Note:* Metrics `kafka.request.fetch_follower.time.avg`, `kafka.request.fetch_consumer.time.avg`, and `kafka.request.produce.time.avg` will be missing from the Dashboard until v1.33.0 of [opentelemetry-jmx-metrics](https://github.com/open-telemetry/opentelemetry-java-contrib/releases) is released.
-
+*Note:* Metrics `kafka.request.fetch_follower.time.avg`, `kafka.request.fetch_consumer.time.avg`, and `kafka.request.produce.time.avg` will be missing until v1.33.0 of [opentelemetry-jmx-metrics](https://github.com/open-telemetry/opentelemetry-java-contrib/releases) is released.
 
 ## Docker Compose
 Retrieve your API_KEY from datadoghq, and expose your key on the shell:
