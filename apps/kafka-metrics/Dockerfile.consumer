@@ -1,0 +1,13 @@
+FROM openjdk:17-buster
+
+RUN apt-get update -y; apt-get install curl -y
+
+WORKDIR /home/otel
+COPY ./consumer consumer/
+WORKDIR /home/otel/consumer
+RUN ./gradlew shadowJar
+
+ENV JAVA_TOOL_OPTIONS="-Dcom.sun.management.jmxremote=true -Dcom.sun.management.jmxremote.authenticate=false -Dcom.sun.management.jmxremote.ssl=false -Djava.rmi.server.hostname=consumer -Dcom.sun.management.jmxremote.port=1097 -Dcom.sun.management.jmxremote.rmi.port=1097"
+ENV JMX_PORT=1097
+
+ENTRYPOINT ["java", "-jar" , "app/build/libs/app-all.jar"]
