@@ -13,9 +13,11 @@ This sample application demonstrates a sample application started with the [Expr
 
 ### Spin up a Datadog Agent Pod
 
-#### Option 1: Datadog Operator
+Choose either **Option 1: Via Datadog Operator** OR **Option 2: Via Helm**. 
 
-The latest instructions can be found under [Install the Datadog Agent on Kubernetes](https://docs.datadoghq.com/containers/kubernetes/installation/?tab=operator#deploy-an-agent-with-the-operator).
+#### Option 1: Via Datadog Operator
+
+The latest instructions can be found under [Install the Datadog Agent on Kubernetes (Operator)](https://docs.datadoghq.com/containers/kubernetes/installation/?tab=operator#deploy-an-agent-with-the-operator).
 
 **Note:** Please replace the **site** in `/datadog-operator/datadog-agent.yaml` with the correct site as needed.
 
@@ -43,6 +45,25 @@ NAME                                     READY   STATUS    RESTARTS   AGE
 datadog-agent-****                      3/3     Running   0          66s
 datadog-cluster-agent-**********-*****   1/1     Running   0          69s
 my-datadog-operator-**********-*****     1/1     Running   0          2m30s
+```
+
+#### Option 2: Via Helm
+
+The latest instructions can be found under [Install the Datadog Agent on Kubernetes (Helm)](https://docs.datadoghq.com/containers/kubernetes/installation/?tab=helm#deploy-an-agent-with-the-operator).
+
+**Note:** Please replace the **site** in `/helm/datadog-values.yaml` with the correct site as needed.
+
+```
+helm install datadog-agent -f ./helm/datadog-values.yaml --set targetSystem=linux datadog/datadog
+```
+
+After waiting a few minutes, you can run `kubectl get pods`:
+
+```
+kubectl get pods
+NAME                                           READY   STATUS     RESTARTS   AGE
+datadog-agent-cluster-agent-**********-*****   1/1     Running   0          51s
+datadog-agent-*****                           1/1     Running   0          51s
 ```
 
 ### Spin up a NodeJS application
@@ -78,6 +99,12 @@ This can be done by execing into the app pod and sending manual requests:
 ```
 kubectl delete datadogagent datadog
 helm delete my-datadog-operator
+```
+
+**Helm**
+
+```
+helm uninstall datadog-agent
 ```
 
 **Application pod**
