@@ -91,3 +91,4 @@ kubectl delete -f ./express-otel-app/app.yaml
 1. https://opentelemetry.io/docs/languages/js/getting-started/nodejs/
 1. https://opentelemetry.io/docs/languages/js/exporters/
 1. https://docs.datadoghq.com/containers/kubernetes/installation/?tab=operator#deploy-an-agent-with-the-operator
+1. https://opentelemetry.io/docs/specs/otel/configuration/sdk-environment-variables/#general-sdk-configuration
