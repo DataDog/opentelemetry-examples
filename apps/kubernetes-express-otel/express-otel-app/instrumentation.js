@@ -9,8 +9,6 @@ const { diag, DiagConsoleLogger, DiagLogLevel } = require('@opentelemetry/api');
 // Enable debug mode for the SDK
 diag.setLogger(new DiagConsoleLogger(), DiagLogLevel.DEBUG);
 
-console.log("The OTLP endpoint")
-console.log(process.env.OTEL_EXPORTER_OTLP_ENDPOINT)
 const sdk = new NodeSDK({
   traceExporter: new OTLPTraceExporter({url: process.env.OTEL_EXPORTER_OTLP_ENDPOINT}),
   instrumentations: [getNodeAutoInstrumentations()],
