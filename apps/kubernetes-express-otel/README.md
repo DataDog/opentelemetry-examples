@@ -88,10 +88,27 @@ my-datadog-operator-**********-*****     1/1     Running   0          27m
 
 ### Example Endpoints
 
-This can be done by execing into the app pod and sending manual requests:
+There are two main endpoints that can be used inside the pod:
 
 1. `curl localhost:3000/`
 2. `curl localhost:3000/error`
+
+To exec into the app pod and send manual requests:
+
+To do this, run the command below to get a list of pods, then find the app pod name, ie: `app-**********-*****`:
+
+```
+kubectl get pods
+```
+
+Then have the app pod send a request to one of the configured endpoints, ie:
+
+```
+kubectl exec -it <app pod name> -- curl localhost:3000/
+```
+
+If you check the account the API and APP Key was configured with, you should see now see traces.
+
 
 ### Spin down everything
 
