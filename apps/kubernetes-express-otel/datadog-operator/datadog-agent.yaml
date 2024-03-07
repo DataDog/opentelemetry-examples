@@ -1,0 +1,38 @@
+kind: DatadogAgent
+apiVersion: datadoghq.com/v2alpha1
+metadata:
+  name: datadog
+spec:
+  global:
+    # Replace the site below if not using US1
+    site: datadoghq.com
+    credentials:
+      apiSecret:
+        secretName: datadog-secret
+        keyName: api-key
+      appSecret:
+        secretName: datadog-secret
+        keyName: app-key
+  override:
+    clusterAgent:
+      image:
+        name: gcr.io/datadoghq/cluster-agent:latest
+      env:
+        # DD_LOG_LEVEL is used for debug purposes [Optional]
+        - name: DD_LOG_LEVEL
+          value: "DEBUG"
+    nodeAgent:
+      image:
+        name: gcr.io/datadoghq/agent:latest
+      env:
+        # DD_LOG_LEVEL and DD_OTLP_CONFIG_DEBUG_VERBOSITY are used for debug purposes [Optional]
+        - name: DD_LOG_LEVEL
+          value: "TRACE"
+        - name: DD_OTLP_CONFIG_DEBUG_VERBOSITY
+          value: "detailed"            
+  features:
+    otlp:
+      receiver:
+        protocols:
+          http:
+            enabled: true

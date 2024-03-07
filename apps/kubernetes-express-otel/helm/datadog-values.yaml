@@ -1,0 +1,16 @@
+datadog:
+ apiKeyExistingSecret: datadog-secret
+ appKeyExistingSecret: datadog-secret
+ site: datadoghq.com
+ env:
+  # DD_LOG_LEVEL and DD_OTLP_CONFIG_DEBUG_VERBOSITY 
+  # are only needed for troubleshooting purposes
+  - name: DD_LOG_LEVEL
+    value: "DEBUG"
+  - name: DD_OTLP_CONFIG_DEBUG_VERBOSITY
+    value: "detailed"
+ otlp:
+  receiver:
+   protocols:
+    http:
+     enabled: true
