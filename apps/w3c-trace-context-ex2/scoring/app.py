@@ -32,7 +32,7 @@ def update_score():
             span.record_exception(e)
             span.set_status(Status(StatusCode.ERROR, str(e)))
             span.set_status(Status(1, str(e)))
-            return jsonify({"error": str(e)}), 400
+            return jsonify({"An error occurred", "Oops!"}), 400
 
 
 if __name__ == "__main__":
