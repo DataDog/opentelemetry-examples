@@ -55,4 +55,4 @@ if __name__ == "__main__":
     # Instrumenting Flask and Logging
     FlaskInstrumentor().instrument_app(app)
     LoggingInstrumentor().instrument(set_logging_format=True)
-    app.run(debug=True)
+    app.run(debug=False)
