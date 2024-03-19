@@ -9,7 +9,12 @@ services:
       KAFKA_OPTS: "-Dzookeeper.4lw.commands.whitelist=*"
     ports:
       - 2181:2181
-  
+    healthcheck:
+      test: ["CMD", "sh", "-c", "echo ruok | nc localhost 2181 | grep imok"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+
   kafka:
     image: confluentinc/cp-kafka:latest
     depends_on:
