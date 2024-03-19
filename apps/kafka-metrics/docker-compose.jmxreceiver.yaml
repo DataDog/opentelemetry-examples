@@ -36,16 +36,23 @@ services:
   producer:
     depends_on:
       - kafka
+      - otelcol
     container_name: producer
     build:
       context: .
       dockerfile: ./Dockerfile.producer
     environment:
       KAFKA_SERVICE_ADDR: kafka:9092
+      OTEL_LOGS_EXPORTER: otlp
+      OTEL_TRACES_EXPORTER: otlp
+      OTEL_EXPORTER_OTLP_ENDPOINT: http://otelcol:4317
+      OTEL_EXPORTER_OTLP_PROTOCOL: grpc
+      OTEL_RESOURCE_ATTRIBUTES: service.name=producer,deployment.environment=docker
 
   consumer:
     depends_on:
       - kafka
+      - otelcol
     container_name: consumer
     build:
       context: .
@@ -53,11 +60,14 @@ services:
     environment:
       KAFKA_ZOOKEEPER_CONNECT: zookeeper:2181 
       KAFKA_SERVICE_ADDR: kafka:9092
+      OTEL_LOGS_EXPORTER: otlp
+      OTEL_TRACES_EXPORTER: otlp
+      OTEL_EXPORTER_OTLP_ENDPOINT: http://otelcol:4317
+      OTEL_EXPORTER_OTLP_PROTOCOL: grpc
+      OTEL_RESOURCE_ATTRIBUTES: service.name=consumer,deployment.environment=docker
 
   otelcol:
     depends_on:
-      - consumer
-      - producer
       - kafka
     build:
       context: .

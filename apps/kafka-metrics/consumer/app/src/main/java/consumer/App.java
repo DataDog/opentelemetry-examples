@@ -14,14 +14,8 @@ import org.apache.kafka.clients.consumer.KafkaConsumer;
 import org.apache.kafka.clients.consumer.ConsumerRecords;
 import org.apache.kafka.clients.consumer.ConsumerRecord;
 
-import io.opentelemetry.api.OpenTelemetry;
-import io.opentelemetry.exporter.otlp.logs.OtlpGrpcLogRecordExporter;
 import io.opentelemetry.sdk.OpenTelemetrySdk;
-import io.opentelemetry.sdk.logs.SdkLoggerProvider;
-import io.opentelemetry.sdk.logs.export.BatchLogRecordProcessor;
-import io.opentelemetry.sdk.resources.Resource;
-import io.opentelemetry.sdk.trace.SdkTracerProvider;
-import io.opentelemetry.sdk.trace.samplers.Sampler;
+import io.opentelemetry.sdk.autoconfigure.AutoConfiguredOpenTelemetrySdk;
 
 import org.apache.logging.log4j.LogManager;
 
@@ -30,8 +24,8 @@ public class App {
     private static final org.apache.logging.log4j.Logger log4jLogger = LogManager.getLogger("Consumer");
 
     public static void main(String[] args) {
-        OpenTelemetry openTelemetry = initializeOpenTelemetry();
-        io.opentelemetry.instrumentation.log4j.appender.v2_17.OpenTelemetryAppender.install(openTelemetry);
+        OpenTelemetrySdk sdk = AutoConfiguredOpenTelemetrySdk.initialize().getOpenTelemetrySdk();
+        io.opentelemetry.instrumentation.log4j.appender.v2_17.OpenTelemetryAppender.install(sdk);
 
         String kafkaAddr = System.getenv("KAFKA_SERVICE_ADDR");
         if (kafkaAddr != null) {
@@ -55,30 +49,5 @@ public class App {
             log4jLogger.info("Consumed Message. Received Order # {}", record.value());
            }
         // consumer.close();
-    }
-
-    private static OpenTelemetry initializeOpenTelemetry() {
-        OpenTelemetrySdk sdk =
-            OpenTelemetrySdk.builder()
-                .setTracerProvider(SdkTracerProvider.builder().setSampler(Sampler.alwaysOn()).build())
-                .setLoggerProvider(
-                    SdkLoggerProvider.builder()
-                        .setResource(
-                            Resource.getDefault().toBuilder()
-                                .put("service.name", "log4j-example")
-                                .build())
-                        .addLogRecordProcessor(
-                            BatchLogRecordProcessor.builder(
-                                    OtlpGrpcLogRecordExporter.builder()
-                                        .setEndpoint("http://otelcol:4317")
-                                        .build())
-                                .build())
-                        .build())
-                .build();
-    
-        // Add hook to close SDK, which flushes logs
-        Runtime.getRuntime().addShutdownHook(new Thread(sdk::close));
-    
-        return sdk;
     }
 }

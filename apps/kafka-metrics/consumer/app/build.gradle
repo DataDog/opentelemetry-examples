@@ -29,8 +29,8 @@ dependencies {
     implementation("org.apache.logging.log4j:log4j-slf4j2-impl:2.22.1")
 
     // OpenTelemetry core
-    implementation 'io.opentelemetry:opentelemetry-sdk:1.34.1'
     implementation "io.opentelemetry:opentelemetry-exporter-otlp:1.34.1"
+    implementation 'io.opentelemetry:opentelemetry-sdk-extension-autoconfigure:1.36.0'
 
     // OpenTelemetry log4j appenders
     implementation 'io.opentelemetry.instrumentation:opentelemetry-log4j-appender-2.17:2.0.0-alpha'

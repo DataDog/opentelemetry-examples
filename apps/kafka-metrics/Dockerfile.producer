@@ -7,7 +7,11 @@ COPY ./producer producer/
 WORKDIR /home/otel/producer
 RUN ./gradlew shadowJar
 
-ENV JAVA_TOOL_OPTIONS="-Dcom.sun.management.jmxremote=true -Dcom.sun.management.jmxremote.authenticate=false -Dcom.sun.management.jmxremote.ssl=false -Djava.rmi.server.hostname=producer -Dcom.sun.management.jmxremote.port=1098 -Dcom.sun.management.jmxremote.rmi.port=1098"
+ARG OTEL_VERSION=v2.2.0
+ADD "https://github.com/open-telemetry/opentelemetry-java-instrumentation/releases/download/${OTEL_VERSION}/opentelemetry-javaagent.jar" opentelemetry-javaagent.jar
+
+
+ENV JAVA_TOOL_OPTIONS="-javaagent:opentelemetry-javaagent.jar -Dcom.sun.management.jmxremote=true -Dcom.sun.management.jmxremote.authenticate=false -Dcom.sun.management.jmxremote.ssl=false -Djava.rmi.server.hostname=producer -Dcom.sun.management.jmxremote.port=1098 -Dcom.sun.management.jmxremote.rmi.port=1098"
 ENV JMX_PORT=1098
 
 ENTRYPOINT ["java", "-jar" , "app/build/libs/app-all.jar"]
