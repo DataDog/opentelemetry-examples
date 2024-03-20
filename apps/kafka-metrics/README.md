@@ -28,7 +28,7 @@ This examples collects kafka metrics using the kafka metrics receiver and the JM
 <img src="/apps/kafka-metrics/assets/jmxreceiver.png" alt="OpenTelemetry Kafka metrics via jmx receiver" style="width:70%;">
 
 - `docker-compose.jmxmetricsgatherer.yaml` showcases how to collect the JMX Based kafka metrics using the JMX Metrics Gatherer.
-<img src="apps/kafka-metrics/assets/jmxmetricsgatherer.png" alt="OpenTelemetry Kafka metrics via jmx metrics gatherer" style="width:70%;">
+<img src="/apps/kafka-metrics/assets/jmxmetricsgatherer.png" alt="OpenTelemetry Kafka metrics via jmx metrics gatherer" style="width:70%;">
 
 Both have a collector using the kafka metrics receiver.
 
