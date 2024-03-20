@@ -25,10 +25,10 @@ consumer                   | log4j2: 14:08:13.360 [main] INFO  Consumer - Consum
 This examples collects kafka metrics using the kafka metrics receiver and the JMX Receiver or JMX Metrics Gatherer to collect the JMX based kafka metrics. These metrics give access to the "Kafka, Zookeeper and Kafka Consumer Overview" OOTB Dashboard.
 
 - `docker-compose.jmxreceiver.yaml` showcases how to collect the JMX Based kafka metrics using the JMX Receiver.
-{{< img src="/assets/jmxreceiver.png" alt="OpenTelemetry Kafka metrics via jmx receiver" style="width:70%;" >}}
+<img src="/assets/jmxreceiver.png" alt="OpenTelemetry Kafka metrics via jmx receiver" style="width:70%;">
 
 - `docker-compose.jmxmetricsgatherer.yaml` showcases how to collect the JMX Based kafka metrics using the JMX Metrics Gatherer.
-{{< img src="/assets/jmxmetricsgatherer.png" alt="OpenTelemetry Kafka metrics via jmx metrics gatherer" style="width:70%;" >}}
+<img src="/assets/jmxmetricsgatherer.png" alt="OpenTelemetry Kafka metrics via jmx metrics gatherer" style="width:70%;">
 
 Both have a collector using the kafka metrics receiver.
 
