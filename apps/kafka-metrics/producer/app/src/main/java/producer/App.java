@@ -14,9 +14,6 @@ import org.apache.kafka.clients.producer.KafkaProducer;
 import org.apache.kafka.clients.producer.ProducerRecord;
 import org.apache.kafka.clients.producer.Producer;
 
-import io.opentelemetry.sdk.OpenTelemetrySdk;
-import io.opentelemetry.sdk.autoconfigure.AutoConfiguredOpenTelemetrySdk;
-
 import org.apache.logging.log4j.LogManager;
 
 
@@ -24,9 +21,6 @@ public class App {
     private static final org.apache.logging.log4j.Logger log4jLogger = LogManager.getLogger("Producer");
 
     public static void main(String[] args) {
-        OpenTelemetrySdk sdk = AutoConfiguredOpenTelemetrySdk.initialize().getOpenTelemetrySdk();
-        io.opentelemetry.instrumentation.log4j.appender.v2_17.OpenTelemetryAppender.install(sdk);
-
         String kafkaAddr = System.getenv("KAFKA_SERVICE_ADDR");
         if (kafkaAddr != null) {
             log4jLogger.info("Using Kafka Broker Address: " + kafkaAddr);

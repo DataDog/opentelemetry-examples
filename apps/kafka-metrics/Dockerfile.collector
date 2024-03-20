@@ -14,7 +14,7 @@ ARG USER_UID=65532
 RUN chown ${USER_UID} /opt/opentelemetry-jmx-metrics.jar
 
 
-FROM gcr.io/distroless/java11-debian11:nonroot
+FROM gcr.io/distroless/java17-debian11:nonroot
 
 COPY --from=prep /opt/opentelemetry-jmx-metrics.jar /opt/opentelemetry-jmx-metrics.jar
 COPY --from=prep /otelcol-contrib /otelcol-contrib
