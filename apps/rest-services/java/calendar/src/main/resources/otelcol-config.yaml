@@ -34,7 +34,7 @@ service:
       exporters: [datadog/connector]
     traces/2: # this pipeline uses sampling and sends traces
       receivers: [otlp]
-      processors: [tail_sampling, batch]
+      processors: [probabilistic_sampler, batch]
       exporters: [datadog]
     metrics:
       receivers: [otlp, datadog/connector]
