@@ -1,4 +1,4 @@
-# Standalone host Otel Example
+# W3C Trace Context Example
 This project consists of two Flask servers and one Express server instrumented with Opentelemetry on a standalone host. (This is not using k8s or containers)
 
 There are a few required steps to get this example working. 
@@ -12,13 +12,13 @@ There are a few required steps to get this example working.
 
 ### Success
 ```bash
-curl -X POST http://localhost:5001/update_score \
+curl -X POST http://localhost:5002/play_game \
      -H "Content-Type: application/json" \
      -d '{"player": "John Doe"}'
 ```
 ### Error
 ``` bash
-curl -X POST http://localhost:5001/update_score \
+curl -X POST http://localhost:5002/play_game \
      -H "Content-Type: application/json" \
      -d '{}'
 ```

@@ -13,5 +13,6 @@ pip install requirements.txt
 ## Run the server
 
 ```bash
-opentelemetry-instrument --service_name dicey --logs_exporter otlp flask run -p 8080```
+opentelemetry-instrument --service_name dicey --logs_exporter otlp flask run -p 5004
+```
 
