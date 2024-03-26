@@ -14,6 +14,6 @@ npm install
 ## Run the server
 
 ```bash
-opentelemetry-instrument --service_name controller --logs_exporter otlp node game_controller.js
+opentelemetry-instrument --service_name controller --logs_exporter otlp node controller.js
 ```
 
