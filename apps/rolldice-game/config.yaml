@@ -22,20 +22,23 @@ exporters:
   # NOTE: Prior to v0.86.0 use `logging` instead of `debug`.
   debug:
     verbosity: detailed
-  datadog:
+  datadog/exporter:
     api:
       site: datadoghq.com
       key: <DATADOG_API_KEY>
   
 processors:
   batch:
+connectors:
+  datadog/connector:
 service:
   pipelines:
     traces:
       receivers: [otlp]
-      exporters: [datadog]
       processors: [batch]
+      exporters: [datadog/connector, datadog/exporter]
     metrics:
-      receivers: [otlp]
-      exporters: [datadog]
+      receivers: [datadog/connector, otlp]
       processors: [batch]
+      exporters: [datadog/exporter]
+      
