@@ -21,7 +21,7 @@ The repository includes example applications and configurations for Datadog user
 | [Span Links][12] | Distributed app with Kafka messages, OTel Go and Java instrumentations | OTel span links |
 | [W3C Trace Context][13] | Java and Python app to demonstrate W3C trace context propagation between OTel and DD instrumented apps | W3C trace context, runtime metrics |
 | [Kubernetes (Datadog Operator and Helm) with Express][15] | An Express sample app configured with Kubernetes  | Kubernetes |
-| [Python and Javascript trace context propagation][17] | An Express controller server calling two Flask servers | Standalone Host |
+| [Flask and Express Trace Context][17] | An Express controller server calling two Flask servers | Standalone Host/Docker |
 
 
 [1]: https://opentelemetry.io/
@@ -40,4 +40,4 @@ The repository includes example applications and configurations for Datadog user
 [14]: ./guides/common-mistakes.md
 [15]: ./configurations/
 [16]: ./apps/kubernetes-express-otel/
-[17]: ./apps/w3c-trace-context-ex2/
+[17]: ./apps/rolldice-game/
