@@ -20,7 +20,7 @@ services:
       context: ./rolling
       dockerfile: Dockerfile
     ports:
-      - "5004:5004"
+      - "5004"
     depends_on:
       otelcol:
         condition: service_started
@@ -31,7 +31,7 @@ services:
       context: ./scoring
       dockerfile: Dockerfile
     ports:
-      - "5001:5001"
+      - "5001"
     depends_on:
       otelcol:
         condition: service_started
@@ -48,7 +48,7 @@ services:
     volumes:
       - ./config.yml:/etc/otelcol-config.yml
     ports:
-      - 4318:4318 # OTLP http receiver
-      - 4317:4317
+      - "4318" # OTLP http receiver
+      - "4317"
       
 

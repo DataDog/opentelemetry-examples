@@ -25,13 +25,11 @@ def update_score():
 
             score = scores.get(player, 0) + int(result)
             scores[player] = score
-            span.set_status(Status(StatusCode.OK, str(e)))
             return jsonify({"player": player, "score": score})
 
         except ValueError as e:
             span.record_exception(e)
             span.set_status(Status(StatusCode.ERROR, str(e)))
-            span.set_status(Status(1, str(e)))
             return jsonify({"An error occurred", "Oops!"}), 400
 
 
