@@ -23,8 +23,8 @@ app.post('/play_game', async (req, res) => {
       const player = req.body.player;
       const headers = {};
       propagation.inject(context.active(), headers);
-      const diceRollResult = await axios.get(`http://localhost:5004/rolldice?player=${player}`, { headers });
-      const updateScoreResult = await axios.post('http://localhost:5001/update_score', {
+      const diceRollResult = await axios.get(`http://0.0.0.0:5004/rolldice?player=${player}`, { headers });
+      const updateScoreResult = await axios.post('http://0.0.0.0:5001/update_score', {
         player: player,
         result: diceRollResult.data
       }, { headers });

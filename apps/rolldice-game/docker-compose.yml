@@ -1,14 +1,58 @@
-otel-collector:
-  image: otel/opentelemetry-collector-contrib
-  volumes:
-    - ./config.yaml:/etc/otelcol-contrib/config.yaml
-  ports:
-    - 1888:1888 # pprof extension
-    - 8888:8888 # Prometheus metrics exposed by the Collector
-    - 8889:8889 # Prometheus exporter metrics
-    - 13133:13133 # health_check extension
-    - 4317:4317 # OTLP gRPC receiver
-    - 4318:4318 # OTLP http receiver
-    - 55679:55679 # zpages extension
-game-controller:
-  build: 
+version: '3'
+services:
+  game_controller:
+    build:
+      context: ./game_controller
+      dockerfile: Dockerfile
+    ports:
+      - "5002:5002"
+    depends_on:
+      otelcol:
+        condition: service_started
+      rolling:
+        condition: service_started
+      scoring:
+        condition: service_started
+
+
+  rolling:
+    build:
+      context: ./rolling
+      dockerfile: Dockerfile
+    ports:
+      - "5004:5004"
+    depends_on:
+      otelcol:
+        condition: service_started
+
+
+  scoring:
+    build:
+      context: ./scoring
+      dockerfile: Dockerfile
+    ports:
+      - "5001:5001"
+    depends_on:
+      otelcol:
+        condition: service_started
+
+
+  otelcol:
+    image: otel/opentelemetry-collector-contrib
+    deploy:
+      resources:
+        limits:
+          memory: 200M
+    restart: unless-stopped
+    command: [ "--config=/etc/otelcol-config.yml"]
+    volumes:
+      - ./config.yml:/etc/otelcol-config.yml
+    ports:
+      - 1888:1888 # pprof extension
+      - 8888:8888 # Prometheus metrics exposed by the Collector
+      - 8889:8889 # Prometheus exporter metrics
+      - 13133:13133 # health_check extension
+      - 4318:4318 # OTLP http receiver
+      - 4317:4317
+      - 55679:55679 # zpages extension
+
