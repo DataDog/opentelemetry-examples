@@ -36,4 +36,4 @@ build/
 .gradle
 dd-java-agent.jar
 to_run
-
+opentelemetry-javaagent.jar
