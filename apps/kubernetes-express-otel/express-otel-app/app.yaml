@@ -1,0 +1,43 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: app
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: app
+  template:
+    metadata:
+      labels:
+        app: app
+    spec:
+      containers:
+      - name: app
+        image: otel-js-app:1.0
+        imagePullPolicy: Never
+        ports:
+        - containerPort: 3000
+        env:
+         - name: HOST_IP
+           valueFrom:
+             fieldRef:
+               fieldPath: status.hostIP
+         - name: OTEL_EXPORTER_OTLP_TRACES_ENDPOINT
+           value: "http://$(HOST_IP):4318/v1/traces"
+         - name: OTEL_SERVICE_NAME
+           value: "otel-js"
+
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: app
+spec:
+  selector:
+    app: app
+  ports:
+  - name: http
+    protocol: TCP
+    port: 3000
+  type: LoadBalancer

@@ -1,0 +1,44 @@
+receivers:
+  otlp:
+    protocols:
+      grpc:
+        endpoint: 0.0.0.0:4317
+      http:
+        endpoint: 0.0.0.0:4318
+  hostmetrics:
+    # collect metrics every 10 seconds.
+    collection_interval: 10s
+    scrapers:
+      cpu:
+      disk:
+      filesystem:
+      memory:
+      network:
+      load:
+      paging:
+      processes:
+
+exporters:
+  # NOTE: Prior to v0.86.0 use `logging` instead of `debug`.
+  debug:
+    verbosity: detailed
+  datadog/exporter:
+    api:
+      site: datadoghq.com
+      key: <DATADOG_API_KEY>
+  
+processors:
+  batch:
+connectors:
+  datadog/connector:
+service:
+  pipelines:
+    traces:
+      receivers: [otlp]
+      processors: [batch]
+      exporters: [datadog/connector, datadog/exporter]
+    metrics:
+      receivers: [datadog/connector, otlp]
+      processors: [batch]
+      exporters: [datadog/exporter]
+      

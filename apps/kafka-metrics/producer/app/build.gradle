@@ -1,0 +1,42 @@
+plugins {
+    id 'application'
+    id 'com.github.johnrengelman.shadow' version '7.0.0'
+}
+
+repositories {
+    mavenCentral()
+}
+
+shadowJar {
+    mergeServiceFiles()
+}
+
+java {
+    toolchain {
+        languageVersion = JavaLanguageVersion.of(17)
+    }
+}
+
+dependencies {
+    // kafka
+    implementation 'org.apache.kafka:kafka_2.13:3.5.1'
+    implementation 'org.apache.kafka:kafka-clients:2.3.0'
+
+    // logger
+    implementation(platform("org.apache.logging.log4j:log4j-bom:2.22.1"))
+    implementation("org.apache.logging.log4j:log4j-api")
+    implementation("org.apache.logging.log4j:log4j-core")
+    implementation("org.apache.logging.log4j:log4j-slf4j2-impl:2.22.1")
+}
+
+application {
+    // Define the main class for the application.
+    mainClass = 'producer.App'
+}
+
+jar {
+    manifest {
+        attributes 'Main-Class': 'producer.App'
+        attributes 'Multi-Release': 'true'
+    }
+}

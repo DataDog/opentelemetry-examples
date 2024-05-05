@@ -20,7 +20,9 @@ The repository includes example applications and configurations for Datadog user
 | [RPC][11] | Go client-server gRPC Hello World app | Tracing gRPC endpoint, gRPC metrics using OpenCensus bridge |
 | [Span Links][12] | Distributed app with Kafka messages, OTel Go and Java instrumentations | OTel span links |
 | [W3C Trace Context][13] | Java and Python app to demonstrate W3C trace context propagation between OTel and DD instrumented apps | W3C trace context, runtime metrics |
-
+| [Kubernetes (Datadog Operator and Helm) with Express][15] | An Express sample app configured with Kubernetes  | Kubernetes |
+| [Flask and Express Trace Context][17] | An Express controller server calling two Flask servers | Standalone Host/Docker |
+| [Kafka Producer, Consumer and Broker][18] | A kafka java consumer, java producer and broker | Kafka metrics, Tracing, Logs |
 
 [1]: https://opentelemetry.io/
 [2]: ./apps/game-of-life/
@@ -34,6 +36,9 @@ The repository includes example applications and configurations for Datadog user
 [10]: ./apps/rest-services/py/
 [11]: ./apps/rpc/
 [12]: ./apps/span-links/
-[13]: ./apps/w3-trace-context/
+[13]: ./apps/w3c-trace-context/
 [14]: ./guides/common-mistakes.md
 [15]: ./configurations/
+[16]: ./apps/kubernetes-express-otel/
+[17]: ./apps/rolldice-game/
+[18]: ./apps/kafka-metrics/
