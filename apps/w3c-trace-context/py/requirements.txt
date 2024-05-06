@@ -1,5 +1,5 @@
 flask==2.2.5
 psycopg2-binary==2.9.3
 requests==2.31.0
-Werkzeug==2.3.8
+Werkzeug==3.0.3
 ddtrace
