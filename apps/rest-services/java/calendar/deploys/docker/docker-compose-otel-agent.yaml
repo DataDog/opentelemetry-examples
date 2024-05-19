@@ -17,6 +17,7 @@ services:
       - OTEL_EXPORTER_OTLP_ENDPOINT=http://datadog-agent:4317
       - OTEL_LOGS_EXPORTER=otlp
       - OTEL_RESOURCE_ATTRIBUTES=deployment.environment=docker,host.name=otelcol-docker
+      - OTEL_EXPORTER_OTLP_PROTOCOL=grpc
     ports:
       - "9090:9090"
   # Agent

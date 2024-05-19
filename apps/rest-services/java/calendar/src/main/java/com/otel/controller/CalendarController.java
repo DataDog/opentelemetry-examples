@@ -76,7 +76,7 @@ public class CalendarController {
             String output = start.format(DateTimeFormatter.ISO_LOCAL_DATE);
             span.setAttribute("date", output);
             // Add random sleep
-            Thread.sleep(random.nextLong(1,1500));
+            Thread.sleep(random.nextLong(1,950));
             log.info("generated date: {}", output);
             return output;
         } catch (InterruptedException e) {
