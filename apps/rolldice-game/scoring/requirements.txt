@@ -10,5 +10,5 @@ opentelemetry-sdk==1.23.0
 requests==2.31.0
 setuptools==59.6.0
 urllib3==2.2.1
-Werkzeug==3.0.1
+Werkzeug==3.0.3
 
