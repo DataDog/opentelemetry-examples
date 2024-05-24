@@ -10,17 +10,24 @@ config:
   exporters:
     datadog:
       api:
-        key: "$DD_API_KEY"
+        key: "${DD_API_KEY}"
+  connectors:
+    datadog/connector:
   service:
     telemetry:
       metrics:
         address: ":8888"
     pipelines:
+      metrics:
+        receivers: [otlp, datadog/connector]
+        exporters: [datadog]
       traces:
-        receivers:
-          - otlp
-        exporters:
-          - datadog
+        receivers: [otlp]
+        exporters: [datadog/connector]
+      traces/sampling:
+        receivers: [datadog/connector]
+        processors: []
+        exporters: [datadog]
 
 extraEnvs:
   - name: DD_API_KEY

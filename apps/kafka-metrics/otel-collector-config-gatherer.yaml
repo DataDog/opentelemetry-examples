@@ -25,18 +25,25 @@ exporters:
   datadog:
     api:
       key: ${env:DD_API_KEY}
-  logging:
+  debug:
     verbosity: detailed
+
+connectors:
+  datadog/connector:
 
 service:
   pipelines:
     metrics:
-      receivers: [otlp, kafkametrics]
+      receivers: [otlp, kafkametrics, datadog/connector]
       processors: [batch]
       exporters: [datadog]
     traces:
       receivers: [otlp]
       processors: [batch]
+      exporters: [datadog/connector]
+    traces/sampling:
+      receivers: [datadog/connector]
+      processors: [] # Add any sampling here
       exporters: [datadog]
     logs:
       receivers: [otlp]

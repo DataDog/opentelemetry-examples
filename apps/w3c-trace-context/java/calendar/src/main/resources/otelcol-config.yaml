@@ -10,6 +10,8 @@ exporters:
     api:
       key: ${DD_API_KEY}
 
+connectors:
+  datadog/connector:
 
 processors:
   batch:
@@ -18,10 +20,14 @@ service:
   pipelines:
     traces:
       receivers: [otlp]
-      processors: [ batch]
+      processors: [batch]
+      exporters: [datadog/connector]
+    traces/sampling:
+      receivers: [datadog/connector]
+      processors: []
       exporters: [datadog]
     metrics:
-      receivers: [otlp]
+      receivers: [otlp, datadog/connector]
       processors: [batch]
       exporters: [datadog]
 
