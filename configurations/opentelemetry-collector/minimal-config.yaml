@@ -43,6 +43,9 @@ exporters:
       # This is recommended for sensitive configuration fields like API keys.
       key: ${DD_API_KEY}
 
+connectors:
+  datadog/connector:
+
 # `service` defines the Collector pipelines, observability settings and extensions.
 service:
   # `telemetry` allows you to customize the Collector's own telemetry.
@@ -55,13 +58,21 @@ service:
   pipelines:
     # Pipelines starting with `metrics` or `metrics/` define a metrics pipeline.
     metrics:
-      # This pipeline has an OTLP receiver, a batch processor and a Datadog exporter.
-      receivers: [otlp]
+      # This pipeline has an OTLP receiver, the Datadog connector a batch processor and a Datadog exporter.
+      receivers: [otlp, datadog/connector]
       processors: [batch]
       exporters: [datadog]
     # Pipelines starting with `traces` or `traces/` define a traces pipeline.
     traces:
-      # This pipeline has an OTLP receiver, a batch processor and a Datadog exporter.
+      # This pipeline has an OTLP receiver, a batch processor and a Datadog connector.
+      # The connector is necessary for APM metrics.
       receivers: [otlp]
       processors: [batch]
-      exporters: [datadog]
+      exporters: [datadog/connector]
+    traces/sampling:
+      # This pipeline has an OTLP receiver, a batch processor and a Datadog exporter.
+      # It can be used for sampling by adding suitable processors.
+      receivers: [otlp]
+      # Add any sampling here
+      processors: [batch]
+      exporters: [datadog/connector]

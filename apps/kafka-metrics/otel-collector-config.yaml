@@ -40,15 +40,22 @@ exporters:
   logging:
     verbosity: detailed
 
+connectors:
+  datadog/connector:
+
 service:
   pipelines:
     metrics:
-      receivers: [otlp, kafkametrics, jmx, jmx/consumer, jmx/producer]
+      receivers: [otlp, kafkametrics, jmx, jmx/consumer, jmx/producer, datadog/connector]
       processors: [batch]
       exporters: [datadog]
     traces:
       receivers: [otlp]
       processors: [batch]
+      exporters: [datadog/connector]
+    traces/sampling:
+      receivers: [datadog/connector]
+      processors: [] # Add any sampling here
       exporters: [datadog]
     logs:
       receivers: [otlp]

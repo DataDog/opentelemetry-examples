@@ -45,7 +45,9 @@ config:
           mode: "counters"
           send_count_sum_metrics: true
       api:
-        key: "$DD_API_KEY"
+        key: "${DD_API_KEY}"
+  connector:
+    datadog/connector:
   service:
     telemetry:
       logs:
@@ -54,10 +56,14 @@ config:
           - service: "otel-collector"
     pipelines:
       metrics:
-        receivers: [otlp]
+        receivers: [otlp, datadog/connector]
         processors: [resourcedetection, batch]
         exporters: [datadog]
       traces:
         receivers: [otlp]
         processors: [resourcedetection, batch]
+        exporters: [datadog/connector]
+      traces/sampling:
+        receivers: [otlp]
+        processors: [batch]
         exporters: [datadog]
