@@ -10,7 +10,8 @@ config:
   exporters:
     datadog:
       api:
-        key: "$DD_API_KEY"
+        key: ${env:DD_API_KEY}
+        site: ${env:DD_SITE}
   service:
     telemetry:
       metrics:
@@ -29,3 +30,5 @@ extraEnvs:
         name: datadog-secrets
         key: api-key
         optional: false
+  - name: DD_SITE
+    value: datadoghq.com

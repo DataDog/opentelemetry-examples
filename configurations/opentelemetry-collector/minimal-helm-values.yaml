@@ -17,6 +17,8 @@ extraEnvs:
         name: datadog-secrets
         key: api-key
         optional: false
+  - name: DD_SITE
+    value: "datadoghq.com"
   - name: OTEL_K8S_NAMESPACE
     valueFrom:
       fieldRef:
@@ -45,7 +47,8 @@ config:
           mode: "counters"
           send_count_sum_metrics: true
       api:
-        key: "$DD_API_KEY"
+        key: "${DD_API_KEY}"
+        site: "${DD_SITE}"
   service:
     telemetry:
       logs:

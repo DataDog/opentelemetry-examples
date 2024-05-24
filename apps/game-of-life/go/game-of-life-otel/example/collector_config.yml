@@ -34,7 +34,8 @@ exporters:
         - otlp:true
         - example:tag
     api:
-      key: "${DD_API_KEY}"
+      key: ${DD_API_KEY}
+      site: ${DD_SITE}
 
 processors:
   batch:

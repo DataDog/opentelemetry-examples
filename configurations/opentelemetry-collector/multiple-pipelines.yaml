@@ -44,6 +44,7 @@ exporters:
   datadog/us:
     api:
       key: ${DD_API_KEY_US}
+      site: datadoghq.com
     # Add resource attributes as tags
     resource_attributes_as_tags: true
   datadog/eu:
