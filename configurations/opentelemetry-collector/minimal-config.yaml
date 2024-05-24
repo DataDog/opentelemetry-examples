@@ -75,4 +75,4 @@ service:
       receivers: [otlp]
       # Add any sampling here
       processors: [batch]
-      exporters: [datadog/connector]
+      exporters: [datadog]

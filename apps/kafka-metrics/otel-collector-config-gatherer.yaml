@@ -42,7 +42,7 @@ service:
       processors: [batch]
       exporters: [datadog/connector]
     traces/sampling:
-      receivers: [datadog]
+      receivers: [datadog/connector]
       processors: [] # Add any sampling here
       exporters: [datadog]
     logs:
