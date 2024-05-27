@@ -27,6 +27,7 @@ services:
     environment:
       - OTEL_SERVICE_NAME=calendar-py-otel
       - OTEL_EXPORTER_OTLP_ENDPOINT=http://datadog-agent:4317
+      - OTEL_EXPORTER_OTLP_PROTOCOL=grpc
       - OTEL_RESOURCE_ATTRIBUTES=deployment.environment=docker,host.name=otelcol-docker
       - OTEL_TRACES_EXPORTER=otlp
       - OTEL_METRICS_EXPORTER=otlp

@@ -60,6 +60,8 @@ spec:
               value: "4317"
             - name: OTEL_EXPORTER_OTLP_ENDPOINT
               value: 'http://$(HOST_IP):$(OTLP_GRPC_PORT)'
+            - name: OTEL_EXPORTER_OTLP_PROTOCOL
+              value: 'grpc'
             - name: DD_VERSION
               value: "1.0-beta"
             - name: DD_TRACE_OTEL_ENABLED

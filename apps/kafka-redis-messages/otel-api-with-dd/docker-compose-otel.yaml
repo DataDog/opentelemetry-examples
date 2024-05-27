@@ -82,6 +82,7 @@ services:
     environment:
       - OTEL_SERVICE_NAME=calendar-consumer-go-otel
       - OTEL_EXPORTER_OTLP_ENDPOINT=http://datadog-agent-kafka-otel:4317
+      - OTEL_EXPORTER_OTLP_PROTOCOL=grpc
       - OTEL_RESOURCE_ATTRIBUTES=deployment.environment=otelapi-with-dd-kafka,host.name=otelcol-docker
       - REDIS_HOST=redis-otel
       - KAFKA_SERVERS=kafka-otel:9092
