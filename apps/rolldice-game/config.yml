@@ -33,10 +33,14 @@ connectors:
   datadog/connector:
 service:
   pipelines:
+    traces/sampling:
+      receivers: [datadog/connector]
+      processors: [] # Add any sampling here
+      exporters: [datadog/exporter]
     traces:
       receivers: [otlp]
       processors: [batch]
-      exporters: [datadog/connector, datadog/exporter]
+      exporters: [datadog/connector]
     metrics:
       receivers: [datadog/connector, otlp]
       processors: [batch]

@@ -28,6 +28,7 @@ exporters:
 
 service:
   pipelines:
-    receivers: [otlp]
-    processors: [resourcedetection]
-    exporters: [otlp]
+    metrics:
+      receivers: [otlp]
+      processors: [resourcedetection]
+      exporters: [otlp]

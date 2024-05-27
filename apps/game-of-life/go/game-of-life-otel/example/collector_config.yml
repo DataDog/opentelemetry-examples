@@ -26,8 +26,8 @@ receivers:
         type: json_parser
 
 exporters:
-  logging:
-    loglevel: debug
+  debug:
+    verbosity: detailed
   datadog/api:
     host_metadata:
       tags:
@@ -36,6 +36,9 @@ exporters:
     api:
       key: ${DD_API_KEY}
       site: ${DD_SITE}
+
+connectors:
+  datadog/connector:
 
 processors:
   batch:
@@ -48,10 +51,18 @@ service:
     logs:
       level: debug
   pipelines:
+    metrics:
+      receivers: [otlp, hostmetrics, datadog/connector]
+      processors: [batch, resourcedetection]
+      exporters: [datadog/api]
+    traces/sampling:
+      receivers: [datadog/connector]
+      processors: [] # Add any sampling here
+      exporters: [datadog/api]
     traces:
       receivers: [otlp]
       processors: [batch,resourcedetection]
-      exporters: [logging, datadog/api]
+      exporters: [debug, datadog/connector]
     logs:
       receivers: [filelog]
       processors: [batch, resourcedetection]

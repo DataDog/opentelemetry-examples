@@ -49,6 +49,8 @@ config:
       api:
         key: "${DD_API_KEY}"
         site: "${DD_SITE}"
+  connectors:
+    datadog/connector:
   service:
     telemetry:
       logs:
@@ -57,10 +59,14 @@ config:
           - service: "otel-collector"
     pipelines:
       metrics:
-        receivers: [otlp]
+        receivers: [otlp, datadog/connector]
         processors: [resourcedetection, batch]
         exporters: [datadog]
       traces:
         receivers: [otlp]
         processors: [resourcedetection, batch]
+        exporters: [datadog/connector]
+      traces/sampling:
+        receivers: [otlp]
+        processors: [batch]
         exporters: [datadog]
