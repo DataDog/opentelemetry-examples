@@ -16,7 +16,7 @@ config:
   connectors:
     datadog/connector:
 
-service:
+  service:
     telemetry:
       metrics:
         address: ":8888"
