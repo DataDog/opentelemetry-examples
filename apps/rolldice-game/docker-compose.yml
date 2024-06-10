@@ -16,6 +16,7 @@ services:
     environment:
       - OTEL_SERVICE_NAME=controller
       - OTEL_EXPORTER_OTLP_ENDPOINT=http://otelcol:4317
+      - OTEL_EXPORTER_OTLP_PROTOCOL=grpc
 
 
   rolling:
@@ -30,6 +31,7 @@ services:
     environment:
       - OTEL_SERVICE_NAME=rolly
       - OTEL_EXPORTER_OTLP_ENDPOINT=http://otelcol:4317
+      - OTEL_EXPORTER_OTLP_PROTOCOL=grpc
 
 
   scoring:
@@ -44,7 +46,7 @@ services:
     environment:
       - OTEL_SERVICE_NAME=scorey
       - OTEL_EXPORTER_OTLP_ENDPOINT=http://otelcol:4317
-
+      - OTEL_EXPORTER_OTLP_PROTOCOL=grpc
 
   otelcol:
     image: otel/opentelemetry-collector-contrib
