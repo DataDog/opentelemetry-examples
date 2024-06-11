@@ -25,7 +25,7 @@ exporters:
   datadog/exporter:
     api:
       site: datadoghq.com
-      key: <DATADOG_API_KEY>
+      key: ${env:DD_API_KEY}
   
 processors:
   batch:

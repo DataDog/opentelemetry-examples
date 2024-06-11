@@ -14,6 +14,7 @@ exporters:
     hostname: "otelcol-docker"
     api:
       key: ${DD_API_KEY}
+      site: ${DD_SITE}
 processors:
   batch:
   # using the sampler
