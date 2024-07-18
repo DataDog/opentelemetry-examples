@@ -1,7 +1,7 @@
 # Unless explicitly stated otherwise all files in this repository are licensed
 # under the Apache 2.0 License.
 #
-FROM golang:1.20
+FROM golang:1.22
 
 
 WORKDIR /app
