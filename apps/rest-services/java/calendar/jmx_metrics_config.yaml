@@ -1,0 +1,14 @@
+rules:
+  - bean: com.otel.main:type=Calendar
+    mapping:
+      HitsCount:
+        metric: my.jmx-calendar.hits.count
+        type: counter
+        desc: "The number of hits to the calendar"
+        unit: "1"
+      RequestLatency:
+        metric: my.jmx-calendar.request.latency
+        type: gauge
+        desc: "The average request latency to the calendar"
+        unit: "ns"
+
