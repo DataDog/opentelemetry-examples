@@ -1,3 +1,8 @@
+/*
+Unless explicitly stated otherwise all files in this repository are licensed
+under the Apache 2.0 License.
+*/
+
 package com.otel.controller;
 
 import io.opentelemetry.api.OpenTelemetry;
@@ -41,7 +46,7 @@ public class CalendarController {
         this.calendarMBean = calendarMBean;
         log.info("Starting CalendarController for {}", serviceName);
         tracer = openTelemetry.getTracer(CalendarController.class.getName());
-        Meter meter = openTelemetry.meterBuilder(CalendarController.class.getName()).build();
+        Meter meter = openTelemetry.getMeter(CalendarController.class.getName());
         hitsCounter = meter.counterBuilder(serviceName + ".api.hits").build();
         latency = meter.histogramBuilder(serviceName + ".task.duration").build();
         activeUsersCounter = new AtomicLong();
