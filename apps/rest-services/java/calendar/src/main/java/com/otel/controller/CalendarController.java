@@ -9,30 +9,24 @@ import io.opentelemetry.api.trace.Span;
 import io.opentelemetry.api.trace.SpanKind;
 import io.opentelemetry.api.trace.Tracer;
 import io.opentelemetry.context.Scope;
-import java.lang.management.ManagementFactory;
-import javax.management.MBeanServer;
-import javax.management.ObjectName;
 import java.time.LocalDate;
 import java.time.Month;
 import java.time.format.DateTimeFormatter;
 import java.util.Map;
 import java.util.Random;
 import java.util.concurrent.atomic.AtomicLong;
-import javax.management.MBeanServerInvocationHandler;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.context.event.ContextRefreshedEvent;
-import org.springframework.context.event.EventListener;
 import org.springframework.util.MultiValueMap;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestHeader;
 import org.springframework.web.bind.annotation.RestController;
-
-import com.otel.main.SpringApp;
+import com.otel.main.SpringApp.CalendarMBean;
 
 @RestController
 public class CalendarController {
+
     private final Logger log = LoggerFactory.getLogger(CalendarController.class);
     private final Tracer tracer;
     private final LongCounter hitsCounter;
@@ -40,30 +34,18 @@ public class CalendarController {
     private final ObservableDoubleGauge activeUsersGauge;
     private final AtomicLong activeUsersCounter;
     private final Random random = new Random();
-    private SpringApp.CalendarMBean calendarMBean;
+    private final CalendarMBean calendarMBean;
 
     @Autowired
-    CalendarController(OpenTelemetry openTelemetry, String serviceName) {
+    CalendarController(OpenTelemetry openTelemetry, String serviceName, CalendarMBean calendarMBean) {
+        this.calendarMBean = calendarMBean;
         log.info("Starting CalendarController for {}", serviceName);
         tracer = openTelemetry.getTracer(CalendarController.class.getName());
-        Meter meter = openTelemetry.getMeter(CalendarController.class.getName());
+        Meter meter = openTelemetry.meterBuilder(CalendarController.class.getName()).build();
         hitsCounter = meter.counterBuilder(serviceName + ".api.hits").build();
         latency = meter.histogramBuilder(serviceName + ".task.duration").build();
         activeUsersCounter = new AtomicLong();
         activeUsersGauge = meter.gaugeBuilder(serviceName + ".active.users.guage").buildWithCallback(measurement -> measurement.record(activeUsersCounter.get()));
-    }
-    // Initialize MBean server and ObjectName
-    @EventListener(ContextRefreshedEvent.class)
-    public void init() {
-        try {
-            MBeanServer mBeanServer = ManagementFactory.getPlatformMBeanServer();
-            ObjectName objectName = new ObjectName("com.otel.main:type=Calendar");
-            this.calendarMBean = MBeanServerInvocationHandler.newProxyInstance(mBeanServer, objectName, SpringApp.CalendarMBean.class, false);
-            log.info("CalendarMBean initialized");
-        } catch (Exception e) {
-            log.error("Failed to initialize CalendarMBean", e);
-            throw new IllegalStateException("Failed to get CalendarMBean", e);
-        }
     }
 
     @GetMapping("/calendar")
@@ -73,20 +55,17 @@ public class CalendarController {
         try {
             hitsCounter.add(1);
             calendarMBean.incrementHitsCount();
-    
             long endTime = System.currentTimeMillis();
-            float latency = (endTime - startTime);
-            calendarMBean.addRequestLatency(latency);
-    
-            log.info("generated JMX hit count: {}, request latency: {}", calendarMBean.getHitsCount(), calendarMBean.getRequestLatency());
-    
+            calendarMBean.addRequestLatency(endTime - startTime);
+            log.info("generated JMX hit count: {}, latency: {}", calendarMBean.getHitsCount(), calendarMBean.getRequestLatency());
+
             String output = getDate();
-            return Map.of("date", output, "latency", String.valueOf(latency));
+            return Map.of("date", output);
         } finally {
             activeUsersCounter.decrementAndGet();
         }
     }
-        
+
     private String getDate() {
         Span span = tracer.spanBuilder("getDate").setAttribute("peer.service", "random-date-service").setSpanKind(SpanKind.CLIENT).startSpan();
         try (Scope scope = span.makeCurrent()) {
