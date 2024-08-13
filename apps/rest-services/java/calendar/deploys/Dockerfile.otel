@@ -8,11 +8,19 @@ RUN apt-get update -y; apt-get install curl -y
 WORKDIR /home/otel
 RUN curl -Lo opentelemetry-javaagent.jar  https://github.com/open-telemetry/opentelemetry-java-instrumentation/releases/download/v2.4.0/opentelemetry-javaagent.jar
 COPY . calendar/
+COPY ./jmx_metrics_config.yaml ./jmx_metrics_config.yaml
 
 WORKDIR /home/otel/calendar
 
 #Compile with gradle
 RUN ./gradlew build
 
-ENTRYPOINT ["java","-javaagent:../opentelemetry-javaagent.jar",  "-jar" , "build/libs/calendar-0.0.1-SNAPSHOT.jar"]
+ENV JAVA_OPTS="-Dcom.sun.management.jmxremote \
+               -Dcom.sun.management.jmxremote.port=9092 \
+               -Dcom.sun.management.jmxremote.authenticate=false \
+               -Dcom.sun.management.jmxremote.ssl=false \
+               -Dcom.sun.management.jmxremote.rmi.port=9093\
+               -Djava.rmi.server.hostname=127.0.0.1"
+ENTRYPOINT exec java ${JAVA_OPTS} -javaagent:../opentelemetry-javaagent.jar -Dotel.jmx.config=./jmx_metrics_config.yaml -jar build/libs/calendar-0.0.1-SNAPSHOT.jar
+
 EXPOSE 8080

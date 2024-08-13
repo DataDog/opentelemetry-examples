@@ -20,6 +20,9 @@ services:
       - OTEL_EXPORTER_OTLP_PROTOCOL=grpc
     ports:
       - "9090:9090"
+      - "9092:9092"
+      - "9093:9093"
+
   # open-telemetry collector
   otelcol:
     image: otel/opentelemetry-collector-contrib:latest
