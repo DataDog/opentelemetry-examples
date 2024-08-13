@@ -23,5 +23,4 @@ ENV JAVA_OPTS="-Dcom.sun.management.jmxremote \
                -Djava.rmi.server.hostname=127.0.0.1"
 ENTRYPOINT exec java ${JAVA_OPTS} -javaagent:../opentelemetry-javaagent.jar -Dotel.jmx.config=./jmx_metrics_config.yaml -jar build/libs/calendar-0.0.1-SNAPSHOT.jar
 
-#ENTRYPOINT ["java", "-javaagent:../opentelemetry-javaagent.jar", "-Dotel.jmx.config=./jmx_metrics_config.yaml",  "-jar" , "build/libs/calendar-0.0.1-SNAPSHOT.jar"]
 EXPOSE 8080

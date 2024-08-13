@@ -6,6 +6,12 @@ export OTEL_METRICS_EXPORTER=otlp
 export OTEL_LOGS_EXPORTER=otlp
 export OTEL_EXPORTER_OTLP_ENDPOINT=http://localhost:4317
 export OTEL_EXPORTER_OTLP_PROTOCOL=grpc
+export JAVA_OPTS="-Dcom.sun.management.jmxremote \
+               -Dcom.sun.management.jmxremote.port=9092 \
+               -Dcom.sun.management.jmxremote.authenticate=false \
+               -Dcom.sun.management.jmxremote.ssl=false \
+               -Dcom.sun.management.jmxremote.rmi.port=9093\
+               -Djava.rmi.server.hostname=127.0.0.1"
 
 # Define the path to the Java agent JAR
 JAVA_AGENT_JAR="$SCRIPT_DIR/opentelemetry-javaagent.jar"
@@ -21,4 +27,6 @@ fi
 export OTEL_RESOURCE_ATTRIBUTES=service.name=my-calendar-service,deployment.environment=otel-test,host.name=calendar-host
 
 java -javaagent:$JAVA_AGENT_JAR \
+    ${JAVA_OPTS} \
+    "-Dotel.jmx.config=./jmx_metrics_config.yaml" \
 	-jar $SCRIPT_DIR/build/libs/calendar-0.0.1-SNAPSHOT.jar
