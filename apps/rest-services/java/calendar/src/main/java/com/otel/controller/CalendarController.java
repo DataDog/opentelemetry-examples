@@ -45,12 +45,12 @@ public class CalendarController {
 
     @Autowired
     CalendarController(OpenTelemetry openTelemetry, String serviceName, MBeanServer mBeanServer) {
-        this.tracer = openTelemetry.getTracer(CalendarController.class.getName());
+        tracer = openTelemetry.getTracer(CalendarController.class.getName());
         Meter meter = openTelemetry.getMeter(CalendarController.class.getName());
-        this.hitsCounter = meter.counterBuilder(serviceName + ".api.hits").build();
-        this.latency = meter.histogramBuilder(serviceName + ".task.duration").build();
-        this.activeUsersCounter = new AtomicLong();
-        this.activeUsersGauge = meter.gaugeBuilder(serviceName + ".active.users.guage").buildWithCallback(measurement -> measurement.record(activeUsersCounter.get()));
+        hitsCounter = meter.counterBuilder(serviceName + ".api.hits").build();
+        latency = meter.histogramBuilder(serviceName + ".task.duration").build();
+        activeUsersCounter = new AtomicLong();
+        activeUsersGauge = meter.gaugeBuilder(serviceName + ".active.users.guage").buildWithCallback(measurement -> measurement.record(activeUsersCounter.get()));
 
         try {
             // Create the MBean proxy
