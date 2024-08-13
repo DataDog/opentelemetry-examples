@@ -78,3 +78,7 @@ Install calendar in K8s with DD SDK
 ```
 helm install -n otel-ingest calendar-dd-java ./calendar-dd/k8s/ --set image.repository=dineshgurumurthydd/calendar-java --set image.tag=otel-0.1,node_group=ng-1
 ```
+
+## JMX metrics
+
+The `jmx_metrics_config.yaml` file provides a detailed example of configuring custom JMX metrics collection using the OpenTelemetry Java agent.
