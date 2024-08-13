@@ -73,7 +73,7 @@ public class SpringApp {
 
     public static class Calendar implements CalendarMBean {
         private int hitsCount = 0;
-        private long totalRequestLatency = 0;
+        private float totalRequestLatency = 0;
 
         @Override
         public synchronized int getHitsCount() {
