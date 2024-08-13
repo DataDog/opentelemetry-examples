@@ -1,17 +1,16 @@
 /*
 Unless explicitly stated otherwise all files in this repository are licensed
 under the Apache 2.0 License.
+
 This product includes software developed at Datadog (https://www.datadoghq.com/)
 Copyright 2023 Datadog, Inc.
  */
-
 package com.otel.main;
 
 import io.opentelemetry.api.GlobalOpenTelemetry;
 import io.opentelemetry.api.OpenTelemetry;
 import java.lang.management.ManagementFactory;
 import javax.management.MBeanServer;
-import javax.management.MBeanServerInvocationHandler;
 import javax.management.ObjectName;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -31,6 +30,11 @@ public class SpringApp {
     }
 
     @Bean
+    public MBeanServer mBeanServer() {
+        return ManagementFactory.getPlatformMBeanServer();
+    }
+
+    @Bean
     public CalendarMBean calendarMBean() {
         return new Calendar();
     }
@@ -38,15 +42,11 @@ public class SpringApp {
     @EventListener(ContextRefreshedEvent.class)
     public void registerAndInitMBean() {
         try {
-            MBeanServer mBeanServer = ManagementFactory.getPlatformMBeanServer();
+            MBeanServer mBeanServer = mBeanServer();
             ObjectName objectName = new ObjectName("com.otel.main:type=Calendar");
             Calendar calendarMBean = new Calendar();
             mBeanServer.registerMBean(calendarMBean, objectName);
             log.info("MBean registered: {}", objectName);
-
-            // Initialize MBean proxy
-            CalendarMBean proxyMBean = MBeanServerInvocationHandler.newProxyInstance(mBeanServer, objectName, CalendarMBean.class, false);
-            log.info("CalendarMBean initialized");
         } catch (Exception e) {
             log.error("Error registering and initializing MBean", e);
             throw new IllegalStateException("Failed to register and initialize CalendarMBean", e);
