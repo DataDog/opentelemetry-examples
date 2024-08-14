@@ -9,7 +9,6 @@ plugins {
     id 'application'
     id 'org.springframework.boot' version '3.0.2'
     id 'io.spring.dependency-management' version '1.1.0'
-
 }
 
 repositories {
@@ -28,8 +27,7 @@ dependencies {
     implementation 'org.slf4j:slf4j-api:2.0.6'
     runtimeOnly 'io.opentelemetry.instrumentation:opentelemetry-logback-appender-1.0:1.28.0-alpha'
     implementation 'io.opentelemetry:opentelemetry-api:1.28.0'
-
-
+    implementation 'io.opentelemetry.instrumentation:opentelemetry-instrumentation-annotations:2.6.0'
 }
 
 group = 'com.datadog.example'
