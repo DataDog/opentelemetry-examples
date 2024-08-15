@@ -7,7 +7,7 @@ image:
   repository: datadog/opentelemetry-examples
   pullPolicy: IfNotPresent
   # Overrides the image tag whose default is the chart appVersion.
-  tag: "calendar-java-20240507-01"
+  tag: "calendar-java-20240815-01"
 imagePullSecrets: []
 nameOverride: ""
 fullnameOverride: ""
