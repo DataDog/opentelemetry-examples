@@ -70,11 +70,11 @@ As of now, in order for trace/log correlation to work the `trace_id` key needs t
 Install calendar in K8s with OTel SDK
 
 ```
-helm install -n otel-ingest calendar-otel-java ./deploys/calendar/ --set image.repository=dineshgurumurthydd/calendar-java --set image.tag=otel-0.1,node_group=ng-1
+helm install -n otel-ingest calendar-otel-java ./deploys/calendar/ --set image.repository=datadog/opentelemetry-examples --set image.tag=calendar-java-otel-0.1,node_group=ng-1
 ```
 
 Install calendar in K8s with DD SDK
 
 ```
-helm install -n otel-ingest calendar-dd-java ./deploys/calendar-dd/ --set image.repository=dineshgurumurthydd/calendar-java --set image.tag=otel-0.1,node_group=ng-1
+helm install -n otel-ingest calendar-dd-java ./deploys/calendar-dd/ --set image.repository=datadog/opentelemetry-examples --set image.tag=calendar-java-otel-0.1,node_group=ng-1
 ```

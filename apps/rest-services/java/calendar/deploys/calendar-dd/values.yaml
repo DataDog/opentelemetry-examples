@@ -4,10 +4,10 @@
 
 replicaCount: 1
 image:
-  repository: pablobaeyens/calendar-app
+  repository: datadog/opentelemetry-examples
   pullPolicy: IfNotPresent
   # Overrides the image tag whose default is the chart appVersion.
-  tag: "latest"
+  tag: "calendar-app-latest"
 imagePullSecrets: []
 nameOverride: ""
 fullnameOverride: ""
