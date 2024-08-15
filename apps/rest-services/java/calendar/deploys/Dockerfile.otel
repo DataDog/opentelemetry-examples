@@ -6,7 +6,7 @@ FROM openjdk:17-buster
 RUN apt-get update -y; apt-get install curl -y
 
 WORKDIR /home/otel
-RUN curl -Lo opentelemetry-javaagent.jar  https://github.com/open-telemetry/opentelemetry-java-instrumentation/releases/download/v2.4.0/opentelemetry-javaagent.jar
+RUN curl -Lo opentelemetry-javaagent.jar  https://github.com/open-telemetry/opentelemetry-java-instrumentation/releases/download/v2.6.0/opentelemetry-javaagent.jar
 COPY . calendar/
 
 WORKDIR /home/otel/calendar
