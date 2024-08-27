@@ -45,3 +45,4 @@ autoscaling:
   # targetMemoryUtilizationPercentage: 80
 tolerations: []
 affinity: {}
+nodeSelector: {}
