@@ -1,0 +1,14 @@
+diff --git a/exporter/datadogexporter/metrics_exporter.go b/exporter/datadogexporter/metrics_exporter.go
+index 6fa87508f4..cea4b6af59 100644
+--- a/exporter/datadogexporter/metrics_exporter.go
++++ b/exporter/datadogexporter/metrics_exporter.go
+@@ -55,7 +55,8 @@ func translatorFromConfig(set component.TelemetrySettings, cfg *Config, attrsTra
+ 	options := []otlpmetrics.TranslatorOption{
+ 		otlpmetrics.WithDeltaTTL(cfg.Metrics.DeltaTTL),
+ 		otlpmetrics.WithFallbackSourceProvider(sourceProvider),
+-		otlpmetrics.WithRemapping(),
++		// NOTE: Disabling remapper
++		// otlpmetrics.WithRemapping(),
+ 	}
+ 
+ 	if cfg.Metrics.HistConfig.SendAggregations {

@@ -1,8 +1,8 @@
 receivers:
   otlp:
     protocols:
-      http:
       grpc:
+        endpoint: otelcol:4317
   kafkametrics:
     brokers: "kafka:9092"
     protocol_version: 2.0.0
@@ -24,6 +24,11 @@ receivers:
     target_system: kafka-producer
 
 processors:
+  resource:
+    attributes:
+      - key: deployment.environment
+        value: "otel-examples-kafka"
+        action: upsert
   batch:
     send_batch_max_size: 1000
     send_batch_size: 100
@@ -33,26 +38,134 @@ processors:
       - key: ddtags
         value: "source:kafka"
         action: insert
+  filter/dd:
+    error_mode: ignore
+    metrics:
+      datapoint:
+      - metric.name == "system.net.bytes_rcvd" and (attributes["direction"] != "receive")
+      - metric.name == "system.net.bytes_sent" and (attributes["direction"] != "transmit")
+      - metric.name == "system.cpu.idle" and (attributes["state"] != "idle")
+      - metric.name == "system.cpu.iowait" and (attributes["state"] != "iowait")
+      - metric.name == "system.cpu.stolen" and (attributes["state"] != "stolen")
+      - metric.name == "system.cpu.system" and (attributes["state"] != "system")
+      - metric.name == "system.cpu.user" and (attributes["state"] != "user")
+      - metric.name == "system.mem.usable" and (attributes["state"] != "free" or attributes["state"] != "cached" or attributes["state"] != "buffered")
+      - metric.name == "system.net.bytes_rcvd" and (attributes["direction"] != "receive")
+      - metric.name == "system.net.bytes_sent" and (attributes["direction"] != "transmit")
+      - metric.name == "system.swap.free" and (attributes["state"] != "free")
+      - metric.name == "container.io.read" and (attributes["operation"] != "read")
+      - metric.name == "container.io.read.operations" and (attributes["operation"] != "read")
+      - metric.name == "container.io.write" and (attributes["operation"] != "write")
+      - metric.name == "container.io.write.operations" and (attributes["operation"] != "write")
+  transform/dd:
+    error_mode: ignore
+    metric_statements:
+    - context: metric
+      statements:
+      - copy_metric("system.disk.in_use") where name == "system.filesystem.utilization" or name == "otel.system.filesystem.utilization"
+      - set(name, "otel.system.filesystem.utilization") where name == "system.filesystem.utilization"
+      - copy_metric("system.net.bytes_rcvd") where name == "system.network.io" or name == "otel.system.network.io"
+      - set(name, "otel.system.network.io") where name == "system.network.io"
+      - copy_metric("system.net.bytes_sent") where name == "system.network.io" or name == "otel.system.network.io"
+      - copy_metric("kafka.messages_in.rate") where name == "kafka.message.count"
+      - copy_metric("kafka.request.channel.queue.size") where name == "kafka.request.queue"
+      - copy_metric("kafka.replication.active_controller_count") where name == "kafka.controller.active.count"
+      - copy_metric("kafka.replication.leader_elections.rate") where name == "kafka.leader.election.rate"
+      - copy_metric("kafka.replication.max_lag") where name == "kafka.max.lag"
+      - copy_metric("kafka.replication.partition_count") where name == "kafka.partition.count"
+      - copy_metric("kafka.replication.unclean_leader_elections.rate") where name == "kafka.unclean.election.rate"
+      - copy_metric("kafka.replication.under_replicated_partitions") where name == "kafka.partition.under_replicated"
+      - copy_metric("kafka.replication.offline_partitions_count") where name == "kafka.partition.offline"
+      - copy_metric("kafka.log.flush_rate.rate") where name == "kafka.logs.flush.time.count"
+      - copy_metric("kafka.producer.compression_rate") where name == "kafka.producer.compression-rate"
+      - copy_metric("kafka.producer.record_send_rate") where name == "kafka.producer.record-send-rate"
+      - copy_metric("kafka.producer.record_retry_rate") where name == "kafka.producer.record-retry-rate"
+      - copy_metric("kafka.producer.record_error_rate") where name == "kafka.producer.record-error-rate"
+      - copy_metric("kafka.producer.request_rate") where name == "kafka.producer.request-rate"
+      - copy_metric("kafka.producer.response_rate") where name == "kafka.producer.response-rate"
+      - copy_metric("kafka.producer.request_latency_avg") where name == "kafka.producer.request-latency-avg"
+      - copy_metric("kafka.producer.bytes_out") where name == "kafka.producer.byte-rate"
+      - copy_metric("kafka.producer.io_wait") where name == "kafka.producer.io-wait-time-ns-avg"
+      - copy_metric("kafka.consumer.fetch_size_avg") where name == "kafka.consumer.fetch-size-avg"
+      - copy_metric("kafka.consumer.bytes_consumed") where name == "kafka.consumer.bytes-consumed-rate"
+      - copy_metric("kafka.consumer.bytes_in") where name == "kafka.consumer.total.bytes-consumed-rate"
+      - copy_metric("kafka.consumer.messages_in") where name == "kafka.consumer.total.records-consumed-rate"
+      - copy_metric("kafka.consumer.records_consumed") where name == "kafka.consumer.records-consumed-rate"
+      - copy_metric("system.cpu.idle") where name == "system.cpu.utilization" or name == "otel.system.cpu.utilization"
+      - set(name, "otel.system.cpu.utilization") where name == "system.cpu.utilization"
+      - scale_metric(100.0) where name == "system.cpu.idle"
+      - copy_metric("system.cpu.iowait") where name == "system.cpu.utilization" or name == "otel.system.cpu.utilization"
+      - scale_metric(100.0) where name == "system.cpu.iowait"
+      - copy_metric("system.cpu.stolen") where name == "system.cpu.utilization" or name == "otel.system.cpu.utilization"
+      - scale_metric(100.0) where name == "system.cpu.stolen"
+      - copy_metric("system.cpu.system") where name == "system.cpu.utilization" or name == "otel.system.cpu.utilization"
+      - scale_metric(100.0) where name == "system.cpu.system"
+      - copy_metric("system.cpu.user") where name == "system.cpu.utilization" or name == "otel.system.cpu.utilization"
+      - scale_metric(100.0) where name == "system.cpu.user"
+      - copy_metric("system.disk.in_use") where name == "system.filesystem.utilization" or name == "otel.system.filesystem.utilization"
+      - copy_metric("system.load.1") where name == "system.cpu.load_average.1m" or name == "otel.system.cpu.load_average.1m"
+      - set(name, "otel.system.cpu.load_average.1m") where name == "system.cpu.load_average.1m"
+      - copy_metric("system.load.15") where name == "system.cpu.load_average.15m" or name == "otel.system.cpu.load_average.15m"
+      - set(name, "otel.system.cpu.load_average.15m") where name == "system.cpu.load_average.15m"
+      - copy_metric("system.load.5") where name == "system.cpu.load_average.5m"
+      - copy_metric("system.mem.total") where name == "system.memory.usage" or name == "otel.system.memory.usage"
+      - set(name, "otel.system.memory.usage") where name == "system.memory.usage"
+      - scale_metric(1048576.0) where name == "system.mem.total"
+      - copy_metric("system.mem.usable") where name == "system.memory.usage" or name == "otel.system.memory.usage"
+      - scale_metric(1048576.0) where name == "system.mem.usable"
+      - copy_metric("system.net.bytes_rcvd") where name == "system.network.io" or name == "otel.system.network.io"
+      - copy_metric("system.net.bytes_sent") where name == "system.network.io" or name == "otel.system.network.io"
+      - copy_metric("system.swap.free") where name == "system.paging.usage" or name == "otel.system.paging.usage"
+      - set(name, "otel.system.paging.usage") where name == "system.paging.usage"
+      - copy_metric("container.cpu.usage") where name == "container.cpu.usage.total"
+      - copy_metric("container.cpu.user") where name == "container.cpu.usage.usermode"
+      - copy_metric("container.cpu.system") where name == "container.cpu.usage.system"
+      - copy_metric("container.cpu.system") where name == "container.cpu.usage.system"
+      - copy_metric("container.cpu.throttled") where name == "container.cpu.throttling_data.throttled_time"
+      - copy_metric("container.cpu.throttled.periods") where name == "container.cpu.throttling_data.throttled_periods"
+      - copy_metric("container.memory.usage") where name == "container.memory.usage.total"
+      - copy_metric("container.memory.kernel") where name == "container.memory.active_anon"
+      - copy_metric("container.memory.limit") where name == "container.memory.hierarchical_memory_limit"
+      - copy_metric("container.memory.soft_limit") where name == "container.memory.usage.limit"
+      - copy_metric("container.memory.cache") where name == "container.memory.total_cache"
+      - copy_metric("container.io.read") where name == "container.blockio.io_service_bytes_recursive"
+      - copy_metric("container.io.read.operations") where name == "container.blockio.io_serviced_recursive"
+      - copy_metric("container.io.write") where name == "container.blockio.io_service_bytes_recursive"
+      - copy_metric("container.io.write.operations") where name == "container.blockio.io_serviced_recursive"
+      - copy_metric("container.net.sent") where name == "container.network.io.usage.tx_bytes"
+      - copy_metric("container.net.rcvd") where name == "container.network.io.usage.rx_bytes"
+      - copy_metric("container.net.sent.packets") where name == "container.network.io.usage.tx_packets"
+      - copy_metric("container.net.rcvd.packets") where name == "container.network.io.usage.rx_packets"
+      - copy_metric("kafka.broker_offset") where name == "kafka.partition.current_offset"
+      - copy_metric("kafka.consumer_lag") where name == "kafka.consumer_group.lag"
+      - copy_metric("kafka.consumer_offset") where name == "kafka.consumer_group.offset"
+
 exporters:
   datadog:
+    traces:
+      span_name_as_resource_name: true
+      trace_buffer: 500
+    hostname: "otel-example-kafka-docker"
     api:
       key: ${env:DD_API_KEY}
       site: ${env:DD_SITE}
-  logging:
-    verbosity: detailed
 
 connectors:
   datadog/connector:
+    traces:
+      compute_stats_by_span_kind: true
+      peer_tags_aggregation: true
+      peer_tags: ["_dd.base_service","amqp.destination","amqp.exchange","amqp.queue","aws.queue.name","bucketname","cassandra.cluster","db.cassandra.contact.points","db.couchbase.seed.nodes","db.hostname","db.instance","db.name","db.system","grpc.host","hazelcast.instance","hostname","http.host","messaging.destination","messaging.destination.name","messaging.kafka.bootstrap.servers","messaging.rabbitmq.exchange","messaging.system","mongodb.db","msmq.queue.path","net.peer.name","network.destination.name","peer.hostname","peer.service","queuename","rpc.service","rpc.system","server.address","streamname","tablename","topicname","net.host.name"]
 
 service:
   pipelines:
     metrics:
       receivers: [otlp, kafkametrics, jmx, jmx/consumer, jmx/producer, datadog/connector]
-      processors: [batch]
+      processors: [batch, resource, transform/dd, filter/dd]
       exporters: [datadog]
     traces:
       receivers: [otlp]
-      processors: [batch]
+      processors: [batch, resource]
       exporters: [datadog/connector]
     traces/sampling:
       receivers: [datadog/connector]
@@ -60,5 +173,5 @@ service:
       exporters: [datadog]
     logs:
       receivers: [otlp]
-      processors: [batch, attributes]
+      processors: [batch, resource, attributes]
       exporters: [datadog]
