@@ -4,7 +4,7 @@ This sample application demonstrates a sample application started with the [Expr
 
 
 ### Example Trace
-[!sample-express-otel-trace](sample-express-otel-trace.jpeg)
+![sample-express-otel-trace](sample-express-otel-trace.jpg)
 
 
 ### Prerequistes
