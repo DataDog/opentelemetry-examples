@@ -65,6 +65,30 @@ docker compose -f deploys/docker/docker-compose-dd.yml  up
 
 As of now, in order for trace/log correlation to work the `trace_id` key needs to be manually added to the "Preprocessing for JSON logs" at <https://app.datadoghq.com/logs/pipelines>.
 
+## Build multi-platform images
+
+In order to build multi-platform container images, we will use the `docker buildx` command.
+
+Calendar app with OTel SDK:
+
+```shell
+docker buildx build \
+--platform linux/amd64,linux/arm64 \
+--tag datadog/opentelemetry-examples:calendar-java-20240916 \
+--file ./deploys/Dockerfile.otel \
+--push .
+```
+
+Calendar app with DataDog SDK:
+
+```shell
+docker buildx build \
+--platform linux/amd64,linux/arm64 \
+--tag datadog/opentelemetry-examples:calendar-java-dd-20240916 \
+--file ./deploys/Dockerfile.calendar.java.dd \
+--push .
+```
+
 ## Kubernetes
 
 Install calendar in K8s with OTel SDK
