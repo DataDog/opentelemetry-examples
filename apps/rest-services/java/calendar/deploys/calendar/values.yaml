@@ -5,7 +5,7 @@
 replicaCount: 3
 image:
   repository: datadog/opentelemetry-examples
-  pullPolicy: Always
+  pullPolicy: IfNotPresent
   # Overrides the image tag whose default is the chart appVersion.
   tag: "calendar-java-20240826"
 imagePullSecrets: []
