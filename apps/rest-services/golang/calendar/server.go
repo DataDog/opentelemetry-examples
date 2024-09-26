@@ -129,6 +129,18 @@ func (s *Server) calendarHandler(w http.ResponseWriter, r *http.Request) {
 			logger.Error("encoding resp", zap.Error(err))
 		}
 	case <-timer.C:
+		// send random error to simulate error
+		if s.rnd.Intn(10) == 0 {
+			resp := response{
+				Error: "random error",
+			}
+			w.WriteHeader(http.StatusInternalServerError)
+			err := json.NewEncoder(w).Encode(resp)
+			if err != nil {
+				logger.Error("encoding resp", zap.Error(err))
+			}
+			return
+		}
 		dt := getDate(ctx)
 		resp := response{
 			Date: dt,
