@@ -8,12 +8,15 @@ import (
 	"os"
 	"time"
 
+	"go.opentelemetry.io/contrib/bridges/otelzap"
 	"go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp"
 	"go.opentelemetry.io/otel"
+	"go.opentelemetry.io/otel/exporters/otlp/otlplog/otlploggrpc"
 	"go.opentelemetry.io/otel/exporters/otlp/otlpmetric/otlpmetricgrpc"
 	"go.opentelemetry.io/otel/exporters/otlp/otlptrace/otlptracegrpc"
 	"go.opentelemetry.io/otel/exporters/stdout/stdoutmetric"
 	"go.opentelemetry.io/otel/propagation"
+	"go.opentelemetry.io/otel/sdk/log"
 	"go.opentelemetry.io/otel/sdk/metric"
 	"go.opentelemetry.io/otel/sdk/metric/metricdata"
 	"go.opentelemetry.io/otel/sdk/resource"
@@ -110,6 +113,20 @@ func initMetricProvider(res *resource.Resource) (*metric.MeterProvider, error) {
 	return meterProvider, nil
 }
 
+func initLogProvider(res *resource.Resource) (*log.LoggerProvider, error) {
+	ctx := context.Background()
+	otlpexp, err := otlploggrpc.New(ctx, otlploggrpc.WithInsecure())
+	if err != nil {
+		return nil, err
+	}
+
+	loggerProvider := log.NewLoggerProvider(
+		log.WithProcessor(log.NewBatchProcessor(otlpexp)),
+		log.WithResource(res),
+	)
+	return loggerProvider, nil
+}
+
 func setupHandlers(server *Server) *http.ServeMux {
 	mux := http.NewServeMux()
 
@@ -138,6 +155,19 @@ func realMain() error {
 		logger.Fatal("can't create resource", zap.Error(err))
 		return err
 	}
+
+	loggerProvider, err := initLogProvider(res)
+	if err != nil {
+		logger.Fatal("can't init opentelemetry", zap.Error(err))
+		return err
+	}
+	defer func() {
+		err := loggerProvider.Shutdown(ctx)
+		if err != nil {
+			logger.Error("loggerProvider Shutdown failed", zap.Error(err))
+		}
+	}()
+	logger = zap.New(otelzap.NewCore(service, otelzap.WithLoggerProvider(loggerProvider)), zap.Fields(zap.String("service", service)))
 
 	tp, err := initTracerProvider(ctx, res)
 	if err != nil {
