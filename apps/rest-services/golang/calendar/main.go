@@ -14,6 +14,7 @@ import (
 	"go.opentelemetry.io/otel/exporters/otlp/otlplog/otlploggrpc"
 	"go.opentelemetry.io/otel/exporters/otlp/otlpmetric/otlpmetricgrpc"
 	"go.opentelemetry.io/otel/exporters/otlp/otlptrace/otlptracegrpc"
+	"go.opentelemetry.io/otel/exporters/stdout/stdoutlog"
 	"go.opentelemetry.io/otel/exporters/stdout/stdoutmetric"
 	"go.opentelemetry.io/otel/propagation"
 	"go.opentelemetry.io/otel/sdk/log"
@@ -119,9 +120,14 @@ func initLogProvider(res *resource.Resource) (*log.LoggerProvider, error) {
 	if err != nil {
 		return nil, err
 	}
+	stdout, err := stdoutlog.New()
+	if err != nil {
+		return nil, err
+	}
 
 	loggerProvider := log.NewLoggerProvider(
 		log.WithProcessor(log.NewBatchProcessor(otlpexp)),
+		log.WithProcessor(log.NewSimpleProcessor(stdout)),
 		log.WithResource(res),
 	)
 	return loggerProvider, nil
@@ -131,7 +137,6 @@ func setupHandlers(server *Server) *http.ServeMux {
 	mux := http.NewServeMux()
 
 	mux.Handle("/calendar", otelhttp.NewHandler(http.HandlerFunc(server.calendarHandler), "CalendarHandler"))
-	// Add handler to return rolldice
 
 	return mux
 }
