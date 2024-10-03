@@ -112,7 +112,7 @@ func (s *Server) calendarHandler(w http.ResponseWriter, r *http.Request) {
 	}()
 	s.apiCounter.Add(r.Context(), 1)
 
-	timer := time.NewTimer(time.Millisecond * time.Duration(s.rnd.Int63n(2000)))
+	timer := time.NewTimer(time.Millisecond * time.Duration(s.rnd.Int63n(900)))
 
 	defer func() {
 		timer.Stop()
