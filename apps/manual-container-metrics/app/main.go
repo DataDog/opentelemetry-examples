@@ -63,7 +63,7 @@ func main() {
 
 	ctx := context.Background()
 	// Create resource.
-	res, err := resource.New(ctx, resource.WithFromEnv())
+	res, err := resource.New(ctx, resource.WithFromEnv(), resource.WithContainer())
 	if err != nil {
 		log.Fatalf("failed to create resource: ", err)
 	}
@@ -93,7 +93,7 @@ func main() {
 	containerNetSent, err := meter.Float64UpDownCounter("container.net.sent")
 	containerNetRcvd, err := meter.Float64UpDownCounter("container.net.rcvd")
 
-	attr := metric2.WithAttributes(attribute.String("container.name", os.Getenv("OTEL_CONTAINER_NAME")), attribute.String("container.id", os.Getenv("OTEL_K8S_CONTAINER_ID")))
+	attr := metric2.WithAttributes(attribute.String("customer.attribute", "value"))
 	containerCpuUsage.Add(ctx, 1, attr)
 	containerCpuLimit.Add(ctx, 1, attr)
 	containerCpuUser.Add(ctx, 1, attr)
