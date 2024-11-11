@@ -22,14 +22,13 @@ import (
 	"go.opentelemetry.io/otel/sdk/metric/metricdata"
 	"go.opentelemetry.io/otel/sdk/resource"
 	sdktrace "go.opentelemetry.io/otel/sdk/trace"
-	semconv "go.opentelemetry.io/otel/semconv/v1.21.0"
 	"go.uber.org/zap"
 )
 
 const (
 	defaultPort = "9090"
-	serviceName = "OTEL_SERVICE_NAME"
 	PORT_STR    = "PORT"
+	name        = "calendar-rest-go"
 )
 
 var logger *zap.Logger
@@ -145,17 +144,13 @@ func realMain() error {
 	ctx := context.Background()
 
 	endpoint := fmt.Sprintf(":%s", getEnv(PORT_STR, defaultPort))
-	service := getEnv(serviceName, "calendar-otel")
 	var err error
-	logger, err = zap.NewDevelopment(zap.Fields(zap.String("service", service)))
+	logger, err = zap.NewDevelopment()
 	if err != nil {
 		return err
 	}
 	// resource.WithContainer() adds container.id which the agent will leverage to fetch container tags via the tagger.
-	res, err := resource.New(ctx, resource.WithContainer(),
-		resource.WithAttributes(semconv.ServiceName(service)),
-		resource.WithFromEnv(),
-	)
+	res, err := resource.New(ctx, resource.WithContainer(), resource.WithFromEnv())
 	if err != nil {
 		logger.Fatal("can't create resource", zap.Error(err))
 		return err
@@ -172,7 +167,7 @@ func realMain() error {
 			logger.Error("loggerProvider Shutdown failed", zap.Error(err))
 		}
 	}()
-	logger = zap.New(otelzap.NewCore(service, otelzap.WithLoggerProvider(loggerProvider)), zap.Fields(zap.String("service", service)))
+	logger = zap.New(otelzap.NewCore(name, otelzap.WithLoggerProvider(loggerProvider)))
 
 	tp, err := initTracerProvider(ctx, res)
 	if err != nil {
@@ -195,7 +190,7 @@ func realMain() error {
 			logger.Error("meterProvider Shutdown failed", zap.Error(err))
 		}
 	}()
-	server, err := NewServer(service, meterProvider)
+	server, err := NewServer(name, meterProvider)
 	if err != nil {
 		logger.Fatal("can't create new server", zap.Error(err))
 		return err
