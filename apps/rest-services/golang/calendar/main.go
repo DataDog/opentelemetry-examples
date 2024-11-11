@@ -28,6 +28,7 @@ import (
 const (
 	defaultPort = "9090"
 	PORT_STR    = "PORT"
+	name        = "calendar-rest-go"
 )
 
 var logger *zap.Logger
@@ -166,7 +167,7 @@ func realMain() error {
 			logger.Error("loggerProvider Shutdown failed", zap.Error(err))
 		}
 	}()
-	logger = zap.New(otelzap.NewCore(service, otelzap.WithLoggerProvider(loggerProvider)), zap.Fields(zap.String("service", service)))
+	logger = zap.New(otelzap.NewCore(name, otelzap.WithLoggerProvider(loggerProvider)))
 
 	tp, err := initTracerProvider(ctx, res)
 	if err != nil {
@@ -189,7 +190,7 @@ func realMain() error {
 			logger.Error("meterProvider Shutdown failed", zap.Error(err))
 		}
 	}()
-	server, err := NewServer(service, meterProvider)
+	server, err := NewServer(name, meterProvider)
 	if err != nil {
 		logger.Fatal("can't create new server", zap.Error(err))
 		return err
