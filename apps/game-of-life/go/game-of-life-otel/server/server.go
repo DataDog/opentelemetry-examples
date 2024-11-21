@@ -20,7 +20,6 @@ import (
 	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/exporters/otlp/otlpmetric/otlpmetricgrpc"
 	"go.opentelemetry.io/otel/exporters/otlp/otlptrace/otlptracegrpc"
-	"go.opentelemetry.io/otel/metric/global"
 	"go.opentelemetry.io/otel/propagation"
 	"go.opentelemetry.io/otel/sdk/metric"
 	sdktrace "go.opentelemetry.io/otel/sdk/trace"
@@ -56,7 +55,7 @@ func InitMeter(ctx context.Context) *metric.MeterProvider {
 		logger.Fatal("new otlp metric grpc exporter failed: %v", zap.Error(err))
 	}
 	provider := metric.NewMeterProvider(metric.WithReader(metric.NewPeriodicReader(exporter)))
-	global.SetMeterProvider(provider)
+	otel.SetMeterProvider(provider)
 	return provider
 }
 
