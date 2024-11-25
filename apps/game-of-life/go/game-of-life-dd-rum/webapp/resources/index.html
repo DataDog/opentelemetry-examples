@@ -1,0 +1,79 @@
+<!DOCTYPE html>
+<script src="/config.js"></script>
+<script src="https://www.datadoghq-browser-agent.com/us1/v5/datadog-rum.js" type="text/javascript"></script>
+<script>
+  let rumCfg = {
+    clientToken: window.env.DD_CLIENT_TOKEN,
+    applicationId: window.env.DD_APPLICATION_ID,
+    // `site` refers to the Datadog site parameter of your organization
+    // see https://docs.datadoghq.com/getting_started/site/
+    site: 'datadoghq.com',
+    service: 'game-of-life-dd-rum',
+    env: 'prod',
+    // Specify a version number to identify the deployed version of your application in Datadog
+    // version: '1.0.0',
+    sessionSampleRate: 100,
+    sessionReplaySampleRate: 20,
+    trackUserInteractions: true,
+    trackResources: true,
+    trackLongTasks: true,
+    defaultPrivacyLevel: 'mask-user-input',
+    allowedTracingUrls: [
+      { match: "http://localhost:8080", propagatorTypes: ["datadog", "tracecontext"]},
+    ],
+  };
+  if (window.env.DD_RUM_PROXY_URL && window.env.DD_RUM_PROXY_URL != "") {
+    rumCfg.proxy = window.env.DD_RUM_PROXY_URL;
+  }
+  window.DD_RUM && window.DD_RUM.init(rumCfg);
+  window.DD_RUM &&
+  window.DD_RUM.startSessionReplayRecording();
+</script>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Title</title>
+  <script>
+    function runGame() {
+      try {
+        fetch('/rungame', {
+          headers: {
+            "Content-Type": "application/json"
+          },
+          method: 'post',
+          body: JSON.stringify({
+            "board": document.getElementById("board").value,
+            "num_gens": parseInt(document.getElementById("num_gens").value)
+          }),
+        })
+        .then(response => response.json())
+        .then(data => {
+          const result = document.getElementById("result");
+          result.innerHTML = data["resultBoard"]
+        });
+      } catch (err) {
+        console.error(`Error: ${err}`);
+      }
+    }
+  </script>
+</head>
+<body style="font-family: Helvetica">
+  <div style="display: flex; flex-direction: column; align-items: center">
+    <h1>Game of Life</h1>
+    <br>
+    <form style="display: flex; flex-direction: column; align-items: center">
+      <div style="display: flex; flex-direction: row; justify-content: space-between; align-items: start; width: 500px">
+        <div>
+          Board: <input type="text" id="board" placeholder="[[1,1],[0,1]]">
+        </div>
+        <div>
+          Generations: <input type="number" id="num_gens" placeholder="1">
+        </div>
+      </div>
+      <button style="margin-top: 48px" type="button" id="run_game" onClick="runGame()">Run Game</button>
+    </form>
+    <div style="margin-top: 48px;">Result:</div>
+    <div style="margin-top: 8px; white-space: pre-line; font-weight: bold" id="result"></div>
+  </div>
+</body>
+</html>
