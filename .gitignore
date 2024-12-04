@@ -19,3 +19,6 @@
 
 # OS files
 .DS_Store
+
+# rolldice-game node modules
+apps/rolldice-game/game_controller/node_modules
