@@ -4,7 +4,7 @@ Sample python apps that provide CRUD api for Users table for both SQLite & Postg
 
 Command to run the app with opentelemetry-instrument and export traces to console
 ```
- opentelemetry-instrument
+ opentelemetry-instrument \
     --traces_exporter console \
     --metrics_exporter console \
     --service_name my-service \
