@@ -4,7 +4,7 @@ import psycopg2
 from google.cloud.sqlcommenter.psycopg2.extension import CommenterCursorFactory
 from flask import Flask, jsonify, request
 
-DATABASE = "dbname=postgres user=otel.sample host=localhost port=5432"
+DATABASE = "dbname=postgres user=otelsample password=samplepassword host=localhost port=5432"
 
 
 def get_db():
@@ -34,7 +34,7 @@ def create_app():
     def get_users():
         with get_db() as conn:
             cur = conn.cursor()
-            cur.execute("SELECT id, name, email FROM users")
+            cur.execute("SELECT id, name, email, pg_sleep(10) FROM users")
             users = cur.fetchall()
         return jsonify(users)
 
