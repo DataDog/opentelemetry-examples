@@ -1,0 +1,21 @@
+receivers:
+  otlp:
+    protocols:
+      http:
+        endpoint: "0.0.0.0:4318"
+
+exporters:
+  debug:
+  datadog:
+    api:
+      key: ${env:DD_API_KEY}
+      site: ${env:DD_SITE}
+
+service:
+  pipelines:
+    metrics:
+      receivers: [otlp]
+      exporters: [datadog, debug]
+    traces:
+      receivers: [otlp]
+      exporters: [datadog, debug]

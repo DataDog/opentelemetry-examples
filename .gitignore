@@ -22,3 +22,7 @@
 
 # rolldice-game node modules
 apps/rolldice-game/game_controller/node_modules
+
+# custom collector
+apps/rest-services/py/otelcol-custom
+
