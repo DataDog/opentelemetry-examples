@@ -76,6 +76,7 @@ func NewGameOfLifeClient(source string, options ...ClientOption) (Client, error)
 
 func (c *gameOfLifeClient) RunGame(ctx context.Context, gameRequest *gameoflifepb.GameRequest, opts ...grpc.CallOption) (*gameoflifepb.GameResponse, error) {
 	span, _ := tracer.StartSpanFromContext(ctx, "RunGame")
+	//span.SetTag("sampling_attribute", rand.Intn(10))
 	defer span.Finish()
 
 	ctx, cancel := prepareContext(ctx, c.source, c.cfg.gRPCQueryTimeout)
