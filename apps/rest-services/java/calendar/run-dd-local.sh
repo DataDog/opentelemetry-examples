@@ -10,7 +10,7 @@ export DD_TRACE_PROPAGATION_STYLE_INJECT="tracecontext"
 export DD_TRACE_PROPAGATION_STYLE_EXTRACT="tracecontext"
 export SERVER_PORT="9090"
 export DD_AGENT_HOST="localhost"
-# export OTEL_EXPORTER_OTLP_PROTOCOL=http/protobuf
+# export OTEL_EXPORTER_OTLP_PROTOCOL=http/protobufç
 curl -Lo dd-java-agent.jar https://dtdg.co/latest-java-tracer
 
 java -javaagent:$SCRIPT_DIR/dd-java-agent.jar \

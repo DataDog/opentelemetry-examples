@@ -81,7 +81,7 @@ func deltaSelector(kind metric.InstrumentKind) metricdata.Temporality {
 }
 
 func exponentialHistogramSelector(ik metric.InstrumentKind) metric.Aggregation {
-	if ik == metric.InstrumentKindHistogram {
+	if ik == metric.InstrumentKindHistogram
 		return metric.AggregationBase2ExponentialHistogram{
 			MaxSize:  160,
 			MaxScale: 20,
