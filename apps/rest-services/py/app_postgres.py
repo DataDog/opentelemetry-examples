@@ -1,14 +1,17 @@
 import os
 
-import psycopg2
-from google.cloud.sqlcommenter.psycopg2.extension import CommenterCursorFactory
+import psycopg
 from flask import Flask, jsonify, request
+from opentelemetry.instrumentation.psycopg import PsycopgInstrumentor
+
+# Instrument psycopg
+PsycopgInstrumentor().instrument(enable_commenter=True, commenter_options={"opentelemetry_values": True, "db_driver": True})
 
 DATABASE = "dbname=postgres user=otelsample password=samplepassword host=localhost port=5432"
 
 
 def get_db():
-    conn = psycopg2.connect(DATABASE,cursor_factory=CommenterCursorFactory(with_opentelemetry=True))
+    conn = psycopg.connect(DATABASE)
     return conn
 
 
