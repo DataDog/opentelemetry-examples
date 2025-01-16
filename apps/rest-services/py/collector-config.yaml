@@ -6,6 +6,9 @@ receivers:
 
 exporters:
   debug:
+    verbosity: detailed
+    sampling_initial: 5
+    sampling_thereafter: 200
   datadog:
     api:
       key: ${env:DD_API_KEY}
