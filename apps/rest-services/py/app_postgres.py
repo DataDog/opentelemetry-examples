@@ -1,13 +1,14 @@
 import os
 
 import psycopg2
+from google.cloud.sqlcommenter.psycopg2.extension import CommenterCursorFactory
 from flask import Flask, jsonify, request
 
 DATABASE = "dbname=postgres user=otel.sample host=localhost port=5432"
 
 
 def get_db():
-    conn = psycopg2.connect(DATABASE)
+    conn = psycopg2.connect(DATABASE,cursor_factory=CommenterCursorFactory(with_opentelemetry=True))
     return conn
 
 
