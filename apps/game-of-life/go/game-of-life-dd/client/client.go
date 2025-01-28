@@ -3,6 +3,7 @@ package client
 import (
 	"context"
 	"fmt"
+	"gopkg.in/DataDog/dd-trace-go.v1/ddtrace/tracer"
 	"os"
 	"time"
 
@@ -74,6 +75,9 @@ func NewGameOfLifeClient(source string, options ...ClientOption) (Client, error)
 }
 
 func (c *gameOfLifeClient) RunGame(ctx context.Context, gameRequest *gameoflifepb.GameRequest, opts ...grpc.CallOption) (*gameoflifepb.GameResponse, error) {
+	span, _ := tracer.StartSpanFromContext(ctx, "RunGame")
+	defer span.Finish()
+
 	ctx, cancel := prepareContext(ctx, c.source, c.cfg.gRPCQueryTimeout)
 	defer func() {
 		cancel()

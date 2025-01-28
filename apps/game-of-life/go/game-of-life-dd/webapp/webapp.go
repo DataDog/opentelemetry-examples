@@ -58,11 +58,15 @@ func main() {
 
 // run Runs the game of life program with the given game configuration
 func run(ctx context.Context, board string, numGens int32) (*gameoflifepb.GameResponse, error) {
+	span, _ := tracer.StartSpanFromContext(ctx, "run")
+	defer span.Finish()
+
 	gameConfig := &gameoflifepb.GameRequest{
 		Board:   board,
 		NumGens: numGens,
 	}
 	logger.Info("Running game", zap.Any("gameConfig", gameConfig))
+	ctx = tracer.ContextWithSpan(ctx, span)
 	r, err := gameOfLifeClient.RunGame(ctx, gameConfig)
 	if err != nil {
 		logger.Error("Calling gameOfLifeClient.RunGame",
@@ -100,19 +104,54 @@ func writeError(w http.ResponseWriter, encoder *json.Encoder, code int, err erro
 	logger.Error(message, zap.Error(err))
 }
 
+// CORS middleware
+func corsMiddleware(next func(w http.ResponseWriter, r *http.Request)) func(w http.ResponseWriter, r *http.Request) {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		// Set CORS headers
+		w.Header().Set("Access-Control-Allow-Origin", "*") // Update this for specific origins in production
+		w.Header().Set("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS")
+		w.Header().Set("Access-Control-Allow-Headers", "Content-Type, Authorization")
+
+		// Handle preflight request
+		if r.Method == http.MethodOptions {
+			w.WriteHeader(http.StatusOK)
+			return
+		}
+
+		// Call the next handler
+		next(w, r)
+	})
+}
+
 func SetupHandlers() *http.ServeMux {
 	mux := http.NewServeMux()
 
-	mux.HandleFunc("/readiness", ReadinessHandler)
-	mux.HandleFunc("/liveness", LivenessHandler)
-	mux.HandleFunc("/rungame", RunGameHandler)
+	mux.HandleFunc("/readiness", corsMiddleware(ReadinessHandler))
+	mux.HandleFunc("/liveness", corsMiddleware(LivenessHandler))
+	mux.HandleFunc("/rungame", corsMiddleware(RunGameHandler))
 	mux.Handle("/", http.FileServer(http.Dir(*resources)))
+
+	mux.HandleFunc("/config.js", ConfigHandler)
 
 	return mux
 }
 
+func ConfigHandler(w http.ResponseWriter, r *http.Request) {
+	w.Header().Set("Content-Type", "application/javascript")
+	w.WriteHeader(http.StatusOK)
+	fmt.Fprintf(w, `window.env = {
+		DD_APPLICATION_ID: "%s",
+		DD_CLIENT_TOKEN: "%s",
+		DD_RUM_PROXY_URL: "%s",
+	};`, os.Getenv("DD_APPLICATION_ID"), os.Getenv("DD_CLIENT_TOKEN"), os.Getenv("DD_RUM_PROXY_URL"))
+}
+
 func RunGameHandler(w http.ResponseWriter, r *http.Request) {
-	ctx := r.Context()
+	spanContext, _ := tracer.Extract(tracer.HTTPHeadersCarrier(r.Header))
+	span := tracer.StartSpan("RunGameHandler", tracer.ChildOf(spanContext))
+	defer span.Finish()
+
+	ctx := tracer.ContextWithSpan(r.Context(), span)
 	var body gameoflifepb.GameRequest
 	encoder := json.NewEncoder(w)
 	err := json.NewDecoder(r.Body).Decode(&body)
