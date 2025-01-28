@@ -27,3 +27,9 @@ For example, `[[1,1],[1,0],[0,1]]` represents the board:
 1 0
 0 1
 ```
+
+### Optional - Run with RUM Browser SDK
+
+This project can be run with the Real-User Monitoring (RUM) Browser SDK by setting the environment variables `DD_APPLICATION_ID` and `DD_CLIENT_TOKEN` before running `go run webapp/webapp.go`
+
+Optionally, also set `DD_RUM_PROXY_URL` to redirect RUM data to a proxy instead of the RUM backend.
