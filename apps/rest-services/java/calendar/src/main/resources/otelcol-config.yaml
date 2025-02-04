@@ -6,7 +6,7 @@ receivers:
       http:
         endpoint: 0.0.0.0:4318
 exporters:
-  logging:
+  debug:
     verbosity: detailed
   datadog:
     traces:

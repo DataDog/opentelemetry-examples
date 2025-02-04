@@ -13,57 +13,62 @@ Response:
 {"date":"3/22/2022"}
 ```
 
-The application has been configured to use the probabilistic sampler processor. This means that only a percentage of all traces sent through the application after passing through the sampler in the pipeline will be available following the processor in the pipeline. The current setting for the sample size is 30%, therefore roughly 30% of requests will be sent out from the processor after ingesting 100% of requests.
+## Running locally
 
-### Usage
+You can use the script `run-otel-local.sh` to test the application locally with OTel SDK.
+You can use the script `run-dd-local.sh` to test the application locally with DD SDK.
 
-First run the example using either of the Docker compose commands listed below. We expect 30% of the requests sent through the pipeline to reach the end. Use the following bash command in a terminal to send 10 requests to the application:
+## Docker Compose
+
+In all 3 setups, retrieve API_KEY and SITE from the Datadog app, and expose them on the shell:
+
+```
+export DD_API_KEY=xx
+export DD_SITE=xx
+```
+
+**Setup 1: OTel SDK + OTel Collector:**
+
+Bring up otel-collector & Java calendar service:
+
+```
+docker compose -f deploys/docker/docker-compose-otelcol.yml up
+```
+
+In this setup, the Collector has been configured to use the probabilistic sampler processor. This
+means that only a percentage of all traces will pass through the Collector and be exported to
+Datadog. The current setting for the sampler is 30% and can be adjusted in
+`src/main/resources/otelcol-config.yaml`.
+
+You can use the following bash command in a terminal to send 10 requests to the application:
 
     for n in {1..   10};
     do
         curl 'http://localhost:9090/calendar'
     done
 
-We should expect to see roughly 30% of the 10 requests exported to our backend of choice.
+After this command, we should expect to see 3 requests on average exported to Datadog.
 
-## Script
+**Setup 2: OTel SDK + Datadog Agent (OTLP ingest):**
 
-We can use scripts `run-otel-local.sh` to test application locally with OTel SDK.
-We can use scripts `run-dd-local.sh` to test application locally with DD SDK.
-
-## Docker Compose
-
-**Collector:**
-
-Retrieve API_KEY from datadoghq, and expose same on Shell
+Bring up agent & Java calendar service:
 
 ```
-export DD_API_KEY=xx
+docker compose -f deploys/docker/docker-compose-otlp-ingest.yml up
 ```
 
-Bring up otel-collector & Java calendar service
+**Setup 3: Datadog SDK (OTel API) + Datadog Agent:**
+
+Bring up agent & Java calendar service:
 
 ```
-docker compose -f deploys/docker/docker-compose-otel.yml  up
+docker compose -f deploys/docker/docker-compose-dd-sdk.yml up
 ```
 
-**OTLP ingest in the agent:**
+The Datadog Java SDK can be used via the OTel API. However, currently, only traces can be directly
+exported using this method. This example collects logs indirectly using the Datadog Agent's [Docker Log collection](https://docs.datadoghq.com/containers/docker/log/?tab=containerinstallation) feature. Metrics are simply dropped.
 
-Retrieve API_KEY from datadoghq, and expose same on Shell
-
-```
-export DD_API_KEY=xx
-```
-
-Bring up agent & Java calendar service
-
-```
-docker compose -f deploys/docker/docker-compose-dd.yml  up
-```
-
-**Note:** This app demonstrates that log/trace correlation does not work OOTB for otel users that collect logs through the agents native functionality. This is due to the fact that the OTel java tracer automatically injects the keys `trace_id` and `span_id` (which conforms with [OTel conventions](https://github.com/open-telemetry/opentelemetry-collector/blob/7b6937aacd0232c7f07f503b20ae7a8a70336914/pdata/plog/json.go#L118-L125)), but the backend expects the trace ID to be in keys that conform to DD conventions (e.g. `dd.trace_id`, `dd.span_id`).
-
-As of now, in order for trace/log correlation to work the `trace_id` key needs to be manually added to the "Preprocessing for JSON logs" at <https://app.datadoghq.com/logs/pipelines>.
+**Note:** If you choose to use the OTel SDK with the Agent's log collection (a combination not demonstrated here), log/trace correlation may not work OOTB. This is due to the fact that the OTel Java tracer automatically injects the keys `trace_id` and `span_id` (which conforms with [OTel conventions](https://opentelemetry.io/docs/specs/otel/compatibility/logging_trace_context/)), but the Datadog backend expects keys that conform to DD conventions (e.g. `dd.trace_id`, `dd.span_id`). In that situation, in order for trace/log correlation to work, the `trace_id` key needs to be manually added to "Preprocessing for JSON logs" at <https://app.datadoghq.com/logs/pipelines>.
 
 ## Build multi-platform images
 
@@ -85,7 +90,7 @@ Calendar app with DataDog SDK:
 docker buildx build \
 --platform linux/amd64,linux/arm64 \
 --tag datadog/opentelemetry-examples:calendar-java-dd-20240916 \
---file ./deploys/Dockerfile.calendar.java.dd \
+--file ./deploys/Dockerfile.dd \
 --push .
 ```
 
