@@ -27,9 +27,14 @@ services:
       - DD_API_KEY
       - DD_SITE=datadoghq.com
       - DD_APM_NON_LOCAL_TRAFFIC=true
+      - DD_LOGS_ENABLED=true
+      - DD_LOGS_CONFIG_CONTAINER_COLLECT_ALL=true
+      - DD_DOGSTATSD_NON_LOCAL_TRAFFIC=true
+      - DD_LOGS_INJECTION=true
       - DD_OTLP_CONFIG_RECEIVER_PROTOCOLS_GRPC_ENDPOINT=0.0.0.0:4317
       - DD_OTLP_CONFIG_RECEIVER_PROTOCOLS_HTTP_ENDPOINT=0.0.0.0:4318
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock
       - /proc/:/host/proc/:ro
       - /sys/fs/cgroup:/host/sys/fs/cgroup:ro
+      - /Users/jean.delacruz/datadog.yaml:/etc/datadog-agent/datadog-docker.yaml

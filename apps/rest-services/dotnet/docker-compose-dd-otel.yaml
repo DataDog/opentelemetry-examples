@@ -13,6 +13,10 @@ services:
       - DD_AGENT_HOST=datadog-agent
       - DD_LOGS_INJECTION=true
       - DD_RUNTIME_METRICS_ENABLED=true
+      - DD_TRACE_START=true
+      - DD_LOGS_ENABLED=true
+      - DD_LOGS_CONFIG_CONTAINER_COLLECT_ALL=true
+      - DD_LOGS_CONFIG_AUTO_MULTI_LINE_EXTRA_PATTERNS=true
       - ASPNETCORE_URLS=http://+:5077
     ports:
       - "5077:5077"
