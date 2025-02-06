@@ -29,17 +29,20 @@ builder.Services.AddOpenTelemetry()
                 .AddService(DiagnosticsConfig.ServiceName))
             .AddAspNetCoreInstrumentation()
             .AddRuntimeInstrumentation()
-            .AddOtlpExporter(opt => opt.Endpoint = new Uri("http://localhost:4317")))
-    .WithLogging(providerBuilder => providerBuilder
-        .ConfigureResource(resource => resource
-            .AddService(DiagnosticsConfig.ServiceName))
-        .AddConsoleExporter()
-        .AddOtlpExporter(opt => opt.Endpoint = new Uri("http://localhost:4317")));
+            .AddOtlpExporter(opt => opt.Endpoint = new Uri("http://localhost:4317")));
 
-//Add support to logging with SERILOG
-// builder.Host.UseSerilog((context, configuration) =>
-//     configuration.ReadFrom.Configuration(context.Configuration));
+builder.Logging.AddOpenTelemetry(options =>
+{
+    options.IncludeScopes = true;
+    options.IncludeFormattedMessage = true;
+    options.ParseStateValues = true;
 
+    options
+        .SetResourceBuilder(
+            ResourceBuilder.CreateDefault()
+                .AddService(DiagnosticsConfig.ServiceName))
+        .AddOtlpExporter(opt => opt.Endpoint = new Uri("http://localhost:4317"));
+});
 
 var app = builder.Build();
 
@@ -49,10 +52,6 @@ if (app.Environment.IsDevelopment())
     app.UseSwagger();
     app.UseSwaggerUI();
 }
-
-
-//Add support to logging request with SERILOG
-// app.UseSerilogRequestLogging();
 
 app.UseHttpsRedirection();
 
