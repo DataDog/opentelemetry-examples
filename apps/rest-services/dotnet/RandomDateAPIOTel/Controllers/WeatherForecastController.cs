@@ -18,7 +18,7 @@ public class RandomDateController : ControllerBase
     }
 
     [HttpGet]
-    public async Task<DateTime> Get()
+    public async Task<OkObjectResult> Get()
     {
         // .NET Diagnostics: create a manual span
         using (var activity = DiagnosticsConfig.ActivitySource.StartActivity("andrei-test"))
@@ -35,6 +35,8 @@ public class RandomDateController : ControllerBase
             // .NET Diagnostics: update the metric
         }
 
+        _logger.LogCritical("Get random date from RandomDateController. {trace-id}, {span-id}",
+            Activity.Current.TraceId.ToString(), Activity.Current.SpanId.ToString());
         using (_logger.BeginScope(new Dictionary<string, object>
                {
                    ["dd.trace_id"] = Activity.Current.TraceId.ToString(),
@@ -57,7 +59,7 @@ public class RandomDateController : ControllerBase
             Log.Logger.Information("Example log line with trace correlation info");
         }
 
-        return GenerateRandomDate();
+        return Ok(GenerateRandomDate());
     }
 
     private static DateTime GenerateRandomDate()

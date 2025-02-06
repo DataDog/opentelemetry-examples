@@ -3,7 +3,6 @@ using OpenTelemetry.Logs;
 using OpenTelemetry.Metrics;
 using OpenTelemetry.Resources;
 using OpenTelemetry.Trace;
-using Serilog;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -14,6 +13,7 @@ builder.Services.AddControllers();
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
 
+builder.Logging.ClearProviders();
 // OpenTelemetry Setup
 builder.Services.AddOpenTelemetry()
     .WithTracing(tracerProviderBuilder =>
@@ -22,33 +22,24 @@ builder.Services.AddOpenTelemetry()
             .ConfigureResource(resource => resource
                 .AddService(DiagnosticsConfig.ServiceName))
             .AddAspNetCoreInstrumentation()
-            .AddOtlpExporter())
+            .AddOtlpExporter(opt => opt.Endpoint = new Uri("http://localhost:4317")))
     .WithMetrics(metricsProviderBuilder =>
         metricsProviderBuilder
             .ConfigureResource(resource => resource
                 .AddService(DiagnosticsConfig.ServiceName))
             .AddAspNetCoreInstrumentation()
             .AddRuntimeInstrumentation()
-            .AddOtlpExporter());
-
-builder.Logging.ClearProviders();
+            .AddOtlpExporter(opt => opt.Endpoint = new Uri("http://localhost:4317")))
+    .WithLogging(providerBuilder => providerBuilder
+        .ConfigureResource(resource => resource
+            .AddService(DiagnosticsConfig.ServiceName))
+        .AddConsoleExporter()
+        .AddOtlpExporter(opt => opt.Endpoint = new Uri("http://localhost:4317")));
 
 //Add support to logging with SERILOG
-builder.Host.UseSerilog((context, configuration) =>
-    configuration.ReadFrom.Configuration(context.Configuration));
+// builder.Host.UseSerilog((context, configuration) =>
+//     configuration.ReadFrom.Configuration(context.Configuration));
 
-builder.Logging.AddOpenTelemetry(options =>
-{
-    options.IncludeScopes = true;
-    options.IncludeFormattedMessage = true;
-    options.ParseStateValues = true;
-
-    options
-        .SetResourceBuilder(
-            ResourceBuilder.CreateDefault()
-                .AddService(DiagnosticsConfig.ServiceName))
-        .AddOtlpExporter();
-});
 
 var app = builder.Build();
 
@@ -61,7 +52,7 @@ if (app.Environment.IsDevelopment())
 
 
 //Add support to logging request with SERILOG
-app.UseSerilogRequestLogging();
+// app.UseSerilogRequestLogging();
 
 app.UseHttpsRedirection();
 

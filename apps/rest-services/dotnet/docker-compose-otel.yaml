@@ -1,20 +1,20 @@
 version: "3.9"
 services:
-  random-date-dotnet-otel:
-    depends_on:
-      - datadog-agent
-    container_name: random-date-dotnet-otel
-    build:
-      context: .
-      dockerfile: Dockerfile.RandomDateAPI.otel
-    environment:
-      - OTEL_SERVICE_NAME=random-date-dotnet-otel
-      - OTEL_EXPORTER_OTLP_ENDPOINT=http://datadog-agent:4317
-      - OTEL_EXPORTER_OTLP_PROTOCOL=grpc
-      - OTEL_RESOURCE_ATTRIBUTES=deployment.environment=docker,host.name=otelcol-docker
-      - ASPNETCORE_URLS=http://+:5078
-    ports:
-      - "5078:5078"
+#  random-date-dotnet-otel:
+#    depends_on:
+#      - datadog-agent
+#    container_name: random-date-dotnet-otel
+#    build:
+#      context: .
+#      dockerfile: Dockerfile.RandomDateAPI.otel
+#    environment:
+#      - OTEL_SERVICE_NAME=random-date-dotnet-otel
+#      - OTEL_EXPORTER_OTLP_ENDPOINT=http://datadog-agent:4317
+#      - OTEL_EXPORTER_OTLP_PROTOCOL=grpc
+#      - OTEL_RESOURCE_ATTRIBUTES=deployment.environment=docker,host.name=otelcol-docker
+#      - ASPNETCORE_URLS=http://+:5078
+#    ports:
+#      - "5078:5078"
   datadog-agent:
     container_name: datadog-agent
     image: "gcr.io/datadoghq/agent:latest"
@@ -31,6 +31,8 @@ services:
       - DD_LOGS_CONFIG_CONTAINER_COLLECT_ALL=true
       - DD_DOGSTATSD_NON_LOCAL_TRAFFIC=true
       - DD_LOGS_INJECTION=true
+      - DD_TRACE_START=true
+      - DD_LOGS_CONFIG_AUTO_MULTI_LINE_EXTRA_PATTERNS=true
       - DD_OTLP_CONFIG_RECEIVER_PROTOCOLS_GRPC_ENDPOINT=0.0.0.0:4317
       - DD_OTLP_CONFIG_RECEIVER_PROTOCOLS_HTTP_ENDPOINT=0.0.0.0:4318
     volumes:

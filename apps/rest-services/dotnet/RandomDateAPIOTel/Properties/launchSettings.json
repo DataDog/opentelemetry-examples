@@ -16,7 +16,11 @@
       "launchUrl": "swagger",
       "applicationUrl": "http://0.0.0.0:5078",
       "environmentVariables": {
-        "ASPNETCORE_ENVIRONMENT": "Development"
+        "ASPNETCORE_ENVIRONMENT": "Development",
+        "OTEL_SERVICE_NAME": "random-date-dotnet-otel",
+        "OTEL_EXPORTER_OTLP_ENDPOINT": "http://datadog-agent:4317",
+        "OTEL_EXPORTER_OTLP_PROTOCOL": "grpc",
+        "OTEL_RESOURCE_ATTRIBUTES": "deployment.environment=docker,host.name=otelcol-docker"
       }
     },
     "https": {

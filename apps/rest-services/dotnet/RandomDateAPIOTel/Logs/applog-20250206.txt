@@ -1,0 +1,547 @@
+2025-02-06 13:07:42.573 +01:00 [DBG] Registered model binder providers, in the following order: ["Microsoft.AspNetCore.Mvc.ModelBinding.Binders.BinderTypeModelBinderProvider","Microsoft.AspNetCore.Mvc.ModelBinding.Binders.ServicesModelBinderProvider","Microsoft.AspNetCore.Mvc.ModelBinding.Binders.BodyModelBinderProvider","Microsoft.AspNetCore.Mvc.ModelBinding.Binders.HeaderModelBinderProvider","Microsoft.AspNetCore.Mvc.ModelBinding.Binders.FloatingPointTypeModelBinderProvider","Microsoft.AspNetCore.Mvc.ModelBinding.Binders.EnumTypeModelBinderProvider","Microsoft.AspNetCore.Mvc.ModelBinding.Binders.DateTimeModelBinderProvider","Microsoft.AspNetCore.Mvc.ModelBinding.Binders.SimpleTypeModelBinderProvider","Microsoft.AspNetCore.Mvc.ModelBinding.Binders.TryParseModelBinderProvider","Microsoft.AspNetCore.Mvc.ModelBinding.Binders.CancellationTokenModelBinderProvider","Microsoft.AspNetCore.Mvc.ModelBinding.Binders.ByteArrayModelBinderProvider","Microsoft.AspNetCore.Mvc.ModelBinding.Binders.FormFileModelBinderProvider","Microsoft.AspNetCore.Mvc.ModelBinding.Binders.FormCollectionModelBinderProvider","Microsoft.AspNetCore.Mvc.ModelBinding.Binders.KeyValuePairModelBinderProvider","Microsoft.AspNetCore.Mvc.ModelBinding.Binders.DictionaryModelBinderProvider","Microsoft.AspNetCore.Mvc.ModelBinding.Binders.ArrayModelBinderProvider","Microsoft.AspNetCore.Mvc.ModelBinding.Binders.CollectionModelBinderProvider","Microsoft.AspNetCore.Mvc.ModelBinding.Binders.ComplexObjectModelBinderProvider"]
+2025-02-06 13:07:42.653 +01:00 [DBG] Hosting starting
+2025-02-06 13:07:42.819 +01:00 [INF] Now listening on: http://0.0.0.0:5078
+2025-02-06 13:07:42.819 +01:00 [DBG] Loaded hosting startup assembly RandomDateAPI
+2025-02-06 13:07:42.819 +01:00 [INF] Application started. Press Ctrl+C to shut down.
+2025-02-06 13:07:42.820 +01:00 [INF] Hosting environment: Development
+2025-02-06 13:07:42.820 +01:00 [INF] Content root path: /Users/jean.delacruz/Documents/github/DataDog/opentelemetry-examples/apps/rest-services/dotnet/RandomDateAPIOTel
+2025-02-06 13:07:42.820 +01:00 [DBG] Hosting started
+2025-02-06 13:07:43.730 +01:00 [DBG] Connection id "0HNA6KREAP825" received FIN.
+2025-02-06 13:07:43.739 +01:00 [DBG] Connection id "0HNA6KREAP825" accepted.
+2025-02-06 13:07:43.757 +01:00 [DBG] Connection id "0HNA6KREAP825" started.
+2025-02-06 13:07:43.801 +01:00 [DBG] Connection id "0HNA6KREAP826" accepted.
+2025-02-06 13:07:43.801 +01:00 [DBG] Connection id "0HNA6KREAP827" accepted.
+2025-02-06 13:07:43.802 +01:00 [DBG] Connection id "0HNA6KREAP826" started.
+2025-02-06 13:07:43.803 +01:00 [DBG] Connection id "0HNA6KREAP827" started.
+2025-02-06 13:07:43.811 +01:00 [DBG] Connection id "0HNA6KREAP825" sending FIN because: "The Socket transport's send loop completed gracefully."
+2025-02-06 13:07:43.826 +01:00 [DBG] Connection id "0HNA6KREAP825" disconnecting.
+2025-02-06 13:07:43.832 +01:00 [DBG] Connection id "0HNA6KREAP825" stopped.
+2025-02-06 13:07:43.881 +01:00 [INF] Request starting HTTP/1.1 GET http://0.0.0.0:5078/swagger/index.html - null null
+2025-02-06 13:07:43.887 +01:00 [DBG] Wildcard detected, all requests with hosts will be allowed.
+2025-02-06 13:07:43.916 +01:00 [DBG] No candidates found for the request path '/swagger/index.html'
+2025-02-06 13:07:43.918 +01:00 [DBG] Request did not match any endpoints
+2025-02-06 13:07:44.071 +01:00 [DBG] Connection id "0HNA6KREAP826" completed keep alive response.
+2025-02-06 13:07:44.143 +01:00 [DBG] Connection id "0HNA6KREAP828" accepted.
+2025-02-06 13:07:44.145 +01:00 [DBG] Connection id "0HNA6KREAP828" started.
+2025-02-06 13:07:44.146 +01:00 [INF] Request starting HTTP/1.1 GET http://0.0.0.0:5078/swagger/swagger-ui-standalone-preset.js - null null
+2025-02-06 13:07:44.147 +01:00 [DBG] No candidates found for the request path '/swagger/swagger-ui-standalone-preset.js'
+2025-02-06 13:07:44.147 +01:00 [DBG] Request did not match any endpoints
+2025-02-06 13:07:44.147 +01:00 [INF] Request finished HTTP/1.1 GET http://0.0.0.0:5078/swagger/index.html - 200 null text/html;charset=utf-8 229.547ms
+2025-02-06 13:07:44.147 +01:00 [INF] Request starting HTTP/1.1 GET http://0.0.0.0:5078/swagger/swagger-ui-bundle.js - null null
+2025-02-06 13:07:44.176 +01:00 [DBG] No candidates found for the request path '/swagger/swagger-ui-bundle.js'
+2025-02-06 13:07:44.177 +01:00 [DBG] Request did not match any endpoints
+2025-02-06 13:07:44.185 +01:00 [INF] Request starting HTTP/1.1 GET http://0.0.0.0:5078/swagger/swagger-ui.css - null null
+2025-02-06 13:07:44.186 +01:00 [DBG] No candidates found for the request path '/swagger/swagger-ui.css'
+2025-02-06 13:07:44.186 +01:00 [DBG] Request did not match any endpoints
+2025-02-06 13:07:44.383 +01:00 [INF] Sending file. Request path: '/swagger-ui-standalone-preset.js'. Physical path: 'N/A'
+2025-02-06 13:07:44.383 +01:00 [INF] Sending file. Request path: '/swagger-ui.css'. Physical path: 'N/A'
+2025-02-06 13:07:44.439 +01:00 [INF] Sending file. Request path: '/swagger-ui-bundle.js'. Physical path: 'N/A'
+2025-02-06 13:07:44.440 +01:00 [DBG] Connection id "0HNA6KREAP826" completed keep alive response.
+2025-02-06 13:07:44.440 +01:00 [DBG] Connection id "0HNA6KREAP827" completed keep alive response.
+2025-02-06 13:07:44.440 +01:00 [DBG] Connection id "0HNA6KREAP828" completed keep alive response.
+2025-02-06 13:07:44.440 +01:00 [INF] Request finished HTTP/1.1 GET http://0.0.0.0:5078/swagger/swagger-ui.css - 200 143943 text/css 255.2427ms
+2025-02-06 13:07:44.440 +01:00 [INF] Request finished HTTP/1.1 GET http://0.0.0.0:5078/swagger/swagger-ui-bundle.js - 200 1096145 text/javascript 293.4736ms
+2025-02-06 13:07:44.441 +01:00 [INF] Request finished HTTP/1.1 GET http://0.0.0.0:5078/swagger/swagger-ui-standalone-preset.js - 200 339486 text/javascript 294.2763ms
+2025-02-06 13:07:44.502 +01:00 [INF] Request starting HTTP/1.1 GET http://0.0.0.0:5078/swagger/v1/swagger.json - null null
+2025-02-06 13:07:44.502 +01:00 [DBG] No candidates found for the request path '/swagger/v1/swagger.json'
+2025-02-06 13:07:44.503 +01:00 [DBG] Request did not match any endpoints
+2025-02-06 13:07:44.564 +01:00 [DBG] Connection id "0HNA6KREAP827" completed keep alive response.
+2025-02-06 13:07:44.565 +01:00 [INF] Request finished HTTP/1.1 GET http://0.0.0.0:5078/swagger/v1/swagger.json - 200 null application/json;charset=utf-8 63.3279ms
+2025-02-06 13:07:51.806 +01:00 [INF] Request starting HTTP/1.1 GET http://0.0.0.0:5078/RandomDate - null null
+2025-02-06 13:07:51.823 +01:00 [DBG] 1 candidate(s) found for the request path '/RandomDate'
+2025-02-06 13:07:51.831 +01:00 [DBG] Endpoint 'RandomDateAPI.Controllers.RandomDateController.Get (RandomDateAPI)' with route pattern 'RandomDate' is valid for the request path '/RandomDate'
+2025-02-06 13:07:51.835 +01:00 [DBG] Request matched endpoint 'RandomDateAPI.Controllers.RandomDateController.Get (RandomDateAPI)'
+2025-02-06 13:07:51.838 +01:00 [DBG] Static files was skipped as the request already matched an endpoint.
+2025-02-06 13:07:51.845 +01:00 [WRN] Failed to determine the https port for redirect.
+2025-02-06 13:07:51.854 +01:00 [INF] Executing endpoint 'RandomDateAPI.Controllers.RandomDateController.Get (RandomDateAPI)'
+2025-02-06 13:07:51.886 +01:00 [INF] Route matched with {action = "Get", controller = "RandomDate"}. Executing controller action with signature System.Threading.Tasks.Task`1[System.DateTime] Get() on controller RandomDateAPI.Controllers.RandomDateController (RandomDateAPI).
+2025-02-06 13:07:51.888 +01:00 [DBG] Execution plan of authorization filters (in the following order): ["None"]
+2025-02-06 13:07:51.889 +01:00 [DBG] Execution plan of resource filters (in the following order): ["None"]
+2025-02-06 13:07:51.889 +01:00 [DBG] Execution plan of action filters (in the following order): ["Microsoft.AspNetCore.Mvc.ModelBinding.UnsupportedContentTypeFilter (Order: -3000)","Microsoft.AspNetCore.Mvc.Infrastructure.ModelStateInvalidFilter (Order: -2000)"]
+2025-02-06 13:07:51.890 +01:00 [DBG] Execution plan of exception filters (in the following order): ["None"]
+2025-02-06 13:07:51.890 +01:00 [DBG] Execution plan of result filters (in the following order): ["Microsoft.AspNetCore.Mvc.Infrastructure.ClientErrorResultFilter (Order: -2000)"]
+2025-02-06 13:07:51.893 +01:00 [DBG] Executing controller factory for controller RandomDateAPI.Controllers.RandomDateController (RandomDateAPI)
+2025-02-06 13:07:51.895 +01:00 [DBG] Executed controller factory for controller RandomDateAPI.Controllers.RandomDateController (RandomDateAPI)
+2025-02-06 13:07:51.901 +01:00 [INF] Executing action method RandomDateAPI.Controllers.RandomDateController.Get (RandomDateAPI) - Validation state: "Valid"
+2025-02-06 13:07:52.234 +01:00 [FTL] Get random date from RandomDateController. {trace-id}, {span-id}
+2025-02-06 13:07:52.236 +01:00 [FTL] Get random date from RandomDateController. {trace-id}, {span-id}
+2025-02-06 13:07:52.238 +01:00 [INF] Example log line with trace correlation info
+2025-02-06 13:07:52.251 +01:00 [INF] Executed action method RandomDateAPI.Controllers.RandomDateController.Get (RandomDateAPI), returned result Microsoft.AspNetCore.Mvc.ObjectResult in 343.4832ms.
+2025-02-06 13:07:52.268 +01:00 [DBG] List of registered output formatters, in the following order: ["Microsoft.AspNetCore.Mvc.Formatters.HttpNoContentOutputFormatter","Microsoft.AspNetCore.Mvc.Formatters.StringOutputFormatter","Microsoft.AspNetCore.Mvc.Formatters.StreamOutputFormatter","Microsoft.AspNetCore.Mvc.Formatters.SystemTextJsonOutputFormatter"]
+2025-02-06 13:07:52.273 +01:00 [DBG] Attempting to select an output formatter based on Accept header '["text/plain"]'.
+2025-02-06 13:07:52.276 +01:00 [DBG] Could not find an output formatter based on content negotiation. Accepted types were (["text/plain"])
+2025-02-06 13:07:52.276 +01:00 [DBG] Attempting to select an output formatter without using a content type as no explicit content types were specified for the response.
+2025-02-06 13:07:52.277 +01:00 [DBG] Attempting to select the first formatter in the output formatters list which can write the result.
+2025-02-06 13:07:52.277 +01:00 [DBG] Selected output formatter 'Microsoft.AspNetCore.Mvc.Formatters.SystemTextJsonOutputFormatter' and content type 'application/json' to write the response.
+2025-02-06 13:07:52.278 +01:00 [INF] Executing ObjectResult, writing value of type 'System.DateTime'.
+2025-02-06 13:07:52.298 +01:00 [INF] Executed action RandomDateAPI.Controllers.RandomDateController.Get (RandomDateAPI) in 404.827ms
+2025-02-06 13:07:52.299 +01:00 [INF] Executed endpoint 'RandomDateAPI.Controllers.RandomDateController.Get (RandomDateAPI)'
+2025-02-06 13:07:52.301 +01:00 [INF] HTTP GET /RandomDate responded 200 in 459.4502 ms
+2025-02-06 13:07:52.302 +01:00 [DBG] Connection id "0HNA6KREAP827" completed keep alive response.
+2025-02-06 13:07:52.302 +01:00 [INF] Request finished HTTP/1.1 GET http://0.0.0.0:5078/RandomDate - 200 null application/json; charset=utf-8 497.2055ms
+2025-02-06 13:09:12.978 +01:00 [DBG] Registered model binder providers, in the following order: ["Microsoft.AspNetCore.Mvc.ModelBinding.Binders.BinderTypeModelBinderProvider","Microsoft.AspNetCore.Mvc.ModelBinding.Binders.ServicesModelBinderProvider","Microsoft.AspNetCore.Mvc.ModelBinding.Binders.BodyModelBinderProvider","Microsoft.AspNetCore.Mvc.ModelBinding.Binders.HeaderModelBinderProvider","Microsoft.AspNetCore.Mvc.ModelBinding.Binders.FloatingPointTypeModelBinderProvider","Microsoft.AspNetCore.Mvc.ModelBinding.Binders.EnumTypeModelBinderProvider","Microsoft.AspNetCore.Mvc.ModelBinding.Binders.DateTimeModelBinderProvider","Microsoft.AspNetCore.Mvc.ModelBinding.Binders.SimpleTypeModelBinderProvider","Microsoft.AspNetCore.Mvc.ModelBinding.Binders.TryParseModelBinderProvider","Microsoft.AspNetCore.Mvc.ModelBinding.Binders.CancellationTokenModelBinderProvider","Microsoft.AspNetCore.Mvc.ModelBinding.Binders.ByteArrayModelBinderProvider","Microsoft.AspNetCore.Mvc.ModelBinding.Binders.FormFileModelBinderProvider","Microsoft.AspNetCore.Mvc.ModelBinding.Binders.FormCollectionModelBinderProvider","Microsoft.AspNetCore.Mvc.ModelBinding.Binders.KeyValuePairModelBinderProvider","Microsoft.AspNetCore.Mvc.ModelBinding.Binders.DictionaryModelBinderProvider","Microsoft.AspNetCore.Mvc.ModelBinding.Binders.ArrayModelBinderProvider","Microsoft.AspNetCore.Mvc.ModelBinding.Binders.CollectionModelBinderProvider","Microsoft.AspNetCore.Mvc.ModelBinding.Binders.ComplexObjectModelBinderProvider"]
+2025-02-06 13:09:13.052 +01:00 [DBG] Hosting starting
+2025-02-06 13:09:13.208 +01:00 [INF] Now listening on: http://0.0.0.0:5078
+2025-02-06 13:09:13.208 +01:00 [DBG] Loaded hosting startup assembly RandomDateAPI
+2025-02-06 13:09:13.209 +01:00 [INF] Application started. Press Ctrl+C to shut down.
+2025-02-06 13:09:13.209 +01:00 [INF] Hosting environment: Development
+2025-02-06 13:09:13.209 +01:00 [INF] Content root path: /Users/jean.delacruz/Documents/github/DataDog/opentelemetry-examples/apps/rest-services/dotnet/RandomDateAPIOTel
+2025-02-06 13:09:13.209 +01:00 [DBG] Hosting started
+2025-02-06 13:09:14.099 +01:00 [DBG] Connection id "0HNA6KS98J9D5" received FIN.
+2025-02-06 13:09:14.115 +01:00 [DBG] Connection id "0HNA6KS98J9D5" accepted.
+2025-02-06 13:09:14.125 +01:00 [DBG] Connection id "0HNA6KS98J9D5" started.
+2025-02-06 13:09:14.126 +01:00 [DBG] Connection id "0HNA6KS98J9D6" accepted.
+2025-02-06 13:09:14.126 +01:00 [DBG] Connection id "0HNA6KS98J9D6" started.
+2025-02-06 13:09:14.126 +01:00 [DBG] Connection id "0HNA6KS98J9D7" accepted.
+2025-02-06 13:09:14.128 +01:00 [DBG] Connection id "0HNA6KS98J9D7" started.
+2025-02-06 13:09:14.144 +01:00 [DBG] Connection id "0HNA6KS98J9D5" sending FIN because: "The Socket transport's send loop completed gracefully."
+2025-02-06 13:09:14.149 +01:00 [DBG] Connection id "0HNA6KS98J9D5" disconnecting.
+2025-02-06 13:09:14.151 +01:00 [DBG] Connection id "0HNA6KS98J9D5" stopped.
+2025-02-06 13:09:14.189 +01:00 [INF] Request starting HTTP/1.1 GET http://0.0.0.0:5078/swagger/index.html - null null
+2025-02-06 13:09:14.192 +01:00 [DBG] Wildcard detected, all requests with hosts will be allowed.
+2025-02-06 13:09:14.213 +01:00 [DBG] No candidates found for the request path '/swagger/index.html'
+2025-02-06 13:09:14.213 +01:00 [DBG] Request did not match any endpoints
+2025-02-06 13:09:14.320 +01:00 [DBG] Connection id "0HNA6KS98J9D6" completed keep alive response.
+2025-02-06 13:09:14.325 +01:00 [INF] Request finished HTTP/1.1 GET http://0.0.0.0:5078/swagger/index.html - 200 null text/html;charset=utf-8 157.7121ms
+2025-02-06 13:09:14.392 +01:00 [INF] Request starting HTTP/1.1 GET http://0.0.0.0:5078/swagger/v1/swagger.json - null null
+2025-02-06 13:09:14.393 +01:00 [DBG] No candidates found for the request path '/swagger/v1/swagger.json'
+2025-02-06 13:09:14.393 +01:00 [DBG] Request did not match any endpoints
+2025-02-06 13:09:14.436 +01:00 [DBG] Connection id "0HNA6KS98J9D6" completed keep alive response.
+2025-02-06 13:09:14.437 +01:00 [INF] Request finished HTTP/1.1 GET http://0.0.0.0:5078/swagger/v1/swagger.json - 200 null application/json;charset=utf-8 44.5342ms
+2025-02-06 13:09:22.518 +01:00 [INF] Request starting HTTP/1.1 GET http://0.0.0.0:5078/RandomDate - null null
+2025-02-06 13:09:22.525 +01:00 [DBG] 1 candidate(s) found for the request path '/RandomDate'
+2025-02-06 13:09:22.535 +01:00 [DBG] Endpoint 'RandomDateAPI.Controllers.RandomDateController.Get (RandomDateAPI)' with route pattern 'RandomDate' is valid for the request path '/RandomDate'
+2025-02-06 13:09:22.538 +01:00 [DBG] Request matched endpoint 'RandomDateAPI.Controllers.RandomDateController.Get (RandomDateAPI)'
+2025-02-06 13:09:22.545 +01:00 [DBG] Static files was skipped as the request already matched an endpoint.
+2025-02-06 13:09:22.550 +01:00 [WRN] Failed to determine the https port for redirect.
+2025-02-06 13:09:22.557 +01:00 [INF] Executing endpoint 'RandomDateAPI.Controllers.RandomDateController.Get (RandomDateAPI)'
+2025-02-06 13:09:22.592 +01:00 [INF] Route matched with {action = "Get", controller = "RandomDate"}. Executing controller action with signature System.Threading.Tasks.Task`1[Microsoft.AspNetCore.Mvc.OkObjectResult] Get() on controller RandomDateAPI.Controllers.RandomDateController (RandomDateAPI).
+2025-02-06 13:09:22.594 +01:00 [DBG] Execution plan of authorization filters (in the following order): ["None"]
+2025-02-06 13:09:22.594 +01:00 [DBG] Execution plan of resource filters (in the following order): ["None"]
+2025-02-06 13:09:22.595 +01:00 [DBG] Execution plan of action filters (in the following order): ["Microsoft.AspNetCore.Mvc.ModelBinding.UnsupportedContentTypeFilter (Order: -3000)","Microsoft.AspNetCore.Mvc.Infrastructure.ModelStateInvalidFilter (Order: -2000)"]
+2025-02-06 13:09:22.595 +01:00 [DBG] Execution plan of exception filters (in the following order): ["None"]
+2025-02-06 13:09:22.596 +01:00 [DBG] Execution plan of result filters (in the following order): ["Microsoft.AspNetCore.Mvc.Infrastructure.ClientErrorResultFilter (Order: -2000)"]
+2025-02-06 13:09:22.599 +01:00 [DBG] Executing controller factory for controller RandomDateAPI.Controllers.RandomDateController (RandomDateAPI)
+2025-02-06 13:09:22.600 +01:00 [DBG] Executed controller factory for controller RandomDateAPI.Controllers.RandomDateController (RandomDateAPI)
+2025-02-06 13:09:22.607 +01:00 [INF] Executing action method RandomDateAPI.Controllers.RandomDateController.Get (RandomDateAPI) - Validation state: "Valid"
+2025-02-06 13:09:23.343 +01:00 [FTL] Get random date from RandomDateController. {trace-id}, {span-id}
+2025-02-06 13:09:23.343 +01:00 [FTL] Get random date from RandomDateController. {trace-id}, {span-id}
+2025-02-06 13:09:23.344 +01:00 [INF] Example log line with trace correlation info
+2025-02-06 13:09:23.350 +01:00 [INF] Executed action method RandomDateAPI.Controllers.RandomDateController.Get (RandomDateAPI), returned result Microsoft.AspNetCore.Mvc.OkObjectResult in 738.7344ms.
+2025-02-06 13:09:23.359 +01:00 [DBG] List of registered output formatters, in the following order: ["Microsoft.AspNetCore.Mvc.Formatters.HttpNoContentOutputFormatter","Microsoft.AspNetCore.Mvc.Formatters.StringOutputFormatter","Microsoft.AspNetCore.Mvc.Formatters.StreamOutputFormatter","Microsoft.AspNetCore.Mvc.Formatters.SystemTextJsonOutputFormatter"]
+2025-02-06 13:09:23.364 +01:00 [DBG] No information found on request to perform content negotiation.
+2025-02-06 13:09:23.364 +01:00 [DBG] Attempting to select an output formatter without using a content type as no explicit content types were specified for the response.
+2025-02-06 13:09:23.364 +01:00 [DBG] Attempting to select the first formatter in the output formatters list which can write the result.
+2025-02-06 13:09:23.366 +01:00 [DBG] Selected output formatter 'Microsoft.AspNetCore.Mvc.Formatters.SystemTextJsonOutputFormatter' and content type 'application/json' to write the response.
+2025-02-06 13:09:23.366 +01:00 [INF] Executing OkObjectResult, writing value of type 'System.DateTime'.
+2025-02-06 13:09:23.382 +01:00 [INF] Executed action RandomDateAPI.Controllers.RandomDateController.Get (RandomDateAPI) in 784.3962ms
+2025-02-06 13:09:23.383 +01:00 [INF] Executed endpoint 'RandomDateAPI.Controllers.RandomDateController.Get (RandomDateAPI)'
+2025-02-06 13:09:23.386 +01:00 [INF] HTTP GET /RandomDate responded 200 in 838.1594 ms
+2025-02-06 13:09:23.388 +01:00 [DBG] Connection id "0HNA6KS98J9D6" completed keep alive response.
+2025-02-06 13:09:23.388 +01:00 [INF] Request finished HTTP/1.1 GET http://0.0.0.0:5078/RandomDate - 200 null application/json; charset=utf-8 871.6755ms
+2025-02-06 13:10:06.107 +01:00 [INF] Request starting HTTP/1.1 GET http://0.0.0.0:5078/RandomDate - null null
+2025-02-06 13:10:06.137 +01:00 [DBG] 1 candidate(s) found for the request path '/RandomDate'
+2025-02-06 13:10:06.138 +01:00 [DBG] Endpoint 'RandomDateAPI.Controllers.RandomDateController.Get (RandomDateAPI)' with route pattern 'RandomDate' is valid for the request path '/RandomDate'
+2025-02-06 13:10:06.141 +01:00 [DBG] Request matched endpoint 'RandomDateAPI.Controllers.RandomDateController.Get (RandomDateAPI)'
+2025-02-06 13:10:06.142 +01:00 [DBG] Static files was skipped as the request already matched an endpoint.
+2025-02-06 13:10:06.144 +01:00 [INF] Executing endpoint 'RandomDateAPI.Controllers.RandomDateController.Get (RandomDateAPI)'
+2025-02-06 13:10:06.146 +01:00 [INF] Route matched with {action = "Get", controller = "RandomDate"}. Executing controller action with signature System.Threading.Tasks.Task`1[Microsoft.AspNetCore.Mvc.OkObjectResult] Get() on controller RandomDateAPI.Controllers.RandomDateController (RandomDateAPI).
+2025-02-06 13:10:06.148 +01:00 [DBG] Execution plan of authorization filters (in the following order): ["None"]
+2025-02-06 13:10:06.150 +01:00 [DBG] Execution plan of resource filters (in the following order): ["None"]
+2025-02-06 13:10:06.151 +01:00 [DBG] Execution plan of action filters (in the following order): ["Microsoft.AspNetCore.Mvc.ModelBinding.UnsupportedContentTypeFilter (Order: -3000)","Microsoft.AspNetCore.Mvc.Infrastructure.ModelStateInvalidFilter (Order: -2000)"]
+2025-02-06 13:10:06.153 +01:00 [DBG] Execution plan of exception filters (in the following order): ["None"]
+2025-02-06 13:10:06.153 +01:00 [DBG] Execution plan of result filters (in the following order): ["Microsoft.AspNetCore.Mvc.Infrastructure.ClientErrorResultFilter (Order: -2000)"]
+2025-02-06 13:10:06.154 +01:00 [DBG] Executing controller factory for controller RandomDateAPI.Controllers.RandomDateController (RandomDateAPI)
+2025-02-06 13:10:06.155 +01:00 [DBG] Executed controller factory for controller RandomDateAPI.Controllers.RandomDateController (RandomDateAPI)
+2025-02-06 13:10:06.156 +01:00 [INF] Executing action method RandomDateAPI.Controllers.RandomDateController.Get (RandomDateAPI) - Validation state: "Valid"
+2025-02-06 13:10:06.166 +01:00 [FTL] Get random date from RandomDateController. {trace-id}, {span-id}
+2025-02-06 13:10:06.167 +01:00 [FTL] Get random date from RandomDateController. {trace-id}, {span-id}
+2025-02-06 13:10:06.167 +01:00 [INF] Example log line with trace correlation info
+2025-02-06 13:10:06.168 +01:00 [INF] Executed action method RandomDateAPI.Controllers.RandomDateController.Get (RandomDateAPI), returned result Microsoft.AspNetCore.Mvc.OkObjectResult in 10.69ms.
+2025-02-06 13:10:06.169 +01:00 [DBG] List of registered output formatters, in the following order: ["Microsoft.AspNetCore.Mvc.Formatters.HttpNoContentOutputFormatter","Microsoft.AspNetCore.Mvc.Formatters.StringOutputFormatter","Microsoft.AspNetCore.Mvc.Formatters.StreamOutputFormatter","Microsoft.AspNetCore.Mvc.Formatters.SystemTextJsonOutputFormatter"]
+2025-02-06 13:10:06.169 +01:00 [DBG] No information found on request to perform content negotiation.
+2025-02-06 13:10:06.169 +01:00 [DBG] Attempting to select an output formatter without using a content type as no explicit content types were specified for the response.
+2025-02-06 13:10:06.170 +01:00 [DBG] Attempting to select the first formatter in the output formatters list which can write the result.
+2025-02-06 13:10:06.170 +01:00 [DBG] Selected output formatter 'Microsoft.AspNetCore.Mvc.Formatters.SystemTextJsonOutputFormatter' and content type 'application/json' to write the response.
+2025-02-06 13:10:06.171 +01:00 [INF] Executing OkObjectResult, writing value of type 'System.DateTime'.
+2025-02-06 13:10:06.171 +01:00 [INF] Executed action RandomDateAPI.Controllers.RandomDateController.Get (RandomDateAPI) in 17.0414ms
+2025-02-06 13:10:06.172 +01:00 [INF] Executed endpoint 'RandomDateAPI.Controllers.RandomDateController.Get (RandomDateAPI)'
+2025-02-06 13:10:06.172 +01:00 [INF] HTTP GET /RandomDate responded 200 in 29.8445 ms
+2025-02-06 13:10:06.173 +01:00 [DBG] Connection id "0HNA6KS98J9D6" completed keep alive response.
+2025-02-06 13:10:06.174 +01:00 [INF] Request finished HTTP/1.1 GET http://0.0.0.0:5078/RandomDate - 200 null application/json; charset=utf-8 66.7196ms
+2025-02-06 13:10:07.768 +01:00 [INF] Request starting HTTP/1.1 GET http://0.0.0.0:5078/RandomDate - null null
+2025-02-06 13:10:07.769 +01:00 [DBG] 1 candidate(s) found for the request path '/RandomDate'
+2025-02-06 13:10:07.770 +01:00 [DBG] Endpoint 'RandomDateAPI.Controllers.RandomDateController.Get (RandomDateAPI)' with route pattern 'RandomDate' is valid for the request path '/RandomDate'
+2025-02-06 13:10:07.770 +01:00 [DBG] Request matched endpoint 'RandomDateAPI.Controllers.RandomDateController.Get (RandomDateAPI)'
+2025-02-06 13:10:07.771 +01:00 [DBG] Static files was skipped as the request already matched an endpoint.
+2025-02-06 13:10:07.771 +01:00 [INF] Executing endpoint 'RandomDateAPI.Controllers.RandomDateController.Get (RandomDateAPI)'
+2025-02-06 13:10:07.772 +01:00 [INF] Route matched with {action = "Get", controller = "RandomDate"}. Executing controller action with signature System.Threading.Tasks.Task`1[Microsoft.AspNetCore.Mvc.OkObjectResult] Get() on controller RandomDateAPI.Controllers.RandomDateController (RandomDateAPI).
+2025-02-06 13:10:07.772 +01:00 [DBG] Execution plan of authorization filters (in the following order): ["None"]
+2025-02-06 13:10:07.772 +01:00 [DBG] Execution plan of resource filters (in the following order): ["None"]
+2025-02-06 13:10:07.773 +01:00 [DBG] Execution plan of action filters (in the following order): ["Microsoft.AspNetCore.Mvc.ModelBinding.UnsupportedContentTypeFilter (Order: -3000)","Microsoft.AspNetCore.Mvc.Infrastructure.ModelStateInvalidFilter (Order: -2000)"]
+2025-02-06 13:10:07.773 +01:00 [DBG] Execution plan of exception filters (in the following order): ["None"]
+2025-02-06 13:10:07.774 +01:00 [DBG] Execution plan of result filters (in the following order): ["Microsoft.AspNetCore.Mvc.Infrastructure.ClientErrorResultFilter (Order: -2000)"]
+2025-02-06 13:10:07.774 +01:00 [DBG] Executing controller factory for controller RandomDateAPI.Controllers.RandomDateController (RandomDateAPI)
+2025-02-06 13:10:07.775 +01:00 [DBG] Executed controller factory for controller RandomDateAPI.Controllers.RandomDateController (RandomDateAPI)
+2025-02-06 13:10:07.776 +01:00 [INF] Executing action method RandomDateAPI.Controllers.RandomDateController.Get (RandomDateAPI) - Validation state: "Valid"
+2025-02-06 13:10:07.795 +01:00 [FTL] Get random date from RandomDateController. {trace-id}, {span-id}
+2025-02-06 13:10:07.796 +01:00 [FTL] Get random date from RandomDateController. {trace-id}, {span-id}
+2025-02-06 13:10:07.796 +01:00 [INF] Example log line with trace correlation info
+2025-02-06 13:10:07.797 +01:00 [INF] Executed action method RandomDateAPI.Controllers.RandomDateController.Get (RandomDateAPI), returned result Microsoft.AspNetCore.Mvc.OkObjectResult in 20.4632ms.
+2025-02-06 13:10:07.797 +01:00 [DBG] List of registered output formatters, in the following order: ["Microsoft.AspNetCore.Mvc.Formatters.HttpNoContentOutputFormatter","Microsoft.AspNetCore.Mvc.Formatters.StringOutputFormatter","Microsoft.AspNetCore.Mvc.Formatters.StreamOutputFormatter","Microsoft.AspNetCore.Mvc.Formatters.SystemTextJsonOutputFormatter"]
+2025-02-06 13:10:07.798 +01:00 [DBG] No information found on request to perform content negotiation.
+2025-02-06 13:10:07.798 +01:00 [DBG] Attempting to select an output formatter without using a content type as no explicit content types were specified for the response.
+2025-02-06 13:10:07.799 +01:00 [DBG] Attempting to select the first formatter in the output formatters list which can write the result.
+2025-02-06 13:10:07.799 +01:00 [DBG] Selected output formatter 'Microsoft.AspNetCore.Mvc.Formatters.SystemTextJsonOutputFormatter' and content type 'application/json' to write the response.
+2025-02-06 13:10:07.799 +01:00 [INF] Executing OkObjectResult, writing value of type 'System.DateTime'.
+2025-02-06 13:10:07.800 +01:00 [INF] Executed action RandomDateAPI.Controllers.RandomDateController.Get (RandomDateAPI) in 25.458ms
+2025-02-06 13:10:07.800 +01:00 [INF] Executed endpoint 'RandomDateAPI.Controllers.RandomDateController.Get (RandomDateAPI)'
+2025-02-06 13:10:07.803 +01:00 [INF] HTTP GET /RandomDate responded 200 in 31.7757 ms
+2025-02-06 13:10:07.803 +01:00 [DBG] Connection id "0HNA6KS98J9D6" completed keep alive response.
+2025-02-06 13:10:07.804 +01:00 [INF] Request finished HTTP/1.1 GET http://0.0.0.0:5078/RandomDate - 200 null application/json; charset=utf-8 37.0135ms
+2025-02-06 13:10:08.048 +01:00 [INF] Request starting HTTP/1.1 GET http://0.0.0.0:5078/RandomDate - null null
+2025-02-06 13:10:08.050 +01:00 [DBG] 1 candidate(s) found for the request path '/RandomDate'
+2025-02-06 13:10:08.051 +01:00 [DBG] Endpoint 'RandomDateAPI.Controllers.RandomDateController.Get (RandomDateAPI)' with route pattern 'RandomDate' is valid for the request path '/RandomDate'
+2025-02-06 13:10:08.051 +01:00 [DBG] Request matched endpoint 'RandomDateAPI.Controllers.RandomDateController.Get (RandomDateAPI)'
+2025-02-06 13:10:08.052 +01:00 [DBG] Static files was skipped as the request already matched an endpoint.
+2025-02-06 13:10:08.053 +01:00 [INF] Executing endpoint 'RandomDateAPI.Controllers.RandomDateController.Get (RandomDateAPI)'
+2025-02-06 13:10:08.054 +01:00 [INF] Route matched with {action = "Get", controller = "RandomDate"}. Executing controller action with signature System.Threading.Tasks.Task`1[Microsoft.AspNetCore.Mvc.OkObjectResult] Get() on controller RandomDateAPI.Controllers.RandomDateController (RandomDateAPI).
+2025-02-06 13:10:08.056 +01:00 [DBG] Execution plan of authorization filters (in the following order): ["None"]
+2025-02-06 13:10:08.057 +01:00 [DBG] Execution plan of resource filters (in the following order): ["None"]
+2025-02-06 13:10:08.059 +01:00 [DBG] Execution plan of action filters (in the following order): ["Microsoft.AspNetCore.Mvc.ModelBinding.UnsupportedContentTypeFilter (Order: -3000)","Microsoft.AspNetCore.Mvc.Infrastructure.ModelStateInvalidFilter (Order: -2000)"]
+2025-02-06 13:10:08.059 +01:00 [DBG] Execution plan of exception filters (in the following order): ["None"]
+2025-02-06 13:10:08.061 +01:00 [DBG] Execution plan of result filters (in the following order): ["Microsoft.AspNetCore.Mvc.Infrastructure.ClientErrorResultFilter (Order: -2000)"]
+2025-02-06 13:10:08.062 +01:00 [DBG] Executing controller factory for controller RandomDateAPI.Controllers.RandomDateController (RandomDateAPI)
+2025-02-06 13:10:08.063 +01:00 [DBG] Executed controller factory for controller RandomDateAPI.Controllers.RandomDateController (RandomDateAPI)
+2025-02-06 13:10:08.064 +01:00 [INF] Executing action method RandomDateAPI.Controllers.RandomDateController.Get (RandomDateAPI) - Validation state: "Valid"
+2025-02-06 13:10:08.883 +01:00 [FTL] Get random date from RandomDateController. {trace-id}, {span-id}
+2025-02-06 13:10:08.885 +01:00 [FTL] Get random date from RandomDateController. {trace-id}, {span-id}
+2025-02-06 13:10:08.886 +01:00 [INF] Example log line with trace correlation info
+2025-02-06 13:10:08.887 +01:00 [INF] Executed action method RandomDateAPI.Controllers.RandomDateController.Get (RandomDateAPI), returned result Microsoft.AspNetCore.Mvc.OkObjectResult in 822.2315ms.
+2025-02-06 13:10:08.890 +01:00 [DBG] List of registered output formatters, in the following order: ["Microsoft.AspNetCore.Mvc.Formatters.HttpNoContentOutputFormatter","Microsoft.AspNetCore.Mvc.Formatters.StringOutputFormatter","Microsoft.AspNetCore.Mvc.Formatters.StreamOutputFormatter","Microsoft.AspNetCore.Mvc.Formatters.SystemTextJsonOutputFormatter"]
+2025-02-06 13:10:08.893 +01:00 [DBG] No information found on request to perform content negotiation.
+2025-02-06 13:10:08.893 +01:00 [DBG] Attempting to select an output formatter without using a content type as no explicit content types were specified for the response.
+2025-02-06 13:10:08.895 +01:00 [DBG] Attempting to select the first formatter in the output formatters list which can write the result.
+2025-02-06 13:10:08.897 +01:00 [DBG] Selected output formatter 'Microsoft.AspNetCore.Mvc.Formatters.SystemTextJsonOutputFormatter' and content type 'application/json' to write the response.
+2025-02-06 13:10:08.897 +01:00 [INF] Executing OkObjectResult, writing value of type 'System.DateTime'.
+2025-02-06 13:10:08.898 +01:00 [INF] Executed action RandomDateAPI.Controllers.RandomDateController.Get (RandomDateAPI) in 836.252ms
+2025-02-06 13:10:08.898 +01:00 [INF] Executed endpoint 'RandomDateAPI.Controllers.RandomDateController.Get (RandomDateAPI)'
+2025-02-06 13:10:08.899 +01:00 [INF] HTTP GET /RandomDate responded 200 in 846.2645 ms
+2025-02-06 13:10:08.899 +01:00 [DBG] Connection id "0HNA6KS98J9D6" completed keep alive response.
+2025-02-06 13:10:08.900 +01:00 [INF] Request finished HTTP/1.1 GET http://0.0.0.0:5078/RandomDate - 200 null application/json; charset=utf-8 852.4808ms
+2025-02-06 13:10:15.065 +01:00 [DBG] Connection id "0HNA6KS98J9D7" received FIN.
+2025-02-06 13:10:15.066 +01:00 [DBG] Connection id "0HNA6KS98J9D7" sending FIN because: "The Socket transport's send loop completed gracefully."
+2025-02-06 13:10:15.068 +01:00 [DBG] Connection id "0HNA6KS98J9D7" disconnecting.
+2025-02-06 13:10:15.071 +01:00 [DBG] Connection id "0HNA6KS98J9D7" stopped.
+2025-02-06 13:12:13.729 +01:00 [DBG] Registered model binder providers, in the following order: ["Microsoft.AspNetCore.Mvc.ModelBinding.Binders.BinderTypeModelBinderProvider","Microsoft.AspNetCore.Mvc.ModelBinding.Binders.ServicesModelBinderProvider","Microsoft.AspNetCore.Mvc.ModelBinding.Binders.BodyModelBinderProvider","Microsoft.AspNetCore.Mvc.ModelBinding.Binders.HeaderModelBinderProvider","Microsoft.AspNetCore.Mvc.ModelBinding.Binders.FloatingPointTypeModelBinderProvider","Microsoft.AspNetCore.Mvc.ModelBinding.Binders.EnumTypeModelBinderProvider","Microsoft.AspNetCore.Mvc.ModelBinding.Binders.DateTimeModelBinderProvider","Microsoft.AspNetCore.Mvc.ModelBinding.Binders.SimpleTypeModelBinderProvider","Microsoft.AspNetCore.Mvc.ModelBinding.Binders.TryParseModelBinderProvider","Microsoft.AspNetCore.Mvc.ModelBinding.Binders.CancellationTokenModelBinderProvider","Microsoft.AspNetCore.Mvc.ModelBinding.Binders.ByteArrayModelBinderProvider","Microsoft.AspNetCore.Mvc.ModelBinding.Binders.FormFileModelBinderProvider","Microsoft.AspNetCore.Mvc.ModelBinding.Binders.FormCollectionModelBinderProvider","Microsoft.AspNetCore.Mvc.ModelBinding.Binders.KeyValuePairModelBinderProvider","Microsoft.AspNetCore.Mvc.ModelBinding.Binders.DictionaryModelBinderProvider","Microsoft.AspNetCore.Mvc.ModelBinding.Binders.ArrayModelBinderProvider","Microsoft.AspNetCore.Mvc.ModelBinding.Binders.CollectionModelBinderProvider","Microsoft.AspNetCore.Mvc.ModelBinding.Binders.ComplexObjectModelBinderProvider"]
+2025-02-06 13:12:13.808 +01:00 [DBG] Hosting starting
+2025-02-06 13:12:13.968 +01:00 [INF] Now listening on: http://0.0.0.0:5078
+2025-02-06 13:12:13.968 +01:00 [DBG] Loaded hosting startup assembly RandomDateAPI
+2025-02-06 13:12:13.969 +01:00 [INF] Application started. Press Ctrl+C to shut down.
+2025-02-06 13:12:13.969 +01:00 [INF] Hosting environment: Development
+2025-02-06 13:12:13.969 +01:00 [INF] Content root path: /Users/jean.delacruz/Documents/github/DataDog/opentelemetry-examples/apps/rest-services/dotnet/RandomDateAPIOTel
+2025-02-06 13:12:13.969 +01:00 [DBG] Hosting started
+2025-02-06 13:12:14.854 +01:00 [DBG] Connection id "0HNA6KTV4DMQB" received FIN.
+2025-02-06 13:12:14.884 +01:00 [DBG] Connection id "0HNA6KTV4DMQB" accepted.
+2025-02-06 13:12:14.902 +01:00 [DBG] Connection id "0HNA6KTV4DMQB" started.
+2025-02-06 13:12:14.904 +01:00 [DBG] Connection id "0HNA6KTV4DMQC" accepted.
+2025-02-06 13:12:14.904 +01:00 [DBG] Connection id "0HNA6KTV4DMQC" started.
+2025-02-06 13:12:14.904 +01:00 [DBG] Connection id "0HNA6KTV4DMQD" accepted.
+2025-02-06 13:12:14.905 +01:00 [DBG] Connection id "0HNA6KTV4DMQD" started.
+2025-02-06 13:12:14.921 +01:00 [DBG] Connection id "0HNA6KTV4DMQB" sending FIN because: "The Socket transport's send loop completed gracefully."
+2025-02-06 13:12:14.929 +01:00 [DBG] Connection id "0HNA6KTV4DMQB" disconnecting.
+2025-02-06 13:12:14.932 +01:00 [DBG] Connection id "0HNA6KTV4DMQB" stopped.
+2025-02-06 13:12:14.968 +01:00 [INF] Request starting HTTP/1.1 GET http://0.0.0.0:5078/swagger/index.html - null null
+2025-02-06 13:12:14.972 +01:00 [DBG] Wildcard detected, all requests with hosts will be allowed.
+2025-02-06 13:12:14.990 +01:00 [DBG] No candidates found for the request path '/swagger/index.html'
+2025-02-06 13:12:14.991 +01:00 [DBG] Request did not match any endpoints
+2025-02-06 13:12:15.096 +01:00 [DBG] Connection id "0HNA6KTV4DMQC" completed keep alive response.
+2025-02-06 13:12:15.100 +01:00 [INF] Request finished HTTP/1.1 GET http://0.0.0.0:5078/swagger/index.html - 200 null text/html;charset=utf-8 153.3849ms
+2025-02-06 13:12:15.134 +01:00 [INF] Request starting HTTP/1.1 GET http://0.0.0.0:5078/swagger/v1/swagger.json - null null
+2025-02-06 13:12:15.135 +01:00 [DBG] No candidates found for the request path '/swagger/v1/swagger.json'
+2025-02-06 13:12:15.135 +01:00 [DBG] Request did not match any endpoints
+2025-02-06 13:12:15.171 +01:00 [DBG] Connection id "0HNA6KTV4DMQC" completed keep alive response.
+2025-02-06 13:12:15.171 +01:00 [INF] Request finished HTTP/1.1 GET http://0.0.0.0:5078/swagger/v1/swagger.json - 200 null application/json;charset=utf-8 37.3953ms
+2025-02-06 13:12:23.647 +01:00 [INF] Request starting HTTP/1.1 GET http://0.0.0.0:5078/RandomDate - null null
+2025-02-06 13:12:23.659 +01:00 [DBG] 1 candidate(s) found for the request path '/RandomDate'
+2025-02-06 13:12:23.667 +01:00 [DBG] Endpoint 'RandomDateAPI.Controllers.RandomDateController.Get (RandomDateAPI)' with route pattern 'RandomDate' is valid for the request path '/RandomDate'
+2025-02-06 13:12:23.671 +01:00 [DBG] Request matched endpoint 'RandomDateAPI.Controllers.RandomDateController.Get (RandomDateAPI)'
+2025-02-06 13:12:23.677 +01:00 [DBG] Static files was skipped as the request already matched an endpoint.
+2025-02-06 13:12:23.680 +01:00 [WRN] Failed to determine the https port for redirect.
+2025-02-06 13:12:23.692 +01:00 [INF] Executing endpoint 'RandomDateAPI.Controllers.RandomDateController.Get (RandomDateAPI)'
+2025-02-06 13:12:23.737 +01:00 [INF] Route matched with {action = "Get", controller = "RandomDate"}. Executing controller action with signature System.Threading.Tasks.Task`1[Microsoft.AspNetCore.Mvc.OkObjectResult] Get() on controller RandomDateAPI.Controllers.RandomDateController (RandomDateAPI).
+2025-02-06 13:12:23.739 +01:00 [DBG] Execution plan of authorization filters (in the following order): ["None"]
+2025-02-06 13:12:23.739 +01:00 [DBG] Execution plan of resource filters (in the following order): ["None"]
+2025-02-06 13:12:23.740 +01:00 [DBG] Execution plan of action filters (in the following order): ["Microsoft.AspNetCore.Mvc.ModelBinding.UnsupportedContentTypeFilter (Order: -3000)","Microsoft.AspNetCore.Mvc.Infrastructure.ModelStateInvalidFilter (Order: -2000)"]
+2025-02-06 13:12:23.740 +01:00 [DBG] Execution plan of exception filters (in the following order): ["None"]
+2025-02-06 13:12:23.740 +01:00 [DBG] Execution plan of result filters (in the following order): ["Microsoft.AspNetCore.Mvc.Infrastructure.ClientErrorResultFilter (Order: -2000)"]
+2025-02-06 13:12:23.743 +01:00 [DBG] Executing controller factory for controller RandomDateAPI.Controllers.RandomDateController (RandomDateAPI)
+2025-02-06 13:12:23.744 +01:00 [DBG] Executed controller factory for controller RandomDateAPI.Controllers.RandomDateController (RandomDateAPI)
+2025-02-06 13:12:23.750 +01:00 [INF] Executing action method RandomDateAPI.Controllers.RandomDateController.Get (RandomDateAPI) - Validation state: "Valid"
+2025-02-06 13:12:24.396 +01:00 [FTL] Get random date from RandomDateController. {trace-id}, {span-id}
+2025-02-06 13:12:24.396 +01:00 [FTL] Get random date from RandomDateController. {trace-id}, {span-id}
+2025-02-06 13:12:24.397 +01:00 [INF] Example log line with trace correlation info
+2025-02-06 13:12:24.408 +01:00 [INF] Executed action method RandomDateAPI.Controllers.RandomDateController.Get (RandomDateAPI), returned result Microsoft.AspNetCore.Mvc.OkObjectResult in 650.8765ms.
+2025-02-06 13:12:24.421 +01:00 [DBG] List of registered output formatters, in the following order: ["Microsoft.AspNetCore.Mvc.Formatters.HttpNoContentOutputFormatter","Microsoft.AspNetCore.Mvc.Formatters.StringOutputFormatter","Microsoft.AspNetCore.Mvc.Formatters.StreamOutputFormatter","Microsoft.AspNetCore.Mvc.Formatters.SystemTextJsonOutputFormatter"]
+2025-02-06 13:12:24.427 +01:00 [DBG] No information found on request to perform content negotiation.
+2025-02-06 13:12:24.427 +01:00 [DBG] Attempting to select an output formatter without using a content type as no explicit content types were specified for the response.
+2025-02-06 13:12:24.427 +01:00 [DBG] Attempting to select the first formatter in the output formatters list which can write the result.
+2025-02-06 13:12:24.429 +01:00 [DBG] Selected output formatter 'Microsoft.AspNetCore.Mvc.Formatters.SystemTextJsonOutputFormatter' and content type 'application/json' to write the response.
+2025-02-06 13:12:24.429 +01:00 [INF] Executing OkObjectResult, writing value of type 'System.DateTime'.
+2025-02-06 13:12:24.447 +01:00 [INF] Executed action RandomDateAPI.Controllers.RandomDateController.Get (RandomDateAPI) in 704.615ms
+2025-02-06 13:12:24.448 +01:00 [INF] Executed endpoint 'RandomDateAPI.Controllers.RandomDateController.Get (RandomDateAPI)'
+2025-02-06 13:12:24.450 +01:00 [INF] HTTP GET /RandomDate responded 200 in 770.7280 ms
+2025-02-06 13:12:24.452 +01:00 [DBG] Connection id "0HNA6KTV4DMQC" completed keep alive response.
+2025-02-06 13:12:24.452 +01:00 [INF] Request finished HTTP/1.1 GET http://0.0.0.0:5078/RandomDate - 200 null application/json; charset=utf-8 807.4273ms
+2025-02-06 13:14:08.364 +01:00 [DBG] Connection id "0HNA6KTV4DMQD" received FIN.
+2025-02-06 13:14:08.369 +01:00 [DBG] Connection id "0HNA6KTV4DMQD" sending FIN because: "The Socket transport's send loop completed gracefully."
+2025-02-06 13:14:08.370 +01:00 [DBG] Connection id "0HNA6KTV4DMQD" disconnecting.
+2025-02-06 13:14:08.377 +01:00 [DBG] Connection id "0HNA6KTV4DMQD" stopped.
+2025-02-06 13:14:12.148 +01:00 [INF] Request starting HTTP/1.1 GET http://0.0.0.0:5078/RandomDate - null null
+2025-02-06 13:14:12.149 +01:00 [DBG] 1 candidate(s) found for the request path '/RandomDate'
+2025-02-06 13:14:12.150 +01:00 [DBG] Endpoint 'RandomDateAPI.Controllers.RandomDateController.Get (RandomDateAPI)' with route pattern 'RandomDate' is valid for the request path '/RandomDate'
+2025-02-06 13:14:12.150 +01:00 [DBG] Request matched endpoint 'RandomDateAPI.Controllers.RandomDateController.Get (RandomDateAPI)'
+2025-02-06 13:14:12.151 +01:00 [DBG] Static files was skipped as the request already matched an endpoint.
+2025-02-06 13:14:12.152 +01:00 [INF] Executing endpoint 'RandomDateAPI.Controllers.RandomDateController.Get (RandomDateAPI)'
+2025-02-06 13:14:12.153 +01:00 [INF] Route matched with {action = "Get", controller = "RandomDate"}. Executing controller action with signature System.Threading.Tasks.Task`1[Microsoft.AspNetCore.Mvc.OkObjectResult] Get() on controller RandomDateAPI.Controllers.RandomDateController (RandomDateAPI).
+2025-02-06 13:14:12.153 +01:00 [DBG] Execution plan of authorization filters (in the following order): ["None"]
+2025-02-06 13:14:12.154 +01:00 [DBG] Execution plan of resource filters (in the following order): ["None"]
+2025-02-06 13:14:12.154 +01:00 [DBG] Execution plan of action filters (in the following order): ["Microsoft.AspNetCore.Mvc.ModelBinding.UnsupportedContentTypeFilter (Order: -3000)","Microsoft.AspNetCore.Mvc.Infrastructure.ModelStateInvalidFilter (Order: -2000)"]
+2025-02-06 13:14:12.155 +01:00 [DBG] Execution plan of exception filters (in the following order): ["None"]
+2025-02-06 13:14:12.155 +01:00 [DBG] Execution plan of result filters (in the following order): ["Microsoft.AspNetCore.Mvc.Infrastructure.ClientErrorResultFilter (Order: -2000)"]
+2025-02-06 13:14:12.156 +01:00 [DBG] Executing controller factory for controller RandomDateAPI.Controllers.RandomDateController (RandomDateAPI)
+2025-02-06 13:14:12.156 +01:00 [DBG] Executed controller factory for controller RandomDateAPI.Controllers.RandomDateController (RandomDateAPI)
+2025-02-06 13:14:12.157 +01:00 [INF] Executing action method RandomDateAPI.Controllers.RandomDateController.Get (RandomDateAPI) - Validation state: "Valid"
+2025-02-06 13:14:12.692 +01:00 [FTL] Get random date from RandomDateController. {trace-id}, {span-id}
+2025-02-06 13:14:12.694 +01:00 [FTL] Get random date from RandomDateController. {trace-id}, {span-id}
+2025-02-06 13:14:12.695 +01:00 [INF] Example log line with trace correlation info
+2025-02-06 13:14:12.696 +01:00 [INF] Executed action method RandomDateAPI.Controllers.RandomDateController.Get (RandomDateAPI), returned result Microsoft.AspNetCore.Mvc.OkObjectResult in 538.3309ms.
+2025-02-06 13:14:12.697 +01:00 [DBG] List of registered output formatters, in the following order: ["Microsoft.AspNetCore.Mvc.Formatters.HttpNoContentOutputFormatter","Microsoft.AspNetCore.Mvc.Formatters.StringOutputFormatter","Microsoft.AspNetCore.Mvc.Formatters.StreamOutputFormatter","Microsoft.AspNetCore.Mvc.Formatters.SystemTextJsonOutputFormatter"]
+2025-02-06 13:14:12.698 +01:00 [DBG] No information found on request to perform content negotiation.
+2025-02-06 13:14:12.698 +01:00 [DBG] Attempting to select an output formatter without using a content type as no explicit content types were specified for the response.
+2025-02-06 13:14:12.699 +01:00 [DBG] Attempting to select the first formatter in the output formatters list which can write the result.
+2025-02-06 13:14:12.700 +01:00 [DBG] Selected output formatter 'Microsoft.AspNetCore.Mvc.Formatters.SystemTextJsonOutputFormatter' and content type 'application/json' to write the response.
+2025-02-06 13:14:12.701 +01:00 [INF] Executing OkObjectResult, writing value of type 'System.DateTime'.
+2025-02-06 13:14:12.703 +01:00 [INF] Executed action RandomDateAPI.Controllers.RandomDateController.Get (RandomDateAPI) in 547.4981ms
+2025-02-06 13:14:12.704 +01:00 [INF] Executed endpoint 'RandomDateAPI.Controllers.RandomDateController.Get (RandomDateAPI)'
+2025-02-06 13:14:12.705 +01:00 [INF] HTTP GET /RandomDate responded 200 in 554.0585 ms
+2025-02-06 13:14:12.706 +01:00 [DBG] Connection id "0HNA6KTV4DMQC" completed keep alive response.
+2025-02-06 13:14:12.707 +01:00 [INF] Request finished HTTP/1.1 GET http://0.0.0.0:5078/RandomDate - 200 null application/json; charset=utf-8 559.2012ms
+2025-02-06 13:14:43.262 +01:00 [DBG] Registered model binder providers, in the following order: ["Microsoft.AspNetCore.Mvc.ModelBinding.Binders.BinderTypeModelBinderProvider","Microsoft.AspNetCore.Mvc.ModelBinding.Binders.ServicesModelBinderProvider","Microsoft.AspNetCore.Mvc.ModelBinding.Binders.BodyModelBinderProvider","Microsoft.AspNetCore.Mvc.ModelBinding.Binders.HeaderModelBinderProvider","Microsoft.AspNetCore.Mvc.ModelBinding.Binders.FloatingPointTypeModelBinderProvider","Microsoft.AspNetCore.Mvc.ModelBinding.Binders.EnumTypeModelBinderProvider","Microsoft.AspNetCore.Mvc.ModelBinding.Binders.DateTimeModelBinderProvider","Microsoft.AspNetCore.Mvc.ModelBinding.Binders.SimpleTypeModelBinderProvider","Microsoft.AspNetCore.Mvc.ModelBinding.Binders.TryParseModelBinderProvider","Microsoft.AspNetCore.Mvc.ModelBinding.Binders.CancellationTokenModelBinderProvider","Microsoft.AspNetCore.Mvc.ModelBinding.Binders.ByteArrayModelBinderProvider","Microsoft.AspNetCore.Mvc.ModelBinding.Binders.FormFileModelBinderProvider","Microsoft.AspNetCore.Mvc.ModelBinding.Binders.FormCollectionModelBinderProvider","Microsoft.AspNetCore.Mvc.ModelBinding.Binders.KeyValuePairModelBinderProvider","Microsoft.AspNetCore.Mvc.ModelBinding.Binders.DictionaryModelBinderProvider","Microsoft.AspNetCore.Mvc.ModelBinding.Binders.ArrayModelBinderProvider","Microsoft.AspNetCore.Mvc.ModelBinding.Binders.CollectionModelBinderProvider","Microsoft.AspNetCore.Mvc.ModelBinding.Binders.ComplexObjectModelBinderProvider"]
+2025-02-06 13:14:43.335 +01:00 [DBG] Hosting starting
+2025-02-06 13:14:43.487 +01:00 [INF] Now listening on: http://0.0.0.0:5078
+2025-02-06 13:14:43.487 +01:00 [DBG] Loaded hosting startup assembly RandomDateAPI
+2025-02-06 13:14:43.487 +01:00 [INF] Application started. Press Ctrl+C to shut down.
+2025-02-06 13:14:43.488 +01:00 [INF] Hosting environment: Development
+2025-02-06 13:14:43.488 +01:00 [INF] Content root path: /Users/jean.delacruz/Documents/github/DataDog/opentelemetry-examples/apps/rest-services/dotnet/RandomDateAPIOTel
+2025-02-06 13:14:43.488 +01:00 [DBG] Hosting started
+2025-02-06 13:14:44.219 +01:00 [DBG] Connection id "0HNA6KVBKS9F1" received FIN.
+2025-02-06 13:14:44.227 +01:00 [DBG] Connection id "0HNA6KVBKS9F1" accepted.
+2025-02-06 13:14:44.236 +01:00 [DBG] Connection id "0HNA6KVBKS9F1" started.
+2025-02-06 13:14:44.358 +01:00 [DBG] Connection id "0HNA6KVBKS9F2" accepted.
+2025-02-06 13:14:44.358 +01:00 [DBG] Connection id "0HNA6KVBKS9F2" started.
+2025-02-06 13:14:44.359 +01:00 [DBG] Connection id "0HNA6KVBKS9F3" accepted.
+2025-02-06 13:14:44.359 +01:00 [DBG] Connection id "0HNA6KVBKS9F3" started.
+2025-02-06 13:14:44.362 +01:00 [DBG] Connection id "0HNA6KVBKS9F1" sending FIN because: "The Socket transport's send loop completed gracefully."
+2025-02-06 13:14:44.367 +01:00 [DBG] Connection id "0HNA6KVBKS9F1" disconnecting.
+2025-02-06 13:14:44.369 +01:00 [DBG] Connection id "0HNA6KVBKS9F1" stopped.
+2025-02-06 13:14:44.403 +01:00 [INF] Request starting HTTP/1.1 GET http://0.0.0.0:5078/swagger/index.html - null null
+2025-02-06 13:14:44.407 +01:00 [DBG] Wildcard detected, all requests with hosts will be allowed.
+2025-02-06 13:14:44.426 +01:00 [DBG] No candidates found for the request path '/swagger/index.html'
+2025-02-06 13:14:44.427 +01:00 [DBG] Request did not match any endpoints
+2025-02-06 13:14:44.529 +01:00 [DBG] Connection id "0HNA6KVBKS9F2" completed keep alive response.
+2025-02-06 13:14:44.532 +01:00 [INF] Request finished HTTP/1.1 GET http://0.0.0.0:5078/swagger/index.html - 200 null text/html;charset=utf-8 149.03ms
+2025-02-06 13:14:44.569 +01:00 [INF] Request starting HTTP/1.1 GET http://0.0.0.0:5078/swagger/v1/swagger.json - null null
+2025-02-06 13:14:44.569 +01:00 [DBG] No candidates found for the request path '/swagger/v1/swagger.json'
+2025-02-06 13:14:44.570 +01:00 [DBG] Request did not match any endpoints
+2025-02-06 13:14:44.610 +01:00 [DBG] Connection id "0HNA6KVBKS9F2" completed keep alive response.
+2025-02-06 13:14:44.610 +01:00 [INF] Request finished HTTP/1.1 GET http://0.0.0.0:5078/swagger/v1/swagger.json - 200 null application/json;charset=utf-8 41.3884ms
+2025-02-06 13:14:56.774 +01:00 [INF] Request starting HTTP/1.1 GET http://0.0.0.0:5078/RandomDate - null null
+2025-02-06 13:14:56.781 +01:00 [DBG] 1 candidate(s) found for the request path '/RandomDate'
+2025-02-06 13:14:56.790 +01:00 [DBG] Endpoint 'RandomDateAPI.Controllers.RandomDateController.Get (RandomDateAPI)' with route pattern 'RandomDate' is valid for the request path '/RandomDate'
+2025-02-06 13:14:56.793 +01:00 [DBG] Request matched endpoint 'RandomDateAPI.Controllers.RandomDateController.Get (RandomDateAPI)'
+2025-02-06 13:14:56.800 +01:00 [DBG] Static files was skipped as the request already matched an endpoint.
+2025-02-06 13:14:56.806 +01:00 [WRN] Failed to determine the https port for redirect.
+2025-02-06 13:14:56.814 +01:00 [INF] Executing endpoint 'RandomDateAPI.Controllers.RandomDateController.Get (RandomDateAPI)'
+2025-02-06 13:14:56.846 +01:00 [INF] Route matched with {action = "Get", controller = "RandomDate"}. Executing controller action with signature System.Threading.Tasks.Task`1[Microsoft.AspNetCore.Mvc.OkObjectResult] Get() on controller RandomDateAPI.Controllers.RandomDateController (RandomDateAPI).
+2025-02-06 13:14:56.848 +01:00 [DBG] Execution plan of authorization filters (in the following order): ["None"]
+2025-02-06 13:14:56.849 +01:00 [DBG] Execution plan of resource filters (in the following order): ["None"]
+2025-02-06 13:14:56.849 +01:00 [DBG] Execution plan of action filters (in the following order): ["Microsoft.AspNetCore.Mvc.ModelBinding.UnsupportedContentTypeFilter (Order: -3000)","Microsoft.AspNetCore.Mvc.Infrastructure.ModelStateInvalidFilter (Order: -2000)"]
+2025-02-06 13:14:56.850 +01:00 [DBG] Execution plan of exception filters (in the following order): ["None"]
+2025-02-06 13:14:56.850 +01:00 [DBG] Execution plan of result filters (in the following order): ["Microsoft.AspNetCore.Mvc.Infrastructure.ClientErrorResultFilter (Order: -2000)"]
+2025-02-06 13:14:56.854 +01:00 [DBG] Executing controller factory for controller RandomDateAPI.Controllers.RandomDateController (RandomDateAPI)
+2025-02-06 13:14:56.855 +01:00 [DBG] Executed controller factory for controller RandomDateAPI.Controllers.RandomDateController (RandomDateAPI)
+2025-02-06 13:14:56.861 +01:00 [INF] Executing action method RandomDateAPI.Controllers.RandomDateController.Get (RandomDateAPI) - Validation state: "Valid"
+2025-02-06 13:14:56.934 +01:00 [FTL] Get random date from RandomDateController. {trace-id}, {span-id}
+2025-02-06 13:14:56.935 +01:00 [FTL] Get random date from RandomDateController. {trace-id}, {span-id}
+2025-02-06 13:14:56.935 +01:00 [INF] Example log line with trace correlation info
+2025-02-06 13:14:56.939 +01:00 [INF] Executed action method RandomDateAPI.Controllers.RandomDateController.Get (RandomDateAPI), returned result Microsoft.AspNetCore.Mvc.OkObjectResult in 75.6096ms.
+2025-02-06 13:14:56.947 +01:00 [DBG] List of registered output formatters, in the following order: ["Microsoft.AspNetCore.Mvc.Formatters.HttpNoContentOutputFormatter","Microsoft.AspNetCore.Mvc.Formatters.StringOutputFormatter","Microsoft.AspNetCore.Mvc.Formatters.StreamOutputFormatter","Microsoft.AspNetCore.Mvc.Formatters.SystemTextJsonOutputFormatter"]
+2025-02-06 13:14:56.952 +01:00 [DBG] No information found on request to perform content negotiation.
+2025-02-06 13:14:56.952 +01:00 [DBG] Attempting to select an output formatter without using a content type as no explicit content types were specified for the response.
+2025-02-06 13:14:56.952 +01:00 [DBG] Attempting to select the first formatter in the output formatters list which can write the result.
+2025-02-06 13:14:56.953 +01:00 [DBG] Selected output formatter 'Microsoft.AspNetCore.Mvc.Formatters.SystemTextJsonOutputFormatter' and content type 'application/json' to write the response.
+2025-02-06 13:14:56.954 +01:00 [INF] Executing OkObjectResult, writing value of type 'System.DateTime'.
+2025-02-06 13:14:56.971 +01:00 [INF] Executed action RandomDateAPI.Controllers.RandomDateController.Get (RandomDateAPI) in 118.091ms
+2025-02-06 13:14:56.971 +01:00 [INF] Executed endpoint 'RandomDateAPI.Controllers.RandomDateController.Get (RandomDateAPI)'
+2025-02-06 13:14:56.974 +01:00 [INF] HTTP GET /RandomDate responded 200 in 170.5588 ms
+2025-02-06 13:14:56.976 +01:00 [DBG] Connection id "0HNA6KVBKS9F2" completed keep alive response.
+2025-02-06 13:14:56.976 +01:00 [INF] Request finished HTTP/1.1 GET http://0.0.0.0:5078/RandomDate - 200 null application/json; charset=utf-8 202.9568ms
+2025-02-06 13:15:44.905 +01:00 [DBG] Connection id "0HNA6KVBKS9F3" received FIN.
+2025-02-06 13:15:44.907 +01:00 [DBG] Connection id "0HNA6KVBKS9F3" sending FIN because: "The Socket transport's send loop completed gracefully."
+2025-02-06 13:15:44.911 +01:00 [DBG] Connection id "0HNA6KVBKS9F3" disconnecting.
+2025-02-06 13:15:44.915 +01:00 [DBG] Connection id "0HNA6KVBKS9F3" stopped.
+2025-02-06 13:21:21.061 +01:00 [DBG] Registered model binder providers, in the following order: ["Microsoft.AspNetCore.Mvc.ModelBinding.Binders.BinderTypeModelBinderProvider","Microsoft.AspNetCore.Mvc.ModelBinding.Binders.ServicesModelBinderProvider","Microsoft.AspNetCore.Mvc.ModelBinding.Binders.BodyModelBinderProvider","Microsoft.AspNetCore.Mvc.ModelBinding.Binders.HeaderModelBinderProvider","Microsoft.AspNetCore.Mvc.ModelBinding.Binders.FloatingPointTypeModelBinderProvider","Microsoft.AspNetCore.Mvc.ModelBinding.Binders.EnumTypeModelBinderProvider","Microsoft.AspNetCore.Mvc.ModelBinding.Binders.DateTimeModelBinderProvider","Microsoft.AspNetCore.Mvc.ModelBinding.Binders.SimpleTypeModelBinderProvider","Microsoft.AspNetCore.Mvc.ModelBinding.Binders.TryParseModelBinderProvider","Microsoft.AspNetCore.Mvc.ModelBinding.Binders.CancellationTokenModelBinderProvider","Microsoft.AspNetCore.Mvc.ModelBinding.Binders.ByteArrayModelBinderProvider","Microsoft.AspNetCore.Mvc.ModelBinding.Binders.FormFileModelBinderProvider","Microsoft.AspNetCore.Mvc.ModelBinding.Binders.FormCollectionModelBinderProvider","Microsoft.AspNetCore.Mvc.ModelBinding.Binders.KeyValuePairModelBinderProvider","Microsoft.AspNetCore.Mvc.ModelBinding.Binders.DictionaryModelBinderProvider","Microsoft.AspNetCore.Mvc.ModelBinding.Binders.ArrayModelBinderProvider","Microsoft.AspNetCore.Mvc.ModelBinding.Binders.CollectionModelBinderProvider","Microsoft.AspNetCore.Mvc.ModelBinding.Binders.ComplexObjectModelBinderProvider"]
+2025-02-06 13:21:21.137 +01:00 [DBG] Hosting starting
+2025-02-06 13:21:21.293 +01:00 [INF] Now listening on: http://0.0.0.0:5078
+2025-02-06 13:21:21.294 +01:00 [DBG] Loaded hosting startup assembly RandomDateAPI
+2025-02-06 13:21:21.294 +01:00 [INF] Application started. Press Ctrl+C to shut down.
+2025-02-06 13:21:21.295 +01:00 [INF] Hosting environment: Development
+2025-02-06 13:21:21.295 +01:00 [INF] Content root path: /Users/jean.delacruz/Documents/github/DataDog/opentelemetry-examples/apps/rest-services/dotnet/RandomDateAPIOTel
+2025-02-06 13:21:21.295 +01:00 [DBG] Hosting started
+2025-02-06 13:21:22.231 +01:00 [DBG] Connection id "0HNA6L328JQ4B" received FIN.
+2025-02-06 13:21:22.253 +01:00 [DBG] Connection id "0HNA6L328JQ4B" accepted.
+2025-02-06 13:21:22.282 +01:00 [DBG] Connection id "0HNA6L328JQ4B" started.
+2025-02-06 13:21:22.288 +01:00 [DBG] Connection id "0HNA6L328JQ4C" accepted.
+2025-02-06 13:21:22.289 +01:00 [DBG] Connection id "0HNA6L328JQ4C" started.
+2025-02-06 13:21:22.290 +01:00 [DBG] Connection id "0HNA6L328JQ4D" accepted.
+2025-02-06 13:21:22.314 +01:00 [DBG] Connection id "0HNA6L328JQ4D" started.
+2025-02-06 13:21:22.333 +01:00 [DBG] Connection id "0HNA6L328JQ4B" sending FIN because: "The Socket transport's send loop completed gracefully."
+2025-02-06 13:21:22.338 +01:00 [DBG] Connection id "0HNA6L328JQ4B" disconnecting.
+2025-02-06 13:21:22.341 +01:00 [DBG] Connection id "0HNA6L328JQ4B" stopped.
+2025-02-06 13:21:22.380 +01:00 [INF] Request starting HTTP/1.1 GET http://0.0.0.0:5078/swagger/index.html - null null
+2025-02-06 13:21:22.384 +01:00 [DBG] Wildcard detected, all requests with hosts will be allowed.
+2025-02-06 13:21:22.403 +01:00 [DBG] No candidates found for the request path '/swagger/index.html'
+2025-02-06 13:21:22.404 +01:00 [DBG] Request did not match any endpoints
+2025-02-06 13:21:22.508 +01:00 [DBG] Connection id "0HNA6L328JQ4C" completed keep alive response.
+2025-02-06 13:21:22.511 +01:00 [INF] Request finished HTTP/1.1 GET http://0.0.0.0:5078/swagger/index.html - 200 null text/html;charset=utf-8 153.4302ms
+2025-02-06 13:21:22.546 +01:00 [INF] Request starting HTTP/1.1 GET http://0.0.0.0:5078/swagger/v1/swagger.json - null null
+2025-02-06 13:21:22.546 +01:00 [DBG] No candidates found for the request path '/swagger/v1/swagger.json'
+2025-02-06 13:21:22.546 +01:00 [DBG] Request did not match any endpoints
+2025-02-06 13:21:22.588 +01:00 [DBG] Connection id "0HNA6L328JQ4C" completed keep alive response.
+2025-02-06 13:21:22.588 +01:00 [INF] Request finished HTTP/1.1 GET http://0.0.0.0:5078/swagger/v1/swagger.json - 200 null application/json;charset=utf-8 42.0865ms
+2025-02-06 13:22:19.424 +01:00 [INF] Request starting HTTP/1.1 GET http://0.0.0.0:5078/RandomDate - null null
+2025-02-06 13:22:19.431 +01:00 [DBG] 1 candidate(s) found for the request path '/RandomDate'
+2025-02-06 13:22:19.437 +01:00 [DBG] Endpoint 'RandomDateAPI.Controllers.RandomDateController.Get (RandomDateAPI)' with route pattern 'RandomDate' is valid for the request path '/RandomDate'
+2025-02-06 13:22:19.438 +01:00 [DBG] Request matched endpoint 'RandomDateAPI.Controllers.RandomDateController.Get (RandomDateAPI)'
+2025-02-06 13:22:19.444 +01:00 [DBG] Static files was skipped as the request already matched an endpoint.
+2025-02-06 13:22:19.448 +01:00 [WRN] Failed to determine the https port for redirect.
+2025-02-06 13:22:19.454 +01:00 [INF] Executing endpoint 'RandomDateAPI.Controllers.RandomDateController.Get (RandomDateAPI)'
+2025-02-06 13:22:19.481 +01:00 [INF] Route matched with {action = "Get", controller = "RandomDate"}. Executing controller action with signature System.Threading.Tasks.Task`1[Microsoft.AspNetCore.Mvc.OkObjectResult] Get() on controller RandomDateAPI.Controllers.RandomDateController (RandomDateAPI).
+2025-02-06 13:22:19.483 +01:00 [DBG] Execution plan of authorization filters (in the following order): ["None"]
+2025-02-06 13:22:19.483 +01:00 [DBG] Execution plan of resource filters (in the following order): ["None"]
+2025-02-06 13:22:19.483 +01:00 [DBG] Execution plan of action filters (in the following order): ["Microsoft.AspNetCore.Mvc.ModelBinding.UnsupportedContentTypeFilter (Order: -3000)","Microsoft.AspNetCore.Mvc.Infrastructure.ModelStateInvalidFilter (Order: -2000)"]
+2025-02-06 13:22:19.484 +01:00 [DBG] Execution plan of exception filters (in the following order): ["None"]
+2025-02-06 13:22:19.484 +01:00 [DBG] Execution plan of result filters (in the following order): ["Microsoft.AspNetCore.Mvc.Infrastructure.ClientErrorResultFilter (Order: -2000)"]
+2025-02-06 13:22:19.487 +01:00 [DBG] Executing controller factory for controller RandomDateAPI.Controllers.RandomDateController (RandomDateAPI)
+2025-02-06 13:22:19.488 +01:00 [DBG] Executed controller factory for controller RandomDateAPI.Controllers.RandomDateController (RandomDateAPI)
+2025-02-06 13:22:19.495 +01:00 [INF] Executing action method RandomDateAPI.Controllers.RandomDateController.Get (RandomDateAPI) - Validation state: "Valid"
+2025-02-06 13:22:20.074 +01:00 [FTL] Get random date from RandomDateController. {trace-id}, {span-id}
+2025-02-06 13:22:20.076 +01:00 [FTL] Get random date from RandomDateController. {trace-id}, {span-id}
+2025-02-06 13:22:20.081 +01:00 [INF] Example log line with trace correlation info
+2025-02-06 13:22:20.101 +01:00 [INF] Executed action method RandomDateAPI.Controllers.RandomDateController.Get (RandomDateAPI), returned result Microsoft.AspNetCore.Mvc.OkObjectResult in 595.4572ms.
+2025-02-06 13:22:20.121 +01:00 [DBG] List of registered output formatters, in the following order: ["Microsoft.AspNetCore.Mvc.Formatters.HttpNoContentOutputFormatter","Microsoft.AspNetCore.Mvc.Formatters.StringOutputFormatter","Microsoft.AspNetCore.Mvc.Formatters.StreamOutputFormatter","Microsoft.AspNetCore.Mvc.Formatters.SystemTextJsonOutputFormatter"]
+2025-02-06 13:22:20.129 +01:00 [DBG] No information found on request to perform content negotiation.
+2025-02-06 13:22:20.130 +01:00 [DBG] Attempting to select an output formatter without using a content type as no explicit content types were specified for the response.
+2025-02-06 13:22:20.130 +01:00 [DBG] Attempting to select the first formatter in the output formatters list which can write the result.
+2025-02-06 13:22:20.132 +01:00 [DBG] Selected output formatter 'Microsoft.AspNetCore.Mvc.Formatters.SystemTextJsonOutputFormatter' and content type 'application/json' to write the response.
+2025-02-06 13:22:20.133 +01:00 [INF] Executing OkObjectResult, writing value of type 'System.DateTime'.
+2025-02-06 13:22:20.153 +01:00 [INF] Executed action RandomDateAPI.Controllers.RandomDateController.Get (RandomDateAPI) in 666.458ms
+2025-02-06 13:22:20.154 +01:00 [INF] Executed endpoint 'RandomDateAPI.Controllers.RandomDateController.Get (RandomDateAPI)'
+2025-02-06 13:22:20.156 +01:00 [INF] HTTP GET /RandomDate responded 200 in 709.6383 ms
+2025-02-06 13:22:20.159 +01:00 [DBG] Connection id "0HNA6L328JQ4C" completed keep alive response.
+2025-02-06 13:22:20.159 +01:00 [INF] Request finished HTTP/1.1 GET http://0.0.0.0:5078/RandomDate - 200 null application/json; charset=utf-8 740.0632ms
+2025-02-06 13:22:47.589 +01:00 [DBG] Connection id "0HNA6L328JQ4D" received FIN.
+2025-02-06 13:22:47.593 +01:00 [DBG] Connection id "0HNA6L328JQ4D" sending FIN because: "The Socket transport's send loop completed gracefully."
+2025-02-06 13:22:47.596 +01:00 [DBG] Connection id "0HNA6L328JQ4D" disconnecting.
+2025-02-06 13:22:47.604 +01:00 [DBG] Connection id "0HNA6L328JQ4D" stopped.
+2025-02-06 13:30:10.804 +01:00 [DBG] Registered model binder providers, in the following order: ["Microsoft.AspNetCore.Mvc.ModelBinding.Binders.BinderTypeModelBinderProvider","Microsoft.AspNetCore.Mvc.ModelBinding.Binders.ServicesModelBinderProvider","Microsoft.AspNetCore.Mvc.ModelBinding.Binders.BodyModelBinderProvider","Microsoft.AspNetCore.Mvc.ModelBinding.Binders.HeaderModelBinderProvider","Microsoft.AspNetCore.Mvc.ModelBinding.Binders.FloatingPointTypeModelBinderProvider","Microsoft.AspNetCore.Mvc.ModelBinding.Binders.EnumTypeModelBinderProvider","Microsoft.AspNetCore.Mvc.ModelBinding.Binders.DateTimeModelBinderProvider","Microsoft.AspNetCore.Mvc.ModelBinding.Binders.SimpleTypeModelBinderProvider","Microsoft.AspNetCore.Mvc.ModelBinding.Binders.TryParseModelBinderProvider","Microsoft.AspNetCore.Mvc.ModelBinding.Binders.CancellationTokenModelBinderProvider","Microsoft.AspNetCore.Mvc.ModelBinding.Binders.ByteArrayModelBinderProvider","Microsoft.AspNetCore.Mvc.ModelBinding.Binders.FormFileModelBinderProvider","Microsoft.AspNetCore.Mvc.ModelBinding.Binders.FormCollectionModelBinderProvider","Microsoft.AspNetCore.Mvc.ModelBinding.Binders.KeyValuePairModelBinderProvider","Microsoft.AspNetCore.Mvc.ModelBinding.Binders.DictionaryModelBinderProvider","Microsoft.AspNetCore.Mvc.ModelBinding.Binders.ArrayModelBinderProvider","Microsoft.AspNetCore.Mvc.ModelBinding.Binders.CollectionModelBinderProvider","Microsoft.AspNetCore.Mvc.ModelBinding.Binders.ComplexObjectModelBinderProvider"]
+2025-02-06 13:30:10.891 +01:00 [DBG] Hosting starting
+2025-02-06 13:30:11.113 +01:00 [INF] Now listening on: http://0.0.0.0:5078
+2025-02-06 13:30:11.113 +01:00 [DBG] Loaded hosting startup assembly RandomDateAPI
+2025-02-06 13:30:11.114 +01:00 [INF] Application started. Press Ctrl+C to shut down.
+2025-02-06 13:30:11.114 +01:00 [INF] Hosting environment: Development
+2025-02-06 13:30:11.114 +01:00 [INF] Content root path: /Users/jean.delacruz/Documents/github/DataDog/opentelemetry-examples/apps/rest-services/dotnet/RandomDateAPIOTel
+2025-02-06 13:30:11.114 +01:00 [DBG] Hosting started
+2025-02-06 13:30:11.679 +01:00 [DBG] Connection id "0HNA6L801QQBR" received FIN.
+2025-02-06 13:30:11.686 +01:00 [DBG] Connection id "0HNA6L801QQBR" accepted.
+2025-02-06 13:30:11.693 +01:00 [DBG] Connection id "0HNA6L801QQBR" started.
+2025-02-06 13:30:11.704 +01:00 [DBG] Connection id "0HNA6L801QQBR" sending FIN because: "The Socket transport's send loop completed gracefully."
+2025-02-06 13:30:11.709 +01:00 [DBG] Connection id "0HNA6L801QQBR" disconnecting.
+2025-02-06 13:30:11.738 +01:00 [DBG] Connection id "0HNA6L801QQBS" accepted.
+2025-02-06 13:30:11.738 +01:00 [DBG] Connection id "0HNA6L801QQBS" started.
+2025-02-06 13:30:11.738 +01:00 [DBG] Connection id "0HNA6L801QQBT" accepted.
+2025-02-06 13:30:11.739 +01:00 [DBG] Connection id "0HNA6L801QQBT" started.
+2025-02-06 13:30:11.744 +01:00 [DBG] Connection id "0HNA6L801QQBR" stopped.
+2025-02-06 13:30:11.782 +01:00 [INF] Request starting HTTP/1.1 GET http://0.0.0.0:5078/swagger/index.html - null null
+2025-02-06 13:30:11.786 +01:00 [DBG] Wildcard detected, all requests with hosts will be allowed.
+2025-02-06 13:30:11.806 +01:00 [DBG] No candidates found for the request path '/swagger/index.html'
+2025-02-06 13:30:11.807 +01:00 [DBG] Request did not match any endpoints
+2025-02-06 13:30:11.908 +01:00 [DBG] Connection id "0HNA6L801QQBS" completed keep alive response.
+2025-02-06 13:30:11.913 +01:00 [INF] Request finished HTTP/1.1 GET http://0.0.0.0:5078/swagger/index.html - 200 null text/html;charset=utf-8 149.7752ms
+2025-02-06 13:30:11.945 +01:00 [INF] Request starting HTTP/1.1 GET http://0.0.0.0:5078/swagger/v1/swagger.json - null null
+2025-02-06 13:30:11.946 +01:00 [DBG] No candidates found for the request path '/swagger/v1/swagger.json'
+2025-02-06 13:30:11.946 +01:00 [DBG] Request did not match any endpoints
+2025-02-06 13:30:11.984 +01:00 [DBG] Connection id "0HNA6L801QQBS" completed keep alive response.
+2025-02-06 13:30:11.984 +01:00 [INF] Request finished HTTP/1.1 GET http://0.0.0.0:5078/swagger/v1/swagger.json - 200 null application/json;charset=utf-8 38.7509ms
+2025-02-06 13:30:36.402 +01:00 [INF] Request starting HTTP/1.1 GET http://0.0.0.0:5078/RandomDate - null null
+2025-02-06 13:30:36.413 +01:00 [DBG] 1 candidate(s) found for the request path '/RandomDate'
+2025-02-06 13:30:36.420 +01:00 [DBG] Endpoint 'RandomDateAPI.Controllers.RandomDateController.Get (RandomDateAPI)' with route pattern 'RandomDate' is valid for the request path '/RandomDate'
+2025-02-06 13:30:36.425 +01:00 [DBG] Request matched endpoint 'RandomDateAPI.Controllers.RandomDateController.Get (RandomDateAPI)'
+2025-02-06 13:30:36.431 +01:00 [DBG] Static files was skipped as the request already matched an endpoint.
+2025-02-06 13:30:36.437 +01:00 [WRN] Failed to determine the https port for redirect.
+2025-02-06 13:30:36.443 +01:00 [INF] Executing endpoint 'RandomDateAPI.Controllers.RandomDateController.Get (RandomDateAPI)'
+2025-02-06 13:30:36.473 +01:00 [INF] Route matched with {action = "Get", controller = "RandomDate"}. Executing controller action with signature System.Threading.Tasks.Task`1[Microsoft.AspNetCore.Mvc.OkObjectResult] Get() on controller RandomDateAPI.Controllers.RandomDateController (RandomDateAPI).
+2025-02-06 13:30:36.475 +01:00 [DBG] Execution plan of authorization filters (in the following order): ["None"]
+2025-02-06 13:30:36.475 +01:00 [DBG] Execution plan of resource filters (in the following order): ["None"]
+2025-02-06 13:30:36.476 +01:00 [DBG] Execution plan of action filters (in the following order): ["Microsoft.AspNetCore.Mvc.ModelBinding.UnsupportedContentTypeFilter (Order: -3000)","Microsoft.AspNetCore.Mvc.Infrastructure.ModelStateInvalidFilter (Order: -2000)"]
+2025-02-06 13:30:36.476 +01:00 [DBG] Execution plan of exception filters (in the following order): ["None"]
+2025-02-06 13:30:36.476 +01:00 [DBG] Execution plan of result filters (in the following order): ["Microsoft.AspNetCore.Mvc.Infrastructure.ClientErrorResultFilter (Order: -2000)"]
+2025-02-06 13:30:36.479 +01:00 [DBG] Executing controller factory for controller RandomDateAPI.Controllers.RandomDateController (RandomDateAPI)
+2025-02-06 13:30:36.481 +01:00 [DBG] Executed controller factory for controller RandomDateAPI.Controllers.RandomDateController (RandomDateAPI)
+2025-02-06 13:30:36.487 +01:00 [INF] Executing action method RandomDateAPI.Controllers.RandomDateController.Get (RandomDateAPI) - Validation state: "Valid"
+2025-02-06 13:30:36.948 +01:00 [FTL] Get random date from RandomDateController. {trace-id}, {span-id}
+2025-02-06 13:30:36.950 +01:00 [FTL] Get random date from RandomDateController. {trace-id}, {span-id}
+2025-02-06 13:30:36.953 +01:00 [INF] Example log line with trace correlation info
+2025-02-06 13:30:36.972 +01:00 [INF] Executed action method RandomDateAPI.Controllers.RandomDateController.Get (RandomDateAPI), returned result Microsoft.AspNetCore.Mvc.OkObjectResult in 474.3718ms.
+2025-02-06 13:30:36.993 +01:00 [DBG] List of registered output formatters, in the following order: ["Microsoft.AspNetCore.Mvc.Formatters.HttpNoContentOutputFormatter","Microsoft.AspNetCore.Mvc.Formatters.StringOutputFormatter","Microsoft.AspNetCore.Mvc.Formatters.StreamOutputFormatter","Microsoft.AspNetCore.Mvc.Formatters.SystemTextJsonOutputFormatter"]
+2025-02-06 13:30:37.001 +01:00 [DBG] No information found on request to perform content negotiation.
+2025-02-06 13:30:37.001 +01:00 [DBG] Attempting to select an output formatter without using a content type as no explicit content types were specified for the response.
+2025-02-06 13:30:37.002 +01:00 [DBG] Attempting to select the first formatter in the output formatters list which can write the result.
+2025-02-06 13:30:37.004 +01:00 [DBG] Selected output formatter 'Microsoft.AspNetCore.Mvc.Formatters.SystemTextJsonOutputFormatter' and content type 'application/json' to write the response.
+2025-02-06 13:30:37.005 +01:00 [INF] Executing OkObjectResult, writing value of type 'System.DateTime'.
+2025-02-06 13:30:37.028 +01:00 [INF] Executed action RandomDateAPI.Controllers.RandomDateController.Get (RandomDateAPI) in 549.1041ms
+2025-02-06 13:30:37.029 +01:00 [INF] Executed endpoint 'RandomDateAPI.Controllers.RandomDateController.Get (RandomDateAPI)'
+2025-02-06 13:30:37.031 +01:00 [INF] HTTP GET /RandomDate responded 200 in 597.0975 ms
+2025-02-06 13:30:37.034 +01:00 [DBG] Connection id "0HNA6L801QQBS" completed keep alive response.
+2025-02-06 13:30:37.034 +01:00 [INF] Request finished HTTP/1.1 GET http://0.0.0.0:5078/RandomDate - 200 null application/json; charset=utf-8 638.5291ms
+2025-02-06 13:30:50.302 +01:00 [INF] Request starting HTTP/1.1 GET http://0.0.0.0:5078/RandomDate - null null
+2025-02-06 13:30:50.303 +01:00 [DBG] 1 candidate(s) found for the request path '/RandomDate'
+2025-02-06 13:30:50.305 +01:00 [DBG] Endpoint 'RandomDateAPI.Controllers.RandomDateController.Get (RandomDateAPI)' with route pattern 'RandomDate' is valid for the request path '/RandomDate'
+2025-02-06 13:30:50.306 +01:00 [DBG] Request matched endpoint 'RandomDateAPI.Controllers.RandomDateController.Get (RandomDateAPI)'
+2025-02-06 13:30:50.306 +01:00 [DBG] Static files was skipped as the request already matched an endpoint.
+2025-02-06 13:30:50.307 +01:00 [INF] Executing endpoint 'RandomDateAPI.Controllers.RandomDateController.Get (RandomDateAPI)'
+2025-02-06 13:30:50.308 +01:00 [INF] Route matched with {action = "Get", controller = "RandomDate"}. Executing controller action with signature System.Threading.Tasks.Task`1[Microsoft.AspNetCore.Mvc.OkObjectResult] Get() on controller RandomDateAPI.Controllers.RandomDateController (RandomDateAPI).
+2025-02-06 13:30:50.309 +01:00 [DBG] Execution plan of authorization filters (in the following order): ["None"]
+2025-02-06 13:30:50.309 +01:00 [DBG] Execution plan of resource filters (in the following order): ["None"]
+2025-02-06 13:30:50.310 +01:00 [DBG] Execution plan of action filters (in the following order): ["Microsoft.AspNetCore.Mvc.ModelBinding.UnsupportedContentTypeFilter (Order: -3000)","Microsoft.AspNetCore.Mvc.Infrastructure.ModelStateInvalidFilter (Order: -2000)"]
+2025-02-06 13:30:50.310 +01:00 [DBG] Execution plan of exception filters (in the following order): ["None"]
+2025-02-06 13:30:50.311 +01:00 [DBG] Execution plan of result filters (in the following order): ["Microsoft.AspNetCore.Mvc.Infrastructure.ClientErrorResultFilter (Order: -2000)"]
+2025-02-06 13:30:50.311 +01:00 [DBG] Executing controller factory for controller RandomDateAPI.Controllers.RandomDateController (RandomDateAPI)
+2025-02-06 13:30:50.312 +01:00 [DBG] Executed controller factory for controller RandomDateAPI.Controllers.RandomDateController (RandomDateAPI)
+2025-02-06 13:30:50.313 +01:00 [INF] Executing action method RandomDateAPI.Controllers.RandomDateController.Get (RandomDateAPI) - Validation state: "Valid"
+2025-02-06 13:31:08.332 +01:00 [FTL] Get random date from RandomDateController. {trace-id}, {span-id}
+2025-02-06 13:31:15.074 +01:00 [FTL] Get random date from RandomDateController. {trace-id}, {span-id}
+2025-02-06 13:31:25.624 +01:00 [INF] Example log line with trace correlation info
+2025-02-06 13:31:37.871 +01:00 [INF] Executed action method RandomDateAPI.Controllers.RandomDateController.Get (RandomDateAPI), returned result Microsoft.AspNetCore.Mvc.OkObjectResult in 47557.3173ms.
+2025-02-06 13:31:37.872 +01:00 [DBG] List of registered output formatters, in the following order: ["Microsoft.AspNetCore.Mvc.Formatters.HttpNoContentOutputFormatter","Microsoft.AspNetCore.Mvc.Formatters.StringOutputFormatter","Microsoft.AspNetCore.Mvc.Formatters.StreamOutputFormatter","Microsoft.AspNetCore.Mvc.Formatters.SystemTextJsonOutputFormatter"]
+2025-02-06 13:31:37.873 +01:00 [DBG] No information found on request to perform content negotiation.
+2025-02-06 13:31:37.873 +01:00 [DBG] Attempting to select an output formatter without using a content type as no explicit content types were specified for the response.
+2025-02-06 13:31:37.873 +01:00 [DBG] Attempting to select the first formatter in the output formatters list which can write the result.
+2025-02-06 13:31:37.873 +01:00 [DBG] Selected output formatter 'Microsoft.AspNetCore.Mvc.Formatters.SystemTextJsonOutputFormatter' and content type 'application/json' to write the response.
+2025-02-06 13:31:37.873 +01:00 [INF] Executing OkObjectResult, writing value of type 'System.DateTime'.
+2025-02-06 13:31:37.874 +01:00 [INF] Executed action RandomDateAPI.Controllers.RandomDateController.Get (RandomDateAPI) in 47563.4979ms
+2025-02-06 13:31:37.875 +01:00 [INF] Executed endpoint 'RandomDateAPI.Controllers.RandomDateController.Get (RandomDateAPI)'
+2025-02-06 13:31:37.875 +01:00 [INF] HTTP GET /RandomDate responded 200 in 47568.9975 ms
+2025-02-06 13:31:37.876 +01:00 [DBG] Connection id "0HNA6L801QQBS" completed keep alive response.
+2025-02-06 13:31:37.876 +01:00 [INF] Request finished HTTP/1.1 GET http://0.0.0.0:5078/RandomDate - 200 null application/json; charset=utf-8 47574.8954ms
