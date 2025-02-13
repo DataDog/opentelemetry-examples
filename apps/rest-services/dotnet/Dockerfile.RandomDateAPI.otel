@@ -1,7 +1,7 @@
 # Unless explicitly stated otherwise all files in this repository are licensed
 # under the Apache 2.0 License.
 #
-FROM mcr.microsoft.com/dotnet/sdk:8.0 as build-env
+FROM mcr.microsoft.com/dotnet/sdk:9.0 as build-env
 
 WORKDIR /home/otel
 COPY RandomDateAPIOTel RandomDateAPI/
@@ -10,7 +10,7 @@ WORKDIR /home/otel/RandomDateAPI
 RUN dotnet restore
 RUN dotnet publish -c Release -o out
 
-FROM mcr.microsoft.com/dotnet/aspnet:8.0
+FROM mcr.microsoft.com/dotnet/aspnet:9.0
 WORKDIR /home/otel/RandomDateAPI
 COPY --from=build-env /home/otel/RandomDateAPI/out .
 
