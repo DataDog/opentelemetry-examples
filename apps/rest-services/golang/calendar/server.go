@@ -88,12 +88,17 @@ func NewServer(name string, mp metric.MeterProvider) (*Server, error) {
 }
 
 func getDate(ctx context.Context) string {
+	span := trace.SpanFromContext(ctx)
+	logger.Info(
+		"getting random date",
+		zap.String("dd.trace_id", span.SpanContext().TraceID().String()),
+		zap.String("dd.span_id", span.SpanContext().SpanID().String()),
+	)
 	dayOffset := rand.Intn(365)
 	startDate := time.Date(2023, time.January, 1, 0, 0, 0, 0, time.Local)
 	day := startDate.AddDate(0, 0, dayOffset)
 
 	d := day.Format(time.DateOnly)
-	span := trace.SpanFromContext(ctx)
 	logger.Info(
 		"random date",
 		zap.String("date", d),
