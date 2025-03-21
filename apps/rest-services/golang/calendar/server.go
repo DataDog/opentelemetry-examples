@@ -10,6 +10,7 @@ import (
 	"sync/atomic"
 	"time"
 
+	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/metric"
 	"go.opentelemetry.io/otel/trace"
 	"go.uber.org/zap"
@@ -17,6 +18,7 @@ import (
 
 type Server struct {
 	name             string
+	tracer           trace.Tracer
 	rnd              *rand.Rand
 	apiCounter       metric.Int64Counter
 	latency          metric.Float64Histogram
@@ -25,7 +27,8 @@ type Server struct {
 	activeUsersCount *atomic.Int64
 }
 
-func NewServer(name string, mp metric.MeterProvider) (*Server, error) {
+func NewServer(name string, mp metric.MeterProvider, tp trace.TracerProvider) (*Server, error) {
+	tracer := tp.Tracer(name)
 	meter := mp.Meter(name)
 	apiCounter, err := meter.Int64Counter(
 		name+".api.counter",
@@ -78,6 +81,7 @@ func NewServer(name string, mp metric.MeterProvider) (*Server, error) {
 
 	return &Server{
 		name:             name,
+		tracer:           tracer,
 		rnd:              rand.New(rand.NewSource(time.Now().Unix())),
 		apiCounter:       apiCounter,
 		latency:          histogram,
@@ -87,8 +91,14 @@ func NewServer(name string, mp metric.MeterProvider) (*Server, error) {
 	}, nil
 }
 
-func getDate(ctx context.Context) string {
-	span := trace.SpanFromContext(ctx)
+func (s *Server) getDate(ctx context.Context) string {
+	_, span := s.tracer.Start(
+		ctx,
+		"getDate",
+		trace.WithSpanKind(trace.SpanKindClient),
+		trace.WithAttributes(attribute.String("peer.service", "random-date-service")),
+	)
+	defer span.End()
 	logger.Info(
 		"getting random date",
 		zap.String("dd.trace_id", span.SpanContext().TraceID().String()),
@@ -141,7 +151,7 @@ func (s *Server) calendarHandler(w http.ResponseWriter, r *http.Request) {
 			logger.Error("encoding resp", zap.Error(err))
 		}
 	case <-timer.C:
-		dt := getDate(ctx)
+		dt := s.getDate(ctx)
 		resp := response{
 			Date: dt,
 		}
