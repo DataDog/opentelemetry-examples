@@ -190,7 +190,7 @@ func realMain() error {
 			logger.Error("meterProvider Shutdown failed", zap.Error(err))
 		}
 	}()
-	server, err := NewServer(name, meterProvider)
+	server, err := NewServer(name, meterProvider, tp)
 	if err != nil {
 		logger.Fatal("can't create new server", zap.Error(err))
 		return err
