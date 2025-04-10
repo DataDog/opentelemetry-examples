@@ -103,6 +103,7 @@ func (s *Server) getDate(ctx context.Context) string {
 		"getting random date",
 		zap.String("dd.trace_id", span.SpanContext().TraceID().String()),
 		zap.String("dd.span_id", span.SpanContext().SpanID().String()),
+		zap.Any("context", ctx),
 	)
 	dayOffset := rand.Intn(365)
 	startDate := time.Date(2023, time.January, 1, 0, 0, 0, 0, time.Local)
@@ -114,6 +115,7 @@ func (s *Server) getDate(ctx context.Context) string {
 		zap.String("date", d),
 		zap.String("dd.trace_id", span.SpanContext().TraceID().String()),
 		zap.String("dd.span_id", span.SpanContext().SpanID().String()),
+		zap.Any("context", ctx),
 	)
 	return d
 }
