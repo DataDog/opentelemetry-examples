@@ -23,7 +23,6 @@ import (
 	"go.opentelemetry.io/otel/propagation"
 	"go.opentelemetry.io/otel/sdk/metric"
 	sdktrace "go.opentelemetry.io/otel/sdk/trace"
-	"go.opentelemetry.io/otel/trace"
 	"go.uber.org/zap"
 )
 
@@ -162,16 +161,25 @@ func SetupHandlers() *http.ServeMux {
 	mux.Handle("/rungame", otelhttp.NewHandler(http.HandlerFunc(RunGameHandler), "RunGameHandler"))
 	mux.Handle("/", http.FileServer(http.Dir(*resources)))
 
+	mux.HandleFunc("/config.js", ConfigHandler)
+
 	return mux
 }
 
+func ConfigHandler(w http.ResponseWriter, r *http.Request) {
+	w.Header().Set("Content-Type", "application/javascript")
+	w.WriteHeader(http.StatusOK)
+	fmt.Fprintf(w, `window.env = {
+		DD_APPLICATION_ID: "%s",
+		DD_CLIENT_TOKEN: "%s",
+		DD_RUM_PROXY_URL: "%s",
+	};`, os.Getenv("DD_APPLICATION_ID"), os.Getenv("DD_CLIENT_TOKEN"), os.Getenv("DD_RUM_PROXY_URL"))
+}
+
 func RunGameHandler(w http.ResponseWriter, r *http.Request) {
-	ctx := r.Context()
-	span := trace.SpanFromContext(ctx)
-	logger = logger.With(
-		zap.String("trace_id", span.SpanContext().TraceID().String()),
-		zap.String("span_id", span.SpanContext().SpanID().String()),
-	)
+	ctx := otel.GetTextMapPropagator().Extract(r.Context(), propagation.HeaderCarrier(r.Header))
+	ctx, span := otel.Tracer("RunGame").Start(ctx, "RunGameHandler")
+	defer span.End()
 
 	var body gameoflifepb.GameRequest
 	encoder := json.NewEncoder(w)
