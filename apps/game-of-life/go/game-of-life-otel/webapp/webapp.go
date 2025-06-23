@@ -23,6 +23,7 @@ import (
 	"go.opentelemetry.io/otel/propagation"
 	"go.opentelemetry.io/otel/sdk/metric"
 	sdktrace "go.opentelemetry.io/otel/sdk/trace"
+	"go.opentelemetry.io/otel/trace"
 	"go.uber.org/zap"
 )
 
@@ -177,9 +178,13 @@ func ConfigHandler(w http.ResponseWriter, r *http.Request) {
 }
 
 func RunGameHandler(w http.ResponseWriter, r *http.Request) {
-	ctx := otel.GetTextMapPropagator().Extract(r.Context(), propagation.HeaderCarrier(r.Header))
-	ctx, span := otel.Tracer("RunGame").Start(ctx, "RunGameHandler")
+	ctx := r.Context()
+	span := trace.SpanFromContext(ctx)
 	defer span.End()
+	logger = logger.With(
+		zap.String("trace_id", span.SpanContext().TraceID().String()),
+		zap.String("span_id", span.SpanContext().SpanID().String()),
+	)
 
 	var body gameoflifepb.GameRequest
 	encoder := json.NewEncoder(w)
