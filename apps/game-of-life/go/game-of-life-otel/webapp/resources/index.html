@@ -21,7 +21,7 @@
     trackLongTasks: true,
     defaultPrivacyLevel: 'mask-user-input',
     allowedTracingUrls: [
-      { match: "http://localhost:8080", propagatorTypes: ["datadog", "tracecontext"]},
+      { match: "http://localhost", propagatorTypes: ["datadog", "tracecontext"]},
     ],
   };
   if (window.env.DD_RUM_PROXY_URL && window.env.DD_RUM_PROXY_URL != "") {
