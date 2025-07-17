@@ -19,7 +19,6 @@ Many of the metrics collected for the Kubernetes integration report on the _over
 | :---------- | :---------------------- | :------ |
 | receiver    | [prometheus][1]         | Scrapes your cluster's kube-state-metrics endpoint |
 | receiver    | [k8s_cluster][2]        | Collects additional cluster-level metrics |
-| processor   | [batch][3]              | Batches telemetry |
 | processor   | [cumulativetodelta][4]  | Converts monotonic, cumulative sum and histogram metrics to monotonic, delta metrics |
 | processor   | [resource][5]           | Globally sets the `k8s.cluster.name` attribute on resources for tagging purposes |
 | processor   | [transform][6]          | Modifies, adds, and deletes resource/datapoint attributes |
@@ -33,7 +32,6 @@ Many of the metrics collected for the Kubernetes integration report on the _over
 | :---------- | :---------------------- | :------ |
 | receiver    | [hostmetrics][11]       | Collects host-level metrics |
 | receiver    | [kubeletstats][12]      | Collects node, pod, container, and volume metrics from the Kubelet |
-| processor   | [batch][3]              | Batches telemetry |
 | processor   | [cumulativetodelta][4]  | Converts monotonic, cumulative sum and histogram metrics to monotonic, delta metrics |
 | processor   | [deltatorate][13]       | Converts delta sum metrics to rate metrics that are sent as gauges |
 | processor   | [resource][5]           | Globally sets the `k8s.cluster.name` attribute on resources for tagging purposes |
@@ -172,7 +170,6 @@ helm install otel-cluster-collector open-telemetry/opentelemetry-collector -f co
 
 [1]: https://github.com/open-telemetry/opentelemetry-collector-contrib/tree/main/receiver/prometheusreceiver
 [2]: https://github.com/open-telemetry/opentelemetry-collector-contrib/tree/main/receiver/k8sclusterreceiver
-[3]: https://github.com/open-telemetry/opentelemetry-collector/tree/main/processor/batchprocessor
 [4]: https://github.com/open-telemetry/opentelemetry-collector-contrib/tree/main/processor/cumulativetodeltaprocessor
 [5]: https://github.com/open-telemetry/opentelemetry-collector-contrib/tree/main/processor/resourceprocessor
 [6]: https://github.com/open-telemetry/opentelemetry-collector-contrib/tree/main/processor/transformprocessor
