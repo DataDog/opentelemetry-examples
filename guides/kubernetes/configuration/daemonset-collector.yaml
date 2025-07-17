@@ -101,11 +101,8 @@ config:
       traces:
   
   exporters:
-    debug:
-      verbosity: detailed
     datadog/exporter:
       api:
-        site: datad0g.com
         key: ${env:DD_API_KEY}
 
   service:
@@ -118,4 +115,4 @@ config:
       metrics:
         receivers: [datadog/connector, otlp]
         processors: [resourcedetection, resource, k8sattributes, cumulativetodelta, deltatorate, batch]
-        exporters: [debug, datadog/exporter]
+        exporters: [datadog/exporter]

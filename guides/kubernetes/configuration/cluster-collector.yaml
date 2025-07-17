@@ -160,11 +160,8 @@ config:
             - metric.name == "kube_job_status_active"
 
   exporters:
-    debug:
-      verbosity: detailed
     datadog/exporter:
       api:
-        site: datad0g.com
         key: ${env:DD_API_KEY}
   
   service:

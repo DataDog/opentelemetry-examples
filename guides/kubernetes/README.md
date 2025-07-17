@@ -71,7 +71,7 @@ Service Infrastructure metrics use a similar instrumention method to Datadog's [
 There are three key OpenTelemetry attributes to ensure APM traces are associated with infrastructure metrics:
 1. `service.name`
 2. `service.version`
-3. `deployment.environment`
+3. `deployment.environment.name`
 
 ### Application Changes
 An easy way to set APM Service attributes inside of your application is environment variables:
@@ -88,7 +88,7 @@ spec:
         - name: OTEL_ENVIRONMENT
           value: <DEPLOYMENT ENVIRONMENT HERE>
         - name: OTEL_RESOURCE_ATTRIBUTES
-          value: >- service.name=$(OTEL_SERVICE_NAME), service.version=$(OTEL_SERVICE_VERSION), k8s.namespace.name=$(OTEL_K8S_NAMESPACE), deployment.environment=$(OTEL_ENVIRONMENT)
+          value: >- service.name=$(OTEL_SERVICE_NAME), service.version=$(OTEL_SERVICE_VERSION), deployment.environment.name=$(OTEL_ENVIRONMENT)
 ```
 
 ### Infrastructure changes
@@ -102,23 +102,22 @@ metadata:
   annotations:
     resource.opentelemetry.io/service.name: <SERVICE NAME HERE>
     resource.opentelemetry.io/service.version: <SERVICE VERSION HERE>
-    resource.opentelemetry.io/deployment.environment: <DEPLOYMENT ENVIRONMENT HERE>
+    resource.opentelemetry.io/deployment.environment.name: <DEPLOYMENT ENVIRONMENT HERE>
 spec:
   template:
     metadata:
       annotations:
         resource.opentelemetry.io/service.name: <SERVICE NAME HERE>
         resource.opentelemetry.io/service.version: <SERVICE VERSION HERE>
-        resource.opentelemetry.io/deployment.environment: <DEPLOYMENT ENVIRONMENT HERE>
+        resource.opentelemetry.io/deployment.environment.name: <DEPLOYMENT ENVIRONMENT HERE>
 ```
 
 ## Deployment
 
-<blockquote> **NOTE** If you are incorporating the configuration files found in [/configuration](/documentation/kubernetes/configuration/) into your existing OpenTelemetry collector deployment, please be aware that they are specifically written for
+<blockquote> NOTE: If you are incorporating the configuration files found in [/configuration](/documentation/kubernetes/configuration/) into your existing OpenTelemetry collector deployment, please be aware that they are specifically written for
 
 * [opentelemetry-collector](https://github.com/open-telemetry/opentelemetry-helm-charts/tree/main/charts/opentelemetry-collector) helm chart 
 * OTel image `otel/opentelemetry-collector-contrib` >= `0.130.0`
-
 
 </blockquote>
 
