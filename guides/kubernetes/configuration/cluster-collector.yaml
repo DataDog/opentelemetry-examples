@@ -143,7 +143,7 @@ config:
           # k8s.service.count is grouped by namespace and type
           # so we have to grab those attributes from the original metric.
           attributes:
-            - key: kube_namespace
+            - key: namespace
               default_value: unspecified_namespace
             - key: type
               default_value: unspecified_service_type
