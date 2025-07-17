@@ -9,7 +9,7 @@ The Datadog OpenTelemetry Kubernetes Integration relies on [kube-state-metrics](
 that are necessary for full functionality.
 
 ### Why are there two collectors?
-Many of the metrics collected for the Kubernetes integration report on the _overall Kubernetes cluster_ and are therefore not specific to any _single_ node within cluster. It wouldn't make sense to collect the number of deployments on a cluster on each node - it would result in duplicated metrics. To accomodate this constraint, we deploy two separate collectors:
+Many of the metrics collected for the Kubernetes integration report on the _overall Kubernetes cluster_ and are therefore not specific to any _single_ node within cluster. For example, it wouldn't make sense to collect the number of deployments on a cluster on each node - it would result in duplicated metrics. To accomodate this constraint, we deploy two separate collectors:
 * A singleton collector deployed as a Kubernetes Deployment focused on collecting cluster level metrics
 * A collector deployed as a Kubernetes Daemonset to collect metrics specific to each host
 
