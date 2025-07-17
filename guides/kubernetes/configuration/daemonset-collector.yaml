@@ -51,7 +51,6 @@ config:
           enabled: true
           
   processors:
-    batch: {}
     cumulativetodelta: {}
     deltatorate:
       metrics:
@@ -109,10 +108,9 @@ config:
     pipelines:
       traces: 
         receivers: [otlp]
-        processors: [batch]
         exporters: [datadog/connector]
 
       metrics:
         receivers: [datadog/connector, otlp]
-        processors: [resourcedetection, resource, k8sattributes, cumulativetodelta, deltatorate, batch]
+        processors: [resourcedetection, resource, k8sattributes, cumulativetodelta, deltatorate]
         exporters: [datadog/exporter]

@@ -35,7 +35,6 @@ config:
                   - kube-state-metrics.default.svc:8080
 
   processors:
-    batch: {}
     cumulativetodelta: {}
     resource:
       attributes:
@@ -172,5 +171,5 @@ config:
         
       metrics:
         receivers: [otlp, prometheus, count]
-        processors: [resource, transform/ksm_to_dd, transform/rename_uid, groupbyattrs, k8sattributes, cumulativetodelta, batch]
-        exporters: [debug, datadog/exporter]
+        processors: [resource, transform/ksm_to_dd, transform/rename_uid, groupbyattrs, k8sattributes, cumulativetodelta]
+        exporters: [datadog/exporter]
