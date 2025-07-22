@@ -1,0 +1,175 @@
+enabled: true
+mode: deployment
+
+# Enabling presets automatically configures the necessary service accounts
+# and sane defaults
+presets:
+  clusterMetrics:
+    enabled: true
+  kubernetesAttributes:
+    enabled: true
+
+extraEnvs:
+  - name: DD_API_KEY
+    valueFrom:
+      secretKeyRef:
+        name: datadog-secret
+        key: api-key
+  - name: CLUSTER_NAME
+    valueFrom: 
+
+config:
+  receivers:
+    k8s_cluster:
+      auth_type: serviceAccount
+    
+    # Prometheus receiver is used to scrape kube state metrics
+    prometheus:
+      config:
+        scrape_configs:
+          - job_name: 'kube-state-metrics'
+            metrics_path: /metrics
+            scheme: http
+            static_configs:
+              - targets:
+                  - kube-state-metrics.default.svc:8080
+
+  processors:
+    cumulativetodelta: {}
+    resource:
+      attributes:
+        # Globally set k8s cluster name on all resources
+        - key: k8s.cluster.name
+          value: <YOUR K8S CLUSTER NAME HERE>
+          action: "insert"
+    
+    # Rename KSM metric prometheus label uid -> k8s.pod.uid to adhere to OTel standard and
+    # facililtate the groupby specified below.
+    transform/rename_uid:
+      metric_statements:
+        - context: datapoint
+          statements:
+            - set(attributes["k8s.pod.uid"], attributes["uid"])
+            - delete_key(attributes, "uid")
+        # We have to delete these from the resource because they were incorrectly 
+        # set by the prometheus receiver, k8sattributes will repopulate them but
+        # cannot overwrite them.
+        - context: resource
+          statements:
+            - delete_key(attributes, "service.name")
+            - delete_key(attributes, "service.instance.id")
+    
+    # Grouping by k8s.pod.uid (a globally unique ID) correctly associates the
+    # kube-state-metrics pod metrics with their respective OTel resources.
+    groupbyattrs:
+      keys:
+        - k8s.pod.uid
+
+    # Modify kube-state-metric Datapoint attributes so that they adhere to Datadog's
+    # expected schema.
+    transform/ksm_to_dd:
+      metric_statements:
+        - context: datapoint
+          statements:
+            # statefulset
+            - set(attributes["kube_namespace"], attributes["namespace"])
+            - delete_key(attributes, "namespace")
+
+            # statefulset
+            - set(attributes["kube_deployment"], attributes["deployment"])
+            - delete_key(attributes, "deployment")
+
+            # phase
+            - set(attributes["pod_phase"], attributes["phase"])
+            - delete_key(attributes, "phase")
+
+            # statefulset
+            - set(attributes["kube_stateful_set"], attributes["statefulset"])
+            - delete_key(attributes, "statefulset")
+
+            # daemonset
+            - set(attributes["kube_daemon_set"], attributes["daemonset"])
+            - delete_key(attributes, "daemonset")
+
+            # replicaset
+            - set(attributes["kube_replica_set"], attributes["replicaset"])
+            - delete_key(attributes, "replicaset")
+
+            # job_name
+            - set(attributes["kube_job"], attributes["job_name"])
+            - delete_key(attributes, "job_name")
+
+            # service
+            - set(attributes["kube_service"], attributes["service"])
+            - delete_key(attributes, "service")
+    
+    # k8sattributesprocessor is used to enrich metrics with additional metadata, namely, service.
+    k8sattributes:
+      auth_type: "serviceAccount"
+      extract:
+        otel_annotations: true
+        metadata:
+          - k8s.pod.name
+          - k8s.pod.uid
+          - k8s.deployment.name
+          - k8s.namespace.name
+          - k8s.node.name
+          - k8s.replicaset.name
+          - k8s.statefulset.name
+          - k8s.daemonset.name
+          - k8s.container.name
+          - service.name
+          - service.version
+          - service.instance.id
+      passthrough: false
+      # By default association is done via Pod IP, we need to override
+      # this so it doesn't erroneously associate metrics with the 
+      # kube-state-metrics pod.
+      pod_association:
+        - sources:
+          - from: resource_attribute
+            name: k8s.pod.uid
+    
+  connectors:
+    # The count connector helps us generate three custom metrics by counting the number 
+    # of metric series. It generates the following metrics:
+    # 1. k8s.service.count
+    # 2. k8s.node.count
+    # 3. k8s.job.count
+    count:
+      aggregation_interval: 10s
+      datapoints:
+        k8s.service.count:
+          # k8s.service.count is grouped by namespace and type
+          # so we have to grab those attributes from the original metric.
+          attributes:
+            - key: namespace
+              default_value: unspecified_namespace
+            - key: type
+              default_value: unspecified_service_type
+          conditions:
+            - metric.name == "kube_service_spec_type"
+
+        k8s.node.count:
+          conditions:
+            - metric.name == "kube_node_info"
+
+        k8s.job.count:
+          conditions:
+            - metric.name == "kube_job_status_active"
+
+  exporters:
+    datadog/exporter:
+      api:
+        key: ${env:DD_API_KEY}
+  
+  service:
+    pipelines:
+      metrics/count:
+        receivers: [prometheus]
+        exporters: [count]
+        
+      metrics:
+        receivers: [otlp, prometheus, count]
+        processors: [resource, transform/ksm_to_dd, transform/rename_uid, groupbyattrs, k8sattributes, cumulativetodelta]
+        exporters: [datadog/exporter]
