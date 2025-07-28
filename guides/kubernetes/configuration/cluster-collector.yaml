@@ -29,10 +29,13 @@ config:
         scrape_configs:
           - job_name: 'kube-state-metrics'
             metrics_path: /metrics
-            scheme: http
             static_configs:
               - targets:
                   - kube-state-metrics.default.svc:8080
+            metric_relabel_configs:
+              - source_labels: [__name__]
+                regex: 'kube_daemonset_.*|kube_deployment_.*|kube_job_.*|kube_node_.*|kube_pod_.*|kube_replicaset_.*|kube_statefulset_.*|kube_service_spec_type'
+                action: keep
 
   processors:
     cumulativetodelta: {}
@@ -130,6 +133,14 @@ config:
           - from: resource_attribute
             name: k8s.pod.uid
     
+    # Drop metric after count connector has used it
+    filter/ksm:
+      metrics:
+        exclude:
+          match_type: strict
+          metric_names:
+            - 'kube_service_spec_type'
+
   connectors:
     # The count connector helps us generate three custom metrics by counting the number 
     # of metric series. It generates the following metrics:
@@ -159,6 +170,8 @@ config:
             - metric.name == "kube_job_status_active"
 
   exporters:
+    debug:
+      verbosity: detailed
     datadog/exporter:
       api:
         key: ${env:DD_API_KEY}
@@ -171,5 +184,5 @@ config:
         
       metrics:
         receivers: [otlp, prometheus, count]
-        processors: [resource, transform/ksm_to_dd, transform/rename_uid, groupbyattrs, k8sattributes, cumulativetodelta]
-        exporters: [datadog/exporter]
+        processors: [filter/ksm, resource, transform/ksm_to_dd, transform/rename_uid, groupbyattrs, k8sattributes, cumulativetodelta]
+        exporters: [debug, datadog/exporter]
