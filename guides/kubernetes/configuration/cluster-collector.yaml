@@ -170,8 +170,6 @@ config:
             - metric.name == "kube_job_status_active"
 
   exporters:
-    debug:
-      verbosity: detailed
     datadog/exporter:
       api:
         key: ${env:DD_API_KEY}
@@ -185,4 +183,4 @@ config:
       metrics:
         receivers: [otlp, prometheus, count]
         processors: [filter/ksm, resource, transform/ksm_to_dd, transform/rename_uid, groupbyattrs, k8sattributes, cumulativetodelta]
-        exporters: [debug, datadog/exporter]
+        exporters: [datadog/exporter]
