@@ -35,7 +35,7 @@ config:
                   - kube-state-metrics.default.svc:8080
             metric_relabel_configs:
               - source_labels: [__name__]
-                regex: 'kube_daemonset_.*|kube_deployment_.*|kube_job_.*|kube_node_.*|kube_pod_.*|kube_replicaset_.*|kube_statefulset_.*|kube_service_spec_type'
+                regex: 'kube_daemonset_*|kube_deployment_*|kube_job_*|kube_node_*|kube_pod_*|kube_replicaset_*|kube_statefulset_*|kube_service_spec_type'
                 action: keep
 
   processors:
