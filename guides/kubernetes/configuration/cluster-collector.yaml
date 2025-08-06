@@ -137,11 +137,9 @@ config:
     # Drop metric after count connector has used it
     filter/ksm:
       metrics:
-        exclude:
-          match_type: strict
-          metric_names:
-            - 'kube_service_spec_type'
-
+        metric:
+          - metric.name == "kube_service_spec_type"
+  
   connectors:
     # The count connector helps us generate three custom metrics by counting the number 
     # of metric series. It generates the following metrics:
