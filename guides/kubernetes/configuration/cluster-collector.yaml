@@ -31,6 +31,10 @@ config:
             static_configs:
               - targets:
                   - kube-state-metrics.default.svc:8080
+            metric_relabel_configs:
+              - source_labels: [__name__]
+                regex: 'kube_daemonset_.*|kube_deployment_.*|kube_job_.*|kube_node_.*|kube_pod_.*|kube_replicaset_.*|kube_statefulset_.*|kube_service_spec_type'
+                action: keep
 
   processors:
     cumulativetodelta: {}
@@ -134,6 +138,12 @@ config:
         - convert_sum_to_gauge() where metric.name == "k8s.node.count"
         - convert_sum_to_gauge() where metric.name == "k8s.job.count"
 
+    # Drop metric after count connector has used it
+    filter/ksm:
+      metrics:
+        metric:
+          - metric.name == "kube_service_spec_type"
+  
   connectors:
     # The count connector helps us generate three custom metrics by counting the number 
     # of metric series. It generates the following metrics:
@@ -175,5 +185,5 @@ config:
         
       metrics:
         receivers: [otlp, prometheus, count]
-        processors: [resource, transform/ksm_to_dd, transform/rename_uid, groupbyattrs, k8sattributes, cumulativetodelta, transform/sum_to_gauge]
+        processors: [filter/ksm, resource, transform/ksm_to_dd, transform/rename_uid, groupbyattrs, k8sattributes, cumulativetodelta, transform/sum_to_gauge]
         exporters: [datadog/exporter]
