@@ -15,8 +15,6 @@ extraEnvs:
       secretKeyRef:
         name: datadog-secret
         key: api-key
-  - name: CLUSTER_NAME
-    valueFrom: 
 
 config:
   receivers:
@@ -134,6 +132,12 @@ config:
           - from: resource_attribute
             name: k8s.pod.uid
     
+    transform/sum_to_gauge:
+      metric_statements:
+        - convert_sum_to_gauge() where metric.name == "k8s.service.count"
+        - convert_sum_to_gauge() where metric.name == "k8s.node.count"
+        - convert_sum_to_gauge() where metric.name == "k8s.job.count"
+
     # Drop metric after count connector has used it
     filter/ksm:
       metrics:
@@ -166,7 +170,7 @@ config:
 
         k8s.job.count:
           conditions:
-            - metric.name == "kube_job_status_active"
+            - metric.name == "kube_job_owner"
 
   exporters:
     datadog/exporter:
@@ -181,5 +185,5 @@ config:
         
       metrics:
         receivers: [otlp, prometheus, count]
-        processors: [filter/ksm, resource, transform/ksm_to_dd, transform/rename_uid, groupbyattrs, k8sattributes, cumulativetodelta]
+        processors: [filter/ksm, resource, transform/ksm_to_dd, transform/rename_uid, groupbyattrs, k8sattributes, cumulativetodelta, transform/sum_to_gauge]
         exporters: [datadog/exporter]
