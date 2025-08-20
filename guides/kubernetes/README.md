@@ -55,6 +55,12 @@ Metric Type: Gauge
 Unit: core
 ```
 
+### k8s.pod.memory.usage
+```
+Metric Type: Gauge
+Unit: byte_in_binary_bytes_family
+```
+
 ### k8s.pod.network.io
 ```
 Metric Type: Gauge

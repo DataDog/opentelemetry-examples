@@ -82,6 +82,7 @@ config:
           - service.name
           - service.version
           - service.instance.id
+          - container.id
       passthrough: false
 
     # the order of resource detection is important as it will influence how attributes
