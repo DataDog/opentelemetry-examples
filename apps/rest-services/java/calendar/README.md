@@ -15,6 +15,11 @@ Response:
 
 ## Running locally
 
+To build the application locally, run:
+```
+./gradlew build
+```
+
 You can use the script `run-otel-local.sh` to test the application locally with OTel SDK.
 You can use the script `run-dd-local.sh` to test the application locally with DD SDK.
 
