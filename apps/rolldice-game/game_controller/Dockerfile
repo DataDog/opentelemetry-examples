@@ -1,17 +1,17 @@
 # Use an official Node.js runtime as the base image
-FROM node:14-alpine
+FROM node:18-alpine
 
 # Set the working directory
 WORKDIR /game_controller
 
-# Copy the project files to the working directory
-COPY . ./game_controller
-COPY package*.json ./game_controller/
-
-WORKDIR /game_controller
+# Copy package files first for better caching
+COPY package*.json ./
 
 # Install the project dependencies
 RUN npm install
+
+# Copy the rest of the project files
+COPY . ./
 ENV service_name=controller
 ENV logs_exporter=otlp
    
@@ -20,4 +20,4 @@ ENV logs_exporter=otlp
 EXPOSE 5002
 
 # Define the command to run the app
-CMD [ "node", "game_controller/controller.js" ]
+CMD [ "node", "controller.js" ]

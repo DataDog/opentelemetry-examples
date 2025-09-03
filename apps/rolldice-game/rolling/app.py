@@ -1,5 +1,6 @@
 from opentelemetry.instrumentation.flask import FlaskInstrumentor
 from opentelemetry.instrumentation.logging import LoggingInstrumentor
+from opentelemetry.instrumentation.requests import RequestsInstrumentor
 
 from opentelemetry import trace
 from opentelemetry import metrics
@@ -52,7 +53,8 @@ def roll():
 
 
 if __name__ == "__main__":
-    # Instrumenting Flask and Logging
+    # Instrumenting Flask, Logging, and Requests
     FlaskInstrumentor().instrument_app(app)
     LoggingInstrumentor().instrument(set_logging_format=True)
+    RequestsInstrumentor().instrument()
     app.run(debug=False, port=5004)

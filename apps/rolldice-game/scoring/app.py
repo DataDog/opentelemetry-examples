@@ -3,9 +3,11 @@ from opentelemetry import trace
 from opentelemetry.trace import Status, StatusCode
 
 from opentelemetry.instrumentation.flask import FlaskInstrumentor
+from opentelemetry.instrumentation.requests import RequestsInstrumentor
 
 app = Flask(__name__)
 FlaskInstrumentor().instrument_app(app)
+RequestsInstrumentor().instrument()
 
 tracer = trace.get_tracer(__name__)
 

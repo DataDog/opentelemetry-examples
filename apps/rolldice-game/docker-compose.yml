@@ -62,6 +62,7 @@ services:
       - "4318:4318" # OTLP http receiver
       - "4317:4317"
     environment:
+      - DD_API_KEY=${DD_API_KEY}
       - DD_OTLP_CONFIG_RECEIVER_PROTOCOLS_GRPC_ENDPOINT=0.0.0.0:4317
       - DD_OTLP_CONFIG_RECEIVER_PROTOCOLS_HTTP_ENDPOINT=0.0.0.0:4318
       
