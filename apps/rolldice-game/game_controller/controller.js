@@ -1,33 +1,14 @@
 const express = require('express');
 const axios = require('axios');
-const { context, trace, propagation, metrics } = require('@opentelemetry/api');
+const { context, trace, propagation } = require('@opentelemetry/api');
 const { NodeSDK } = require('@opentelemetry/sdk-node');
 const { getNodeAutoInstrumentations } = require('@opentelemetry/auto-instrumentations-node');
-const { HttpInstrumentation } = require('@opentelemetry/instrumentation-http');
-const { ExpressInstrumentation } = require('@opentelemetry/instrumentation-express');
-
-// Create HTTP instrumentation with metrics enabled
-const httpInstrumentation = new HttpInstrumentation({
-  // Enable metrics collection
-  createSpanOnRequest: true,
-  // Request hook to capture request metrics
-  requestHook: (span, request) => {
-    // Metrics will be automatically captured by the instrumentation
-  },
-  // Response hook to capture response metrics
-  responseHook: (span, response) => {
-    // Metrics will be automatically captured by the instrumentation
-  }
-});
 
 const sdk = new NodeSDK({
-  instrumentations: [
-    getNodeAutoInstrumentations({
-      '@opentelemetry/instrumentation-http': false, // Disable auto HTTP to use custom one
-    }),
-    httpInstrumentation,
-    new ExpressInstrumentation(),
-  ],
+  instrumentations: [getNodeAutoInstrumentations({
+    // Disable AWS instrumentation to avoid conflicts
+    '@opentelemetry/instrumentation-aws-sdk': false,
+  })],
 });
 
 sdk.start();
