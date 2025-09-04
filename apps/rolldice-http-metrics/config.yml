@@ -19,48 +19,30 @@ receivers:
       processes:
 
 exporters:
+  # NOTE: Prior to v0.86.0 use `logging` instead of `debug`.
   debug:
     verbosity: detailed
   datadog/exporter:
     api:
-      site: datad0g.com
+      site: datadoghq.com
       key: ${env:DD_API_KEY}
-  otlphttp:
-    headers:
-      "Dd-Protocol": "otlp"
-      "Dd-Api-Key": "${env:DD_API_KEY}"
-      
-    metrics_endpoint: https://trace.agent.datad0g.com/api/v0.2/stats
-    tls:
-      insecure: true
-
-connectors:
-  routing:
-    default_pipelines: [metrics/datadog]
-    table:
-      - context: metric
-        condition: metric.name == "http.server.request.duration"
-        pipelines: [metrics/dd_trace_metrics]
-      - context: metric
-        condition: metric.name == "http.client.request.duration"
-        pipelines: [metrics/dd_trace_metrics]
-
+  
 processors:
   batch:
-  cumulativetodelta:
+connectors:
+  datadog/connector:
 service:
   pipelines:
+    traces/sampling:
+      receivers: [datadog/connector]
+      processors: [] # Add any sampling here
+      exporters: [datadog/exporter]
     traces:
       receivers: [otlp]
       processors: [batch]
-      exporters: [datadog/exporter]
+      exporters: [datadog/connector]
     metrics:
-      receivers: [otlp]
-      exporters: [routing]
-    metrics/datadog:
-      receivers: [routing]
+      receivers: [datadog/connector, otlp]
+      processors: [batch]
       exporters: [datadog/exporter]
-    metrics/dd_trace_metrics:
-      receivers: [routing]
-      processors: [cumulativetodelta]
-      exporters: [debug, datadog/exporter, otlphttp]
+      
