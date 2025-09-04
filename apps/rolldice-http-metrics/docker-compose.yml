@@ -1,0 +1,75 @@
+version: '3'
+services:
+  game_controller:
+    build:
+      context: ./game_controller
+      dockerfile: Dockerfile
+    ports:
+      - "5002:5002"
+    depends_on:
+      otelcol:
+        condition: service_started
+      rolling:
+        condition: service_started
+      scoring:
+        condition: service_started
+    environment:
+      - OTEL_SERVICE_NAME=controller
+      - OTEL_METRICS_EXPORTER=otlp
+      - OTEL_LOGS_EXPORTER=otlp
+      - OTEL_EXPORTER_OTLP_METRICS_TEMPORALITY_PREFERENCE=delta
+      - OTEL_EXPORTER_OTLP_ENDPOINT=http://otelcol:4317
+      - OTEL_EXPORTER_OTLP_PROTOCOL=grpc
+      - OTEL_SEMCONV_STABILITY_OPT_IN=http
+      - OTEL_RESOURCE_ATTRIBUTES=deployment.environment=demo-env,host.name=demo-host
+
+  rolling:
+    build:
+      context: ./rolling
+      dockerfile: Dockerfile
+    ports:
+      - "5004:5004"
+    depends_on:
+      otelcol:
+        condition: service_started
+    environment:
+      - OTEL_SERVICE_NAME=rolly
+      - OTEL_EXPORTER_OTLP_ENDPOINT=http://otelcol:4317
+      - OTEL_EXPORTER_OTLP_PROTOCOL=grpc
+      - OTEL_SEMCONV_STABILITY_OPT_IN=http
+      - OTEL_RESOURCE_ATTRIBUTES=deployment.environment=demo-env,host.name=demo-host
+
+  scoring:
+    build:
+      context: ./scoring
+      dockerfile: Dockerfile
+    ports:
+      - "5001:5001"
+    depends_on:
+      otelcol:
+        condition: service_started
+    environment:
+      - OTEL_SERVICE_NAME=scorey
+      - OTEL_EXPORTER_OTLP_ENDPOINT=http://otelcol:4317
+      - OTEL_EXPORTER_OTLP_PROTOCOL=grpc
+      - OTEL_SEMCONV_STABILITY_OPT_IN=http
+      - OTEL_RESOURCE_ATTRIBUTES=deployment.environment=demo-env,host.name=demo-host
+  otelcol:
+    image: otel/opentelemetry-collector-contrib
+    deploy:
+      resources:
+        limits:
+          memory: 200M
+    restart: unless-stopped
+    command: [ "--config=/etc/otelcol-config.yml"]
+    volumes:
+      - ./config.yml:/etc/otelcol-config.yml
+    ports:
+      - "4318:4318" # OTLP http receiver
+      - "4317:4317"
+    environment:
+      - DD_API_KEY=${DD_API_KEY}
+      - DD_OTLP_CONFIG_RECEIVER_PROTOCOLS_GRPC_ENDPOINT=0.0.0.0:4317
+      - DD_OTLP_CONFIG_RECEIVER_PROTOCOLS_HTTP_ENDPOINT=0.0.0.0:4318
+      
+
