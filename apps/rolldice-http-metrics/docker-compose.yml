@@ -21,7 +21,7 @@ services:
       - OTEL_EXPORTER_OTLP_ENDPOINT=http://otelcol:4317
       - OTEL_EXPORTER_OTLP_PROTOCOL=grpc
       - OTEL_SEMCONV_STABILITY_OPT_IN=http
-      - OTEL_RESOURCE_ATTRIBUTES=deployment.environment=demo-env,host.name=demo-host
+      - OTEL_RESOURCE_ATTRIBUTES=deployment.environment=demo-env,host.name=demo-host,service.version=v1.0
 
   rolling:
     build:
@@ -37,7 +37,7 @@ services:
       - OTEL_EXPORTER_OTLP_ENDPOINT=http://otelcol:4317
       - OTEL_EXPORTER_OTLP_PROTOCOL=grpc
       - OTEL_SEMCONV_STABILITY_OPT_IN=http
-      - OTEL_RESOURCE_ATTRIBUTES=deployment.environment=demo-env,host.name=demo-host
+      - OTEL_RESOURCE_ATTRIBUTES=deployment.environment=demo-env,host.name=demo-host,service.version=v1.0
 
   scoring:
     build:
@@ -53,7 +53,7 @@ services:
       - OTEL_EXPORTER_OTLP_ENDPOINT=http://otelcol:4317
       - OTEL_EXPORTER_OTLP_PROTOCOL=grpc
       - OTEL_SEMCONV_STABILITY_OPT_IN=http
-      - OTEL_RESOURCE_ATTRIBUTES=deployment.environment=demo-env,host.name=demo-host
+      - OTEL_RESOURCE_ATTRIBUTES=deployment.environment=demo-env,host.name=demo-host,service.version=v1.0
   otelcol:
     image: otel/opentelemetry-collector-contrib
     deploy:
