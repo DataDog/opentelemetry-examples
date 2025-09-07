@@ -1,0 +1,96 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ .Release.Name }}-otel-config
+  labels:
+    app.kubernetes.io/name: otel-config
+    app.kubernetes.io/instance: {{ .Release.Name }}
+data:
+  config.yml: |
+    receivers:
+      otlp:
+        protocols:
+          grpc:
+            endpoint: 0.0.0.0:4317
+          http:
+            endpoint: 0.0.0.0:4318
+      hostmetrics:
+        # collect metrics every 10 seconds.
+        collection_interval: 10s
+        scrapers:
+          cpu:
+          disk:
+          filesystem:
+          memory:
+          network:
+          load:
+          paging:
+          processes:
+
+    exporters:
+      debug:
+        verbosity: detailed
+      datadog/exporter:
+        api:
+          site: {{ .Values.otelCollector.datadog.site }}
+          key: ${env:DD_API_KEY}
+      otlphttp:
+        headers:
+          "Dd-Protocol": "otlp"
+          "Dd-Api-Key": "${env:DD_API_KEY}"
+        metrics_endpoint: https://trace.agent.{{ .Values.otelCollector.datadog.site }}/api/v0.2/stats
+        tls:
+          insecure: true
+
+    connectors:
+      forward:
+      routing:
+        default_pipelines: [metrics/datadog]
+        table:
+          - context: metric
+            condition: metric.name == "http.server.request.duration"
+            pipelines: [metrics/dd_trace_metrics]
+          - context: metric
+            condition: metric.name == "http.client.request.duration"
+            pipelines: [metrics/dd_trace_metrics]
+
+    processors:
+      batch:
+      cumulativetodelta:
+      filter/debug_nonzero:
+        metrics:
+          datapoint:
+            - 'datapoint.count == 0'
+    service:
+      pipelines:
+        traces:
+          receivers: [otlp]
+          processors: [batch]
+          exporters: [datadog/exporter]
+        metrics:
+          receivers: [otlp]
+          exporters: [routing]
+        metrics/datadog:
+          receivers: [routing]
+          exporters: [datadog/exporter]
+        metrics/dd_trace_metrics:
+          receivers: [routing]
+          processors: [cumulativetodelta]
+          exporters: [datadog/exporter, otlphttp, forward]
+        metrics/debug_filtered:
+          receivers: [forward]
+          processors: [filter/debug_nonzero]
+          exporters: [debug]
+---
+{{- if .Values.otelCollector.datadog.apiKey }}
+apiVersion: v1
+kind: Secret
+metadata:
+  name: {{ .Release.Name }}-datadog-secret
+  labels:
+    app.kubernetes.io/name: datadog-secret
+    app.kubernetes.io/instance: {{ .Release.Name }}
+type: Opaque
+data:
+  api-key: {{ .Values.otelCollector.datadog.apiKey | b64enc | quote }}
+{{- end }}

@@ -55,6 +55,11 @@ def roll():
     return randint(1, 6)
 
 
+@app.route("/health", methods=["GET"])
+def health():
+    return "healthy", 200
+
+
 if __name__ == "__main__":
     # Instrumenting Flask, Logging, and Requests
     FlaskInstrumentor().instrument_app(app)

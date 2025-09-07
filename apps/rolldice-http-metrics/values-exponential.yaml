@@ -1,0 +1,46 @@
+# Deployment values for EKS with exponential histograms
+global:
+  useExponentialHistograms: true  # ENABLED for this deployment
+  
+  resourceAttributes:
+    deploymentEnvironment: "eks-demo-exponential"  # Different environment name
+    hostName: "eks-host-exponential"
+    serviceVersion: "v1.0"
+
+# Image configuration - using ECR registry
+image:
+  registry: "601427279990.dkr.ecr.ca-central-1.amazonaws.com/rolldice/"
+  pullPolicy: IfNotPresent
+
+gameController:
+  image:
+    repository: "game-controller"
+    tag: "amd64-v4"
+
+rolling:
+  image:
+    repository: "rolling" 
+    tag: "amd64-v7"
+
+scoring:
+  image:
+    repository: "scoring"
+    tag: "amd64-v8"
+
+# OpenTelemetry Collector - with Datadog integration
+otelCollector:
+  image:
+    repository: "otel/opentelemetry-collector-contrib"
+    tag: "latest"
+  datadog:
+    apiKey: ""
+    site: "datad0g.com"
+
+# Datadog Agent for infrastructure metrics (disabled - using shared agent from main deployment)
+datadogAgent:
+  enabled: false
+
+loadGenerator:
+  image:
+    repository: "load-generator"
+    tag: "amd64-v2"

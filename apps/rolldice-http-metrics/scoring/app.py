@@ -1,5 +1,6 @@
 from flask import Flask, request, jsonify
 from opentelemetry import trace
+from opentelemetry import metrics
 from opentelemetry.trace import Status, StatusCode
 import time
 import random
@@ -16,6 +17,13 @@ logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 tracer = trace.get_tracer(__name__)
+meter = metrics.get_meter(__name__)
+
+# Create custom metric counter
+scores_updated_counter = meter.create_counter(
+    "scores.updated",
+    description="Total number of score updates",
+)
 
 scores = {}
 
@@ -35,6 +43,10 @@ def update_score():
 
             score = scores.get(player, 0) + int(result)
             scores[player] = score
+            
+            # Increment custom metric
+            scores_updated_counter.add(1, {"player": player})
+            
             return jsonify({"player": player, "score": score})
 
         except ValueError as e:
@@ -42,6 +54,11 @@ def update_score():
             span.record_exception(e)
             span.set_status(Status(StatusCode.ERROR, str(e)))
             return jsonify({"An error occurred", "Oops!"}), 400
+
+
+@app.route("/health", methods=["GET"])
+def health():
+    return jsonify({"status": "healthy"}), 200
 
 
 if __name__ == "__main__":
