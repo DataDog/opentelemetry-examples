@@ -43,4 +43,4 @@ datadogAgent:
 loadGenerator:
   image:
     repository: "load-generator"
-    tag: "amd64-v2"
+    tag: "error-mix"

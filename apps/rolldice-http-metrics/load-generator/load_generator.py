@@ -33,9 +33,18 @@ def poisson_interval(rate):
     return random.expovariate(rate)
 
 def make_game_request():
-    """Make a single game request to the game controller."""
-    player = random.choice(PLAYER_NAMES)
-    payload = {"player": player}
+    """Make a single game request to the game controller with 80/20 success/error ratio."""
+    # 80% valid requests, 20% error requests (empty body)
+    is_error_request = random.random() < 0.2
+    
+    if is_error_request:
+        # Send empty request body to generate error
+        payload = {}
+        player = "ERROR_REQUEST"
+    else:
+        # Send valid request
+        player = random.choice(PLAYER_NAMES)
+        payload = {"player": player}
     
     try:
         start_time = time.time()
@@ -48,13 +57,23 @@ def make_game_request():
         end_time = time.time()
         duration = end_time - start_time
         
-        if response.status_code == 200:
-            result = response.json()
-            logger.info(f"✅ Success: Player {player} -> {result} (Duration: {duration:.2f}s)")
-            return True
+        if is_error_request:
+            # Expected error response
+            if response.status_code >= 400:
+                logger.info(f"🔥 Expected Error: Empty body -> {response.status_code} (Duration: {duration:.2f}s)")
+                return True
+            else:
+                logger.warning(f"⚠️ Unexpected Success: Empty body -> {response.status_code}")
+                return True
         else:
-            logger.error(f"❌ Error: Player {player} -> {response.status_code}: {response.text}")
-            return False
+            # Expected success response
+            if response.status_code == 200:
+                result = response.json()
+                logger.info(f"✅ Success: Player {player} -> {result} (Duration: {duration:.2f}s)")
+                return True
+            else:
+                logger.error(f"❌ Unexpected Error: Player {player} -> {response.status_code}: {response.text}")
+                return False
     
     except requests.exceptions.RequestException as e:
         logger.error(f"❌ Request failed for player {player}: {e}")

@@ -47,6 +47,8 @@ spec:
                   name: {{ .Release.Name }}-datadog-secret
                   key: api-key
             {{- end }}
+            - name: DD_SITE
+              value: {{ .Values.otelCollector.datadog.site | quote }}
             - name: DD_OTLP_CONFIG_RECEIVER_PROTOCOLS_GRPC_ENDPOINT
               value: "0.0.0.0:{{ .Values.otelCollector.service.grpcPort }}"
             - name: DD_OTLP_CONFIG_RECEIVER_PROTOCOLS_HTTP_ENDPOINT
