@@ -15,17 +15,17 @@ image:
 gameController:
   image:
     repository: "game-controller"
-    tag: "amd64-v4"
+    tag: "auto"
 
 rolling:
   image:
     repository: "rolling" 
-    tag: "amd64-v7"
+    tag: "expo-order"
 
 scoring:
   image:
     repository: "scoring"
-    tag: "amd64-v8"
+    tag: "expo-order"
 
 # OpenTelemetry Collector - with Datadog integration
 otelCollector:

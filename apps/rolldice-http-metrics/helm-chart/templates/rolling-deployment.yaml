@@ -47,6 +47,8 @@ spec:
             {{- if .Values.global.useExponentialHistograms }}
             - name: USE_EXPONENTIAL_HISTOGRAMS
               value: "1"
+            - name: OTEL_PYTHON_DISABLED_INSTRUMENTATIONS
+              value: "flask,requests"
             {{- end }}
             - name: OTEL_RESOURCE_ATTRIBUTES
               value: "deployment.environment={{ .Values.global.resourceAttributes.deploymentEnvironment }},host.name={{ .Values.global.resourceAttributes.hostName }},service.version={{ .Values.global.resourceAttributes.serviceVersion }}"

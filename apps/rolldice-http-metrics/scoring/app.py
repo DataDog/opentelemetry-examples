@@ -1,10 +1,42 @@
-from flask import Flask, request, jsonify
-from opentelemetry import trace
-from opentelemetry import metrics
-from opentelemetry.trace import Status, StatusCode
+# CRITICAL: Set up exponential histograms BEFORE any auto-instrumentation imports  
+import os
 import time
 import random
 
+# Only import OpenTelemetry core, not instrumentation yet
+from opentelemetry import metrics
+from opentelemetry.sdk.metrics import MeterProvider
+from opentelemetry.sdk.metrics.view import View
+from opentelemetry.sdk.metrics._internal.aggregation import ExponentialBucketHistogramAggregation
+
+# Configure exponential histogram views FIRST, before any instrumentation imports
+views = []
+if os.getenv('USE_EXPONENTIAL_HISTOGRAMS'):
+    print("🔥 CONFIGURING EXPONENTIAL HISTOGRAMS 🔥")
+    http_server_view = View(
+        instrument_name="http.server.request.duration",
+        aggregation=ExponentialBucketHistogramAggregation()
+    )
+    
+    http_client_view = View(
+        instrument_name="http.client.request.duration", 
+        aggregation=ExponentialBucketHistogramAggregation()
+    )
+    
+    views = [http_server_view, http_client_view]
+    print(f"🔥 CREATED {len(views)} EXPONENTIAL VIEWS 🔥")
+else:
+    print("📊 Using standard histograms")
+
+# Set meter provider with exponential views BEFORE any instrumentation
+meter_provider = MeterProvider(views=views)
+metrics.set_meter_provider(meter_provider)
+print(f"🎯 METER PROVIDER SET WITH {len(views)} VIEWS 🎯")
+
+# NOW import everything else (after meter provider is locked in)
+from flask import Flask, request, jsonify
+from opentelemetry import trace
+from opentelemetry.trace import Status, StatusCode
 from opentelemetry.instrumentation.flask import FlaskInstrumentor
 from opentelemetry.instrumentation.requests import RequestsInstrumentor
 import logging

@@ -44,6 +44,7 @@ data:
 
     connectors:
       forward:
+      forward/debug:
       routing:
         default_pipelines: [metrics/datadog]
         table:
@@ -61,6 +62,14 @@ data:
         metrics:
           datapoint:
             - 'datapoint.count == 0'
+      # metricstransform:
+      #   include: ^http\.(.*)\.request\.duration$$
+      #   match_type: regexp
+      #   action: update
+      #   operations:
+      #     - action: delete_label_value
+      #       label: http.route
+      #       label_value: /health
     service:
       pipelines:
         traces:
@@ -76,9 +85,13 @@ data:
         metrics/dd_trace_metrics:
           receivers: [routing]
           processors: [cumulativetodelta]
-          exporters: [datadog/exporter, otlphttp, forward]
-        metrics/debug_filtered:
+          exporters: [datadog/exporter, forward]
+        metrics/filtered_metrics:
           receivers: [forward]
+          # processors: [metricstransform]
+          exporters: [otlphttp, forward/debug]
+        metrics/debug_filtered:
+          receivers: [forward/debug]
           processors: [filter/debug_nonzero]
           exporters: [debug]
 ---
