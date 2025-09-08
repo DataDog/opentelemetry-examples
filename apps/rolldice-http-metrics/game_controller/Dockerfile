@@ -13,6 +13,9 @@ COPY settings.gradle .
 # Copy source code
 COPY src src
 
+# Copy metrics view configuration for exponential histograms
+COPY metrics_view.yaml .
+
 # Make gradlew executable
 RUN chmod +x ./gradlew
 

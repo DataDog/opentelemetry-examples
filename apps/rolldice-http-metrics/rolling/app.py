@@ -1,16 +1,23 @@
-# CRITICAL: Set up exponential histograms BEFORE any auto-instrumentation imports
+# Manual instrumentation for exponential histograms
 import os
+import time
+import random
+import logging
+from random import randint
+from flask import Flask, request
 
-# Only import OpenTelemetry core, not instrumentation yet
-from opentelemetry import metrics
+# OpenTelemetry setup with exponential histogram views
+from opentelemetry import trace, metrics
 from opentelemetry.sdk.metrics import MeterProvider
 from opentelemetry.sdk.metrics.view import View
 from opentelemetry.sdk.metrics._internal.aggregation import ExponentialBucketHistogramAggregation
+from opentelemetry.sdk.trace import TracerProvider
+from opentelemetry.sdk.resources import Resource
 
-# Configure exponential histogram views FIRST, before any instrumentation imports
+# Configure exponential histogram views for HTTP metrics
 views = []
 if os.getenv('USE_EXPONENTIAL_HISTOGRAMS'):
-    print("🔥 CONFIGURING EXPONENTIAL HISTOGRAMS 🔥")
+    print("🔥 MANUAL EXPONENTIAL HISTOGRAMS ENABLED 🔥")
     http_server_view = View(
         instrument_name="http.server.request.duration",
         aggregation=ExponentialBucketHistogramAggregation()
@@ -22,79 +29,109 @@ if os.getenv('USE_EXPONENTIAL_HISTOGRAMS'):
     )
     
     views = [http_server_view, http_client_view]
-    print(f"🔥 CREATED {len(views)} EXPONENTIAL VIEWS 🔥")
 else:
     print("📊 Using standard histograms")
 
-# Set meter provider with exponential views BEFORE any instrumentation
-meter_provider = MeterProvider(views=views)
+# Set up providers with resource attributes
+deployment_env = "eks-demo-exponential" if os.getenv('USE_EXPONENTIAL_HISTOGRAMS') else "eks-demo"
+resource = Resource.create({
+    "service.name": "rolly",
+    "service.version": "v1.0",
+    "deployment.environment": deployment_env
+})
+
+# Configure OTLP exporter with proper export interval
+from opentelemetry.exporter.otlp.proto.grpc.metric_exporter import OTLPMetricExporter
+from opentelemetry.sdk.metrics.export import PeriodicExportingMetricReader
+
+otlp_exporter = OTLPMetricExporter(
+    endpoint=os.getenv("OTEL_EXPORTER_OTLP_ENDPOINT", "http://localhost:4317"),
+    insecure=True
+)
+
+metric_reader = PeriodicExportingMetricReader(
+    exporter=otlp_exporter,
+    export_interval_millis=5000  # Export every 5 seconds
+)
+
+# Initialize meter provider with exponential views AND exporter
+meter_provider = MeterProvider(
+    views=views, 
+    resource=resource,
+    metric_readers=[metric_reader]
+)
 metrics.set_meter_provider(meter_provider)
-print(f"🎯 METER PROVIDER SET WITH {len(views)} VIEWS 🎯")
 
-# NOW import auto-instrumentation (after meter provider is locked in)
-from opentelemetry.instrumentation.flask import FlaskInstrumentor
-from opentelemetry.instrumentation.logging import LoggingInstrumentor
-from opentelemetry.instrumentation.requests import RequestsInstrumentor
+# Initialize tracer provider
+tracer_provider = TracerProvider(resource=resource)
+trace.set_tracer_provider(tracer_provider)
 
-from opentelemetry import trace
-from random import randint
-from flask import Flask, request
-import logging
-import random
-import time
+# Get tracer and meter
+tracer = trace.get_tracer("manual-rolling-tracer")
+meter = metrics.get_meter("manual-rolling-meter")
 
-# Initialize tracer and meter
-tracer = trace.get_tracer("diceroller.tracer")
-meter = metrics.get_meter("diceroller.meter")
+# Create HTTP duration histogram with exponential aggregation
+http_duration_histogram = meter.create_histogram(
+    "http.server.request.duration",
+    description="HTTP server request duration",
+    unit="s"
+)
 
-# Create a counter instrument
+# Create counter for roll tracking
 roll_counter = meter.create_counter(
     "dice.rolls",
-    description="The number of rolls by roll value",
+    description="Number of dice rolls",
 )
 
 app = Flask(__name__)
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
-
 @app.route("/rolldice")
 def roll_dice():
-    with tracer.start_as_current_span("roll_dice_operation") as roll_dice_span:
+    start_time = time.time()
+    
+    with tracer.start_as_current_span("roll_dice_operation") as span:
+        # Gaussian sleep
         ms = max(0, random.gauss(1750, 1000))
         time.sleep(ms / 1000.0)
+        
         player = request.args.get("player", default=None, type=str)
-
-        # Introducing an additional span for the "roll" function
-        with tracer.start_as_current_span("generate_roll_result"):
-            result = str(roll())
-            roll_dice_span.set_attribute("roll.value", result)
-
+        
+        # Generate roll
+        with tracer.start_as_current_span("generate_roll"):
+            result = str(randint(1, 6))
+            span.set_attribute("roll.value", result)
+        
+        # Log result
+        if player:
+            logger.warning(f"{player} is rolling the dice: {result}")
+            span.set_attribute("player", player)
+        else:
+            logger.warning(f"Anonymous player is rolling the dice: {result}")
+        
+        # Record metrics manually
+        end_time = time.time()
+        duration = end_time - start_time
+        
+        # Record HTTP duration with proper attributes
+        http_duration_histogram.record(duration, {
+            "http.request.method": "GET",
+            "http.response.status_code": 200,
+            "url.path": "/rolldice",
+            "http.route": "/rolldice"
+        })
+        
         # Count the roll
         roll_counter.add(1, {"roll.value": result})
-
-        # Additional span for logging the result
-        with tracer.start_as_current_span("log_roll_result"):
-            if player:
-                logger.warning(f"{player} is rolling the dice: {result}")
-            else:
-                logger.warning(f"Anonymous player is rolling the dice: {result}")
+        
         return result
-
-
-def roll():
-    # You can also add a span inside this function if it were more complex
-    return randint(1, 6)
-
 
 @app.route("/health", methods=["GET"])
 def health():
+    # No metrics for health to keep them clean
     return "healthy", 200
 
-
 if __name__ == "__main__":
-    # Instrumenting Flask, Logging, and Requests
-    FlaskInstrumentor().instrument_app(app)
-    LoggingInstrumentor().instrument(set_logging_format=True)
-    RequestsInstrumentor().instrument()
-    app.run(debug=False, port=5004)
+    print(f"🎯 Starting manual instrumentation with {len(views)} views")
+    app.run(debug=False, port=5004, host='0.0.0.0')

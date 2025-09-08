@@ -15,17 +15,17 @@ image:
 gameController:
   image:
     repository: "game-controller"
-    tag: "auto"
+    tag: "expo-java-fixed"
 
 rolling:
   image:
     repository: "rolling" 
-    tag: "expo-order"
+    tag: "manual-v3"
 
 scoring:
   image:
     repository: "scoring"
-    tag: "expo-order"
+    tag: "manual-v3"
 
 # OpenTelemetry Collector - with Datadog integration
 otelCollector:
