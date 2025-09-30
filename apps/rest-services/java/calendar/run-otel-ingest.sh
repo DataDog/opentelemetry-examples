@@ -7,7 +7,6 @@ export OTEL_EXPORTER_OTLP_LOGS_PROTOCOL="http/protobuf"
 export OTEL_EXPORTER_OTLP_ENDPOINT="https://otlp.us5.datadoghq.com/"
 
 export OTEL_EXPORTER_OTLP_HEADERS="dd-api-key=${DD_API_KEY},dd-otlp-source=datadog"
-# export OTEL_EXPORTER_OTLP_TRACES_HEADERS="DD-CLIENT-TOKEN=${DD_CLIENT_TOKEN}, dd-otlp-source=datadog"
 
 # Define the path to the Java agent JAR
 JAVA_AGENT_JAR="$SCRIPT_DIR/opentelemetry-javaagent.jar"
