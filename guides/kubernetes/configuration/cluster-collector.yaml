@@ -137,6 +137,7 @@ config:
         - convert_sum_to_gauge() where metric.name == "k8s.service.count"
         - convert_sum_to_gauge() where metric.name == "k8s.node.count"
         - convert_sum_to_gauge() where metric.name == "k8s.job.count"
+        - convert_sum_to_gauge() where metric.name == "kube_pod_container_status_restarts_total"
 
     # Drop metric after count connector has used it
     filter/ksm:
