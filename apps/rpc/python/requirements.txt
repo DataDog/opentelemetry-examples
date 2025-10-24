@@ -1,0 +1,4 @@
+grpcio==1.59.0
+grpcio-tools==1.59.0
+ddtrace==2.3.0
+protobuf==4.24.4
