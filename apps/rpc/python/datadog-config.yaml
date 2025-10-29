@@ -8,9 +8,4 @@ instances:
     #
     prometheus_url: http://grpc-server:50051/metrics
 
-  - ## Optional: Add tags to identify your services
-    tags:
-      - env:production
-      - service:route-guide
-      - version:1.0.0
 

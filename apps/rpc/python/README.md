@@ -5,7 +5,7 @@ A complete dockerized gRPC application implementing a route-mapping application 
 This application has a client that connects to a remote server using gRPC to get the name or postal address of what's located at specific coordinates on a map.
 
 At `route_guide_client.py` it is given certain coordinates:
-```
+```python
 point = route_guide_pb2.Point(latitude=412346009, longitude=-744026814)
 ```
 This will check `route_guide_db.json` file and spit the address:
@@ -51,7 +51,7 @@ All containers communicate through a Docker bridge network (`grpc-network`).
 ## 📁 Project Structure
 
 ```
-grpc_python/
+apps/rpc/python/
 ├── protos/
 │   └── route_guide.proto          # Protocol Buffer definition
 ├── route_guide_server.py          # gRPC server implementation
@@ -121,7 +121,7 @@ docker compose up --build
 ```
 
 Stop current containers:
-```
+```bash
 docker compose down
 ```
 
@@ -228,74 +228,6 @@ docker compose up grpc-client
 3. Call the methods from `route_guide_client.py`
 4. Rebuild and restart containers
 
-## 🐛 Troubleshooting
-
-### Container name conflict
-
-Error: `The container name "/datadog-agent" is already in use`
-
-**Solution:**
-```bash
-docker rm datadog-agent
-docker compose up
-```
-
-### Datadog not receiving data
-
-**Check 1:** Verify your API key is correct in `.env`
-
-**Check 2:** Look for "No data received" in Datadog agent logs:
-```bash
-docker compose logs datadog | grep "TRACE"
-```
-
-**Check 3:** Ensure tracing is enabled:
-```bash
-docker compose exec grpc-server env | grep DD_
-```
-
-**Check 4:** Verify the Datadog agent is reachable:
-```bash
-docker compose exec grpc-server ping datadog
-```
-
-### Client can't connect to server
-
-Error: `failed to connect to all addresses`
-
-**Solution 1:** Ensure server is running:
-```bash
-docker compose ps
-```
-
-**Solution 2:** Check server logs:
-```bash
-docker compose logs grpc-server
-```
-
-**Solution 3:** Verify network connectivity:
-```bash
-docker compose exec grpc-client ping grpc-server
-```
-
-### Port conflicts
-
-If port 50051 is already in use:
-
-Edit `docker-compose.yml`:
-```yaml
-ports:
-  - "50052:50051"  # Change external port to 50052
-```
-
-### Proto file not found during build
-
-Error: `"/route_guide.proto": not found`
-
-**Solution:** Ensure the proto file is in `protos/` directory:
-```bash
-ls -la protos/route_guide.proto
-```
 
 ## 🛑 Stopping the Application
 
@@ -313,63 +245,6 @@ Force remove all containers:
 ```bash
 docker compose down --remove-orphans
 ```
-
-## 📚 Technical Details
-
-### gRPC Method: GetFeature
-
-The client makes a simple unary RPC call:
-
-```python
-channel = grpc.insecure_channel("grpc-server:50051")
-stub = route_guide_pb2_grpc.RouteGuideStub(channel)
-point = route_guide_pb2.Point(latitude=412346009, longitude=-744026814)
-feature = stub.GetFeature(point)
-```
-
-The server implements the handler:
-
-```python
-def GetFeature(self, request, context):
-    feature = get_feature(self.db, request)
-    if feature is None:
-        return route_guide_pb2.Feature(name="", location=request)
-    else:
-        return feature
-```
-
-### Dockerfile
-
-The Dockerfile:
-1. Uses Python 3.11 slim base image
-2. Installs dependencies from `requirements.txt`
-3. Copies proto file from `protos/` directory
-4. Generates Python gRPC code using `grpc_tools.protoc`
-5. Copies application files
-6. Exposes port 50051
-
-### Dependencies
-
-From `requirements.txt`:
-- `grpcio==1.59.0` - gRPC runtime
-- `grpcio-tools==1.59.0` - Proto compiler for Python
-- `ddtrace==2.3.0` - Datadog APM tracing library
-- `protobuf==4.24.4` - Protocol Buffers runtime
-
-## 📝 Environment Variables Reference
-
-### Datadog Configuration (in .env)
-- `DD_API_KEY` - Your Datadog API key (required)
-- `DD_SITE` - Datadog site URL (default: datadoghq.com)
-  - Options: `datadoghq.com`, `datadoghq.eu`, `us3.datadoghq.com`, `us5.datadoghq.com`, `ddog-gov.com`
-
-### Container Environment Variables (in docker-compose.yml)
-- `DD_AGENT_HOST` - Datadog agent hostname
-- `DD_TRACE_AGENT_PORT` - APM trace collection port (default: 8126)
-- `DD_SERVICE` - Service name in Datadog APM
-- `DD_ENV` - Environment tag (e.g., production, staging, dev)
-- `DD_VERSION` - Application version tag
-- `DD_TRACE_ENABLED` - Enable/disable tracing (true/false)
 
 ## 🔐 Security Notes
 

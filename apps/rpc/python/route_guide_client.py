@@ -1,4 +1,4 @@
-# Copyright 2024 gRPC authors.
+# Copyright 2025 Datadog, Inc.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -33,10 +33,7 @@ def format_point(point):
 
 def run():
     """
-    Codelab Hint: Logic for your gRPC Client will be added here.
-    Steps include:
-     1. Create a connection to the gRPC server using grpc.insecure_channel()
-     2. Call service methods on the client to interact with the server.
+    The client makes a simple unary RPC call by calling RPC method GetFeature
     """
     channel = grpc.insecure_channel("grpc-server:50051")
     stub = route_guide_pb2_grpc.RouteGuideStub(channel)

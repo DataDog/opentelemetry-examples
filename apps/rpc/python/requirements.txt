@@ -1,4 +1,5 @@
-grpcio==1.59.0
-grpcio-tools==1.59.0
-ddtrace==2.3.0
-protobuf==4.24.4
+grpcio==1.59.0 # gRPC runtime
+grpcio-tools==1.59.0 # Proto compiler for Python
+ddtrace==2.3.0 # Datadog APM tracing library
+protobuf==4.24.4 # Protocol Buffers runtime
+
