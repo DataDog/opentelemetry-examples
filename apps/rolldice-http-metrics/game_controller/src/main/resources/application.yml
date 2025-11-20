@@ -1,0 +1,20 @@
+server:
+  port: ${PORT:5002}
+
+spring:
+  application:
+    name: game-controller
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,metrics
+  endpoint:
+    health:
+      show-details: always
+
+logging:
+  level:
+    com.example.gamecontroller: INFO
+    org.springframework: INFO
