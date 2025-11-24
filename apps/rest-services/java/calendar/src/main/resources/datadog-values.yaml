@@ -1,0 +1,33 @@
+datadog:
+  site: datadoghq.com
+  apiKeyExistingSecret: datadog-secret
+  clusterName: docker-desktop
+  kubelet:
+    tlsVerify: false
+
+  otelCollector:
+    enabled: true
+    ports:
+      - containerPort: "4317"
+        hostPort: "4317"
+        name: otel-grpc
+      - containerPort: "4318"
+        hostPort: "4318"
+        name: otel-http
+  apm:
+    portEnabled: true
+    peer_service_aggregation: true
+  orchestratorExplorer:
+    enabled: true
+  processAgent:
+    enabled: true
+    processCollection: true
+
+  podLabelsAsTags:
+    app: kube_app
+    release: helm_release
+
+  clusterAgent:
+  replicas: 2  # Run 2 Cluster Agent pods instead of 1
+  pdb:
+    create: true 
