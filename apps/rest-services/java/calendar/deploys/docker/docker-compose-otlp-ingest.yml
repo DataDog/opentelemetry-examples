@@ -22,7 +22,7 @@ services:
   # Agent
   datadog-agent:
     container_name: datadog-agent
-    image: "datadog/agent:7.63.0-rc.1"
+    image: "datadog/agent:latest"
     pid: host
     ports:
       - 4317:4317

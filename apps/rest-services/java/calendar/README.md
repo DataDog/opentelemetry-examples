@@ -84,7 +84,7 @@ Calendar app with OTel SDK:
 ```shell
 docker buildx build \
 --platform linux/amd64,linux/arm64 \
---tag datadog/opentelemetry-examples:calendar-java-20240916 \
+--tag datadog/opentelemetry-examples:calendar-java-20251202 \
 --file ./deploys/Dockerfile.otel \
 --push .
 ```
@@ -94,7 +94,7 @@ Calendar app with DataDog SDK:
 ```shell
 docker buildx build \
 --platform linux/amd64,linux/arm64 \
---tag datadog/opentelemetry-examples:calendar-java-dd-20240916 \
+--tag datadog/opentelemetry-examples:calendar-java-dd-20251202 \
 --file ./deploys/Dockerfile.dd \
 --push .
 ```
@@ -104,11 +104,11 @@ docker buildx build \
 Install calendar in K8s with OTel SDK
 
 ```
-helm install -n otel-ingest calendar-otel-java ./deploys/calendar/ --set image.repository=datadog/opentelemetry-examples --set image.tag=calendar-java-otel-0.1,node_group=ng-1
+helm install -n otel-ingest calendar-otel-java ./deploys/calendar/ --set image.repository=datadog/opentelemetry-examples --set image.tag=calendar-java-20251202,node_group=ng-1
 ```
 
 Install calendar in K8s with DD SDK
 
 ```
-helm install -n otel-ingest calendar-dd-java ./deploys/calendar-dd/ --set image.repository=datadog/opentelemetry-examples --set image.tag=calendar-java-otel-0.1,node_group=ng-1
+helm install -n otel-ingest calendar-dd-java ./deploys/calendar-dd/ --set image.repository=datadog/opentelemetry-examples --set image.tag=calendar-java-dd-20251202,node_group=ng-1
 ```
