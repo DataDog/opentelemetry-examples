@@ -51,7 +51,8 @@ otlp_exporter = OTLPMetricExporter(
 
 metric_reader = PeriodicExportingMetricReader(
     exporter=otlp_exporter,
-    export_interval_millis=5000  # Export every 5 seconds
+    export_interval_millis=int(os.getenv("OTEL_METRIC_EXPORT_INTERVAL", "5000")),  # Export interval in milliseconds
+    export_timeout_millis=int(os.getenv("OTEL_METRIC_EXPORT_TIMEOUT", "3000"))   # Export timeout in milliseconds
 )
 
 # Initialize meter provider with exponential views AND exporter

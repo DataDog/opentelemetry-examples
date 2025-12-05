@@ -1,4 +1,4 @@
-{{- if not .Values.global.useOldConventions }}
+{{- if .Values.global.useOldConventions }}
 apiVersion: v1
 kind: ConfigMap
 metadata:
@@ -50,10 +50,10 @@ data:
         default_pipelines: [metrics/datadog]
         table:
           - context: metric
-            condition: metric.name == "http.server.request.duration"
+            condition: metric.name == "http.server.duration"
             pipelines: [metrics/dd_trace_metrics]
           - context: metric
-            condition: metric.name == "http.client.request.duration"
+            condition: metric.name == "http.client.duration"
             pipelines: [metrics/dd_trace_metrics]
 
     processors:
@@ -63,14 +63,16 @@ data:
         metrics:
           datapoint:
             - 'datapoint.count == 0'
-      # metricstransform:
-      #   include: ^http\.(.*)\.request\.duration$$
-      #   match_type: regexp
-      #   action: update
-      #   operations:
-      #     - action: delete_label_value
-      #       label: http.route
-      #       label_value: /health
+      metricstransform/rename_http_metrics:
+        transforms:
+          - include: http.server.request.duration
+            match_type: strict
+            action: update
+            new_name: http.server.duration
+          - include: http.client.request.duration
+            match_type: strict
+            action: update
+            new_name: http.client.duration
     service:
       # telemetry:
       #   logs:
@@ -82,7 +84,7 @@ data:
           exporters: [datadog/exporter]
         metrics:
           receivers: [otlp]
-          processors: [cumulativetodelta]
+          processors: [cumulativetodelta, metricstransform/rename_http_metrics]
           exporters: [routing]
         metrics/datadog:
           receivers: [routing]

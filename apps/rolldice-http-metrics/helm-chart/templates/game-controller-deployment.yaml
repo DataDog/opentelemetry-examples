@@ -60,6 +60,8 @@ spec:
               value: "http://{{ .Release.Name }}-rolling:5004"
             - name: SCORING_SERVICE_URL
               value: "http://{{ .Release.Name }}-scoring:5001"
+            - name: OTEL_METRIC_EXPORT_INTERVAL
+              value: "5000"
           livenessProbe:
             httpGet:
               path: /actuator/health

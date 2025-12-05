@@ -38,6 +38,14 @@ spec:
               value: "http://{{ .Release.Name }}-game-controller:5002/play_game"
             - name: AVERAGE_INTERVAL
               value: "10.0"
+          volumeMounts:
+            - name: load-generator-errors
+              mountPath: /load-generator/load_generator.py
+              subPath: load_generator.py
+      volumes:
+        - name: load-generator-errors
+          configMap:
+            name: rolldice-load-generator-errors
       restartPolicy: Always
       {{- with .Values.nodeSelector }}
       nodeSelector:

@@ -50,6 +50,8 @@ spec:
             {{- end }}
             - name: OTEL_RESOURCE_ATTRIBUTES
               value: "deployment.environment={{ .Values.global.resourceAttributes.deploymentEnvironment }},host.name={{ .Values.global.resourceAttributes.hostName }},service.version={{ .Values.global.resourceAttributes.serviceVersion }}"
+            - name: OTEL_METRIC_EXPORT_INTERVAL
+              value: "5000"
           livenessProbe:
             httpGet:
               path: /health

@@ -33,50 +33,75 @@ def poisson_interval(rate):
     return random.expovariate(rate)
 
 def make_game_request():
-    """Make a single game request to the game controller with 80/20 success/error ratio."""
-    # 80% valid requests, 20% error requests (empty body)
-    is_error_request = random.random() < 0.2
+    """Make a single game request to the game controller."""
+    player = random.choice(PLAYER_NAMES)
+    
+    # 20% chance to make an intentionally failing request
+    is_error_request = random.random() < 0.20
     
     if is_error_request:
-        # Send empty request body to generate error
-        payload = {}
-        player = "ERROR_REQUEST"
+        # Generate different types of errors
+        error_type = random.choice([
+            "invalid_endpoint",
+            "invalid_payload", 
+            "missing_payload",
+            "invalid_method"
+        ])
+        
+        if error_type == "invalid_endpoint":
+            # Hit a non-existent endpoint
+            url = GAME_CONTROLLER_URL.replace("/play_game", "/nonexistent_endpoint")
+            payload = {"player": player}
+        elif error_type == "invalid_payload":
+            # Send invalid data
+            url = GAME_CONTROLLER_URL
+            payload = {"invalid_field": "bad_data", "player": None}
+        elif error_type == "missing_payload":
+            # Send empty payload
+            url = GAME_CONTROLLER_URL
+            payload = {}
+        else:  # invalid_method
+            # Use wrong HTTP method
+            url = GAME_CONTROLLER_URL
+            payload = {"player": player}
     else:
-        # Send valid request
-        player = random.choice(PLAYER_NAMES)
+        # Normal request
+        url = GAME_CONTROLLER_URL
         payload = {"player": player}
     
     try:
         start_time = time.time()
-        response = requests.post(
-            GAME_CONTROLLER_URL,
-            json=payload,
-            headers={"Content-Type": "application/json"},
-            timeout=30
-        )
+        
+        if is_error_request and error_type == "invalid_method":
+            # Use GET instead of POST
+            response = requests.get(url, params=payload, timeout=30)
+        else:
+            response = requests.post(
+                url,
+                json=payload,
+                headers={"Content-Type": "application/json"},
+                timeout=30
+            )
+        
         end_time = time.time()
         duration = end_time - start_time
         
-        if is_error_request:
-            # Expected error response
-            if response.status_code >= 400:
-                logger.info(f"🔥 Expected Error: Empty body -> {response.status_code} (Duration: {duration:.2f}s)")
-                return True
-            else:
-                logger.warning(f"⚠️ Unexpected Success: Empty body -> {response.status_code}")
-                return True
+        if response.status_code == 200:
+            result = response.json()
+            logger.info(f"✅ Success: Player {player} -> {result} (Duration: {duration:.2f}s)")
+            return True
         else:
-            # Expected success response
-            if response.status_code == 200:
-                result = response.json()
-                logger.info(f"✅ Success: Player {player} -> {result} (Duration: {duration:.2f}s)")
-                return True
+            if is_error_request:
+                logger.info(f"🔥 Intentional Error: Player {player} -> {response.status_code}: {response.text[:100]} (Duration: {duration:.2f}s)")
             else:
-                logger.error(f"❌ Unexpected Error: Player {player} -> {response.status_code}: {response.text}")
-                return False
+                logger.error(f"❌ Unexpected Error: Player {player} -> {response.status_code}: {response.text[:100]} (Duration: {duration:.2f}s)")
+            return False
     
     except requests.exceptions.RequestException as e:
-        logger.error(f"❌ Request failed for player {player}: {e}")
+        if is_error_request:
+            logger.info(f"🔥 Intentional Error: Player {player} -> Request failed: {str(e)[:100]}")
+        else:
+            logger.error(f"❌ Request failed for player {player}: {e}")
         return False
 
 def main():
@@ -85,8 +110,11 @@ def main():
     logger.info(f"📊 Target: {GAME_CONTROLLER_URL}")
     logger.info(f"⏰ Average interval: {AVERAGE_INTERVAL} seconds")
     logger.info(f"📈 Average rate: {1/AVERAGE_INTERVAL:.3f} requests/second")
+    logger.info(f"🔥 Error rate: 20% (intentional errors)")
     
     request_count = 0
+    success_count = 0
+    error_count = 0
     rate = 1.0 / AVERAGE_INTERVAL  # Convert average interval to rate
     
     while True:
@@ -101,6 +129,17 @@ def main():
             request_count += 1
             logger.info(f"🎯 Making request #{request_count}")
             success = make_game_request()
+            
+            if success:
+                success_count += 1
+            else:
+                error_count += 1
+            
+            # Log statistics every 10 requests
+            if request_count % 10 == 0:
+                success_rate = (success_count / request_count) * 100
+                error_rate = (error_count / request_count) * 100
+                logger.info(f"📊 Stats: {request_count} requests, {success_rate:.1f}% success, {error_rate:.1f}% errors")
             
             if not success:
                 # Small backoff on failure

@@ -6,6 +6,8 @@ export OTEL_METRICS_EXPORTER="otlp"
 export OTEL_LOGS_EXPORTER="otlp"
 export OTEL_EXPORTER_OTLP_ENDPOINT="http://localhost:4317"
 export OTEL_EXPORTER_OTLP_PROTOCOL="grpc"
+export OTEL_METRIC_EXPORT_INTERVAL=5000
+export OTEL_METRIC_EXPORT_TIMEOUT=3000
 
 # Define the path to the Java agent JAR
 JAVA_AGENT_JAR="$SCRIPT_DIR/opentelemetry-javaagent.jar"
