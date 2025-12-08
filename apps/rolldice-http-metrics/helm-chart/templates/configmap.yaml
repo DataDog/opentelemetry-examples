@@ -50,10 +50,10 @@ data:
         default_pipelines: [metrics/datadog]
         table:
           - context: metric
-            condition: metric.name == "http.server.request.duration"
+            condition: metric.name == "http.server.request.duration" or metric.name == "http.server.duration"
             pipelines: [metrics/dd_trace_metrics]
           - context: metric
-            condition: metric.name == "http.client.request.duration"
+            condition: metric.name == "http.client.request.duration" or metric.name == "http.client.duration"
             pipelines: [metrics/dd_trace_metrics]
 
     processors:
