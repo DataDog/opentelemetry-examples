@@ -1,4 +1,4 @@
-{{- if not .Values.global.useOldConventions }}
+{{- if and (not .Values.global.useOldConventions) (not .Values.global.useSpanMetricsConnector) }}
 apiVersion: v1
 kind: ConfigMap
 metadata:

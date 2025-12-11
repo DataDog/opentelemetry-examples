@@ -1,0 +1,283 @@
+{{- if .Values.global.useSpanMetricsConnector }}
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ .Release.Name }}-otel-config
+  labels:
+    app.kubernetes.io/name: otel-config
+    app.kubernetes.io/instance: {{ .Release.Name }}
+data:
+  config.yml: |
+    receivers:
+      otlp:
+        protocols:
+          grpc:
+            endpoint: 0.0.0.0:4317
+          http:
+            endpoint: 0.0.0.0:4318
+      hostmetrics:
+        # collect metrics every 10 seconds.
+        collection_interval: 10s
+        scrapers:
+          cpu:
+          disk:
+          filesystem:
+          memory:
+          network:
+          load:
+          paging:
+          processes:
+
+    exporters:
+      debug:
+        verbosity: detailed
+      datadog/exporter:
+        api:
+          site: ${env:DD_SITE}
+          key: ${env:DD_API_KEY}
+      otlphttp:
+        headers:
+          "Dd-Protocol": "otlp"
+          "Dd-Api-Key": "${env:DD_API_KEY}"
+        metrics_endpoint: https://trace.agent.${env:DD_SITE}/api/v0.2/stats
+        tls:
+          insecure: true
+
+    connectors:
+      forward:
+      forward/debug:
+      spanmetrics:
+        aggregation_temporality: AGGREGATION_TEMPORALITY_DELTA
+        dimensions:
+          - name: operation.name
+            default: unknown
+      routing:
+        default_pipelines: [metrics/datadog]
+        table:
+          - context: metric
+            condition: metric.name == "traces.span.metrics.duration" or metric.name == "traces.span.metrics.calls"
+            pipelines: [metrics/dd_trace_metrics]
+
+    processors:
+      batch:
+      cumulativetodelta:
+      filter/debug_nonzero:
+        metrics:
+          datapoint:
+            - 'datapoint.count == 0'
+      transform/operation_name:
+        error_mode: propagate
+        trace_statements:
+          - context: span
+            statements:
+              # -------------------------------------------------------------------
+              # 1. If operation.name is already set, we keep it and skip all rules.
+              #    All rules below are guarded by attributes["operation.name"] == nil
+              # -------------------------------------------------------------------
+
+              # -------------------------------------------------------------------
+              # 2. HTTP rules
+              # -------------------------------------------------------------------
+              # HTTP server: http.server.request
+              - set(attributes["operation.name"], "http.server.request")
+                where attributes["operation.name"] == nil and
+                      (attributes["http.request.method"] != nil or attributes["http.method"] != nil) and
+                      kind == SPAN_KIND_SERVER
+
+              # HTTP client: http.client.request
+              - set(attributes["operation.name"], "http.client.request")
+                where attributes["operation.name"] == nil and
+                      (attributes["http.request.method"] != nil or attributes["http.method"] != nil) and
+                      kind == SPAN_KIND_CLIENT
+
+              # -------------------------------------------------------------------
+              # 3. Database: <db.system>.query (client)
+              # -------------------------------------------------------------------
+              - set(attributes["operation.name"], Concat([attributes["db.system"], ".query"], ""))
+                where attributes["operation.name"] == nil and
+                      attributes["db.system"] != nil and
+                      kind == SPAN_KIND_CLIENT
+
+              # -------------------------------------------------------------------
+              # 4. Messaging: <messaging.system>.<messaging.operation>
+              #    for client/server/consumer/producer
+              # -------------------------------------------------------------------
+              - set(
+                  attributes["operation.name"],
+                  Concat([attributes["messaging.system"], ".", attributes["messaging.operation"]], "")
+                )
+                where attributes["operation.name"] == nil and
+                      attributes["messaging.system"] != nil and
+                      attributes["messaging.operation"] != nil and
+                      (
+                        kind == SPAN_KIND_CLIENT  or
+                        kind == SPAN_KIND_SERVER  or
+                        kind == SPAN_KIND_CONSUMER or
+                        kind == SPAN_KIND_PRODUCER
+                      )
+
+              # -------------------------------------------------------------------
+              # 5. RPC + AWS
+              # -------------------------------------------------------------------
+              # AWS client w/ service: aws.<rpc.service>.request
+              - set(
+                  attributes["operation.name"],
+                  Concat(["aws.", attributes["rpc.service"], ".request"], "")
+                )
+                where attributes["operation.name"] == nil and
+                      attributes["rpc.system"] != nil and
+                      attributes["rpc.system"] == "aws-api" and
+                      attributes["rpc.service"] != nil and
+                      kind == SPAN_KIND_CLIENT
+
+              # AWS client generic: aws.client.request
+              - set(attributes["operation.name"], "aws.client.request")
+                where attributes["operation.name"] == nil and
+                      attributes["rpc.system"] != nil and
+                      attributes["rpc.system"] == "aws-api" and
+                      kind == SPAN_KIND_CLIENT
+
+              # RPC client: <rpc.system>.client.request
+              - set(
+                  attributes["operation.name"],
+                  Concat([attributes["rpc.system"], ".client.request"], "")
+                )
+                where attributes["operation.name"] == nil and
+                      attributes["rpc.system"] != nil and
+                      kind == SPAN_KIND_CLIENT
+
+              # RPC server: <rpc.system>.server.request
+              - set(
+                  attributes["operation.name"],
+                  Concat([attributes["rpc.system"], ".server.request"], "")
+                )
+                where attributes["operation.name"] == nil and
+                      attributes["rpc.system"] != nil and
+                      kind == SPAN_KIND_SERVER
+
+              # -------------------------------------------------------------------
+              # 6. FAAS
+              # -------------------------------------------------------------------
+              # FAAS client: <faas.invoked_provider>.<faas.invoked_name>.invoke
+              - set(
+                  attributes["operation.name"], Concat([attributes["faas.invoked_provider"], attributes["faas.invoked_name"], "invoke"], "."))
+                where attributes["operation.name"] == nil and
+                      attributes["faas.invoked_provider"] != nil and
+                      attributes["faas.invoked_name"] != nil and
+                      kind == SPAN_KIND_CLIENT
+
+              # FAAS server: <faas.trigger>.invoke
+              - set(
+                  attributes["operation.name"],
+                  Concat([attributes["faas.trigger"], ".invoke"], "")
+                )
+                where attributes["operation.name"] == nil and
+                      attributes["faas.trigger"] != nil and
+                      kind == SPAN_KIND_SERVER
+
+              # -------------------------------------------------------------------
+              # 7. GraphQL
+              # -------------------------------------------------------------------
+              - set(attributes["operation.name"], "graphql.server.request")
+                where attributes["operation.name"] == nil and
+                      attributes["graphql.operation.type"] != nil
+
+              # -------------------------------------------------------------------
+              # 8. Generic protocol-based server/client fallback
+              # -------------------------------------------------------------------
+              # protocol.server.request
+              - set(
+                  attributes["operation.name"],
+                  Concat([attributes["network.protocol.name"], ".server.request"], "")
+                )
+                where attributes["operation.name"] == nil and
+                      attributes["network.protocol.name"] != nil and
+                      kind == SPAN_KIND_SERVER
+
+              # server.request
+              - set(attributes["operation.name"], "server.request")
+                where attributes["operation.name"] == nil and
+                      kind == SPAN_KIND_SERVER
+
+              # protocol.client.request
+              - set(
+                  attributes["operation.name"],
+                  Concat([attributes["network.protocol.name"], ".client.request"], "")
+                )
+                where attributes["operation.name"] == nil and
+                      attributes["network.protocol.name"] != nil and
+                      kind == SPAN_KIND_CLIENT
+
+              # client.request
+              - set(attributes["operation.name"], "client.request")
+                where attributes["operation.name"] == nil and
+                      kind == SPAN_KIND_CLIENT
+
+              # -------------------------------------------------------------------
+              # 9. Final fallback to span kind (like SpanKind.String / internal)
+              # -------------------------------------------------------------------
+              - set(attributes["operation.name"], "Server")
+                where attributes["operation.name"] == nil and kind == SPAN_KIND_SERVER
+
+              - set(attributes["operation.name"], "Client")
+                where attributes["operation.name"] == nil and kind == SPAN_KIND_CLIENT
+
+              - set(attributes["operation.name"], "Producer")
+                where attributes["operation.name"] == nil and kind == SPAN_KIND_PRODUCER
+
+              - set(attributes["operation.name"], "Consumer")
+                where attributes["operation.name"] == nil and kind == SPAN_KIND_CONSUMER
+
+              # -------------------------------------------------------------------
+              # 10. Default to "Internal"
+              # -------------------------------------------------------------------
+              - set(attributes["operation.name"], "Internal")
+                where attributes["operation.name"] == nil
+
+    service:
+      pipelines:
+        traces:
+          receivers: [otlp]
+          processors: [transform/operation_name, batch]
+          exporters: [datadog/exporter, spanmetrics, debug]
+
+        # metrics/operation_name:
+        #   receivers: [forward/operation_name]
+        #   processors: [transform/operation_name]
+        #   exporters: [spanmetrics]
+
+        # === Stage 1
+        metrics/spanmetricsconnector:
+          receivers: [spanmetrics]
+          exporters: [routing, debug]
+        metrics:
+          receivers: [otlp]
+          processors: [cumulativetodelta]
+          exporters: [routing]
+
+        # === Stage 2
+        metrics/datadog:
+          receivers: [routing]
+          exporters: [datadog/exporter]
+        metrics/dd_trace_metrics:
+          receivers: [routing]
+          exporters: [otlphttp]
+        #   exporters: [otlphttp, forward/debug]
+        # metrics/debug_filtered:
+        #   receivers: [forward/debug]
+        #   processors: [filter/debug_nonzero]
+        #   exporters: [debug]
+---
+{{- if .Values.otelCollector.datadog.apiKey }}
+apiVersion: v1
+kind: Secret
+metadata:
+  name: {{ .Release.Name }}-datadog-secret
+  labels:
+    app.kubernetes.io/name: datadog-secret
+    app.kubernetes.io/instance: {{ .Release.Name }}
+type: Opaque
+data:
+  api-key: {{ .Values.otelCollector.datadog.apiKey | b64enc | quote }}
+{{- end }}
+{{- end }}
