@@ -6,14 +6,15 @@ import (
 	"net"
 	"net/http"
 	"os"
+	"strings"
 	"time"
 
 	"go.opentelemetry.io/contrib/bridges/otelzap"
+	"go.opentelemetry.io/contrib/exporters/autoexport"
 	"go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp"
 	"go.opentelemetry.io/otel"
-	"go.opentelemetry.io/otel/exporters/otlp/otlplog/otlploggrpc"
 	"go.opentelemetry.io/otel/exporters/otlp/otlpmetric/otlpmetricgrpc"
-	"go.opentelemetry.io/otel/exporters/otlp/otlptrace/otlptracegrpc"
+	"go.opentelemetry.io/otel/exporters/otlp/otlpmetric/otlpmetrichttp"
 	"go.opentelemetry.io/otel/exporters/stdout/stdoutlog"
 	"go.opentelemetry.io/otel/exporters/stdout/stdoutmetric"
 	"go.opentelemetry.io/otel/propagation"
@@ -22,13 +23,14 @@ import (
 	"go.opentelemetry.io/otel/sdk/metric/metricdata"
 	"go.opentelemetry.io/otel/sdk/resource"
 	sdktrace "go.opentelemetry.io/otel/sdk/trace"
+	semconv "go.opentelemetry.io/otel/semconv/v1.26.0"
 	"go.uber.org/zap"
 )
 
 const (
-	defaultPort = "9090"
-	PORT_STR    = "PORT"
-	name        = "calendar-rest-go"
+	defaultPort        = "9090"
+	portStr            = "PORT"
+	defaultServiceName = "calendar-rest-go"
 )
 
 var logger *zap.Logger
@@ -51,10 +53,26 @@ func getEnv(key, defaultValue string) string {
 	return value
 }
 
+// getServiceName extracts the service name from the resource.
+// The resource is created with WithFromEnv() which honors:
+// - OTEL_SERVICE_NAME environment variable
+// - service.name in OTEL_RESOURCE_ATTRIBUTES
+// Falls back to defaultServiceName if not set.
+func getServiceName(res *resource.Resource) string {
+	for _, attr := range res.Attributes() {
+		if attr.Key == semconv.ServiceNameKey {
+			return attr.Value.AsString()
+		}
+	}
+	return defaultServiceName
+}
+
 func initTracerProvider(ctx context.Context, res *resource.Resource) (*sdktrace.TracerProvider, error) {
-	exporter, err := otlptracegrpc.New(ctx, otlptracegrpc.WithInsecure())
+	// autoexport.NewSpanExporter honors OTEL_EXPORTER_OTLP_PROTOCOL (grpc or http/protobuf)
+	// and other OTEL_EXPORTER_* environment variables
+	exporter, err := autoexport.NewSpanExporter(ctx)
 	if err != nil {
-		logger.Fatal("can't initialize grpc trace exporter", zap.Error(err))
+		logger.Fatal("can't initialize trace exporter", zap.Error(err))
 		return nil, err
 	}
 	tp := sdktrace.NewTracerProvider(
@@ -66,7 +84,9 @@ func initTracerProvider(ctx context.Context, res *resource.Resource) (*sdktrace.
 	return tp, nil
 }
 
-func deltaSelector(kind metric.InstrumentKind) metricdata.Temporality {
+// deltaTemporalitySelector returns Delta temporality for supported instrument kinds.
+// This is the recommended setting for Datadog.
+func deltaTemporalitySelector(kind metric.InstrumentKind) metricdata.Temporality {
 	switch kind {
 	case metric.InstrumentKindCounter,
 		metric.InstrumentKindHistogram,
@@ -80,25 +100,29 @@ func deltaSelector(kind metric.InstrumentKind) metricdata.Temporality {
 	panic("unknown instrument kind")
 }
 
-func exponentialHistogramSelector(ik metric.InstrumentKind) metric.Aggregation {
-	if ik == metric.InstrumentKindHistogram {
-		return metric.AggregationBase2ExponentialHistogram{
-			MaxSize:  160,
-			MaxScale: 20,
-		}
-	}
-	return metric.DefaultAggregationSelector(ik)
-}
+func initMetricProvider(ctx context.Context, res *resource.Resource) (*metric.MeterProvider, error) {
+	// Create metric exporter based on OTEL_EXPORTER_OTLP_PROTOCOL
+	// Default to http/protobuf as recommended by OTel specification
+	protocol := strings.ToLower(getEnv("OTEL_EXPORTER_OTLP_PROTOCOL", "http/protobuf"))
 
-func initMetricProvider(res *resource.Resource) (*metric.MeterProvider, error) {
-	ctx := context.Background()
-	otlpexp, err := otlpmetricgrpc.New(ctx, otlpmetricgrpc.WithInsecure(),
-		otlpmetricgrpc.WithTemporalitySelector(deltaSelector), // ← new!
-		otlpmetricgrpc.WithAggregationSelector(exponentialHistogramSelector))
+	var exporter metric.Exporter
+	var err error
+
+	switch protocol {
+	case "grpc":
+		exporter, err = otlpmetricgrpc.New(ctx,
+			otlpmetricgrpc.WithTemporalitySelector(deltaTemporalitySelector),
+		)
+	default: // "http/protobuf" or any other value defaults to HTTP
+		exporter, err = otlpmetrichttp.New(ctx,
+			otlpmetrichttp.WithTemporalitySelector(deltaTemporalitySelector),
+		)
+	}
 	if err != nil {
 		return nil, err
 	}
-	reader := metric.NewPeriodicReader(otlpexp, metric.WithInterval(time.Second))
+
+	reader := metric.NewPeriodicReader(exporter)
 
 	stdout, err := stdoutmetric.New()
 	if err != nil {
@@ -113,9 +137,10 @@ func initMetricProvider(res *resource.Resource) (*metric.MeterProvider, error) {
 	return meterProvider, nil
 }
 
-func initLogProvider(res *resource.Resource) (*log.LoggerProvider, error) {
-	ctx := context.Background()
-	otlpexp, err := otlploggrpc.New(ctx, otlploggrpc.WithInsecure())
+func initLogProvider(ctx context.Context, res *resource.Resource) (*log.LoggerProvider, error) {
+	// autoexport.NewLogExporter honors OTEL_EXPORTER_OTLP_PROTOCOL (grpc or http/protobuf)
+	// and other OTEL_EXPORTER_* environment variables
+	otlpexp, err := autoexport.NewLogExporter(ctx)
 	if err != nil {
 		return nil, err
 	}
@@ -143,20 +168,25 @@ func setupHandlers(server *Server) *http.ServeMux {
 func realMain() error {
 	ctx := context.Background()
 
-	endpoint := fmt.Sprintf(":%s", getEnv(PORT_STR, defaultPort))
+	endpoint := fmt.Sprintf(":%s", getEnv(portStr, defaultPort))
 	var err error
 	logger, err = zap.NewDevelopment()
 	if err != nil {
 		return err
 	}
 	// resource.WithContainer() adds container.id which the agent will leverage to fetch container tags via the tagger.
+	// resource.WithFromEnv() honors OTEL_SERVICE_NAME and OTEL_RESOURCE_ATTRIBUTES (including service.name)
 	res, err := resource.New(ctx, resource.WithContainer(), resource.WithFromEnv())
 	if err != nil {
 		logger.Fatal("can't create resource", zap.Error(err))
 		return err
 	}
 
-	loggerProvider, err := initLogProvider(res)
+	// Get service name from resource (honors OTEL_SERVICE_NAME and OTEL_RESOURCE_ATTRIBUTES)
+	serviceName := getServiceName(res)
+	logger.Info("Using service name", zap.String("service.name", serviceName))
+
+	loggerProvider, err := initLogProvider(ctx, res)
 	if err != nil {
 		logger.Fatal("can't init opentelemetry", zap.Error(err))
 		return err
@@ -167,7 +197,7 @@ func realMain() error {
 			logger.Error("loggerProvider Shutdown failed", zap.Error(err))
 		}
 	}()
-	logger = zap.New(otelzap.NewCore(name, otelzap.WithLoggerProvider(loggerProvider)))
+	logger = zap.New(otelzap.NewCore(serviceName, otelzap.WithLoggerProvider(loggerProvider)))
 
 	tp, err := initTracerProvider(ctx, res)
 	if err != nil {
@@ -179,7 +209,7 @@ func realMain() error {
 		}
 	}()
 
-	meterProvider, err := initMetricProvider(res)
+	meterProvider, err := initMetricProvider(ctx, res)
 	if err != nil {
 		logger.Fatal("can't init opentelemetry", zap.Error(err))
 		return err
@@ -190,7 +220,7 @@ func realMain() error {
 			logger.Error("meterProvider Shutdown failed", zap.Error(err))
 		}
 	}()
-	server, err := NewServer(name, meterProvider, tp)
+	server, err := NewServer(serviceName, meterProvider, tp)
 	if err != nil {
 		logger.Fatal("can't create new server", zap.Error(err))
 		return err
