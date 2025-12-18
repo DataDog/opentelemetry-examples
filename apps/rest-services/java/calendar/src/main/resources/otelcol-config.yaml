@@ -19,9 +19,18 @@ exporters:
     api:
       key: ${env:DD_API_KEY}
       site: ${env:DD_SITE}
+    host_metadata:
+      tags:
+        - team:calendar
+        - department:andrea-dept
+        - service:calendar-java
+        - env:dev
 processors:
   infraattributes:
     cardinality: 2
+  probabilistic_sampler:
+    sampling_percentage: 50
+  
   batch:
     timeout: 10s
 connectors:
