@@ -30,7 +30,7 @@ import (
 const (
 	defaultPort        = "9090"
 	portStr            = "PORT"
-	defaultServiceName = "calendar-rest-go-hjacobs"
+	defaultServiceName = "calendar-rest-go"
 )
 
 var logger *zap.Logger
