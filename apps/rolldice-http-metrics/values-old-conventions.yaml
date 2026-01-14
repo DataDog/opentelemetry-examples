@@ -1,0 +1,49 @@
+# Deployment values for old-conventions environment
+global:
+  useExponentialHistograms: false  # Disabled for old conventions
+  useOldConventions: true  # Enable old metric conventions
+  
+  resourceAttributes:
+    deploymentEnvironment: "otel-old-conventions"
+    hostName: "eks-host-old-conventions"
+    serviceVersion: "v1.0"
+
+# Image configuration - using ECR registry
+image:
+  registry: "217139788599.dkr.ecr.us-east-2.amazonaws.com/rolldice/"
+  pullPolicy: IfNotPresent
+
+gameController:
+  image:
+    repository: "game-controller"
+    tag: "auto"
+
+rolling:
+  image:
+    repository: "rolling" 
+    tag: "auto"
+
+scoring:
+  image:
+    repository: "scoring"
+    tag: "auto"
+
+# OpenTelemetry Collector - with Datadog integration
+otelCollector:
+  image:
+    repository: "otel/opentelemetry-collector-contrib"
+    tag: "latest"
+  datadog:
+    site: "datad0g.com"
+    apiKeySecret:
+      name: "datadog-secret"
+      key: "api-key"
+
+# Datadog Agent for infrastructure metrics (disabled - using shared agent from main deployment)
+datadogAgent:
+  enabled: false
+
+loadGenerator:
+  image:
+    repository: "load-generator"
+    tag: "error-mix"
