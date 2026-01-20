@@ -1,0 +1,80 @@
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ .Release.Name }}-{{ .Values.gameController.name }}
+  labels:
+    app.kubernetes.io/name: {{ .Values.gameController.name }}
+    app.kubernetes.io/instance: {{ .Release.Name }}
+    app.kubernetes.io/component: game-controller
+spec:
+  type: {{ .Values.gameController.service.type }}
+  ports:
+    - port: {{ .Values.gameController.service.port }}
+      targetPort: {{ .Values.gameController.service.targetPort }}
+      protocol: TCP
+      name: http
+  selector:
+    app.kubernetes.io/name: {{ .Values.gameController.name }}
+    app.kubernetes.io/instance: {{ .Release.Name }}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ .Release.Name }}-{{ .Values.rolling.name }}
+  labels:
+    app.kubernetes.io/name: {{ .Values.rolling.name }}
+    app.kubernetes.io/instance: {{ .Release.Name }}
+    app.kubernetes.io/component: rolling
+spec:
+  type: {{ .Values.rolling.service.type }}
+  ports:
+    - port: {{ .Values.rolling.service.port }}
+      targetPort: {{ .Values.rolling.service.targetPort }}
+      protocol: TCP
+      name: http
+  selector:
+    app.kubernetes.io/name: {{ .Values.rolling.name }}
+    app.kubernetes.io/instance: {{ .Release.Name }}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ .Release.Name }}-{{ .Values.scoring.name }}
+  labels:
+    app.kubernetes.io/name: {{ .Values.scoring.name }}
+    app.kubernetes.io/instance: {{ .Release.Name }}
+    app.kubernetes.io/component: scoring
+spec:
+  type: {{ .Values.scoring.service.type }}
+  ports:
+    - port: {{ .Values.scoring.service.port }}
+      targetPort: {{ .Values.scoring.service.targetPort }}
+      protocol: TCP
+      name: http
+  selector:
+    app.kubernetes.io/name: {{ .Values.scoring.name }}
+    app.kubernetes.io/instance: {{ .Release.Name }}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ .Release.Name }}-{{ .Values.otelCollector.name }}
+  labels:
+    app.kubernetes.io/name: {{ .Values.otelCollector.name }}
+    app.kubernetes.io/instance: {{ .Release.Name }}
+    app.kubernetes.io/component: otelcol
+spec:
+  type: {{ .Values.otelCollector.service.type }}
+  ports:
+    - port: {{ .Values.otelCollector.service.grpcPort }}
+      targetPort: {{ .Values.otelCollector.service.grpcPort }}
+      protocol: TCP
+      name: otlp-grpc
+    - port: {{ .Values.otelCollector.service.httpPort }}
+      targetPort: {{ .Values.otelCollector.service.httpPort }}
+      protocol: TCP
+      name: otlp-http
+  selector:
+    app.kubernetes.io/name: {{ .Values.otelCollector.name }}
+    app.kubernetes.io/instance: {{ .Release.Name }}

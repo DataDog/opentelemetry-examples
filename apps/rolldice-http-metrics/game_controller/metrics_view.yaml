@@ -1,0 +1,8 @@
+- selector:
+    instrument_name: http.server.request.duration
+  view:
+    aggregation: base2_exponential_bucket_histogram
+- selector:
+    instrument_name: http.client.request.duration
+  view:
+    aggregation: base2_exponential_bucket_histogram
