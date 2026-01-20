@@ -5,7 +5,10 @@ const { NodeSDK } = require('@opentelemetry/sdk-node');
 const { getNodeAutoInstrumentations } = require('@opentelemetry/auto-instrumentations-node');
 
 const sdk = new NodeSDK({
-  instrumentations: [getNodeAutoInstrumentations()],
+  instrumentations: [getNodeAutoInstrumentations({
+    // Disable AWS instrumentation to avoid conflicts
+    '@opentelemetry/instrumentation-aws-sdk': false,
+  })],
 });
 
 sdk.start();
