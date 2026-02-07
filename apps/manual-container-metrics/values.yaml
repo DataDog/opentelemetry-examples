@@ -3,10 +3,10 @@ kind: Service
 metadata:
   name: manual-container-metrics-app
   labels:
-    helm.sh/chart: manual-container-metrics-app-0.1.0
+    helm.sh/chart: manual-container-metrics-app-0.2.0
     app.kubernetes.io/name: manual-container-metrics-app
     app.kubernetes.io/instance: manual-container-metrics-app
-    app.kubernetes.io/version: "1.16.0"
+    app.kubernetes.io/version: "2.0.0"
     app.kubernetes.io/managed-by: Helm
 spec:
   type: ClusterIP
@@ -24,10 +24,10 @@ kind: Deployment
 metadata:
   name: manual-container-metrics-app
   labels:
-    helm.sh/chart: manual-container-metrics-app-0.1.0
+    helm.sh/chart: manual-container-metrics-app-0.2.0
     app.kubernetes.io/name: manual-container-metrics-app
     app.kubernetes.io/instance: manual-container-metrics-app
-    app.kubernetes.io/version: "1.16.0"
+    app.kubernetes.io/version: "2.0.0"
     app.kubernetes.io/managed-by: Helm
 spec:
   replicas: 1
@@ -41,35 +41,65 @@ spec:
         app.kubernetes.io/name: manual-container-metrics-app
         app.kubernetes.io/instance: manual-container-metrics-app
     spec:
+      # Graceful shutdown: allow time for OTel providers to flush.
+      terminationGracePeriodSeconds: 30
       securityContext:
-        {}
+        runAsNonRoot: true
+        runAsUser: 65534
+        fsGroup: 65534
       containers:
         - name: manual-container-metrics-app
           securityContext:
-            {}
-          image: "datadog/opentelemetry-examples:manual-container-metrics-app-v1.0.5"
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities:
+              drop:
+                - ALL
+          image: "datadog/opentelemetry-examples:manual-container-metrics-app-v2.0.0"
           imagePullPolicy: IfNotPresent
           ports:
             - name: http
               containerPort: 3000
               protocol: TCP
+          # Health check endpoint for Kubernetes probes.
           livenessProbe:
             httpGet:
               path: /liveness
               port: http
+            initialDelaySeconds: 5
+            periodSeconds: 15
+            timeoutSeconds: 3
+            failureThreshold: 3
           readinessProbe:
             httpGet:
               path: /readiness
               port: http
+            initialDelaySeconds: 3
+            periodSeconds: 10
+            timeoutSeconds: 3
+            failureThreshold: 3
+          startupProbe:
+            httpGet:
+              path: /health
+              port: http
+            initialDelaySeconds: 2
+            periodSeconds: 5
+            failureThreshold: 10
           env:
+            # -- Service identity --
             - name: OTEL_SERVICE_NAME
               value: manual-container-metrics-app
+            # -- Container identity for Datadog metrics correlation --
+            # OTEL_CONTAINER_NAME must match the Kubernetes container name for DD correlation.
             - name: OTEL_CONTAINER_NAME
               value: manual-container-metrics-app
+            # OTEL_K8S_CONTAINER_ID is set to the pod UID; Datadog uses this to correlate
+            # container metrics with traces in the APM container metrics view.
             - name: OTEL_K8S_CONTAINER_ID
               valueFrom:
                 fieldRef:
                   fieldPath: metadata.uid
+            # -- Kubernetes metadata for resource attributes --
             - name: OTEL_K8S_NAMESPACE
               valueFrom:
                 fieldRef:
@@ -85,6 +115,8 @@ spec:
                 fieldRef:
                   apiVersion: v1
                   fieldPath: metadata.name
+            # -- OTLP exporter configuration --
+            # HOST_IP points to the node where the OTel Collector / DD Agent is running.
             - name: HOST_IP
               valueFrom:
                 fieldRef:
@@ -95,6 +127,13 @@ spec:
               value: 'http://$(HOST_IP):$(OTLP_GRPC_PORT)'
             - name: OTEL_EXPORTER_OTLP_PROTOCOL
               value: grpc
+            # -- OTel resource attributes --
+            # These attributes are used by the Datadog exporter to tag metrics and traces.
+            # service.name: Used as the DD service tag.
+            # k8s.namespace.name: Used for environment correlation.
+            # k8s.pod.name / k8s.node.name: Used for infrastructure correlation.
+            # container.name / container.id: Required for container metrics correlation.
+            # deployment.environment: Maps to DD's env tag.
             - name: OTEL_RESOURCE_ATTRIBUTES
               value: >-
                 service.name=$(OTEL_SERVICE_NAME),
@@ -107,9 +146,9 @@ spec:
                 container.name=$(OTEL_CONTAINER_NAME),
                 container.id=$(OTEL_K8S_CONTAINER_ID)
           resources:
-            limits:
-              cpu: 1
-              memory: 1Gi
             requests:
-              cpu: 1
-              memory: 1Gi
+              cpu: 100m
+              memory: 128Mi
+            limits:
+              cpu: 500m
+              memory: 256Mi
