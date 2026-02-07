@@ -1,11 +1,13 @@
-FROM node:20.11.1
-
-WORKDIR /home
-
-ADD . express-otel-app
+FROM node:20.18.1-slim
 
 WORKDIR /home/express-otel-app
 
-RUN npm install
+COPY package.json package-lock.json ./
 
-CMD npm start
+RUN npm ci --omit=dev
+
+COPY . .
+
+EXPOSE 3000
+
+CMD ["npm", "start"]

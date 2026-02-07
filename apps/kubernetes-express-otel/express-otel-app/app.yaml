@@ -2,6 +2,8 @@ apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: app
+  labels:
+    app: app
 spec:
   replicas: 1
   selector:
@@ -18,21 +20,46 @@ spec:
         imagePullPolicy: Never
         ports:
         - containerPort: 3000
+        resources:
+          requests:
+            cpu: 100m
+            memory: 128Mi
+          limits:
+            cpu: 500m
+            memory: 256Mi
+        readinessProbe:
+          httpGet:
+            path: /
+            port: 3000
+          initialDelaySeconds: 5
+          periodSeconds: 10
+        livenessProbe:
+          httpGet:
+            path: /
+            port: 3000
+          initialDelaySeconds: 10
+          periodSeconds: 15
         env:
          - name: HOST_IP
            valueFrom:
              fieldRef:
                fieldPath: status.hostIP
-         - name: OTEL_EXPORTER_OTLP_TRACES_ENDPOINT
-           value: "http://$(HOST_IP):4318/v1/traces"
+         - name: OTEL_EXPORTER_OTLP_ENDPOINT
+           value: "http://$(HOST_IP):4318"
          - name: OTEL_SERVICE_NAME
            value: "otel-js"
+         - name: OTEL_RESOURCE_ATTRIBUTES
+           value: "deployment.environment=dev,service.version=1.0.0"
+         - name: OTEL_LOG_LEVEL
+           value: "info"
 
 ---
 apiVersion: v1
 kind: Service
 metadata:
   name: app
+  labels:
+    app: app
 spec:
   selector:
     app: app
@@ -40,4 +67,5 @@ spec:
   - name: http
     protocol: TCP
     port: 3000
+    targetPort: 3000
   type: LoadBalancer

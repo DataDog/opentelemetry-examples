@@ -17,22 +17,42 @@ spec:
     clusterAgent:
       image:
         name: gcr.io/datadoghq/cluster-agent:latest
+      containers:
+        cluster-agent:
+          resources:
+            requests:
+              cpu: 200m
+              memory: 256Mi
+            limits:
+              cpu: 500m
+              memory: 512Mi
       env:
         # DD_LOG_LEVEL is used for debug purposes [Optional]
         - name: DD_LOG_LEVEL
-          value: "DEBUG"
+          value: "INFO"
     nodeAgent:
       image:
         name: gcr.io/datadoghq/agent:latest
+      containers:
+        agent:
+          resources:
+            requests:
+              cpu: 200m
+              memory: 256Mi
+            limits:
+              cpu: 500m
+              memory: 512Mi
       env:
         # DD_LOG_LEVEL and DD_OTLP_CONFIG_DEBUG_VERBOSITY are used for debug purposes [Optional]
         - name: DD_LOG_LEVEL
-          value: "TRACE"
+          value: "INFO"
         - name: DD_OTLP_CONFIG_DEBUG_VERBOSITY
-          value: "detailed"            
+          value: "normal"
   features:
     otlp:
       receiver:
         protocols:
           http:
+            enabled: true
+          grpc:
             enabled: true
