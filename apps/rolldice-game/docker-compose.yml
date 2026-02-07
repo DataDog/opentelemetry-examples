@@ -10,14 +10,26 @@ services:
       otelcol:
         condition: service_started
       rolling:
-        condition: service_started
+        condition: service_healthy
       scoring:
-        condition: service_started
+        condition: service_healthy
     environment:
-      - OTEL_SERVICE_NAME=controller
+      # OTEL_SERVICE_NAME sets the service.name resource attribute, which maps
+      # directly to the Datadog APM service name.
+      - OTEL_SERVICE_NAME=game-controller
+      # OTEL_EXPORTER_OTLP_ENDPOINT configures where the SDK sends traces/metrics.
+      # This points to the OTel Collector running as a sidecar in this compose setup.
       - OTEL_EXPORTER_OTLP_ENDPOINT=http://otelcol:4317
       - OTEL_EXPORTER_OTLP_PROTOCOL=grpc
-
+      # W3C TraceContext is the default propagator; set explicitly for clarity.
+      - OTEL_PROPAGATORS=tracecontext,baggage
+      # Enable log auto-instrumentation for log-trace correlation in Datadog.
+      - OTEL_LOG_LEVEL=info
+    deploy:
+      resources:
+        limits:
+          memory: 256M
+          cpus: '0.5'
 
   rolling:
     build:
@@ -29,10 +41,18 @@ services:
       otelcol:
         condition: service_started
     environment:
-      - OTEL_SERVICE_NAME=rolly
+      - OTEL_SERVICE_NAME=rolling
       - OTEL_EXPORTER_OTLP_ENDPOINT=http://otelcol:4317
       - OTEL_EXPORTER_OTLP_PROTOCOL=grpc
-
+      - OTEL_PROPAGATORS=tracecontext,baggage
+      # Enable Python logging auto-instrumentation to inject trace context into logs.
+      - OTEL_PYTHON_LOGGING_AUTO_INSTRUMENTATION_ENABLED=true
+      - OTEL_PYTHON_LOG_CORRELATION=true
+    deploy:
+      resources:
+        limits:
+          memory: 256M
+          cpus: '0.5'
 
   scoring:
     build:
@@ -44,25 +64,35 @@ services:
       otelcol:
         condition: service_started
     environment:
-      - OTEL_SERVICE_NAME=scorey
+      - OTEL_SERVICE_NAME=scoring
       - OTEL_EXPORTER_OTLP_ENDPOINT=http://otelcol:4317
       - OTEL_EXPORTER_OTLP_PROTOCOL=grpc
-
-  otelcol:
-    image: otel/opentelemetry-collector-contrib
+      - OTEL_PROPAGATORS=tracecontext,baggage
+      - OTEL_PYTHON_LOGGING_AUTO_INSTRUMENTATION_ENABLED=true
+      - OTEL_PYTHON_LOG_CORRELATION=true
     deploy:
       resources:
         limits:
-          memory: 200M
+          memory: 256M
+          cpus: '0.5'
+
+  otelcol:
+    image: otel/opentelemetry-collector-contrib:latest
     restart: unless-stopped
-    command: [ "--config=/etc/otelcol-config.yml"]
+    command: ["--config=/etc/otelcol-config.yml"]
     volumes:
       - ./config.yml:/etc/otelcol-config.yml
     ports:
-      - "4318:4318" # OTLP http receiver
-      - "4317:4317"
+      - "4317:4317" # OTLP gRPC receiver
+      - "4318:4318" # OTLP HTTP receiver
     environment:
-      - DD_OTLP_CONFIG_RECEIVER_PROTOCOLS_GRPC_ENDPOINT=0.0.0.0:4317
-      - DD_OTLP_CONFIG_RECEIVER_PROTOCOLS_HTTP_ENDPOINT=0.0.0.0:4318
-      
-
+      # DD_API_KEY is required for the Datadog exporter.
+      # Set it in a .env file or export it before running docker compose.
+      - DD_API_KEY=${DD_API_KEY}
+      # DD_SITE defaults to datadoghq.com; override for EU or other sites.
+      - DD_SITE=${DD_SITE:-datadoghq.com}
+    deploy:
+      resources:
+        limits:
+          memory: 256M
+          cpus: '0.5'

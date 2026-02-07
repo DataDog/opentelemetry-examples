@@ -1,3 +1,12 @@
+# OpenTelemetry Collector configuration for Datadog export.
+# This config follows the recommended patterns from:
+#   https://docs.datadoghq.com/opentelemetry/collector_exporter/
+#   https://github.com/open-telemetry/opentelemetry-collector-contrib/blob/main/exporter/datadogexporter/examples/collector.yaml
+#
+# Required environment variable:
+#   DD_API_KEY - Your Datadog API key
+#   DD_SITE   - (optional) Your Datadog site (default: datadoghq.com)
+
 receivers:
   otlp:
     protocols:
@@ -5,8 +14,9 @@ receivers:
         endpoint: 0.0.0.0:4317
       http:
         endpoint: 0.0.0.0:4318
+
+  # Collect host-level infrastructure metrics every 10 seconds.
   hostmetrics:
-    # collect metrics every 10 seconds.
     collection_interval: 10s
     scrapers:
       cpu:
@@ -18,31 +28,51 @@ receivers:
       paging:
       processes:
 
-exporters:
-  # NOTE: Prior to v0.86.0 use `logging` instead of `debug`.
-  debug:
-    verbosity: detailed
-  datadog/exporter:
-    api:
-      site: datadoghq.com
-      key: ${env:DD_API_KEY}
-  
 processors:
+  # Batch telemetry data before export to reduce overhead.
+  # The 10s timeout is recommended by Datadog for trace pipelines.
   batch:
+    timeout: 10s
+
+# The Datadog Connector computes APM trace metrics (hit counts, error rates,
+# latency distributions) from trace data. Since OTel Collector v0.95.0+,
+# this is the recommended way to generate APM stats (instead of the exporter).
 connectors:
   datadog/connector:
+
+exporters:
+  # Debug exporter for local troubleshooting (set verbosity to "basic" in production).
+  debug:
+    verbosity: detailed
+
+  # Datadog exporter sends traces, metrics, and logs to Datadog.
+  # DD_API_KEY must be set in the environment.
+  # DD_SITE defaults to datadoghq.com; override for other Datadog sites
+  # (e.g., datadoghq.eu, us3.datadoghq.com, us5.datadoghq.com).
+  datadog/exporter:
+    api:
+      site: ${env:DD_SITE:-datadoghq.com}
+      key: ${env:DD_API_KEY}
+
 service:
   pipelines:
-    traces/sampling:
-      receivers: [datadog/connector]
-      processors: [] # Add any sampling here
-      exporters: [datadog/exporter]
+    # Primary traces pipeline: receives OTLP traces, batches them, and sends to
+    # both the Datadog connector (for APM stats) and the Datadog exporter (for traces).
     traces:
       receivers: [otlp]
       processors: [batch]
-      exporters: [datadog/connector]
+      exporters: [datadog/connector, datadog/exporter]
+
+    # Metrics pipeline: receives APM stats from the connector plus any OTLP metrics,
+    # batches them, and exports to Datadog.
     metrics:
-      receivers: [datadog/connector, otlp]
+      receivers: [datadog/connector, hostmetrics, otlp]
       processors: [batch]
       exporters: [datadog/exporter]
-      
+
+    # Logs pipeline: receives OTLP logs and exports to Datadog.
+    # This enables log-trace correlation when services send logs via OTLP.
+    logs:
+      receivers: [otlp]
+      processors: [batch]
+      exporters: [datadog/exporter]
