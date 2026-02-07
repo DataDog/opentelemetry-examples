@@ -1,18 +1,20 @@
 # Unless explicitly stated otherwise all files in this repository are dual-licensed
 # under the Apache 2.0 or BSD3 Licenses.
-FROM python:3
+FROM python:3.12-slim
 
 WORKDIR /home
 
 COPY py /home/py
 WORKDIR /home/py
 
-RUN pip install -r requirements.txt
-RUN pip install opentelemetry-distro
-RUN pip install opentelemetry-instrumentation-flask
-RUN pip install	opentelemetry-exporter-otlp
-RUN pip install opentelemetry-instrumentation-system-metrics
+RUN pip install --no-cache-dir -r requirements.txt && \
+    pip install --no-cache-dir \
+        opentelemetry-distro==0.60b1 \
+        opentelemetry-instrumentation-flask==0.60b1 \
+        opentelemetry-exporter-otlp==1.39.1 \
+        opentelemetry-instrumentation-requests==0.60b1
 
+STOPSIGNAL SIGTERM
 
-# Run the application with OTel
-CMD ["opentelemetry-instrument", "python", "-m", "calendar_app.app"] 
+# Run the application with OTel auto-instrumentation
+CMD ["opentelemetry-instrument", "python", "-m", "calendar_app.app"]
