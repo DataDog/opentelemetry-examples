@@ -18,15 +18,15 @@ java {
 }
 
 dependencies {
-    // kafka
-    implementation 'org.apache.kafka:kafka_2.13:3.5.1'
-    implementation 'org.apache.kafka:kafka-clients:2.3.0'
+    // kafka - aligned producer and client versions
+    implementation 'org.apache.kafka:kafka_2.13:3.7.1'
+    implementation 'org.apache.kafka:kafka-clients:3.7.1'
 
     // logger
-    implementation(platform("org.apache.logging.log4j:log4j-bom:2.22.1"))
+    implementation(platform("org.apache.logging.log4j:log4j-bom:2.24.3"))
     implementation("org.apache.logging.log4j:log4j-api")
     implementation("org.apache.logging.log4j:log4j-core")
-    implementation("org.apache.logging.log4j:log4j-slf4j2-impl:2.22.1")
+    implementation("org.apache.logging.log4j:log4j-slf4j2-impl:2.24.3")
 }
 
 application {
