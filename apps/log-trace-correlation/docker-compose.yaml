@@ -3,7 +3,8 @@ services:
 
   log-correlation-go-client:
     depends_on:
-      - log-correlation-go-server
+      log-correlation-go-server:
+        condition: service_healthy
     container_name: log-correlation-go-client
     build:
       context: .
@@ -11,10 +12,17 @@ services:
     environment:
       - OTEL_EXPORTER_OTLP_ENDPOINT=http://datadog-agent:4317
       - OTEL_RESOURCE_ATTRIBUTES=service.name=log-correlation-go-client,deployment.environment=docker,service.version=0.1
+    deploy:
+      resources:
+        limits:
+          memory: 128M
+    labels:
+      com.datadoghq.ad.logs: '[{"source": "go", "service": "log-correlation-go-client"}]'
 
   log-correlation-go-server:
     depends_on:
-      - datadog-agent
+      datadog-agent:
+        condition: service_healthy
     container_name: log-correlation-go-server
     build:
       context: .
@@ -24,16 +32,33 @@ services:
       - OTEL_RESOURCE_ATTRIBUTES=service.name=log-correlation-go-server,deployment.environment=docker,service.version=0.1
     ports:
       - 3000:3000
+    deploy:
+      resources:
+        limits:
+          memory: 128M
+    healthcheck:
+      test: ["CMD", "wget", "--spider", "-q", "http://localhost:3000/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
+    labels:
+      com.datadoghq.ad.logs: '[{"source": "go", "service": "log-correlation-go-server"}]'
 
   datadog-agent:
     container_name: datadog-agent
-    image: "gcr.io/datadoghq/agent:latest"
+    image: "gcr.io/datadoghq/agent:7"
     pid: host
     ports:
       - 4317:4317
     environment:
       - DD_API_KEY
+      - DD_SITE=${DD_SITE:-datadoghq.com}
+      # Enable OTLP gRPC receiver for OTel trace and metric ingestion.
       - DD_OTLP_CONFIG_RECEIVER_PROTOCOLS_GRPC_ENDPOINT=0.0.0.0:4317
+      # Enable log collection so DD Agent collects container stdout/stderr logs.
+      # The agent parses JSON logs and extracts dd.trace_id / dd.span_id fields
+      # to correlate logs with distributed traces in the Datadog UI.
       - DD_LOGS_ENABLED=true
       - DD_LOGS_CONFIG_CONTAINER_COLLECT_ALL=true
       - DD_CONTAINER_EXCLUDE=name:datadog-agent
@@ -41,3 +66,13 @@ services:
       - /var/run/docker.sock:/var/run/docker.sock
       - /proc/:/host/proc/:ro
       - /sys/fs/cgroup:/host/sys/fs/cgroup:ro
+    deploy:
+      resources:
+        limits:
+          memory: 512M
+    healthcheck:
+      test: ["CMD-SHELL", "agent health"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
