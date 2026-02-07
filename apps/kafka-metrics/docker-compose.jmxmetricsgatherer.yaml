@@ -1,8 +1,6 @@
-version: '3.9'
-
 services:
   zookeeper:
-    image: confluentinc/cp-zookeeper:latest
+    image: confluentinc/cp-zookeeper:7.7.1
     environment:
       ZOOKEEPER_CLIENT_PORT: 2181
       ZOOKEEPER_TICK_TIME: 2000
@@ -14,11 +12,16 @@ services:
       interval: 30s
       timeout: 10s
       retries: 5
+    deploy:
+      resources:
+        limits:
+          memory: 512M
 
   kafka:
-    image: confluentinc/cp-kafka:latest
+    image: confluentinc/cp-kafka:7.7.1
     depends_on:
-      - zookeeper
+      zookeeper:
+        condition: service_healthy
     ports:
       - 29092:29092
       - 9092:9092
@@ -29,63 +32,109 @@ services:
       KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: PLAINTEXT:PLAINTEXT,PLAINTEXT_HOST:PLAINTEXT
       KAFKA_INTER_BROKER_LISTENER_NAME: PLAINTEXT
       KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
+      # Enable JMX for Kafka broker metrics collection
       KAFKA_JMX_OPTS: "-Dcom.sun.management.jmxremote=true -Dcom.sun.management.jmxremote.authenticate=false -Dcom.sun.management.jmxremote.ssl=false -Djava.rmi.server.hostname=kafka -Dcom.sun.management.jmxremote.port=1099 -Dcom.sun.management.jmxremote.rmi.port=1099"
       JMX_PORT: 1099
+      # Topic auto-creation and retention settings
+      KAFKA_AUTO_CREATE_TOPICS_ENABLE: "true"
+      KAFKA_LOG_RETENTION_HOURS: 1
+      KAFKA_LOG_RETENTION_BYTES: 536870912
+    healthcheck:
+      test: ["CMD", "kafka-broker-api-versions", "--bootstrap-server", "localhost:9092"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 30s
+    deploy:
+      resources:
+        limits:
+          memory: 1G
 
   producer:
     depends_on:
-      - kafka
-      - otelcol
+      kafka:
+        condition: service_healthy
+      otelcol:
+        condition: service_started
     container_name: producer
     build:
       context: .
       dockerfile: ./Dockerfile.producer
     environment:
       KAFKA_SERVICE_ADDR: kafka:9092
+      # OTel Java agent auto-instrumentation configuration
       OTEL_LOGS_EXPORTER: otlp
       OTEL_TRACES_EXPORTER: otlp
       OTEL_EXPORTER_OTLP_ENDPOINT: http://otelcol:4317
       OTEL_EXPORTER_OTLP_PROTOCOL: grpc
+      # Resource attributes for Datadog service identification
       OTEL_RESOURCE_ATTRIBUTES: service.name=producer,deployment.environment=docker
+    deploy:
+      resources:
+        limits:
+          memory: 512M
 
   consumer:
     depends_on:
-      - kafka
-      - otelcol
+      kafka:
+        condition: service_healthy
+      otelcol:
+        condition: service_started
     container_name: consumer
     build:
       context: .
       dockerfile: ./Dockerfile.consumer
     environment:
-      KAFKA_ZOOKEEPER_CONNECT: zookeeper:2181 
+      KAFKA_ZOOKEEPER_CONNECT: zookeeper:2181
       KAFKA_SERVICE_ADDR: kafka:9092
+      # OTel Java agent auto-instrumentation configuration
       OTEL_LOGS_EXPORTER: otlp
       OTEL_TRACES_EXPORTER: otlp
       OTEL_EXPORTER_OTLP_ENDPOINT: http://otelcol:4317
       OTEL_EXPORTER_OTLP_PROTOCOL: grpc
+      # Resource attributes for Datadog service identification
       OTEL_RESOURCE_ATTRIBUTES: service.name=consumer,deployment.environment=docker
+    deploy:
+      resources:
+        limits:
+          memory: 512M
 
   otelcol:
     depends_on:
-      - kafka
-    image: otel/opentelemetry-collector-contrib:0.93.0
+      kafka:
+        condition: service_healthy
+    image: otel/opentelemetry-collector-contrib:0.115.0
     container_name: otel-col
-    restart: always
+    restart: unless-stopped
     volumes:
       - ./otel-collector-config-gatherer.yaml:/etc/otelcol-contrib/config.yaml
     ports:
-      - "4317:4317"
-      - "4318:4318"
+      - "4317:4317"   # OTLP gRPC receiver
+      - "4318:4318"   # OTLP HTTP receiver
     environment:
+      # Required: Datadog API key for exporting telemetry data
       - DD_API_KEY
+      # Required: Datadog site (e.g. datadoghq.com, datadoghq.eu, us5.datadoghq.com)
+      - DD_SITE=${DD_SITE:-datadoghq.com}
+    deploy:
+      resources:
+        limits:
+          memory: 512M
 
+  # JMX Metrics Gatherer sidecars collect JMX metrics from each Java service
+  # and forward them to the OTel Collector via OTLP
   kafka-gatherer:
     depends_on:
-      - kafka
+      kafka:
+        condition: service_healthy
     container_name: kafka-gatherer
     build:
       context: .
       dockerfile: ./Dockerfile.kafka-gatherer
+    deploy:
+      resources:
+        limits:
+          memory: 256M
 
   consumer-gatherer:
     depends_on:
@@ -94,6 +143,10 @@ services:
     build:
       context: .
       dockerfile: ./Dockerfile.consumer-gatherer
+    deploy:
+      resources:
+        limits:
+          memory: 256M
 
   producer-gatherer:
     depends_on:
@@ -102,3 +155,7 @@ services:
     build:
       context: .
       dockerfile: ./Dockerfile.producer-gatherer
+    deploy:
+      resources:
+        limits:
+          memory: 256M
