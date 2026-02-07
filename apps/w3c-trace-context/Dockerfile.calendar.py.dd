@@ -1,14 +1,15 @@
 # Unless explicitly stated otherwise all files in this repository are dual-licensed
 # under the Apache 2.0 or BSD3 Licenses.
-FROM python:3
-
+FROM python:3.12-slim
 
 WORKDIR /home
 
 COPY py /home/py
 WORKDIR /home/py
 
-RUN pip install -r requirements.txt
+RUN pip install --no-cache-dir -r requirements.txt
 
-# Run the application with Datadog
-CMD ["ddtrace-run", "python", "-m", "calendar_app.app"] 
+STOPSIGNAL SIGTERM
+
+# Run the application with Datadog auto-instrumentation
+CMD ["ddtrace-run", "python", "-m", "calendar_app.app"]
