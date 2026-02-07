@@ -1,3 +1,17 @@
+# Distributed Calendar Application - DD variant (Datadog native instrumentation).
+#
+# Architecture:
+#   HTTP request -> calendar-producer-java-dd (Spring Boot + Kafka producer)
+#                -> kafka-dd (message broker)
+#                -> calendar-consumer-go-dd (Kafka consumer + Redis writer)
+#                -> redis-dd (data store)
+#
+# DD-specific: The dd-java-agent and dd-trace-go libraries send traces directly
+# to the Datadog Agent via the DD trace endpoint (port 8126).
+#
+# Required environment variables:
+#   DD_API_KEY - Datadog API key
+#
 version: "3"
 services:
   zookeeper-dd:
@@ -7,11 +21,22 @@ services:
       ZOOKEEPER_TICK_TIME: 2000
     ports:
       - 22181:2181
+    deploy:
+      resources:
+        limits:
+          memory: 256M
+    healthcheck:
+      test: echo ruok | nc localhost 2181
+      start_period: 10s
+      interval: 10s
+      timeout: 5s
+      retries: 5
 
   kafka-dd:
     image: confluentinc/cp-kafka:latest
     depends_on:
-      - zookeeper-dd
+      zookeeper-dd:
+        condition: service_healthy
     ports:
       - 29092:29092
     environment:
@@ -21,6 +46,10 @@ services:
       KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: PLAINTEXT:PLAINTEXT,PLAINTEXT_HOST:PLAINTEXT
       KAFKA_INTER_BROKER_LISTENER_NAME: PLAINTEXT
       KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
+    deploy:
+      resources:
+        limits:
+          memory: 512M
     healthcheck:
       test: nc -z kafka-dd 9092
       start_period: 10s
@@ -35,8 +64,13 @@ services:
     deploy:
       resources:
         limits:
-          memory: 20M
+          memory: 64M
     restart: always
+    healthcheck:
+      test: redis-cli ping
+      interval: 10s
+      timeout: 5s
+      retries: 5
 
   calendar-producer-java-dd:
     depends_on:
@@ -45,12 +79,13 @@ services:
       datadog-agent-kafka-dd:
         condition: service_started
       redis-dd:
-        condition: service_started
+        condition: service_healthy
     container_name: calendar-producer-java-dd
     build:
       context: .
       dockerfile: Dockerfile.calendar.java.dd
     environment:
+      # DD-specific: Service identity tags used by the DD agent
       - DD_SERVICE=calendar-producer-java-dd
       - DD_AGENT_HOST=datadog-agent-kafka-dd
       - DD_TRACE_AGENT_URL=http://datadog-agent-kafka-dd:8126
@@ -60,23 +95,38 @@ services:
       - REDIS_HOST=redis-dd
     ports:
       - "9090:9090"
+    deploy:
+      resources:
+        limits:
+          memory: 512M
+    healthcheck:
+      test: curl -f http://localhost:9090/calendar || exit 1
+      start_period: 30s
+      interval: 30s
+      timeout: 10s
+      retries: 3
 
   calendar-consumer-go-dd:
     depends_on:
       kafka-dd:
         condition: service_healthy
       redis-dd:
-        condition: service_started
+        condition: service_healthy
     container_name: calendar-consumer-go-dd
     build:
       context: .
       dockerfile: Dockerfile.calendar.go.dd
     environment:
+      # DD-specific: Service identity tags used by the DD agent
       - DD_SERVICE=calendar-consumer-go-dd
       - DD_AGENT_HOST=datadog-agent-kafka-dd
       - DD_ENV=dd-kafka
       - REDIS_HOST=redis-dd
       - KAFKA_SERVERS=kafka-dd:9092
+    deploy:
+      resources:
+        limits:
+          memory: 128M
 
   datadog-agent-kafka-dd:
     container_name: datadog-agent-kafka-dd
@@ -90,11 +140,17 @@ services:
     environment:
       - DD_API_KEY=${DD_API_KEY}
       - DD_SITE=datadoghq.com
+      # DD-specific: Enable non-local APM traffic so containers can send traces
       - DD_APM_NON_LOCAL_TRAFFIC=true
       - DD_DOGSTATSD_NON_LOCAL_TRAFFIC=true
+      # DD-specific: Enable OTLP receivers (gRPC and HTTP) for the otel-api-with-dd variant
       - DD_OTLP_CONFIG_RECEIVER_PROTOCOLS_GRPC_ENDPOINT=0.0.0.0:4317
       - DD_OTLP_CONFIG_RECEIVER_PROTOCOLS_HTTP_ENDPOINT=0.0.0.0:4318
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock
       - /proc/:/host/proc/:ro
       - /sys/fs/cgroup:/host/sys/fs/cgroup:ro
+    deploy:
+      resources:
+        limits:
+          memory: 512M

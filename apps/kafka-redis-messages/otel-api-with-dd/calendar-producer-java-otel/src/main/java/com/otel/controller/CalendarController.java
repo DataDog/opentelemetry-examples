@@ -15,18 +15,19 @@ import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestHeader;
 import org.springframework.web.bind.annotation.RestController;
 import redis.clients.jedis.Jedis;
+import redis.clients.jedis.JedisPool;
 
 @RestController
 public class CalendarController {
   private final Logger log = LoggerFactory.getLogger(CalendarController.class);
 
   private final CalendarProducer calendarProducer;
-  private final Jedis jedis;
+  private final JedisPool jedisPool;
 
   @Autowired
-  public CalendarController(Jedis jedis, CalendarProducer calendarProducer) {
+  public CalendarController(JedisPool jedisPool, CalendarProducer calendarProducer) {
     this.calendarProducer = calendarProducer;
-    this.jedis = jedis;
+    this.jedisPool = jedisPool;
   }
 
   @GetMapping("/calendar")
@@ -37,18 +38,21 @@ public class CalendarController {
     log.info("request uuid:{}", uuid);
     calendarProducer.write(uuid);
     int cnt = 0;
-    var value = jedis.get(uuid);
+    String value = null;
+
+    // Poll Redis for the result written by the Go consumer.
+    // Use try-with-resources to properly return connections to the pool.
     while (value == null && cnt < 30) {
       Thread.sleep(100);
-      value = jedis.get(uuid);
-
+      try (Jedis jedis = jedisPool.getResource()) {
+        value = jedis.get(uuid);
+      }
       cnt++;
     }
-    // the correct JSON output should put this in quotes. Spring does not, so let's put quotes here
-    // by hand.
+
     if (value == null) {
       return Map.of("date", "null");
     }
-    return Map.of("date", value.toString());
+    return Map.of("date", value);
   }
 }

@@ -1,19 +1,28 @@
 # Unless explicitly stated otherwise all files in this repository are licensed
 # under the Apache 2.0 License.
 #
-FROM openjdk:17-buster
+# DD-specific: Downloads the latest dd-java-agent and attaches it via -javaagent.
+# The agent auto-instruments Spring Web, Kafka, Redis (Jedis) and provides
+# the OpenTracing API implementation.
+FROM eclipse-temurin:17-jdk AS builder
 
-RUN apt-get update -y; apt-get install curl -y
+RUN apt-get update -y && apt-get install -y curl && rm -rf /var/lib/apt/lists/*
 
 WORKDIR /home/otel
 
-RUN curl -Lo dd-java-agent.jar https://dtdg.co/latest-java-tracer 
-COPY calendar-producer-java-dd calendar/  
+RUN curl -Lo dd-java-agent.jar https://dtdg.co/latest-java-tracer
+COPY calendar-producer-java-dd calendar/
 
 WORKDIR /home/otel/calendar
 
-#Compile with gradle
+# Compile with Gradle
 RUN ./gradlew build
 
-ENTRYPOINT ["java","-javaagent:../dd-java-agent.jar",  "-jar" , "build/libs/calendar-0.0.1-SNAPSHOT.jar"]
-EXPOSE 8080
+FROM eclipse-temurin:17-jre
+
+WORKDIR /app
+COPY --from=builder /home/otel/dd-java-agent.jar /app/dd-java-agent.jar
+COPY --from=builder /home/otel/calendar/build/libs/calendar-0.0.1-SNAPSHOT.jar /app/calendar.jar
+
+ENTRYPOINT ["java", "-javaagent:/app/dd-java-agent.jar", "-jar", "/app/calendar.jar"]
+EXPOSE 9090

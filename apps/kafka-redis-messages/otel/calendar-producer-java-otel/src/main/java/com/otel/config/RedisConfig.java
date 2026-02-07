@@ -3,8 +3,16 @@ package com.otel.config;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
-import redis.clients.jedis.Jedis;
+import redis.clients.jedis.JedisPool;
+import redis.clients.jedis.JedisPoolConfig;
 
+/**
+ * Redis configuration with connection pooling.
+ *
+ * The OTel Java agent auto-instruments Jedis, creating spans for every Redis command.
+ * Uses JedisPool for production-ready connection pooling instead of a single
+ * Jedis instance.
+ */
 @Configuration
 public class RedisConfig {
 
@@ -15,7 +23,12 @@ public class RedisConfig {
   private int redisPort;
 
   @Bean
-  public Jedis jedis() {
-    return new Jedis(redisHost, redisPort);
+  public JedisPool jedisPool() {
+    JedisPoolConfig poolConfig = new JedisPoolConfig();
+    poolConfig.setMaxTotal(10);
+    poolConfig.setMaxIdle(5);
+    poolConfig.setMinIdle(2);
+    poolConfig.setTestOnBorrow(true);
+    return new JedisPool(poolConfig, redisHost, redisPort);
   }
 }
