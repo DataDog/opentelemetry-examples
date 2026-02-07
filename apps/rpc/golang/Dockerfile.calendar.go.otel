@@ -1,8 +1,9 @@
 # Unless explicitly stated otherwise all files in this repository are licensed
 # under the Apache 2.0 License.
 #
-FROM golang:1.22
-
+# Multi-stage build for the calendar-otel gRPC server.
+# Stage 1: Build the Go binary.
+FROM golang:1.22 AS builder
 
 WORKDIR /app
 COPY calendar-otel calendar/
@@ -10,7 +11,15 @@ COPY protos protos/
 
 WORKDIR /app/calendar
 RUN go mod download
+RUN CGO_ENABLED=0 go build -o /calendar
 
-RUN go build -o /calendar
+# Stage 2: Create a minimal runtime image.
+FROM gcr.io/distroless/static-debian12:nonroot
 
+COPY --from=builder /calendar /calendar
+
+# Expose the gRPC port.
+EXPOSE 9090
+
+# Run as non-root user (provided by distroless:nonroot).
 CMD [ "/calendar" ]

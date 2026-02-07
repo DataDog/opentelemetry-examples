@@ -14,18 +14,27 @@
 """The Python implementation of the gRPC route guide server."""
 
 import logging
+import signal
+import sys
 from concurrent import futures
 
 import grpc
 from ddtrace import patch_all
 
-# Enable Datadog tracing for gRPC
+# Enable Datadog tracing for gRPC.
+# patch_all() automatically instruments grpc client and server calls,
+# creating spans with resource names like "grpc.server /routeguide.RouteGuide/GetFeature".
+# These spans are sent to the DD Agent (DD_AGENT_HOST:DD_TRACE_AGENT_PORT)
+# and appear in Datadog APM with gRPC-specific metadata.
+# See: https://ddtrace.readthedocs.io/en/stable/integrations.html#grpc
 patch_all()
 
 import route_guide_pb2
 import route_guide_pb2_grpc
 
 import route_guide_resources
+
+logger = logging.getLogger(__name__)
 
 
 def get_feature(feature_db, point):
@@ -58,11 +67,25 @@ def serve():
     )
     listen_addr = "0.0.0.0:50051"
     server.add_insecure_port(listen_addr)
-    print(f"Starting server on {listen_addr}")
+    logger.info("Starting server on %s", listen_addr)
     server.start()
+
+    # Graceful shutdown on SIGINT/SIGTERM.
+    # Grace period allows in-flight RPCs to complete before forced termination.
+    def _shutdown(signum, frame):
+        logger.info("Received signal %s, initiating graceful shutdown...", signum)
+        # Grace period of 5 seconds for in-flight RPCs to complete.
+        done = server.stop(grace=5)
+        done.wait()
+        logger.info("Server shut down cleanly.")
+        sys.exit(0)
+
+    signal.signal(signal.SIGINT, _shutdown)
+    signal.signal(signal.SIGTERM, _shutdown)
+
     server.wait_for_termination()
 
 
 if __name__ == "__main__":
-    logging.basicConfig()
+    logging.basicConfig(level=logging.INFO)
     serve()

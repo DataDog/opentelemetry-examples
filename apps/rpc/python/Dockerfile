@@ -1,23 +1,42 @@
-FROM python:3.11-slim
+# Multi-stage build for the Python gRPC route guide service.
+# Stage 1: Install dependencies and generate gRPC code.
+FROM python:3.12-slim AS builder
 
 WORKDIR /app
 
-# Copy requirements and install dependencies
+# Copy requirements and install dependencies.
 COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
-# Copy proto file and generate gRPC code
+# Copy proto file and generate gRPC code.
 COPY protos/route_guide.proto .
 RUN python -m grpc_tools.protoc -I. --python_out=. --grpc_python_out=. route_guide.proto
 
-# Copy application files
+# Stage 2: Create the runtime image.
+FROM python:3.12-slim
+
+WORKDIR /app
+
+# Copy installed packages from builder.
+COPY --from=builder /usr/local/lib/python3.12/site-packages /usr/local/lib/python3.12/site-packages
+COPY --from=builder /usr/local/bin /usr/local/bin
+
+# Copy generated gRPC files from builder.
+COPY --from=builder /app/route_guide_pb2.py .
+COPY --from=builder /app/route_guide_pb2_grpc.py .
+
+# Copy application files.
 COPY route_guide_server.py .
 COPY route_guide_client.py .
 COPY route_guide_resources.py .
 COPY route_guide_db.json .
 
-# Expose the gRPC port
+# Create a non-root user for running the application.
+RUN useradd --create-home appuser
+USER appuser
+
+# Expose the gRPC port.
 EXPOSE 50051
 
-# Default command (will be overridden in docker-compose)
+# Default command (will be overridden in docker-compose).
 CMD ["python", "route_guide_server.py"]
