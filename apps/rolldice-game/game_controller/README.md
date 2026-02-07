@@ -1,19 +1,27 @@
 # Game Controller
-This project is a simple Express.js application that uses the OpenTelemetry API for tracing and axios for HTTP requests.
 
+This is an Express.js application that orchestrates the rolldice game. It uses the OpenTelemetry Node.js SDK for auto-instrumentation with W3C TraceContext propagation.
+
+## Prerequisites
+
+* Node.js (v20 or later)
+* npm (v9 or later)
 
 ## Installation
-* Node.js (v12 or later)
-* npm (v6 or later)
-
 
 ```bash
 npm install
 ```
 
-## Run the server
+## Run the server (standalone)
+
+Set the required environment variables and start the server:
 
 ```bash
-opentelemetry-instrument --service_name controller --logs_exporter otlp node controller.js
+export OTEL_SERVICE_NAME=game-controller
+export OTEL_EXPORTER_OTLP_ENDPOINT=http://localhost:4317
+export OTEL_EXPORTER_OTLP_PROTOCOL=grpc
+node controller.js
 ```
 
+The OTel SDK is initialized programmatically in `controller.js` before Express loads, which ensures all HTTP requests are automatically instrumented.

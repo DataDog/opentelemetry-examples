@@ -1,17 +1,25 @@
 # Score Server
 
-This is a simple Flask application that tracks scores for players. It uses the OpenTelemetry API for tracing.
+This is a Flask application that tracks player scores. It uses the OpenTelemetry Python SDK for tracing, with auto-instrumentation via the `opentelemetry-instrument` CLI.
+
+## Prerequisites
+
+* Python (v3.12+)
+* pip
 
 ## Installation
-* Python (v3.9.16)
-* Use the package manager [pip](https://pip.pypa.io/en/stable/) to install `requirements.txt`.
 
 ```bash
-pip install requirements.txt
+pip install -r requirements.txt
 ```
 
-## Run the server
+## Run the server (standalone)
 
 ```bash
-opentelemetry-instrument --service_name scorey --logs_exporter otlp flask run -p 5001
+export OTEL_SERVICE_NAME=scoring
+export OTEL_EXPORTER_OTLP_ENDPOINT=http://localhost:4317
+export OTEL_EXPORTER_OTLP_PROTOCOL=grpc
+opentelemetry-instrument --service_name scoring --logs_exporter otlp flask run -p 5001
 ```
+
+The `opentelemetry-instrument` CLI auto-configures the OTel SDK from environment variables and instruments Flask to capture HTTP spans and propagate W3C TraceContext.

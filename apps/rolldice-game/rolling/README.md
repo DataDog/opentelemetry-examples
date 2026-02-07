@@ -1,18 +1,25 @@
-# Dice Server
+# Dice Rolling Server
 
-This is a simple Flask application that simulates a dice roll. It uses the OpenTelemetry API for tracing and metrics, and Python's built-in logging module for logging.
+This is a Flask application that simulates a dice roll. It uses the OpenTelemetry Python SDK for tracing and metrics, with auto-instrumentation via the `opentelemetry-instrument` CLI.
+
+## Prerequisites
+
+* Python (v3.12+)
+* pip
 
 ## Installation
-* Python (v3.9.16)
-* Use the package manager pip to install `requirements.txt`.
 
 ```bash
-pip install requirements.txt
+pip install -r requirements.txt
 ```
 
-## Run the server
+## Run the server (standalone)
 
 ```bash
-opentelemetry-instrument --service_name dicey --logs_exporter otlp flask run -p 5004
+export OTEL_SERVICE_NAME=rolling
+export OTEL_EXPORTER_OTLP_ENDPOINT=http://localhost:4317
+export OTEL_EXPORTER_OTLP_PROTOCOL=grpc
+opentelemetry-instrument --service_name rolling --logs_exporter otlp flask run -p 5004
 ```
 
+The `opentelemetry-instrument` CLI auto-configures the OTel SDK from environment variables and instruments Flask to capture HTTP spans and propagate W3C TraceContext.
