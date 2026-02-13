@@ -104,7 +104,11 @@ config:
             # service
             - set(attributes["kube_service"], attributes["service"])
             - delete_key(attributes, "service")
-    
+
+            # node
+            - set(attributes["kube_node"], attributes["node"])
+            - delete_key(attributes, "node")
+
     # k8sattributesprocessor is used to enrich metrics with additional metadata, namely, service.
     k8sattributes:
       auth_type: "serviceAccount"
