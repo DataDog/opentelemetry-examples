@@ -1,5 +1,5 @@
-flask==2.2.5
-psycopg2-binary==2.9.3
-requests==2.31.0
-Werkzeug==3.0.3
+flask==2.3.3
+psycopg2-binary==2.9.11
+requests==2.32.5
+Werkzeug==3.0.6
 ddtrace
