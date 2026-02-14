@@ -1,4 +1,3 @@
-version: "3.9"
 services:
   random-date-dotnet-dd:
     depends_on:
@@ -25,9 +24,9 @@ services:
       dockerfile: Dockerfile.RandomDateAPI.otel
     environment:
       - OTEL_SERVICE_NAME=random-date-dotnet-otel
-      - OTEL_EXPORTER_OTLP_ENDPOINT=http://datadog-agent:4317
-      - OTEL_EXPORTER_OTLP_PROTOCOL=grpc
-      - OTEL_RESOURCE_ATTRIBUTES=deployment.environment=docker,host.name=otelcol-docker
+      - OTEL_EXPORTER_OTLP_ENDPOINT=http://datadog-agent:4318
+      - OTEL_EXPORTER_OTLP_PROTOCOL=http/protobuf
+      - OTEL_RESOURCE_ATTRIBUTES=deployment.environment.name=docker,host.name=otelcol-docker
       - ASPNETCORE_URLS=http://+:5078
     ports:
       - "5078:5078"

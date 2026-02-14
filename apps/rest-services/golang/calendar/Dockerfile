@@ -2,7 +2,7 @@
 # under the Apache 2.0 License.
 #
 
-FROM golang:1.22.0
+FROM golang:1.25
 WORKDIR /app
 COPY . .
 
