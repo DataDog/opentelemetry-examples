@@ -1,7 +1,9 @@
 version: '3.8'
 
 services:
-  # Datadog Agent
+  # Datadog Agent - collects traces and metrics from gRPC services.
+  # Supports both native DD trace intake (port 8126) and OTLP intake (port 4317).
+  # See: https://docs.datadoghq.com/opentelemetry/
   datadog:
     image: "gcr.io/datadoghq/agent:latest"
     container_name: datadog-agent
@@ -9,19 +11,36 @@ services:
       - DD_API_KEY=${DD_API_KEY}
       - DD_SITE=${DD_SITE}
       - DD_APM_ENABLED=true
+      # Enable OTLP gRPC intake on the agent for receiving OTel traces/metrics.
       - DD_OTLP_CONFIG_RECEIVER_PROTOCOLS_GRPC_ENDPOINT=0.0.0.0:4317
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock:ro
       - /proc/:/host/proc/:ro
       - /sys/fs/cgroup/:/host/sys/fs/cgroup:ro
     ports:
-      - "8126:8126"  # APM traces
-      - "4317:4317"  # OTLP gRPC
+      - "8126:8126"  # DD APM trace intake
+      - "4317:4317"  # OTLP gRPC intake
     networks:
       - grpc-network
+    healthcheck:
+      test: ["CMD-SHELL", "agent health"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 15s
+    deploy:
+      resources:
+        limits:
+          cpus: "1.0"
+          memory: 512M
+        reservations:
+          cpus: "0.25"
+          memory: 256M
     restart: unless-stopped
 
-  # gRPC Server
+  # gRPC Server - implements the RouteGuide service.
+  # Instrumented with ddtrace patch_all() for automatic gRPC tracing.
+  # Traces are sent to the DD agent via DD_AGENT_HOST:DD_TRACE_AGENT_PORT.
   grpc-server:
     build:
       context: .
@@ -29,10 +48,15 @@ services:
     container_name: grpc-server
     command: python route_guide_server.py
     environment:
+      # Datadog APM configuration.
+      # DD_AGENT_HOST points to the agent container for trace submission.
       - DD_AGENT_HOST=datadog
       - DD_TRACE_AGENT_PORT=8126
+      # Unified service tagging (service, env, version) for correlation
+      # across traces, metrics, and logs in Datadog.
+      # See: https://docs.datadoghq.com/getting_started/tagging/unified_service_tagging/
       - DD_SERVICE=route-guide-server
-      - DD_ENV=production
+      - DD_ENV=${DD_ENV:-dev}
       - DD_VERSION=1.0.0
       - DD_TRACE_ENABLED=true
     ports:
@@ -40,10 +64,26 @@ services:
     networks:
       - grpc-network
     depends_on:
-      - datadog
+      datadog:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "python -c 'import grpc; ch = grpc.insecure_channel(\"localhost:50051\"); grpc.channel_ready_future(ch).result(timeout=2)' 2>/dev/null || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+    deploy:
+      resources:
+        limits:
+          cpus: "0.5"
+          memory: 256M
+        reservations:
+          cpus: "0.1"
+          memory: 128M
     restart: unless-stopped
 
-  # gRPC Client
+  # gRPC Client - makes unary RPC calls to the RouteGuide server.
+  # Also instrumented with ddtrace for client-side span generation.
   grpc-client:
     build:
       context: .
@@ -54,17 +94,26 @@ services:
       - DD_AGENT_HOST=datadog
       - DD_TRACE_AGENT_PORT=8126
       - DD_SERVICE=route-guide-client
-      - DD_ENV=production
+      - DD_ENV=${DD_ENV:-dev}
       - DD_VERSION=1.0.0
       - DD_TRACE_ENABLED=true
     networks:
       - grpc-network
     depends_on:
-      - grpc-server
-      - datadog
+      grpc-server:
+        condition: service_healthy
+      datadog:
+        condition: service_healthy
+    deploy:
+      resources:
+        limits:
+          cpus: "0.25"
+          memory: 128M
+        reservations:
+          cpus: "0.1"
+          memory: 64M
     restart: unless-stopped
 
 networks:
   grpc-network:
     driver: bridge
-
