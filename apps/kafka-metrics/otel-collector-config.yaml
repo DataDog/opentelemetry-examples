@@ -3,6 +3,8 @@ receivers:
     protocols:
       http:
       grpc:
+
+  # Collects Kafka broker-level metrics (topics, consumers, brokers) via the Kafka protocol
   kafkametrics:
     brokers: "kafka:9092"
     protocol_version: 2.0.0
@@ -10,55 +12,83 @@ receivers:
       - brokers
       - topics
       - consumers
+
+  # JMX receiver collects Kafka broker JMX metrics (e.g. request times, under-replicated partitions)
   jmx:
     jar_path: /opt/opentelemetry-jmx-metrics.jar
     endpoint: "kafka:1099"
     target_system: kafka,jvm
+    collection_interval: 10s
+
+  # JMX receiver for Kafka consumer JMX metrics (e.g. records-lag, fetch rate)
   jmx/consumer:
     jar_path: /opt/opentelemetry-jmx-metrics.jar
     endpoint: "consumer:1097"
     target_system: kafka-consumer
+    collection_interval: 10s
+
+  # JMX receiver for Kafka producer JMX metrics (e.g. record-send-rate, batch-size)
   jmx/producer:
     jar_path: /opt/opentelemetry-jmx-metrics.jar
     endpoint: "producer:1098"
     target_system: kafka-producer
+    collection_interval: 10s
 
 processors:
+  # memory_limiter should be the first processor in the pipeline to protect the collector
+  # from out-of-memory situations. It will start dropping data when memory usage exceeds limits.
+  memory_limiter:
+    check_interval: 5s
+    limit_mib: 409
+    spike_limit_mib: 128
+
+  # batch processor batches telemetry data before export to reduce network overhead
   batch:
     send_batch_max_size: 1000
     send_batch_size: 100
     timeout: 10s
+
+  # Tag logs with source:kafka so they appear in the Datadog Kafka OOTB Dashboard
   attributes:
     actions:
       - key: ddtags
         value: "source:kafka"
         action: insert
+
 exporters:
+  # Datadog exporter sends metrics, traces, and logs to Datadog
+  # DD_API_KEY and DD_SITE must be set as environment variables
   datadog:
     api:
+      # Datadog API key for authentication (required)
       key: ${env:DD_API_KEY}
+      # Datadog site to send data to (e.g. datadoghq.com, datadoghq.eu, us5.datadoghq.com)
       site: ${env:DD_SITE}
-  logging:
+
+  # Debug exporter logs telemetry data to stdout for troubleshooting
+  debug:
     verbosity: detailed
 
 connectors:
+  # The Datadog connector computes APM trace metrics for use in Datadog dashboards
   datadog/connector:
 
 service:
   pipelines:
     metrics:
       receivers: [otlp, kafkametrics, jmx, jmx/consumer, jmx/producer, datadog/connector]
-      processors: [batch]
+      # memory_limiter must come before batch to ensure memory safety
+      processors: [memory_limiter, batch]
       exporters: [datadog]
     traces:
       receivers: [otlp]
-      processors: [batch]
+      processors: [memory_limiter, batch]
       exporters: [datadog/connector]
     traces/sampling:
       receivers: [datadog/connector]
-      processors: [] # Add any sampling here
+      processors: [memory_limiter, batch]
       exporters: [datadog]
     logs:
       receivers: [otlp]
-      processors: [batch, attributes]
+      processors: [memory_limiter, batch, attributes]
       exporters: [datadog]

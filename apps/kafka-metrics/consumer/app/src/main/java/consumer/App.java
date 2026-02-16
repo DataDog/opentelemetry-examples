@@ -23,7 +23,7 @@ public class App {
     public static void main(String[] args) {
         String kafkaAddr = System.getenv("KAFKA_SERVICE_ADDR");
         if (kafkaAddr != null) {
-            log4jLogger.info("Using Kafka Broker Address: " + kafkaAddr);
+            log4jLogger.info("Using Kafka Broker Address: {}", kafkaAddr);
         } else {
             throw new RuntimeException("Environment variable KAFKA_SERVICE_ADDR is not set.");
         }
@@ -34,14 +34,22 @@ public class App {
         props.put(ConsumerConfig.VALUE_DESERIALIZER_CLASS_CONFIG, IntegerDeserializer.class.getName());
         props.put(ConsumerConfig.GROUP_ID_CONFIG, "App");
 
+        // Consumer resilience configuration
+        props.put(ConsumerConfig.AUTO_OFFSET_RESET_CONFIG, "earliest");
+        props.put(ConsumerConfig.ENABLE_AUTO_COMMIT_CONFIG, "true");
+        props.put(ConsumerConfig.AUTO_COMMIT_INTERVAL_MS_CONFIG, "1000");
+        props.put(ConsumerConfig.SESSION_TIMEOUT_MS_CONFIG, "30000");
+        props.put(ConsumerConfig.HEARTBEAT_INTERVAL_MS_CONFIG, "10000");
+
         KafkaConsumer<String, Integer> consumer = new KafkaConsumer<>(props);
         consumer.subscribe(Collections.singletonList("orders"));
 
         while (true) {
             ConsumerRecords<String, Integer> records = consumer.poll(Duration.ofMillis(100));
-            for (ConsumerRecord<String, Integer> record : records)
-            log4jLogger.info("Consumed Message. Received Order # {}", record.value());
-           }
+            for (ConsumerRecord<String, Integer> record : records) {
+                log4jLogger.info("Consumed Message. Received Order # {}", record.value());
+            }
+        }
         // consumer.close();
     }
 }

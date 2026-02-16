@@ -8,8 +8,8 @@
     </Appenders>
     <Loggers>
         <Root level="info">
-            <AppenderRef ref="OpenTelemetryAppender" />
             <AppenderRef ref="ConsoleAppender" />
+            <AppenderRef ref="OpenTelemetryAppender" />
         </Root>
     </Loggers>
 </Configuration>
