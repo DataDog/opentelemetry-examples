@@ -34,7 +34,7 @@ otelCollector:
     repository: "otel/opentelemetry-collector-contrib"
     tag: "latest"
   datadog:
-    site: "datad0g.com"
+    site: ""  # Uses DD_SITE environment variable
     apiKeySecret:
       name: "datadog-secret"
       key: "api-key"

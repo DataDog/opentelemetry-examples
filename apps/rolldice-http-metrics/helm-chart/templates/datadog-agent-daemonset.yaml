@@ -41,8 +41,8 @@ spec:
         - name: DD_API_KEY
           valueFrom:
             secretKeyRef:
-              name: {{ .Release.Name }}-datadog-secret
-              key: api-key
+              name: {{ .Values.otelCollector.datadog.apiKeySecret.name }}
+              key: {{ .Values.otelCollector.datadog.apiKeySecret.key }}
         - name: DD_SITE
           value: {{ .Values.otelCollector.datadog.site | quote }}
         - name: DD_HOSTNAME

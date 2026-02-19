@@ -23,14 +23,14 @@ exporters:
     verbosity: detailed
   datadog/exporter:
     api:
-      site: datad0g.com
+      site: ${env:DD_SITE}
       key: ${env:DD_API_KEY}
   otlphttp:
     headers:
       "Dd-Protocol": "otlp"
       "Dd-Api-Key": "${env:DD_API_KEY}"
-      
-    metrics_endpoint: https://trace.agent.datad0g.com/api/v0.2/stats
+
+    metrics_endpoint: https://trace.agent.${env:DD_SITE}/api/v0.2/stats
     tls:
       insecure: true
 

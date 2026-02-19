@@ -35,7 +35,7 @@ spec:
             {{- toYaml .Values.loadGenerator.resources | nindent 12 }}
           env:
             - name: GAME_CONTROLLER_URL
-              value: "http://{{ .Release.Name }}-game-controller:5002/play_game"
+              value: "http://{{ .Release.Name }}-game-controller:{{ .Values.gameController.service.port }}/play_game"
             - name: AVERAGE_INTERVAL
               value: "10.0"
           volumeMounts:
@@ -45,7 +45,7 @@ spec:
       volumes:
         - name: load-generator-errors
           configMap:
-            name: rolldice-load-generator-errors
+            name: {{ .Release.Name }}-load-generator-script
       restartPolicy: Always
       {{- with .Values.nodeSelector }}
       nodeSelector:

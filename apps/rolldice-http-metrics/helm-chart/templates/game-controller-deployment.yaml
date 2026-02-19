@@ -45,7 +45,7 @@ spec:
             - name: OTEL_EXPORTER_OTLP_METRICS_TEMPORALITY_PREFERENCE
               value: {{ .Values.global.otel.metricsTemporality | quote }}
             - name: OTEL_EXPORTER_OTLP_ENDPOINT
-              value: "http://{{ .Release.Name }}-otelcol:4317"
+              value: "http://{{ .Release.Name }}-otelcol:{{ .Values.otelCollector.service.grpcPort }}"
             - name: OTEL_EXPORTER_OTLP_PROTOCOL
               value: {{ .Values.global.otel.protocol | quote }}
             - name: OTEL_SEMCONV_STABILITY_OPT_IN
@@ -57,9 +57,9 @@ spec:
             - name: OTEL_RESOURCE_ATTRIBUTES
               value: "deployment.environment={{ .Values.global.resourceAttributes.deploymentEnvironment }},host.name={{ .Values.global.resourceAttributes.hostName }},service.version={{ .Values.global.resourceAttributes.serviceVersion }}"
             - name: ROLLING_SERVICE_URL
-              value: "http://{{ .Release.Name }}-rolling:5004"
+              value: {{ .Values.gameController.serviceUrls.rolling | default (printf "http://%s-rolling:%d" .Release.Name (.Values.rolling.service.port | int)) | quote }}
             - name: SCORING_SERVICE_URL
-              value: "http://{{ .Release.Name }}-scoring:5001"
+              value: {{ .Values.gameController.serviceUrls.scoring | default (printf "http://%s-scoring:%d" .Release.Name (.Values.scoring.service.port | int)) | quote }}
             - name: OTEL_METRIC_EXPORT_INTERVAL
               value: "5000"
           livenessProbe:

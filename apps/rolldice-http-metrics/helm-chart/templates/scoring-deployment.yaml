@@ -39,7 +39,7 @@ spec:
             - name: OTEL_SERVICE_NAME
               value: {{ .Values.scoring.env.OTEL_SERVICE_NAME | quote }}
             - name: OTEL_EXPORTER_OTLP_ENDPOINT
-              value: "http://{{ .Release.Name }}-otelcol:4317"
+              value: "http://{{ .Release.Name }}-otelcol:{{ .Values.otelCollector.service.grpcPort }}"
             - name: OTEL_EXPORTER_OTLP_PROTOCOL
               value: {{ .Values.global.otel.protocol | quote }}
             - name: OTEL_SEMCONV_STABILITY_OPT_IN

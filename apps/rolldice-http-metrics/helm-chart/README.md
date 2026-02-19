@@ -1,65 +1,79 @@
 # Rolldice HTTP Metrics Helm Chart
 
-This Helm chart deploys the rolldice application with HTTP metrics collection using OpenTelemetry on Kubernetes, specifically designed for EKS clusters.
+This Helm chart deploys the rolldice application with HTTP metrics collection using OpenTelemetry on Kubernetes.
 
 ![Services Architecture](../services-diagram.png)
 
 ## Prerequisites
 
-- Kubernetes 1.20+
-- Helm 3.8+
-- EKS cluster with appropriate IAM permissions
-- Docker images built and available in a container registry
+- [AWS CLI](https://docs.aws.amazon.com/cli/latest/userguide/install-cliv2.html) with the `sso-dev-opentelemetry-account-admin` profile configured
+- [kubectl](https://kubernetes.io/docs/tasks/tools/)
+- [Helm 3.8+](https://helm.sh/docs/intro/install/)
+- Docker (only if building and pushing new images)
 
-## Installation
+## Cluster Access
 
-### 1. Build and Push Docker Images
+All developers access the cluster via a stable IAM role (`otel-demo-eks-admin`) that any `account-admin` SSO user can assume. No manual access entry registration is required.
 
-First, build and push your Docker images to a container registry (ECR, Docker Hub, etc.):
+### 1. Log in to AWS SSO
 
 ```bash
-# Build images
-docker build -t your-registry/game-controller:latest ./game_controller
-docker build -t your-registry/rolling:latest ./rolling
-docker build -t your-registry/scoring:latest ./scoring
-
-# Push images
-docker push your-registry/game-controller:latest
-docker push your-registry/rolling:latest
-docker push your-registry/scoring:latest
+aws sso login --profile sso-dev-opentelemetry-account-admin
 ```
 
-### 2. Create Datadog API Key Secret
+### 2. Set up kubectl
 
-Before installing the chart, create a Kubernetes secret containing your Datadog API key:
+The kubeconfig is committed to this repo. Point kubectl at it:
+
+```bash
+export KUBECONFIG=~/.kube/config:$(git rev-parse --show-toplevel)/apps/rolldice-http-metrics/kubeconfig.yaml
+```
+
+Add this line to your `~/.zshrc` or `~/.bashrc` to make it permanent.
+
+Verify access:
+
+```bash
+kubectl get nodes
+```
+
+## Deployment
+
+### 1. Create the Datadog API Key Secret
 
 ```bash
 kubectl create secret generic datadog-secret \
   --from-literal=api-key=your-datadog-api-key
 ```
 
-### 3. Install the Chart
+This secret is referenced by both the OTel collector and the Datadog agent. It must exist before installing the chart.
 
-#### Basic Installation (Debug Mode)
+### 2. Install the Chart
+
+For EKS deployment using the pre-configured ECR images:
+
 ```bash
-helm install rolldice ./helm-chart
+helm install rolldice ./helm-chart -f values-deploy.yaml
 ```
 
-#### With Datadog Integration
+Verify all pods come up:
+
 ```bash
-helm install rolldice ./helm-chart \
-  --set otelCollector.datadog.apiKeySecret.name="datadog-secret" \
-  --set image.registry="your-registry/" \
-  --set gameController.image.repository="game-controller" \
-  --set rolling.image.repository="rolling" \
-  --set scoring.image.repository="scoring"
+kubectl get pods -l app.kubernetes.io/instance=rolldice
 ```
 
-#### With Exponential Histograms
+All pods should reach `1/1 Running` within ~2 minutes.
+
+### 3. Test the Application
+
 ```bash
-helm install rolldice ./helm-chart \
-  --set global.useExponentialHistograms=true \
-  --set otelCollector.datadog.apiKeySecret.name="datadog-secret"
+# Port forward to the game controller
+kubectl port-forward svc/rolldice-game-controller 5002:5002
+
+# Play a game
+curl -X POST http://localhost:5002/play_game \
+  -H "Content-Type: application/json" \
+  -d '{"player": "testuser"}'
 ```
 
 ## Configuration
@@ -69,206 +83,69 @@ helm install rolldice ./helm-chart \
 | Parameter | Description | Default |
 |-----------|-------------|---------|
 | `global.useExponentialHistograms` | Enable exponential histograms for HTTP metrics | `false` |
-| `otelCollector.datadog.apiKeySecret.name` | Name of the secret containing Datadog API key | `""` |
-| `otelCollector.datadog.apiKeySecret.key` | Key in the secret containing the API key | `"api-key"` |
-| `otelCollector.datadog.site` | Datadog site (e.g., datadoghq.com) | `"datadoghq.com"` |
+| `global.useOldConventions` | Use old OTel HTTP semantic conventions | `false` |
+| `global.useSpanMetricsConnector` | Use span metrics connector instead of routing connector | `false` |
+| `otelCollector.datadog.apiKeySecret.name` | Name of the secret containing the Datadog API key | `""` |
+| `otelCollector.datadog.apiKeySecret.key` | Key within the secret | `"api-key"` |
+| `otelCollector.datadog.site` | Datadog site | `"datadoghq.com"` |
 | `image.registry` | Container registry prefix | `""` |
 | `gameController.replicaCount` | Number of game controller replicas | `1` |
 | `rolling.replicaCount` | Number of rolling service replicas | `1` |
 | `scoring.replicaCount` | Number of scoring service replicas | `1` |
 
-### Resource Configuration
+### Values Files
 
-Each service has configurable resource limits and requests:
+| File | Purpose |
+|------|---------|
+| `values.yaml` | Defaults |
+| `values-deploy.yaml` | EKS deployment with ECR images and Datadog agent enabled |
+| `values-exponential.yaml` | Exponential histogram variant |
+| `values-old-conventions.yaml` | Old OTel HTTP semantic conventions |
+| `values-spanmetricsconnector.yaml` | Span metrics connector variant |
 
-```yaml
-gameController:
-  resources:
-    limits:
-      cpu: 500m
-      memory: 512Mi
-    requests:
-      cpu: 250m
-      memory: 256Mi
-```
-
-### Environment-Specific Values
-
-Create environment-specific values files:
-
-**values-prod.yaml**:
-```yaml
-global:
-  useExponentialHistograms: true
-  resourceAttributes:
-    deploymentEnvironment: "production"
-
-gameController:
-  replicaCount: 3
-  resources:
-    limits:
-      cpu: 1000m
-      memory: 1Gi
-
-otelCollector:
-  datadog:
-    apiKeySecret:
-      name: "datadog-secret"
-      key: "api-key"
-```
-
-## EKS-Specific Configuration
-
-### IAM Roles for Service Accounts (IRSA)
-
-If using AWS services, configure IRSA:
-
-```yaml
-serviceAccount:
-  create: true
-  annotations:
-    eks.amazonaws.com/role-arn: arn:aws:iam::ACCOUNT:role/rolldice-service-role
-```
-
-### Node Groups and Scheduling
-
-Configure node affinity for different workloads:
-
-```yaml
-gameController:
-  affinity:
-    nodeAffinity:
-      requiredDuringSchedulingIgnoredDuringExecution:
-        nodeSelectorTerms:
-        - matchExpressions:
-          - key: node.kubernetes.io/instance-type
-            operator: In
-            values: ["m5.large", "m5.xlarge"]
-```
-
-## Monitoring and Observability
-
-### Health Checks
-
-The chart includes health checks for all services:
-- **Game Controller**: `/actuator/health`
-- **Rolling Service**: `/rolldice?player=healthcheck`
-- **Scoring Service**: `/update_score` (with proper headers)
-
-### Metrics Collection
-
-When `global.useExponentialHistograms=true`:
-- HTTP server/client duration metrics use exponential histograms
-- Better accuracy for latency measurements
-- Reduced storage overhead
-
-### Traces and Logs
-
-All services automatically instrument:
-- HTTP requests/responses
-- Database operations (if applicable)
-- Custom spans for business logic
-
-## Usage Examples
-
-### Test the Application
+## Scaling
 
 ```bash
-# Port forward to access the game controller
-kubectl port-forward svc/game-controller 5002:5002
+# Scale a deployment
+kubectl scale deployment rolldice-game-controller --replicas=3
 
-# Play a game
-curl -X POST http://localhost:5002/play_game \
-  -H "Content-Type: application/json" \
-  -d '{"player": "testuser"}'
-```
-
-### Scale Services
-
-```bash
-# Scale the game controller
-kubectl scale deployment game-controller --replicas=5
-
-# Or use Helm upgrade
-helm upgrade rolldice ./helm-chart --set gameController.replicaCount=5
-```
-
-### Enable Debug Mode
-
-To run without Datadog integration (debug mode with console output only):
-
-```bash
-helm upgrade rolldice ./helm-chart --set otelCollector.datadog.apiKeySecret.name=""
+# Or via Helm
+helm upgrade rolldice ./helm-chart -f values-deploy.yaml \
+  --set gameController.replicaCount=3
 ```
 
 ## Troubleshooting
 
-### Check Pod Status
+### Check pod status
 ```bash
 kubectl get pods -l app.kubernetes.io/instance=rolldice
 ```
 
-### View Logs
+### View logs
 ```bash
-# Game controller logs
+# Game controller
 kubectl logs -l app.kubernetes.io/name=game-controller
 
-# OpenTelemetry collector logs  
+# OTel collector
 kubectl logs -l app.kubernetes.io/name=otelcol
+
+# Load generator
+kubectl logs -l app.kubernetes.io/name=load-generator
 ```
 
-### Check OpenTelemetry Configuration
+### Check OTel collector config
 ```bash
 kubectl get configmap rolldice-otel-config -o yaml
 ```
 
-### Verify Service Discovery
+### Check services
 ```bash
-# Check services
 kubectl get svc -l app.kubernetes.io/instance=rolldice
-
-# Test connectivity
-kubectl run test-pod --image=curlimages/curl:latest --rm -it -- /bin/sh
-# Inside the pod:
-curl http://rolling:5004/rolldice?player=test
 ```
 
 ## Cleanup
 
 ```bash
 helm uninstall rolldice
+kubectl delete secret datadog-secret
 ```
-
-## Advanced Configuration
-
-### Custom OpenTelemetry Configuration
-
-You can override the OpenTelemetry collector configuration by providing your own ConfigMap:
-
-```yaml
-otelCollector:
-  customConfig: |
-    receivers:
-      otlp:
-        protocols:
-          grpc:
-            endpoint: 0.0.0.0:4317
-    # ... your custom config
-```
-
-### Ingress Configuration
-
-Enable ingress to expose services externally:
-
-```yaml
-ingress:
-  enabled: true
-  className: "nginx"
-  hosts:
-    - host: rolldice.example.com
-      paths:
-        - path: /
-          pathType: Prefix
-```
-
-This Helm chart provides a production-ready deployment of the rolldice application with comprehensive observability features suitable for EKS environments.

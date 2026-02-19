@@ -22,6 +22,8 @@ services:
       - OTEL_EXPORTER_OTLP_PROTOCOL=grpc
       - OTEL_SEMCONV_STABILITY_OPT_IN=http
       - OTEL_RESOURCE_ATTRIBUTES=service.version=v1.0
+      - ROLLING_SERVICE_URL=${ROLLING_SERVICE_URL:-http://rolling:5004}
+      - SCORING_SERVICE_URL=${SCORING_SERVICE_URL:-http://scoring:5001}
 
   rolling:
     build:
@@ -69,6 +71,7 @@ services:
       - "4317:4317"
     environment:
       - DD_API_KEY=${DD_API_KEY}
+      - DD_SITE=${DD_SITE:-datadoghq.com}
       - DD_OTLP_CONFIG_RECEIVER_PROTOCOLS_GRPC_ENDPOINT=0.0.0.0:4317
       - DD_OTLP_CONFIG_RECEIVER_PROTOCOLS_HTTP_ENDPOINT=0.0.0.0:4318
       

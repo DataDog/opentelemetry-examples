@@ -5,6 +5,10 @@
 global:
   # Enable exponential histograms (set to true to enable)
   useExponentialHistograms: false
+  # Use old OTel HTTP semantic conventions
+  useOldConventions: false
+  # Use span metrics connector instead of routing connector
+  useSpanMetricsConnector: false
   
   # OpenTelemetry configuration
   otel:
@@ -31,16 +35,16 @@ image:
 gameController:
   name: "game-controller"
   replicaCount: 1
-  
+
   image:
     repository: "game-controller"
     tag: "latest"
-    
+
   service:
     type: ClusterIP
     port: 5002
     targetPort: 5002
-    
+
   resources:
     limits:
       cpu: 500m
@@ -48,9 +52,14 @@ gameController:
     requests:
       cpu: 250m
       memory: 256Mi
-      
+
   env:
     OTEL_SERVICE_NAME: "controller"
+
+  # Service URLs for downstream dependencies
+  serviceUrls:
+    rolling: ""  # Defaults to http://{release-name}-rolling:5004
+    scoring: ""  # Defaults to http://{release-name}-scoring:5001
 
 # Rolling service (Python Flask)
 rolling:
@@ -126,7 +135,7 @@ otelCollector:
       
   # Datadog configuration
   datadog:
-    site: "datadoghq.com"
+    site: ""  # Defaults to DD_SITE environment variable, or datadoghq.com if not set
     # Reference to existing secret containing the Datadog API key
     apiKeySecret:
       name: ""  # Name of the existing secret (required)
