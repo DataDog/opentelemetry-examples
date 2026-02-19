@@ -6,25 +6,31 @@ using OpenTelemetry.Metrics;
 var builder = WebApplication.CreateBuilder(args);
 
 // Add services to the container.
-
 builder.Services.AddControllers();
-// Learn more about configuring Swagger/OpenAPI at https://aka.ms/aspnetcore/swashbuckle
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
 
+// Derive service name from OTel semantic conventions:
+// 1. OTEL_SERVICE_NAME env var
+// 2. service.name in OTEL_RESOURCE_ATTRIBUTES env var
+// 3. Fallback default
+var serviceName = Environment.GetEnvironmentVariable("OTEL_SERVICE_NAME")
+    ?? GetServiceNameFromResourceAttributes()
+    ?? "random-date-dotnet-otel";
+
+var activitySource = new ActivitySource(serviceName);
+
 // OpenTelemetry Setup
 builder.Services.AddOpenTelemetry()
+    .ConfigureResource(resource => resource
+        .AddService(serviceName))
     .WithTracing(tracerProviderBuilder =>
         tracerProviderBuilder
-            .AddSource(DiagnosticsConfig.ActivitySource.Name)
-            .ConfigureResource(resource => resource
-                .AddService(DiagnosticsConfig.ServiceName))
+            .AddSource(activitySource.Name)
             .AddAspNetCoreInstrumentation()
             .AddOtlpExporter())
     .WithMetrics(metricsProviderBuilder =>
         metricsProviderBuilder
-            .ConfigureResource(resource => resource
-                .AddService(DiagnosticsConfig.ServiceName))
             .AddAspNetCoreInstrumentation()
             .AddRuntimeInstrumentation()
             .AddOtlpExporter());
@@ -46,8 +52,16 @@ app.MapControllers();
 
 app.Run();
 
-public static class DiagnosticsConfig
+static string? GetServiceNameFromResourceAttributes()
 {
-    public const string ServiceName = "random-date-dotnet-otel";
-    public static ActivitySource ActivitySource = new ActivitySource(ServiceName);
+    var resourceAttributes = Environment.GetEnvironmentVariable("OTEL_RESOURCE_ATTRIBUTES");
+    if (string.IsNullOrEmpty(resourceAttributes)) return null;
+
+    foreach (var attribute in resourceAttributes.Split(','))
+    {
+        var parts = attribute.Split('=', 2);
+        if (parts.Length == 2 && parts[0].Trim() == "service.name")
+            return parts[1].Trim();
+    }
+    return null;
 }
