@@ -1,0 +1,90 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ .Release.Name }}-{{ .Values.gameController.name }}
+  labels:
+    app.kubernetes.io/name: {{ .Values.gameController.name }}
+    app.kubernetes.io/instance: {{ .Release.Name }}
+    app.kubernetes.io/component: game-controller
+spec:
+  replicas: {{ .Values.gameController.replicaCount }}
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: {{ .Values.gameController.name }}
+      app.kubernetes.io/instance: {{ .Release.Name }}
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: {{ .Values.gameController.name }}
+        app.kubernetes.io/instance: {{ .Release.Name }}
+        app.kubernetes.io/component: game-controller
+    spec:
+      {{- with .Values.image.pullSecrets }}
+      imagePullSecrets:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      securityContext:
+        {{- toYaml .Values.podSecurityContext | nindent 8 }}
+      containers:
+        - name: {{ .Values.gameController.name }}
+          securityContext:
+            {{- toYaml .Values.securityContext | nindent 12 }}
+          image: "{{ .Values.image.registry }}{{ .Values.gameController.image.repository }}:{{ .Values.gameController.image.tag }}"
+          imagePullPolicy: {{ .Values.image.pullPolicy }}
+          ports:
+            - name: http
+              containerPort: {{ .Values.gameController.service.targetPort }}
+              protocol: TCP
+          env:
+            - name: OTEL_SERVICE_NAME
+              value: {{ .Values.gameController.env.OTEL_SERVICE_NAME | quote }}
+            - name: OTEL_METRICS_EXPORTER
+              value: {{ .Values.global.otel.metricsExporter | quote }}
+            - name: OTEL_LOGS_EXPORTER
+              value: {{ .Values.global.otel.logsExporter | quote }}
+            - name: OTEL_EXPORTER_OTLP_METRICS_TEMPORALITY_PREFERENCE
+              value: {{ .Values.global.otel.metricsTemporality | quote }}
+            - name: OTEL_EXPORTER_OTLP_ENDPOINT
+              value: "http://{{ .Release.Name }}-otelcol:{{ .Values.otelCollector.service.grpcPort }}"
+            - name: OTEL_EXPORTER_OTLP_PROTOCOL
+              value: {{ .Values.global.otel.protocol | quote }}
+            - name: OTEL_SEMCONV_STABILITY_OPT_IN
+              value: {{ .Values.global.otel.semconvStabilityOptIn | quote }}
+            {{- if .Values.global.useExponentialHistograms }}
+            - name: OTEL_EXPERIMENTAL_METRICS_VIEW_CONFIG
+              value: "/game_controller/metrics_view.yaml"
+            {{- end }}
+            - name: OTEL_RESOURCE_ATTRIBUTES
+              value: "deployment.environment={{ .Values.global.resourceAttributes.deploymentEnvironment }},host.name={{ .Values.global.resourceAttributes.hostName }},service.version={{ .Values.global.resourceAttributes.serviceVersion }}"
+            - name: ROLLING_SERVICE_URL
+              value: {{ .Values.gameController.serviceUrls.rolling | default (printf "http://%s-rolling:%d" .Release.Name (.Values.rolling.service.port | int)) | quote }}
+            - name: SCORING_SERVICE_URL
+              value: {{ .Values.gameController.serviceUrls.scoring | default (printf "http://%s-scoring:%d" .Release.Name (.Values.scoring.service.port | int)) | quote }}
+            - name: OTEL_METRIC_EXPORT_INTERVAL
+              value: "5000"
+          livenessProbe:
+            httpGet:
+              path: /actuator/health
+              port: http
+            initialDelaySeconds: 30
+            periodSeconds: 10
+          readinessProbe:
+            httpGet:
+              path: /actuator/health
+              port: http
+            initialDelaySeconds: 5
+            periodSeconds: 5
+          resources:
+            {{- toYaml .Values.gameController.resources | nindent 12 }}
+      {{- with .Values.nodeSelector }}
+      nodeSelector:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.affinity }}
+      affinity:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.tolerations }}
+      tolerations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}

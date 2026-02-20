@@ -1,0 +1,61 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ .Release.Name }}-load-generator
+  labels:
+    app.kubernetes.io/name: load-generator
+    app.kubernetes.io/instance: {{ .Release.Name }}
+    app.kubernetes.io/component: load-generator
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: load-generator
+      app.kubernetes.io/instance: {{ .Release.Name }}
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: load-generator
+        app.kubernetes.io/instance: {{ .Release.Name }}
+        app.kubernetes.io/component: load-generator
+    spec:
+      {{- with .Values.image.pullSecrets }}
+      imagePullSecrets:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      securityContext:
+        {{- toYaml .Values.podSecurityContext | nindent 8 }}
+      containers:
+        - name: load-generator
+          securityContext:
+            {{- toYaml .Values.securityContext | nindent 12 }}
+          image: "{{ .Values.image.registry }}{{ .Values.loadGenerator.image.repository }}:{{ .Values.loadGenerator.image.tag }}"
+          imagePullPolicy: {{ .Values.image.pullPolicy }}
+          resources:
+            {{- toYaml .Values.loadGenerator.resources | nindent 12 }}
+          env:
+            - name: GAME_CONTROLLER_URL
+              value: "http://{{ .Release.Name }}-game-controller:{{ .Values.gameController.service.port }}/play_game"
+            - name: AVERAGE_INTERVAL
+              value: "10.0"
+          volumeMounts:
+            - name: load-generator-errors
+              mountPath: /load-generator/load_generator.py
+              subPath: load_generator.py
+      volumes:
+        - name: load-generator-errors
+          configMap:
+            name: {{ .Release.Name }}-load-generator-script
+      restartPolicy: Always
+      {{- with .Values.nodeSelector }}
+      nodeSelector:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.affinity }}
+      affinity:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.tolerations }}
+      tolerations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}

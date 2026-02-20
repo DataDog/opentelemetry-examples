@@ -1,0 +1,220 @@
+# Default values for rolldice-http-metrics
+# This is a YAML-formatted file.
+
+# Global configuration
+global:
+  # Enable exponential histograms (set to true to enable)
+  useExponentialHistograms: false
+  # Use old OTel HTTP semantic conventions
+  useOldConventions: false
+  # Use span metrics connector instead of routing connector
+  useSpanMetricsConnector: false
+  
+  # OpenTelemetry configuration
+  otel:
+    endpoint: "http://otelcol:4317"
+    protocol: "grpc"
+    metricsExporter: "otlp"
+    logsExporter: "otlp"
+    metricsTemporality: "delta"
+    semconvStabilityOptIn: "http"
+    
+  # Resource attributes
+  resourceAttributes:
+    deploymentEnvironment: "demo-env"
+    hostName: "k8s-host"
+    serviceVersion: "v1.0"
+
+# Image configuration
+image:
+  registry: ""
+  pullPolicy: IfNotPresent
+  pullSecrets: []
+
+# Game Controller service (Java Spring Boot)
+gameController:
+  name: "game-controller"
+  replicaCount: 1
+
+  image:
+    repository: "game-controller"
+    tag: "latest"
+
+  service:
+    type: ClusterIP
+    port: 5002
+    targetPort: 5002
+
+  resources:
+    limits:
+      cpu: 500m
+      memory: 512Mi
+    requests:
+      cpu: 250m
+      memory: 256Mi
+
+  env:
+    OTEL_SERVICE_NAME: "controller"
+
+  # Service URLs for downstream dependencies
+  serviceUrls:
+    rolling: ""  # Defaults to http://{release-name}-rolling:5004
+    scoring: ""  # Defaults to http://{release-name}-scoring:5001
+
+# Rolling service (Python Flask)
+rolling:
+  name: "rolling"
+  replicaCount: 1
+  
+  image:
+    repository: "rolling"
+    tag: "latest"
+    
+  service:
+    type: ClusterIP
+    port: 5004
+    targetPort: 5004
+    
+  resources:
+    limits:
+      cpu: 200m
+      memory: 256Mi
+    requests:
+      cpu: 100m
+      memory: 128Mi
+      
+  env:
+    OTEL_SERVICE_NAME: "rolly"
+
+# Scoring service (Python Flask)
+scoring:
+  name: "scoring"
+  replicaCount: 1
+  
+  image:
+    repository: "scoring"
+    tag: "latest"
+    
+  service:
+    type: ClusterIP
+    port: 5001
+    targetPort: 5001
+    
+  resources:
+    limits:
+      cpu: 200m
+      memory: 256Mi
+    requests:
+      cpu: 100m
+      memory: 128Mi
+      
+  env:
+    OTEL_SERVICE_NAME: "scorey"
+
+# OpenTelemetry Collector
+otelCollector:
+  name: "otelcol"
+  replicaCount: 1
+  
+  image:
+    repository: "otel/opentelemetry-collector-contrib"
+    tag: "latest"
+    
+  service:
+    type: ClusterIP
+    grpcPort: 4317
+    httpPort: 4318
+    
+  resources:
+    limits:
+      cpu: 500m
+      memory: 200Mi
+    requests:
+      cpu: 200m
+      memory: 100Mi
+      
+  # Datadog configuration
+  datadog:
+    site: ""  # Defaults to DD_SITE environment variable, or datadoghq.com if not set
+    # Reference to existing secret containing the Datadog API key
+    apiKeySecret:
+      name: ""  # Name of the existing secret (required)
+      key: "api-key"  # Key in the secret containing the API key
+
+# Datadog Agent for infrastructure metrics
+datadogAgent:
+  enabled: false
+  
+  image:
+    repository: "datadog/agent"
+    tag: "7.55.2"
+    
+  logLevel: "INFO"
+  
+  apm:
+    enabled: true
+    
+  resources:
+    limits:
+      cpu: 500m
+      memory: 512Mi
+    requests:
+      cpu: 200m
+      memory: 256Mi
+
+# Load Generator for Poisson process traffic
+loadGenerator:
+  name: "load-generator"
+  replicaCount: 1
+  
+  image:
+    repository: "load-generator"
+    tag: "latest"
+    
+  resources:
+    limits:
+      cpu: 100m
+      memory: 128Mi
+    requests:
+      cpu: 50m
+      memory: 64Mi
+
+# Ingress configuration (optional)
+ingress:
+  enabled: false
+  className: ""
+  annotations: {}
+  hosts:
+    - host: rolldice.local
+      paths:
+        - path: /
+          pathType: Prefix
+  tls: []
+
+# Service Monitor for Prometheus (optional)
+serviceMonitor:
+  enabled: false
+  labels: {}
+  interval: 30s
+
+# Pod Security Context
+podSecurityContext:
+  fsGroup: 2000
+
+# Security Context
+securityContext:
+  capabilities:
+    drop:
+    - ALL
+  readOnlyRootFilesystem: false
+  runAsNonRoot: true
+  runAsUser: 1000
+
+# Node selector
+nodeSelector: {}
+
+# Tolerations
+tolerations: []
+
+# Affinity
+affinity: {}

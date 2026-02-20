@@ -1,0 +1,208 @@
+{{- if .Values.datadogAgent.enabled }}
+apiVersion: apps/v1
+kind: DaemonSet
+metadata:
+  name: {{ .Release.Name }}-datadog-agent
+  labels:
+    app.kubernetes.io/name: datadog-agent
+    app.kubernetes.io/instance: {{ .Release.Name }}
+    app.kubernetes.io/component: datadog-agent
+spec:
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: datadog-agent
+      app.kubernetes.io/instance: {{ .Release.Name }}
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: datadog-agent
+        app.kubernetes.io/instance: {{ .Release.Name }}
+        app.kubernetes.io/component: datadog-agent
+      annotations:
+        ad.datadoghq.com/datadog-agent.logs: '[{"source":"datadog-agent","service":"datadog-agent"}]'
+    spec:
+      serviceAccountName: {{ .Release.Name }}-datadog-agent
+      containers:
+      - name: datadog-agent
+        image: "{{ .Values.datadogAgent.image.repository }}:{{ .Values.datadogAgent.image.tag }}"
+        imagePullPolicy: {{ .Values.image.pullPolicy }}
+        resources:
+          {{- toYaml .Values.datadogAgent.resources | nindent 10 }}
+        ports:
+        - name: dogstatsdport
+          containerPort: 8125
+          hostPort: 8125
+          protocol: UDP
+        - name: traceport
+          containerPort: 8126
+          hostPort: 8126
+          protocol: TCP
+        env:
+        - name: DD_API_KEY
+          valueFrom:
+            secretKeyRef:
+              name: {{ .Values.otelCollector.datadog.apiKeySecret.name }}
+              key: {{ .Values.otelCollector.datadog.apiKeySecret.key }}
+        - name: DD_SITE
+          value: {{ .Values.otelCollector.datadog.site | quote }}
+        - name: DD_HOSTNAME
+          value: {{ .Values.global.resourceAttributes.hostName | quote }}
+        - name: DD_TAGS
+          value: "deployment.environment:{{ .Values.global.resourceAttributes.deploymentEnvironment }}"
+        - name: DD_PROCESS_AGENT_ENABLED
+          value: "true"
+        - name: DD_LOG_LEVEL
+          value: {{ .Values.datadogAgent.logLevel | quote }}
+        - name: DD_APM_ENABLED
+          value: {{ .Values.datadogAgent.apm.enabled | quote }}
+        - name: DD_APM_NON_LOCAL_TRAFFIC
+          value: "true"
+        - name: DD_KUBELET_TLS_VERIFY
+          value: "false"
+        - name: KUBERNETES
+          value: "yes"
+        - name: DD_KUBERNETES_KUBELET_HOST
+          valueFrom:
+            fieldRef:
+              fieldPath: status.hostIP
+        - name: DD_HEALTH_PORT
+          value: "5555"
+        volumeMounts:
+        - name: dockersocketdir
+          mountPath: /var/run/docker.sock
+          mountPropagation: None
+          readOnly: true
+        - name: procdir
+          mountPath: /host/proc
+          mountPropagation: None
+          readOnly: true
+        - name: cgroups
+          mountPath: /host/sys/fs/cgroup
+          mountPropagation: None
+          readOnly: true
+        - name: pointdir
+          mountPath: /opt/datadog-agent/run
+          mountPropagation: None
+        - name: logpodpath
+          mountPath: /var/log/pods
+          mountPropagation: None
+          readOnly: true
+        - name: logcontainerpath
+          mountPath: /var/lib/docker/containers
+          mountPropagation: None
+          readOnly: true
+        - name: s6-run
+          mountPath: /var/run/s6
+          mountPropagation: None
+        livenessProbe:
+          httpGet:
+            path: /health
+            port: 5555
+            scheme: HTTP
+          initialDelaySeconds: 15
+          periodSeconds: 15
+          timeoutSeconds: 5
+          successThreshold: 1
+          failureThreshold: 3
+        readinessProbe:
+          httpGet:
+            path: /health
+            port: 5555
+            scheme: HTTP
+          initialDelaySeconds: 15
+          periodSeconds: 15
+          timeoutSeconds: 5
+          successThreshold: 1
+          failureThreshold: 3
+      volumes:
+      - name: dockersocketdir
+        hostPath:
+          path: /var/run/docker.sock
+      - name: procdir
+        hostPath:
+          path: /proc
+      - name: cgroups
+        hostPath:
+          path: /sys/fs/cgroup
+      - name: pointdir
+        emptyDir: {}
+      - name: logpodpath
+        hostPath:
+          path: /var/log/pods
+      - name: logcontainerpath
+        hostPath:
+          path: /var/lib/docker/containers
+      - name: s6-run
+        emptyDir: {}
+      tolerations:
+      - operator: Exists
+      hostNetwork: true
+      hostPID: true
+      {{- with .Values.nodeSelector }}
+      nodeSelector:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: {{ .Release.Name }}-datadog-agent
+  labels:
+    app.kubernetes.io/name: datadog-agent
+    app.kubernetes.io/instance: {{ .Release.Name }}
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: {{ .Release.Name }}-datadog-agent
+rules:
+- apiGroups: [""]
+  resources:
+    - services
+    - events
+    - endpoints
+    - pods
+    - nodes
+    - componentstatuses
+  verbs: ["get", "list", "watch"]
+- apiGroups: ["quota.openshift.io"]
+  resources:
+    - clusterresourcequotas
+  verbs: ["get", "list"]
+- apiGroups: ["autoscaling"]
+  resources:
+    - horizontalpodautoscalers
+  verbs: ["list", "watch"]
+- apiGroups: [""]
+  resources:
+    - configmaps
+  resourceNames: ["datadog-leader-election"]
+  verbs: ["get", "update"]
+- apiGroups: [""]
+  resources:
+    - configmaps
+  verbs: ["create"]
+- nonResourceURLs:
+    - "/version"
+    - "/healthz"
+  verbs: ["get"]
+- apiGroups: [""]
+  resources:
+    - nodes/metrics
+    - nodes/spec
+    - nodes/proxy
+  verbs: ["get"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: {{ .Release.Name }}-datadog-agent
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: {{ .Release.Name }}-datadog-agent
+subjects:
+- kind: ServiceAccount
+  name: {{ .Release.Name }}-datadog-agent
+  namespace: {{ .Release.Namespace }}
+{{- end }}

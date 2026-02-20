@@ -1,0 +1,15 @@
+apiVersion: v2
+name: rolldice-http-metrics
+description: A Helm chart for rolldice application with HTTP metrics using OpenTelemetry
+type: application
+version: 1.0.0
+appVersion: "v1.0"
+keywords:
+  - opentelemetry
+  - metrics
+  - observability
+  - demo
+home: https://github.com/DataDog/opentelemetry-examples
+maintainers:
+  - name: OpenTelemetry Examples Team
+    email: support@datadoghq.com
