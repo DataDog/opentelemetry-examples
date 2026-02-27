@@ -1,9 +1,20 @@
-version: '3.9'
+# Mode 1: OTel-instrumented Java service -> DD-instrumented Python service
+#
+# Demonstrates W3C Trace Context propagation from an OpenTelemetry-instrumented
+# Java service to a Datadog-instrumented Python service. The OTel Java agent
+# injects traceparent/tracestate headers; ddtrace extracts them to continue
+# the distributed trace.
+#
+# Usage:
+#   export DD_API_KEY=<your-api-key>
+#   docker compose -f docker-compose-otel-java-dd-py.yaml up
 services:
   calendar-java-otel:
     depends_on:
-      - datadog-agent
-      - calendar-py-dd
+      datadog-agent:
+        condition: service_healthy
+      calendar-py-dd:
+        condition: service_healthy
     container_name: calendar-java-otel
     build:
       context: .
@@ -12,15 +23,29 @@ services:
       - OTEL_SERVICE_NAME=calendar-java-otel
       - OTEL_EXPORTER_OTLP_ENDPOINT=http://datadog-agent:4317
       - OTEL_EXPORTER_OTLP_PROTOCOL=grpc
+      - OTEL_PROPAGATORS=tracecontext,baggage
       - OTEL_RESOURCE_ATTRIBUTES=deployment.environment=docker,host.name=otelcol-docker
       - CALENDAR_SERVICE_URL=http://calendar-py-dd:9090
       - SERVER_PORT=8080
     ports:
       - "8080:8080"
+    healthcheck:
+      test: ["CMD-SHELL", "curl -f http://localhost:8080/health || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+    deploy:
+      resources:
+        limits:
+          memory: 512M
+          cpus: "1.0"
+    stop_grace_period: 15s
 
   calendar-py-dd:
     depends_on:
-      - datadog-agent
+      datadog-agent:
+        condition: service_healthy
     container_name: calendar-py-dd
     build:
       context: .
@@ -36,6 +61,18 @@ services:
       - SERVER_PORT=9090
     ports:
       - "9090:9090"
+    healthcheck:
+      test: ["CMD-SHELL", "curl -f http://localhost:9090/health || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 15s
+    deploy:
+      resources:
+        limits:
+          memory: 256M
+          cpus: "0.5"
+    stop_grace_period: 15s
 
   datadog-agent:
     container_name: datadog-agent
@@ -48,7 +85,7 @@ services:
       - 4318:4318
     environment:
       - DD_API_KEY
-      - DD_SITE=datadoghq.com
+      - DD_SITE=${DD_SITE:-datadoghq.com}
       - DD_APM_NON_LOCAL_TRAFFIC=true
       - DD_DOGSTATSD_NON_LOCAL_TRAFFIC=true
       - DD_OTLP_CONFIG_RECEIVER_PROTOCOLS_GRPC_ENDPOINT=0.0.0.0:4317
@@ -57,3 +94,14 @@ services:
       - /var/run/docker.sock:/var/run/docker.sock
       - /proc/:/host/proc/:ro
       - /sys/fs/cgroup:/host/sys/fs/cgroup:ro
+    healthcheck:
+      test: ["CMD-SHELL", "agent health"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 15s
+    deploy:
+      resources:
+        limits:
+          memory: 512M
+          cpus: "1.0"
