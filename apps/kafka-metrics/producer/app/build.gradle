@@ -19,7 +19,7 @@ java {
 
 dependencies {
     // kafka
-    implementation 'org.apache.kafka:kafka_2.13:3.5.1'
+    implementation 'org.apache.kafka:kafka_2.13:3.9.1'
     implementation 'org.apache.kafka:kafka-clients:2.3.0'
 
     // logger
