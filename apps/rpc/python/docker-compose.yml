@@ -1,0 +1,70 @@
+version: '3.8'
+
+services:
+  # Datadog Agent
+  datadog:
+    image: "gcr.io/datadoghq/agent:latest"
+    container_name: datadog-agent
+    environment:
+      - DD_API_KEY=${DD_API_KEY}
+      - DD_SITE=${DD_SITE}
+      - DD_APM_ENABLED=true
+      - DD_OTLP_CONFIG_RECEIVER_PROTOCOLS_GRPC_ENDPOINT=0.0.0.0:4317
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+      - /proc/:/host/proc/:ro
+      - /sys/fs/cgroup/:/host/sys/fs/cgroup:ro
+    ports:
+      - "8126:8126"  # APM traces
+      - "4317:4317"  # OTLP gRPC
+    networks:
+      - grpc-network
+    restart: unless-stopped
+
+  # gRPC Server
+  grpc-server:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: grpc-server
+    command: python route_guide_server.py
+    environment:
+      - DD_AGENT_HOST=datadog
+      - DD_TRACE_AGENT_PORT=8126
+      - DD_SERVICE=route-guide-server
+      - DD_ENV=production
+      - DD_VERSION=1.0.0
+      - DD_TRACE_ENABLED=true
+    ports:
+      - "50051:50051"
+    networks:
+      - grpc-network
+    depends_on:
+      - datadog
+    restart: unless-stopped
+
+  # gRPC Client
+  grpc-client:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: grpc-client
+    command: python route_guide_client.py
+    environment:
+      - DD_AGENT_HOST=datadog
+      - DD_TRACE_AGENT_PORT=8126
+      - DD_SERVICE=route-guide-client
+      - DD_ENV=production
+      - DD_VERSION=1.0.0
+      - DD_TRACE_ENABLED=true
+    networks:
+      - grpc-network
+    depends_on:
+      - grpc-server
+      - datadog
+    restart: unless-stopped
+
+networks:
+  grpc-network:
+    driver: bridge
+

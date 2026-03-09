@@ -1,0 +1,66 @@
+receivers:
+  otlp:
+    protocols:
+      grpc:
+        endpoint: 0.0.0.0:4317
+      http:
+        endpoint: 0.0.0.0:4318
+  hostmetrics:
+    # collect metrics every 10 seconds.
+    collection_interval: 10s
+    scrapers:
+      cpu:
+      disk:
+      filesystem:
+      memory:
+      network:
+      load:
+      paging:
+      processes:
+
+exporters:
+  debug:
+    verbosity: detailed
+  datadog/exporter:
+    api:
+      site: ${env:DD_SITE}
+      key: ${env:DD_API_KEY}
+  otlphttp:
+    headers:
+      "Dd-Protocol": "otlp"
+      "Dd-Api-Key": "${env:DD_API_KEY}"
+
+    metrics_endpoint: https://trace.agent.${env:DD_SITE}/api/v0.2/stats
+    tls:
+      insecure: true
+
+connectors:
+  routing:
+    default_pipelines: [metrics/datadog]
+    table:
+      - context: metric
+        condition: metric.name == "http.server.request.duration"
+        pipelines: [metrics/dd_trace_metrics]
+      - context: metric
+        condition: metric.name == "http.client.request.duration"
+        pipelines: [metrics/dd_trace_metrics]
+
+processors:
+  batch:
+  cumulativetodelta:
+service:
+  pipelines:
+    traces:
+      receivers: [otlp]
+      processors: [batch]
+      exporters: [datadog/exporter]
+    metrics:
+      receivers: [otlp]
+      exporters: [routing]
+    metrics/datadog:
+      receivers: [routing]
+      exporters: [datadog/exporter]
+    metrics/dd_trace_metrics:
+      receivers: [routing]
+      processors: [cumulativetodelta]
+      exporters: [debug, datadog/exporter, otlphttp]

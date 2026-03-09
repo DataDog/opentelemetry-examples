@@ -25,7 +25,7 @@ spec:
     spec:
       containers:
         - name: calendar-rest-go
-          image: datadog/opentelemetry-examples:calendar-go-rest-0.17
+          image: datadog/opentelemetry-examples:calendar-go-rest-0.18
           imagePullPolicy: IfNotPresent
           resources:
             requests:

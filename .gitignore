@@ -22,3 +22,11 @@
 
 # rolldice-game node modules
 apps/rolldice-game/game_controller/node_modules
+
+# Java/Gradle files for rolldice-http-metrics
+apps/rolldice-http-metrics/game_controller/.gradle/
+apps/rolldice-http-metrics/game_controller/build/
+apps/rolldice-http-metrics/game_controller/bin/
+apps/rolldice-http-metrics/game_controller/gradle/wrapper/gradle-wrapper.jar
+apps/rolldice-http-metrics/game_controller/opentelemetry-javaagent.jar
+apps/rolldice-http-metrics/game_controller/dd-java-agent.jar

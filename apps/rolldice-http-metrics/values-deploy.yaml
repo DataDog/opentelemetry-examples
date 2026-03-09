@@ -1,0 +1,48 @@
+# Deployment values for EKS
+global:
+  useExponentialHistograms: false  # Disabled as requested
+  
+  resourceAttributes:
+    deploymentEnvironment: "otel-eks-demo"
+    hostName: "eks-host"
+    serviceVersion: "v1.0"
+
+# Image configuration - using ECR registry
+image:
+  registry: "217139788599.dkr.ecr.us-east-2.amazonaws.com/rolldice/"
+  pullPolicy: IfNotPresent
+
+gameController:
+  image:
+    repository: "game-controller"
+    tag: "auto"
+
+rolling:
+  image:
+    repository: "rolling" 
+    tag: "auto"
+
+scoring:
+  image:
+    repository: "scoring"
+    tag: "auto"
+
+# OpenTelemetry Collector - with Datadog integration
+otelCollector:
+  image:
+    repository: "otel/opentelemetry-collector-contrib"
+    tag: "latest"
+  datadog:
+    site: ""  # Uses DD_SITE environment variable
+    apiKeySecret:
+      name: "datadog-secret"
+      key: "api-key"
+
+# Datadog Agent for infrastructure metrics
+datadogAgent:
+  enabled: true
+
+loadGenerator:
+  image:
+    repository: "load-generator"
+    tag: "error-mix"

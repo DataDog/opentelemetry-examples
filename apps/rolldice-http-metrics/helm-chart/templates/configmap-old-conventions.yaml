@@ -1,0 +1,103 @@
+{{- if .Values.global.useOldConventions }}
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ .Release.Name }}-otel-config
+  labels:
+    app.kubernetes.io/name: otel-config
+    app.kubernetes.io/instance: {{ .Release.Name }}
+data:
+  config.yml: |
+    receivers:
+      otlp:
+        protocols:
+          grpc:
+            endpoint: 0.0.0.0:4317
+          http:
+            endpoint: 0.0.0.0:4318
+      hostmetrics:
+        # collect metrics every 10 seconds.
+        collection_interval: 10s
+        scrapers:
+          cpu:
+          disk:
+          filesystem:
+          memory:
+          network:
+          load:
+          paging:
+          processes:
+
+    exporters:
+      debug:
+        verbosity: detailed
+      datadog/exporter:
+        api:
+          site: ${env:DD_SITE}
+          key: ${env:DD_API_KEY}
+      otlphttp:
+        headers:
+          "Dd-Protocol": "otlp"
+          "Dd-Api-Key": "${env:DD_API_KEY}"
+        metrics_endpoint: https://trace.agent.${env:DD_SITE}/api/v0.2/stats
+        tls:
+          insecure: true
+
+    connectors:
+      forward:
+      forward/debug:
+      routing:
+        default_pipelines: [metrics/datadog]
+        table:
+          - context: metric
+            condition: metric.name == "http.server.duration"
+            pipelines: [metrics/dd_trace_metrics]
+          - context: metric
+            condition: metric.name == "http.client.duration"
+            pipelines: [metrics/dd_trace_metrics]
+
+    processors:
+      batch:
+      cumulativetodelta:
+      filter/debug_nonzero:
+        metrics:
+          datapoint:
+            - 'datapoint.count == 0'
+      metricstransform/rename_http_metrics:
+        transforms:
+          - include: http.server.request.duration
+            match_type: strict
+            action: update
+            new_name: http.server.duration
+          - include: http.client.request.duration
+            match_type: strict
+            action: update
+            new_name: http.client.duration
+    service:
+      # telemetry:
+      #   logs:
+      #     level: debug
+      pipelines:
+        traces:
+          receivers: [otlp]
+          processors: [batch]
+          exporters: [datadog/exporter]
+        metrics:
+          receivers: [otlp]
+          processors: [cumulativetodelta, metricstransform/rename_http_metrics]
+          exporters: [routing]
+        metrics/datadog:
+          receivers: [routing]
+          exporters: [datadog/exporter]
+        metrics/dd_trace_metrics:
+          receivers: [routing]
+        #   exporters: [datadog/exporter, forward]
+        # metrics/filtered_metrics:
+        #   receivers: [forward]
+        #   # processors: [metricstransform]
+          exporters: [otlphttp, forward/debug]
+        metrics/debug_filtered:
+          receivers: [forward/debug]
+          processors: [filter/debug_nonzero]
+          exporters: [debug]
+{{- end }}

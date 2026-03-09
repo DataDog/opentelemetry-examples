@@ -162,12 +162,25 @@ func SetupHandlers() *http.ServeMux {
 	mux.Handle("/rungame", otelhttp.NewHandler(http.HandlerFunc(RunGameHandler), "RunGameHandler"))
 	mux.Handle("/", http.FileServer(http.Dir(*resources)))
 
+	mux.HandleFunc("/config.js", ConfigHandler)
+
 	return mux
+}
+
+func ConfigHandler(w http.ResponseWriter, r *http.Request) {
+	w.Header().Set("Content-Type", "application/javascript")
+	w.WriteHeader(http.StatusOK)
+	fmt.Fprintf(w, `window.env = {
+		DD_APPLICATION_ID: "%s",
+		DD_CLIENT_TOKEN: "%s",
+		DD_RUM_PROXY_URL: "%s",
+	};`, os.Getenv("DD_APPLICATION_ID"), os.Getenv("DD_CLIENT_TOKEN"), os.Getenv("DD_RUM_PROXY_URL"))
 }
 
 func RunGameHandler(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
 	span := trace.SpanFromContext(ctx)
+	defer span.End()
 	logger = logger.With(
 		zap.String("trace_id", span.SpanContext().TraceID().String()),
 		zap.String("span_id", span.SpanContext().SpanID().String()),
