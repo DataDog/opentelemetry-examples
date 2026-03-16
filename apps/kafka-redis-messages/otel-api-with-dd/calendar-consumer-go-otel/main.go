@@ -6,8 +6,12 @@ import (
 	"math/rand"
 	"os"
 	"os/signal"
+	"syscall"
 	"time"
 
+	// NOTE: otelsarama instrumentation requires github.com/Shopify/sarama.
+	// The library has moved to github.com/IBM/sarama, but the OTel instrumentation
+	// has not been updated yet. See: https://github.com/open-telemetry/opentelemetry-go-contrib/issues/4091
 	"github.com/Shopify/sarama"
 	"github.com/redis/go-redis/extra/redisotel/v9"
 	"github.com/redis/go-redis/v9"
@@ -15,7 +19,10 @@ import (
 	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/exporters/otlp/otlptrace/otlptracegrpc"
 	"go.opentelemetry.io/otel/propagation"
+	sdkresource "go.opentelemetry.io/otel/sdk/resource"
 	sdktrace "go.opentelemetry.io/otel/sdk/trace"
+	"go.opentelemetry.io/otel/attribute"
+	semconv "go.opentelemetry.io/otel/semconv/v1.24.0"
 	"go.opentelemetry.io/otel/trace"
 	"go.uber.org/zap"
 )
@@ -40,8 +47,14 @@ func NewZapLogger() (*zap.Logger, error) {
 	return logger, nil
 }
 
+// propagator is set globally during InitTracerProvider.
+// It is used for manual context extraction from Kafka message headers.
 var propagator = propagation.TraceContext{}
 
+// recordCarrier implements propagation.TextMapCarrier for Sarama record headers,
+// enabling W3C Trace Context propagation across Kafka messages.
+// DD-specific: When using OTel API with DD backend, the DD agent receives
+// W3C TraceContext headers and maps them to DD trace IDs.
 type recordCarrier struct {
 	headers []*sarama.RecordHeader
 }
@@ -66,24 +79,42 @@ func (r *recordCarrier) Set(key string, value string) {
 // Keys lists the keys stored in this carrier.
 func (r *recordCarrier) Keys() []string {
 	keys := make([]string, len(r.headers))
-
-	i := 0
-	for k := range r.headers {
-		keys[i] = string(k)
-		i++
+	for i, h := range r.headers {
+		keys[i] = string(h.Key)
 	}
 	return keys
 }
 
-// InitTracer creates and registers globally a new TracerProvider.
+// InitTracerProvider creates and registers globally a new TracerProvider.
+// It configures OTLP gRPC export and sets up W3C Trace Context + Baggage propagation.
+// In the otel-api-with-dd variant, traces are sent via OTLP to the DD Agent,
+// which converts them to the DD trace format.
 func InitTracerProvider(ctx context.Context) (*sdktrace.TracerProvider, error) {
 	exporter, err := otlptracegrpc.New(ctx, otlptracegrpc.WithInsecure())
 	if err != nil {
-		logger.Fatal("Constructing new exporter", zap.Error(err))
-		return nil, err
+		return nil, fmt.Errorf("creating OTLP trace exporter: %w", err)
 	}
+
+	// Build resource with service metadata per OTel semantic conventions.
+	// DD-specific: The DD Agent OTLP intake maps these resource attributes:
+	//   service.name -> DD service
+	//   deployment.environment -> DD env
+	//   service.version -> DD version
+	res, err := sdkresource.Merge(
+		sdkresource.Default(),
+		sdkresource.NewWithAttributes(
+			semconv.SchemaURL,
+			semconv.ServiceName("calendar-consumer-go-otel"),
+			attribute.String("messaging.system", "kafka"),
+		),
+	)
+	if err != nil {
+		return nil, fmt.Errorf("creating resource: %w", err)
+	}
+
 	tp := sdktrace.NewTracerProvider(
 		sdktrace.WithBatcher(exporter),
+		sdktrace.WithResource(res),
 	)
 	otel.SetTracerProvider(tp)
 	otel.SetTextMapPropagator(propagation.NewCompositeTextMapPropagator(propagation.TraceContext{}, propagation.Baggage{}))
@@ -128,7 +159,9 @@ func main() {
 
 func realMain() error {
 	logger.Info("config", zap.String("redisUrl", redisUrl), zap.String("kafkaServer", kafkaServers), zap.String("topic", kafkaTopic))
-	ctx, cancel := signal.NotifyContext(context.Background(), os.Interrupt)
+
+	// Handle both SIGINT and SIGTERM for graceful shutdown in containers.
+	ctx, cancel := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 	defer cancel()
 
 	tp, err := InitTracerProvider(ctx)
@@ -136,26 +169,35 @@ func realMain() error {
 		return err
 	}
 
+	// Graceful shutdown: flush remaining spans before exit.
 	defer func() {
-		if err := tp.Shutdown(ctx); err != nil {
+		shutdownCtx, shutdownCancel := context.WithTimeout(context.Background(), 5*time.Second)
+		defer shutdownCancel()
+		if err := tp.Shutdown(shutdownCtx); err != nil {
 			logger.Error("Error shutting down tracer provider", zap.Error(err))
 		}
 	}()
+
 	tracer = tp.Tracer("calendar-consumer")
+
 	rdb := redis.NewClient(&redis.Options{
 		Addr:     redisUrl,
-		Password: "", // no password set
-		DB:       0,  // use default DB
+		Password: "",
+		DB:       0,
+		// Production: configure connection pool settings
+		PoolSize:     10,
+		MinIdleConns: 5,
 	})
+	defer rdb.Close()
 
-	// Enable tracing instrumentation.
+	// Enable tracing instrumentation for Redis.
 	if err := redisotel.InstrumentTracing(rdb, redisotel.WithTracerProvider(tp)); err != nil {
-		return err
+		return fmt.Errorf("instrumenting redis tracing: %w", err)
 	}
 
-	// Enable metrics instrumentation.
+	// Enable metrics instrumentation for Redis.
 	if err := redisotel.InstrumentMetrics(rdb); err != nil {
-		return err
+		return fmt.Errorf("instrumenting redis metrics: %w", err)
 	}
 
 	if err := startConsumerGroup(ctx, rdb); err != nil {
@@ -168,11 +210,16 @@ func realMain() error {
 }
 
 func (consumer *Consumer) processMessage(ctx context.Context, m *sarama.ConsumerMessage) error {
-	logger.Info("received", zap.String("message", string(m.Value)))
+	logger.Info("received", zap.String("message", string(m.Value)),
+		zap.String("topic", m.Topic),
+		zap.Int32("partition", m.Partition),
+		zap.Int64("offset", m.Offset))
+
 	ctx, cancel := context.WithDeadline(ctx, time.Now().Add(800*time.Millisecond))
 	defer cancel()
 
-	ctx, span := tracer.Start(ctx, "processMessage")
+	// OTel messaging semantic convention: span name should be "<topic> process"
+	ctx, span := tracer.Start(ctx, fmt.Sprintf("%s process", m.Topic))
 	defer span.End()
 
 	dayOffset := rand.Intn(365)
@@ -184,7 +231,7 @@ func (consumer *Consumer) processMessage(ctx context.Context, m *sarama.Consumer
 	err := consumer.redis.Set(ctx, string(m.Value), d, 0).Err()
 	if err != nil {
 		logger.Error("unable to set key in redis", zap.Error(err))
-		return err
+		return fmt.Errorf("redis SET failed: %w", err)
 	}
 	return nil
 }
@@ -193,7 +240,6 @@ func startConsumerGroup(ctx context.Context, rdb *redis.Client) error {
 	consumerGroupHandler := Consumer{
 		redis: rdb,
 	}
-	// Wrap instrumentation
 	handler := otelsarama.WrapConsumerGroupHandler(&consumerGroupHandler)
 
 	config := sarama.NewConfig()
@@ -231,7 +277,9 @@ func (consumer *Consumer) ConsumeClaim(session sarama.ConsumerGroupSession, clai
 	// https://github.com/Shopify/sarama/blob/master/consumer_group.go#L27-L29
 	for message := range claim.Messages() {
 		ctx := propagator.Extract(context.Background(), &recordCarrier{message.Headers})
-		consumer.processMessage(ctx, message)
+		if err := consumer.processMessage(ctx, message); err != nil {
+			logger.Error("Error processing message", zap.Error(err))
+		}
 		session.MarkMessage(message, "")
 	}
 

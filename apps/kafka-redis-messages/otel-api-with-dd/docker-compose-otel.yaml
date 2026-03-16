@@ -1,3 +1,21 @@
+# Distributed Calendar Application - OTel API with DD backend variant.
+#
+# Architecture:
+#   HTTP request -> calendar-producer-java-otel-api-dd (Spring Boot + dd-java-agent with OTel API)
+#                -> kafka-otel (message broker)
+#                -> calendar-consumer-go-otel (OTel Go SDK + Kafka consumer)
+#                -> redis-otel (data store)
+#
+# DD-specific: The Java producer uses dd-java-agent with DD_TRACE_OTEL_ENABLED=true,
+# which provides an OTel API implementation backed by DD tracing.
+# The Go consumer uses the OTel Go SDK and exports via OTLP to the DD Agent.
+#
+# DD_TRACE_PROPAGATION_STYLE_INJECT/EXTRACT=tracecontext ensures W3C Trace Context
+# propagation between the DD-instrumented Java service and the OTel-instrumented Go service.
+#
+# Required environment variables:
+#   DD_API_KEY - Datadog API key
+#
 version: "3"
 services:
   zookeeper-otel:
@@ -7,11 +25,22 @@ services:
       ZOOKEEPER_TICK_TIME: 2000
     ports:
       - 22181:2181
+    deploy:
+      resources:
+        limits:
+          memory: 256M
+    healthcheck:
+      test: echo ruok | nc localhost 2181
+      start_period: 10s
+      interval: 10s
+      timeout: 5s
+      retries: 5
 
   kafka-otel:
     image: confluentinc/cp-kafka:latest
     depends_on:
-      - zookeeper-otel
+      zookeeper-otel:
+        condition: service_healthy
     ports:
       - 29092:29092
     environment:
@@ -21,6 +50,10 @@ services:
       KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: PLAINTEXT:PLAINTEXT,PLAINTEXT_HOST:PLAINTEXT
       KAFKA_INTER_BROKER_LISTENER_NAME: PLAINTEXT
       KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
+    deploy:
+      resources:
+        limits:
+          memory: 512M
     healthcheck:
       test: nc -z kafka-otel 9092
       start_period: 10s
@@ -35,8 +68,13 @@ services:
     deploy:
       resources:
         limits:
-          memory: 20M
+          memory: 64M
     restart: always
+    healthcheck:
+      test: redis-cli ping
+      interval: 10s
+      timeout: 5s
+      retries: 5
 
   calendar-producer-java-otel-api-dd:
     depends_on:
@@ -45,17 +83,22 @@ services:
       datadog-agent-kafka-otel:
         condition: service_started
       redis-otel:
-        condition: service_started
+        condition: service_healthy
     container_name: calendar-producer-java-otel-api-dd
     build:
       context: .
       dockerfile: Dockerfile.calendar.java.dd
     environment:
+      # DD-specific: DD agent host for trace submission
       - DD_AGENT_HOST=datadog-agent-kafka-otel
       - DD_SERVICE=calendar-producer-java-otel-api-dd
       - DD_ENV=otelapi-with-dd-kafka
       - DD_VERSION=1.0-beta
+      # DD-specific: Enable OTel API support in the dd-java-agent.
+      # This allows code using GlobalOpenTelemetry to work with DD tracing.
       - DD_TRACE_OTEL_ENABLED=true
+      # DD-specific: Use W3C Trace Context for propagation (instead of DD native format)
+      # to ensure interoperability with the OTel-instrumented Go consumer.
       - DD_TRACE_PROPAGATION_STYLE_INJECT=tracecontext
       - DD_TRACE_PROPAGATION_STYLE_EXTRACT=tracecontext
       - SERVER_PORT=9090
@@ -64,6 +107,16 @@ services:
       - REDIS_HOST=redis-otel
     ports:
       - "9090:9090"
+    deploy:
+      resources:
+        limits:
+          memory: 512M
+    healthcheck:
+      test: curl -f http://localhost:9090/calendar || exit 1
+      start_period: 30s
+      interval: 30s
+      timeout: 10s
+      retries: 3
     labels:
       - com.datadoghq.tags.env=otelapi-with-dd-kafka
       - com.datadoghq.tags.service=calendar-producer-java-otel-api-dd
@@ -74,18 +127,23 @@ services:
       kafka-otel:
         condition: service_healthy
       redis-otel:
-        condition: service_started
+        condition: service_healthy
     container_name: calendar-consumer-go-otel
     build:
       context: .
       dockerfile: Dockerfile.calendar.go.otel
     environment:
+      # OTel standard environment variables
       - OTEL_SERVICE_NAME=calendar-consumer-go-otel
       - OTEL_EXPORTER_OTLP_ENDPOINT=http://datadog-agent-kafka-otel:4317
       - OTEL_EXPORTER_OTLP_PROTOCOL=grpc
       - OTEL_RESOURCE_ATTRIBUTES=deployment.environment=otelapi-with-dd-kafka,host.name=otelcol-docker
       - REDIS_HOST=redis-otel
       - KAFKA_SERVERS=kafka-otel:9092
+    deploy:
+      resources:
+        limits:
+          memory: 128M
 
   datadog-agent-kafka-otel:
     container_name: datadog-agent-kafka-otel
@@ -95,13 +153,18 @@ services:
       - 4317:4317
       - 4318:4318
     environment:
-      - DD_API_KEY
+      - DD_API_KEY=${DD_API_KEY}
       - DD_SITE=datadoghq.com
       - DD_APM_NON_LOCAL_TRAFFIC=true
       - DD_DOGSTATSD_NON_LOCAL_TRAFFIC=true
+      # DD-specific: Enable OTLP receivers for the Go consumer's OTLP traces
       - DD_OTLP_CONFIG_RECEIVER_PROTOCOLS_GRPC_ENDPOINT=0.0.0.0:4317
       - DD_OTLP_CONFIG_RECEIVER_PROTOCOLS_HTTP_ENDPOINT=0.0.0.0:4318
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock
       - /proc/:/host/proc/:ro
       - /sys/fs/cgroup:/host/sys/fs/cgroup:ro
+    deploy:
+      resources:
+        limits:
+          memory: 512M

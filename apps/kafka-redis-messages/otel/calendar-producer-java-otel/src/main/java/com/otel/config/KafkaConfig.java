@@ -13,6 +13,19 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 
+/**
+ * Kafka producer configuration with OTel instrumentation.
+ *
+ * The KafkaProducer is wrapped with KafkaTelemetry to automatically inject
+ * W3C Trace Context headers (traceparent, tracestate) into Kafka record headers.
+ * This enables distributed tracing across Kafka - the Go consumer extracts
+ * these headers to link its spans to the producer trace.
+ *
+ * OTel messaging semantic conventions:
+ * - messaging.system = kafka
+ * - messaging.destination.name = topic name
+ * - messaging.operation = publish
+ */
 @Configuration
 public class KafkaConfig {
   private final Logger log = LoggerFactory.getLogger(KafkaConfig.class);
@@ -22,7 +35,6 @@ public class KafkaConfig {
 
   @Bean
   public Producer<String, String> producer() {
-    // create Producer properties
     Properties properties = new Properties();
     log.info("using bootstrapServers:" + bootstrapServers);
     properties.setProperty(ProducerConfig.BOOTSTRAP_SERVERS_CONFIG, bootstrapServers);
@@ -30,6 +42,9 @@ public class KafkaConfig {
         ProducerConfig.KEY_SERIALIZER_CLASS_CONFIG, StringSerializer.class.getName());
     properties.setProperty(
         ProducerConfig.VALUE_SERIALIZER_CLASS_CONFIG, StringSerializer.class.getName());
+
+    // OTel: Wrap the KafkaProducer with KafkaTelemetry to automatically
+    // inject trace context into Kafka message headers.
     KafkaTelemetry telemetry = KafkaTelemetry.create(GlobalOpenTelemetry.get());
     Producer<String, String> tracingProducer =
         telemetry.wrap(new KafkaProducer<String, String>(properties));
