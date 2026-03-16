@@ -23,15 +23,24 @@ public class App {
     public static void main(String[] args) {
         String kafkaAddr = System.getenv("KAFKA_SERVICE_ADDR");
         if (kafkaAddr != null) {
-            log4jLogger.info("Using Kafka Broker Address: " + kafkaAddr);
+            log4jLogger.info("Using Kafka Broker Address: {}", kafkaAddr);
         } else {
             throw new RuntimeException("Environment variable KAFKA_SERVICE_ADDR is not set.");
         }
 
         Properties props = new Properties();
-        props.put("bootstrap.servers", kafkaAddr);
+        props.put(ProducerConfig.BOOTSTRAP_SERVERS_CONFIG, kafkaAddr);
         props.setProperty(ProducerConfig.KEY_SERIALIZER_CLASS_CONFIG, StringSerializer.class.getName());
         props.setProperty(ProducerConfig.VALUE_SERIALIZER_CLASS_CONFIG, IntegerSerializer.class.getName());
+
+        // Retry and backoff configuration for production readiness
+        props.put(ProducerConfig.RETRIES_CONFIG, 3);
+        props.put(ProducerConfig.RETRY_BACKOFF_MS_CONFIG, 1000);
+        props.put(ProducerConfig.DELIVERY_TIMEOUT_MS_CONFIG, 30000);
+
+        // Enable idempotent producer for exactly-once semantics
+        props.put(ProducerConfig.ENABLE_IDEMPOTENCE_CONFIG, true);
+        props.put(ProducerConfig.ACKS_CONFIG, "all");
 
         Producer<String, Integer> producer = new KafkaProducer<>(props);
         Integer orderNum = 0;
@@ -41,10 +50,9 @@ public class App {
             try {
                 ProducerRecord<String, Integer> record = new ProducerRecord<>("orders", "order-number", orderNum);
                 producer.send(record);
+                log4jLogger.info("Message (order # {}) sent successfully!", orderNum);
             } catch (Exception e) {
                 log4jLogger.error("Unable to send record: ", e);
-            } finally {
-                log4jLogger.info("Message (order # " + orderNum + ") sent successfully!");
             }
             try {
                 Thread.sleep(4000);
