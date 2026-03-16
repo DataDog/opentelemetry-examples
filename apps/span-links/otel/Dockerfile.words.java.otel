@@ -1,9 +1,9 @@
 # Unless explicitly stated otherwise all files in this repository are licensed
 # under the Apache 2.0 License.
 #
-FROM openjdk:17-buster
+FROM eclipse-temurin:17-jdk-jammy
 
-RUN apt-get update -y; apt-get install curl -y
+RUN apt-get update -y && apt-get install -y --no-install-recommends curl && rm -rf /var/lib/apt/lists/*
 
 WORKDIR /home/otel
 RUN curl -Lo opentelemetry-javaagent.jar https://github.com/open-telemetry/opentelemetry-java-instrumentation/releases/latest/download/opentelemetry-javaagent.jar

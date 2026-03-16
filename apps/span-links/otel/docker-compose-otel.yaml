@@ -1,16 +1,30 @@
-version: "3"
 services:
   zookeeper-otel:
-    image: confluentinc/cp-zookeeper:latest
+    image: confluentinc/cp-zookeeper:7.7.1
     environment:
       ZOOKEEPER_CLIENT_PORT: 2181
       ZOOKEEPER_TICK_TIME: 2000
     ports:
       - 22181:2181
+    healthcheck:
+      test: echo ruok | nc localhost 2181 | grep imok
+      start_period: 10s
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    deploy:
+      resources:
+        limits:
+          memory: 512M
+          cpus: "0.5"
+        reservations:
+          memory: 256M
+
   kafka-otel:
-    image: confluentinc/cp-kafka:latest
+    image: confluentinc/cp-kafka:7.7.1
     depends_on:
-      - zookeeper-otel
+      zookeeper-otel:
+        condition: service_healthy
     ports:
       - 29092:29092
     environment:
@@ -21,17 +35,25 @@ services:
       KAFKA_INTER_BROKER_LISTENER_NAME: PLAINTEXT
       KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
     healthcheck:
-      test: nc -z kafka-otel 9092
-      start_period: 10s
-      interval: 5s
+      test: kafka-broker-api-versions --bootstrap-server localhost:9092
+      start_period: 20s
+      interval: 10s
       timeout: 10s
       retries: 10
+    deploy:
+      resources:
+        limits:
+          memory: 1G
+          cpus: "1.0"
+        reservations:
+          memory: 512M
+
   words-producer-java-otel:
     depends_on:
       kafka-otel:
         condition: service_healthy
       datadog-agent-kafka-otel:
-        condition: service_started
+        condition: service_healthy
     container_name: words-producer-java-otel
     build:
       context: .
@@ -45,9 +67,26 @@ services:
       - KAFKA_SERVERS=kafka-otel:9092
     ports:
       - "9090:9090"
+    healthcheck:
+      test: curl -f http://localhost:9090/actuator/health || exit 1
+      start_period: 30s
+      interval: 15s
+      timeout: 5s
+      retries: 5
+    deploy:
+      resources:
+        limits:
+          memory: 768M
+          cpus: "1.0"
+        reservations:
+          memory: 384M
+    restart: on-failure
+
   words-consumer-go-otel:
     depends_on:
       kafka-otel:
+        condition: service_healthy
+      datadog-agent-kafka-otel:
         condition: service_healthy
     container_name: words-consumer-go-otel
     build:
@@ -58,9 +97,18 @@ services:
       - OTEL_EXPORTER_OTLP_ENDPOINT=http://datadog-agent-kafka-otel:4317
       - OTEL_RESOURCE_ATTRIBUTES=deployment.environment=otel-kafka,host.name=otelcol-docker
       - KAFKA_SERVERS=kafka-otel:9092
+    deploy:
+      resources:
+        limits:
+          memory: 256M
+          cpus: "0.5"
+        reservations:
+          memory: 128M
+    restart: on-failure
+
   datadog-agent-kafka-otel:
     container_name: datadog-agent-kafka-otel
-    image: "gcr.io/datadoghq/agent:latest"
+    image: "gcr.io/datadoghq/agent:7"
     pid: host
     ports:
       - 8125:8125
@@ -69,7 +117,7 @@ services:
       - 4318:4318
     environment:
       - DD_API_KEY=${DD_API_KEY}
-      - DD_SITE=datadoghq.com
+      - DD_SITE=${DD_SITE:-datadoghq.com}
       - DD_APM_NON_LOCAL_TRAFFIC=true
       - DD_DOGSTATSD_NON_LOCAL_TRAFFIC=true
       - DD_OTLP_CONFIG_RECEIVER_PROTOCOLS_GRPC_ENDPOINT=0.0.0.0:4317
@@ -78,3 +126,17 @@ services:
       - /var/run/docker.sock:/var/run/docker.sock
       - /proc/:/host/proc/:ro
       - /sys/fs/cgroup:/host/sys/fs/cgroup:ro
+    healthcheck:
+      test: agent health
+      start_period: 15s
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    deploy:
+      resources:
+        limits:
+          memory: 1G
+          cpus: "1.0"
+        reservations:
+          memory: 512M
+    restart: unless-stopped
