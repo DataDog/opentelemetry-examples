@@ -33,7 +33,7 @@ dependencies {
     implementation 'org.slf4j:slf4j-api:2.0.6'
 
     // https://mvnrepository.com/artifact/org.apache.kafka/kafka-clients
-    implementation 'org.apache.kafka:kafka-clients:3.3.1'
+    implementation 'org.apache.kafka:kafka-clients:3.9.1'
     implementation 'io.opentelemetry:opentelemetry-api:1.20.0'
     implementation 'io.opentelemetry.instrumentation:opentelemetry-kafka-clients-2.6:1.20.0'
     implementation 'io.opentelemetry.instrumentation:opentelemetry-kafka-clients-2.6:1.19.2-alpha'
