@@ -26,7 +26,7 @@ dependencies {
 
     implementation 'net.logstash.logback:logstash-logback-encoder:7.2'
     implementation 'ch.qos.logback:logback-classic:1.4.5'
-    implementation 'ch.qos.logback:logback-core:1.4.5'
+    implementation 'ch.qos.logback:logback-core:1.5.25'
     implementation 'org.slf4j:slf4j-api:2.0.6'
 
     // https://mvnrepository.com/artifact/org.apache.kafka/kafka-clients
