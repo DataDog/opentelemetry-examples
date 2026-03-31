@@ -1,11 +1,21 @@
-## Configuration file for gRPC monitoring in Datadog
+## Datadog Agent configuration for gRPC monitoring.
+##
+## This configuration is used when running the Datadog Agent alongside gRPC
+## services. For the Python route guide example, tracing is handled by the
+## ddtrace library (via DD_AGENT_HOST/DD_TRACE_AGENT_PORT env vars), so this
+## config is primarily for any additional Prometheus-style metric collection.
+##
+## Note: The primary tracing path is ddtrace -> DD Agent port 8126.
+## OTLP intake is available on port 4317 if using OTel SDK instrumentation.
+## See: https://docs.datadoghq.com/opentelemetry/
 
 init_config:
 
 instances:
-  - ## @param prometheus_url - string - required
-    ## The URL where gRPC metrics are exposed.
-    #
-    prometheus_url: http://grpc-server:50051/metrics
-
-
+  ## @param openmetrics_endpoint - string - optional
+  ## The URL where gRPC/application metrics are exposed in OpenMetrics format.
+  ## Note: The standard gRPC Python server does not expose a Prometheus endpoint
+  ## by default. This would require adding grpcio-channelz or a custom metrics
+  ## exporter to the server. Uncomment and configure if metrics endpoint is available.
+  #
+  # - openmetrics_endpoint: http://grpc-server:50051/metrics
