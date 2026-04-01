@@ -3,7 +3,7 @@ package client
 import (
 	"time"
 
-	grpc_retry "github.com/grpc-ecosystem/go-grpc-middleware/retry"
+	grpc_retry "github.com/grpc-ecosystem/go-grpc-middleware/v2/retry"
 	"google.golang.org/grpc"
 )
 
