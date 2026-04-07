@@ -55,7 +55,7 @@ spec:
               value: "/game_controller/metrics_view.yaml"
             {{- end }}
             - name: OTEL_RESOURCE_ATTRIBUTES
-              value: "deployment.environment={{ .Values.global.resourceAttributes.deploymentEnvironment }},host.name={{ .Values.global.resourceAttributes.hostName }},service.version={{ .Values.global.resourceAttributes.serviceVersion }}"
+              value: "deployment.environment.name={{ .Values.global.resourceAttributes.deploymentEnvironment }},host.name={{ .Values.global.resourceAttributes.hostName }},service.version={{ .Values.global.resourceAttributes.serviceVersion }}"
             - name: ROLLING_SERVICE_URL
               value: {{ .Values.gameController.serviceUrls.rolling | default (printf "http://%s-rolling:%d" .Release.Name (.Values.rolling.service.port | int)) | quote }}
             - name: SCORING_SERVICE_URL

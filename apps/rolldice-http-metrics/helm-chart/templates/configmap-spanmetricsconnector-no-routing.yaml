@@ -127,6 +127,11 @@ data:
     processors:
       batch:
       cumulativetodelta:
+      transform/unit:
+        metric_statements:
+        - context: datapoint
+          statements:
+            - set(metric.unit, "ms") where metric.name == "http.server.duration" or metric.name == "http.client.duration" or metric.name == "http.server.request.duration"
 
     service:
       pipelines:
@@ -137,10 +142,10 @@ data:
 
         metrics/spanmetricsconnector:
           receivers: [spanmetrics]
-          processors: [cumulativetodelta]
+          processors: [cumulativetodelta, transform/unit]
           exporters: [otlphttp, debug]
         metrics:
           receivers: [otlp]
-          processors: [cumulativetodelta]
+          processors: [cumulativetodelta, transform/unit]
           exporters: [otlphttp, debug]
 {{- end }}

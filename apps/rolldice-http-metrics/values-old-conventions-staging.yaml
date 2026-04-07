@@ -1,0 +1,51 @@
+# Deployment values for old-conventions staging environment (datad0g.com)
+global:
+  useExponentialHistograms: false
+  useOldConventions: true
+  useSpanMetricsConnector: false
+  useSpanMetricsConnectorNoRouting: false
+
+  resourceAttributes:
+    deploymentEnvironment: "old-conventions-staging"
+    hostName: "eks-host-old-conventions-staging"
+    serviceVersion: "v1.0"
+
+# Image configuration - using ECR registry
+image:
+  registry: "217139788599.dkr.ecr.us-east-2.amazonaws.com/rolldice/"
+  pullPolicy: IfNotPresent
+
+gameController:
+  image:
+    repository: "game-controller"
+    tag: "auto"
+
+rolling:
+  image:
+    repository: "rolling"
+    tag: "auto"
+
+scoring:
+  image:
+    repository: "scoring"
+    tag: "auto"
+
+# OpenTelemetry Collector - with Datadog integration
+otelCollector:
+  image:
+    repository: "otel/opentelemetry-collector-contrib"
+    tag: "latest"
+  datadog:
+    site: "datad0g.com"
+    apiKeySecret:
+      name: "datadog-secret-old-conventions-staging"
+      key: "api-key"
+
+# Datadog Agent for infrastructure metrics (disabled)
+datadogAgent:
+  enabled: false
+
+loadGenerator:
+  image:
+    repository: "load-generator"
+    tag: "error-mix"
