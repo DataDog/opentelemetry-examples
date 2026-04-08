@@ -11,6 +11,10 @@ global:
   useSpanMetricsConnector: false
   # Use OTLP intake: spanmetrics connector + dual export (otlphttp to /v2/otlpmetrics and datadog/exporter with clone. prefix)
   useOtlpIntake: false
+  # Use datadog connector (computes APM stats) with datadog exporter for all pipelines (no otlphttp)
+  useDatadogConnectorNoRouting: false
+  # Use otlphttp for metrics (instrumentation_metrics_calc, no connectors)
+  useOtlpHttpNoRouting: false
   
   # OpenTelemetry configuration
   otel:

@@ -36,7 +36,7 @@ data:
       otlphttp:
         headers:
           "Dd-Api-Key": ${env:DD_API_KEY}
-          "dd-otel-metric-config": '{"trace_metrics": {"instrumentation_metrics_calc": true}, "raw_instrumentation_metrics_drop": false}'
+          "dd-otel-metric-config": '{"trace_metrics": {"instrumentation_metrics_calc": true, "namespace": "traces.span.metrics."}, "raw_instrumentation_metrics_drop": false}'
         metrics_endpoint: {{ .Values.otelCollector.datadog.otlpMetricsEndpoint }}
       debug:
         verbosity: detailed
@@ -127,12 +127,15 @@ data:
     processors:
       batch:
       cumulativetodelta:
+        include:
+          match_type: regexp
+          metrics:
+            - .*
       transform/unit:
         metric_statements:
         - context: datapoint
           statements:
             - set(metric.unit, "ms") where metric.name == "http.server.duration" or metric.name == "http.client.duration" or metric.name == "http.server.request.duration"
-
     service:
       pipelines:
         traces:

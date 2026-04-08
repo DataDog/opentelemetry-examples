@@ -1,0 +1,54 @@
+# Deployment values for otlphttp without routing (no connectors, metrics via otlphttp with instrumentation_metrics_calc)
+global:
+  useExponentialHistograms: false
+  useOldConventions: false
+  useSpanMetricsConnector: false
+  useSpanMetricsConnectorNoRouting: false
+  useDatadogConnectorNoRouting: false
+  useOtlpHttpNoRouting: true
+
+  resourceAttributes:
+    deploymentEnvironment: "otel-otlphttp-no-routing"
+    hostName: "eks-host-otlphttp-no-routing"
+    serviceVersion: "v1.0"
+
+# Image configuration - using ECR registry
+image:
+  registry: "217139788599.dkr.ecr.us-east-2.amazonaws.com/rolldice/"
+  pullPolicy: IfNotPresent
+
+gameController:
+  image:
+    repository: "game-controller"
+    tag: "auto"
+
+rolling:
+  image:
+    repository: "rolling"
+    tag: "auto"
+
+scoring:
+  image:
+    repository: "scoring"
+    tag: "auto"
+
+# OpenTelemetry Collector - with Datadog integration
+otelCollector:
+  image:
+    repository: "otel/opentelemetry-collector-contrib"
+    tag: "latest"
+  datadog:
+    site: "datad0g.com"
+    apiKeySecret:
+      name: "datadog-secret-otlphttp"
+      key: "api-key"
+    otlpMetricsEndpoint: "https://otlp.datad0g.com/api/v2/otlpmetrics"
+
+# Datadog Agent for infrastructure metrics (disabled - using shared agent from main deployment)
+datadogAgent:
+  enabled: false
+
+loadGenerator:
+  image:
+    repository: "load-generator"
+    tag: "error-mix"

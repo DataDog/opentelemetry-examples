@@ -1,0 +1,53 @@
+# Deployment values for otlp-routing-layer-us5 environment (spanmetrics connector, no routing)
+global:
+  useExponentialHistograms: false
+  useOldConventions: false
+  useSpanMetricsConnector: false
+  useSpanMetricsConnectorNoRouting: true
+
+  resourceAttributes:
+    deploymentEnvironment: "otlp-routing-layer-us5"
+    hostName: "eks-host-otlp-routing-layer-us5"
+    serviceVersion: "v1.0"
+
+# Image configuration - using ECR registry
+image:
+  registry: "217139788599.dkr.ecr.us-east-2.amazonaws.com/rolldice/"
+  pullPolicy: IfNotPresent
+
+gameController:
+  image:
+    repository: "game-controller"
+    tag: "auto"
+
+rolling:
+  image:
+    repository: "rolling"
+    tag: "auto"
+
+scoring:
+  image:
+    repository: "scoring"
+    tag: "auto"
+
+# OpenTelemetry Collector - with Datadog integration
+otelCollector:
+  image:
+    repository: "otel/opentelemetry-collector-contrib"
+    tag: "latest"
+  datadog:
+    site: "us5.datadoghq.com"
+    apiKeySecret:
+      name: "datadog-secret-otlp-routing-layer-us5"
+      key: "api-key"
+    otlpMetricsEndpoint: "https://otlp.us5.datadoghq.com/api/v2/otlpmetrics"
+    otlpTracesEndpoint: "https://otlp.us5.datadoghq.com/v1/traces"
+
+# Datadog Agent for infrastructure metrics (disabled - using shared agent from main deployment)
+datadogAgent:
+  enabled: false
+
+loadGenerator:
+  image:
+    repository: "load-generator"
+    tag: "error-mix"
