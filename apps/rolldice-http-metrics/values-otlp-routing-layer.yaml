@@ -1,12 +1,15 @@
-# Deployment values for old-conventions environment
+# Deployment values for otlp-routing-layer environment (spanmetrics connector, no routing)
+namespace: rolldice-staging
+
 global:
-  useExponentialHistograms: false  # Disabled exponential histograms
-  useOldConventions: false  # Disable old metric conventions
-  useSpanMetricsConnector: true  # Enable span metrics connector
-  
+  useExponentialHistograms: false
+  useOldConventions: false
+  useSpanMetricsConnector: false
+  useSpanMetricsConnectorNoRouting: true
+
   resourceAttributes:
-    deploymentEnvironment: "otel-spanmetricsconnector"
-    hostName: "eks-host-spanmetricsconnector"
+    deploymentEnvironment: "otlp-routing-layer"
+    hostName: "eks-host-otlp-routing-layer"
     serviceVersion: "v1.0"
 
 # Image configuration - using ECR registry
@@ -21,7 +24,7 @@ gameController:
 
 rolling:
   image:
-    repository: "rolling" 
+    repository: "rolling"
     tag: "auto"
 
 scoring:
@@ -35,9 +38,9 @@ otelCollector:
     repository: "otel/opentelemetry-collector-contrib"
     tag: "latest"
   datadog:
-    site: ""  # Uses DD_SITE environment variable
+    site: "datad0g.com"
     apiKeySecret:
-      name: "datadog-secret"
+      name: "datadog-secret-otlp-routing-layer"
       key: "api-key"
     otlpMetricsEndpoint: "https://otlp.datad0g.com/api/v2/otlpmetrics"
 

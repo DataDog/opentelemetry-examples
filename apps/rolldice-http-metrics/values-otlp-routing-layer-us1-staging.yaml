@@ -1,12 +1,13 @@
-# Deployment values for old-conventions environment
+# Deployment values for otlp-routing-layer-us1-staging environment (spanmetrics connector, no routing)
 global:
-  useExponentialHistograms: false  # Disabled exponential histograms
-  useOldConventions: false  # Disable old metric conventions
-  useSpanMetricsConnector: true  # Enable span metrics connector
-  
+  useExponentialHistograms: false
+  useOldConventions: false
+  useSpanMetricsConnector: false
+  useSpanMetricsConnectorNoRouting: true
+
   resourceAttributes:
-    deploymentEnvironment: "otel-spanmetricsconnector"
-    hostName: "eks-host-spanmetricsconnector"
+    deploymentEnvironment: "otlp-routing-layer-us1-staging"
+    hostName: "eks-host-otlp-routing-layer-us1-staging"
     serviceVersion: "v1.0"
 
 # Image configuration - using ECR registry
@@ -21,7 +22,7 @@ gameController:
 
 rolling:
   image:
-    repository: "rolling" 
+    repository: "rolling"
     tag: "auto"
 
 scoring:
@@ -35,13 +36,14 @@ otelCollector:
     repository: "otel/opentelemetry-collector-contrib"
     tag: "latest"
   datadog:
-    site: ""  # Uses DD_SITE environment variable
+    site: "datad0g.com"
     apiKeySecret:
-      name: "datadog-secret"
+      name: "datadog-secret-otlp-routing-layer-us1-staging"
       key: "api-key"
     otlpMetricsEndpoint: "https://otlp.datad0g.com/api/v2/otlpmetrics"
+    otlpTracesEndpoint: "https://otlp.datad0g.com/v1/traces"
 
-# Datadog Agent for infrastructure metrics (disabled - using shared agent from main deployment)
+# Datadog Agent for infrastructure metrics (disabled)
 datadogAgent:
   enabled: false
 
