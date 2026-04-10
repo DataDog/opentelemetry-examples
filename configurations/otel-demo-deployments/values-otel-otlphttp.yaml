@@ -1,0 +1,352 @@
+components:
+  accounting:
+    envOverrides:
+    - name: OTEL_RESOURCE_ATTRIBUTES_EXTRA
+      value: k8s.container.name=accounting
+  ad:
+    envOverrides:
+    - name: OTEL_RESOURCE_ATTRIBUTES_EXTRA
+      value: k8s.container.name=ad
+  cart:
+    envOverrides:
+    - name: OTEL_RESOURCE_ATTRIBUTES_EXTRA
+      value: k8s.container.name=cart
+  checkout:
+    envOverrides:
+    - name: OTEL_RESOURCE_ATTRIBUTES_EXTRA
+      value: k8s.container.name=checkout
+  currency:
+    envOverrides:
+    - name: OTEL_RESOURCE_ATTRIBUTES_EXTRA
+      value: k8s.container.name=currency
+  email:
+    envOverrides:
+    - name: OTEL_RESOURCE_ATTRIBUTES_EXTRA
+      value: k8s.container.name=email
+  fraud-detection:
+    envOverrides:
+    - name: OTEL_RESOURCE_ATTRIBUTES_EXTRA
+      value: k8s.container.name=fraud-detection
+  frontend:
+    envOverrides:
+    - name: OTEL_RESOURCE_ATTRIBUTES_EXTRA
+      value: k8s.container.name=frontend
+  load-generator:
+    envOverrides:
+    - name: OTEL_RESOURCE_ATTRIBUTES_EXTRA
+      value: k8s.container.name=load-generator
+  payment:
+    envOverrides:
+    - name: OTEL_RESOURCE_ATTRIBUTES_EXTRA
+      value: k8s.container.name=payment
+  product-catalog:
+    envOverrides:
+    - name: OTEL_RESOURCE_ATTRIBUTES_EXTRA
+      value: k8s.container.name=product-catalog
+  quote:
+    envOverrides:
+    - name: OTEL_RESOURCE_ATTRIBUTES_EXTRA
+      value: k8s.container.name=quote
+  recommendation:
+    envOverrides:
+    - name: OTEL_RESOURCE_ATTRIBUTES_EXTRA
+      value: k8s.container.name=recommendation
+  shipping:
+    envOverrides:
+    - name: OTEL_RESOURCE_ATTRIBUTES_EXTRA
+      value: k8s.container.name=shipping
+default:
+  envOverrides:
+  - name: OTEL_K8S_NAMESPACE
+    valueFrom:
+      fieldRef:
+        fieldPath: metadata.namespace
+  - name: OTEL_K8S_POD_UID
+    valueFrom:
+      fieldRef:
+        fieldPath: metadata.uid
+  - name: OTEL_K8S_POD_IP
+    valueFrom:
+      fieldRef:
+        fieldPath: status.podIP
+  - name: OTEL_K8S_POD_NAME
+    valueFrom:
+      fieldRef:
+        fieldPath: metadata.name
+  - name: OTEL_K8S_NODE_NAME
+    valueFrom:
+      fieldRef:
+        fieldPath: spec.nodeName
+  - name: OTEL_RESOURCE_ATTRIBUTES
+    value: service.namespace=otel-demo,service.name={{`$(OTEL_SERVICE_NAME)`}},service.instance.id={{`$(OTEL_K8S_POD_UID)`}},k8s.namespace.name={{`$(OTEL_K8S_NAMESPACE)`}},k8s.node.name={{`$(OTEL_K8S_NODE_NAME)`}},k8s.pod.uid={{`$(OTEL_K8S_POD_UID)`}},k8s.pod.ip={{`$(OTEL_K8S_POD_IP)`}},k8s.pod.name={{`$(OTEL_K8S_POD_NAME)`}}
+grafana:
+  enabled: false
+jaeger:
+  enabled: false
+opensearch:
+  enabled: false
+opentelemetry-collector:
+  image:
+    repository: otel/opentelemetry-collector-contrib
+    tag: "0.146.1"
+  command:
+    extraArgs:
+    - --feature-gates
+    - +exporter.datadogexporter.DisableAllMetricRemapping
+  mode: deployment
+  clusterRole:
+    create: false
+    rules:
+    - apiGroups:
+      - ""
+      resources:
+      - pods
+      - namespaces
+      verbs:
+      - get
+      - watch
+      - list
+    - apiGroups:
+      - apps
+      resources:
+      - replicasets
+      verbs:
+      - get
+      - list
+      - watch
+    - apiGroups:
+      - extensions
+      resources:
+      - replicasets
+      verbs:
+      - get
+      - list
+      - watch
+  config:
+    exporters:
+      datadog/exporter:
+        api:
+          key: ${env:DD_API_KEY}
+          site: ${env:DD_SITE}
+      debug: {}
+      otlphttp:
+        compression: zstd
+        compression_params:
+          level: 3
+        endpoint: http://otlp.${env:DD_SITE}
+        headers:
+          dd-api-key: ${env:DD_API_KEY}
+          dd-otel-metric-config: '{"trace_metrics": {"instrumentation_metrics_calc":
+            true, "namespace": "traces.span.metrics."}, "raw_instrumentation_metrics_drop":
+            false, "resource_attributes_as_tags": true, "instrumentation_scope_metadata_as_tags":
+            true}'
+        metrics_endpoint: http://otlp.${env:DD_SITE}/api/v2/otlpmetrics
+        sending_queue:
+          batch: {}
+    extensions:
+      opamp:
+        agent_description:
+          non_identifying_attributes:
+            dd.otelcol.deployment_type: daemonset
+        server:
+          http:
+            endpoint: https://opamp.${env:DD_SITE}/v1/opamp
+            headers:
+              DD-API-KEY: ${env:DD_API_KEY}
+    processors:
+      cumulativetodelta: {}
+      k8sattributes:
+        extract:
+          metadata:
+          - k8s.node.name
+          - k8s.namespace.name
+          - service.namespace
+          - service.name
+          - service.version
+          - service.instance.id
+          - k8s.deployment.name
+          - k8s.replicaset.name
+          - k8s.daemonset.name
+          - k8s.statefulset.name
+          - k8s.cronjob.name
+          - k8s.job.name
+          - k8s.pod.uid
+          - k8s.pod.name
+          - container.id
+          - k8s.container.name
+          - container.image.name
+          - container.image.tag
+          otel_annotations: true
+        pod_association:
+        - sources:
+          - from: resource_attribute
+            name: k8s.pod.ip
+        - sources:
+          - from: resource_attribute
+            name: k8s.pod.uid
+        - sources:
+          - from: resource_attribute
+            name: k8s.pod.name
+          - from: resource_attribute
+            name: k8s.namespace.name
+        - sources:
+          - from: connection
+      resourcedetection:
+        aks:
+          resource_attributes:
+            k8s.cluster.name:
+              enabled: true
+        detectors:
+        - eks
+        - ec2
+        - env
+        - system
+        ec2:
+          tags:
+          - ^kubernetes\.io/cluster/.*$
+        eks:
+          resource_attributes:
+            k8s.cluster.name:
+              enabled: true
+        override: true
+        system:
+          resource_attributes:
+            host.arch:
+              enabled: true
+            host.cpu.cache.l2.size:
+              enabled: true
+            host.cpu.family:
+              enabled: true
+            host.cpu.model.id:
+              enabled: true
+            host.cpu.model.name:
+              enabled: true
+            host.cpu.stepping:
+              enabled: true
+            host.cpu.vendor.id:
+              enabled: true
+            host.ip:
+              enabled: true
+            host.mac:
+              enabled: true
+            os.description:
+              enabled: true
+        timeout: 15s
+      transform/set_env:
+        log_statements:
+        - set(resource.attributes["deployment.environment.name"], "otel-otlphttp")
+        metric_statements:
+        - set(resource.attributes["deployment.environment.name"], "otel-otlphttp")
+        trace_statements:
+        - set(resource.attributes["deployment.environment.name"], "otel-otlphttp")
+    receivers:
+      hostmetrics:
+        collection_interval: 10s
+        scrapers:
+          cpu:
+            metrics:
+              system.cpu.frequency:
+                enabled: true
+              system.cpu.logical.count:
+                enabled: true
+              system.cpu.physical.count:
+                enabled: true
+              system.cpu.utilization:
+                enabled: true
+          disk: null
+          filesystem:
+            metrics:
+              system.filesystem.utilization:
+                enabled: true
+          load: {}
+          memory:
+            metrics:
+              system.memory.limit:
+                enabled: true
+          network: {}
+          paging:
+            metrics:
+              system.paging.usage:
+                enabled: true
+              system.paging.utilization:
+                enabled: true
+          processes: {}
+      otlp:
+        protocols:
+          http:
+            endpoint: 0.0.0.0:4318
+    service:
+      extensions:
+      - opamp
+      - health_check
+      pipelines:
+        logs:
+          exporters:
+          - otlphttp
+          processors:
+          - k8sattributes
+          - transform/set_env
+          - resourcedetection
+          receivers:
+          - otlp
+        metrics:
+          exporters:
+          - otlphttp
+          processors:
+          - k8sattributes
+          - transform/set_env
+          - resourcedetection
+          - cumulativetodelta
+          receivers:
+          - otlp
+        traces:
+          exporters:
+          - datadog/exporter
+          processors:
+          - k8sattributes
+          - transform/set_env
+          - resourcedetection
+          receivers:
+          - otlp
+      telemetry:
+        metrics:
+          readers:
+          - periodic:
+              exporter:
+                otlp:
+                  endpoint: https://otlp.${env:DD_SITE}/api/v2/otlpmetrics
+                  headers:
+                  - name: dd-api-key
+                    value: ${env:DD_API_KEY}
+                  - name: dd-otel-metric-config
+                    value: '{"trace_metrics": {"instrumentation_metrics_calc": true,
+                      "namespace": "traces.span.metrics."}, "raw_instrumentation_metrics_drop":
+                      false, "resource_attributes_as_tags": true, "instrumentation_scope_metadata_as_tags":
+                      true}'
+                  protocol: http/protobuf
+                  temporality_preference: delta
+  extraEnvs:
+  - name: DD_SITE
+    value: datad0g.com
+  - name: DD_API_KEY
+    valueFrom:
+      secretKeyRef:
+        key: dd-api-key
+        name: demo-secrets
+  mode: deployment
+  presets:
+    annotationDiscovery:
+      metrics:
+        enabled: false
+    clusterMetrics:
+      enabled: false
+    hostMetrics:
+      enabled: false
+    kubeletMetrics:
+      enabled: false
+    kubernetesAttributes:
+      enabled: false
+  serviceAccount:
+    create: true
+prometheus:
+  enabled: false
