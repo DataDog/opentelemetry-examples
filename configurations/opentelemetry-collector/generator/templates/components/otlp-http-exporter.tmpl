@@ -1,0 +1,14 @@
+endpoint: https://otlp.${env:DD_SITE}
+metrics_endpoint: https://otlp.${env:DD_SITE}/api/v2/otlpmetrics {{- /* TODO: Remove this */}}
+headers:
+  dd-api-key: ${env:DD_API_KEY}
+  dd-otel-metric-config: >-
+    {
+    "resource_attributes_as_tags": true,
+    "instrumentation_scope_metadata_as_tags": true
+    }
+compression: zstd
+compression_params:
+  level: 3 # Level must be set explicitly for zstd
+sending_queue:
+  batch: {} # Default batch settings

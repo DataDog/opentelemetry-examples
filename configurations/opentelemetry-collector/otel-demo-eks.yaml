@@ -1,0 +1,363 @@
+# Example values.yaml file for the OpenTelemetry Demo Helm chart
+# Setup: Kubernetes Daemonset in an EKS environment
+
+opentelemetry-collector:
+  # Disable presets enabled by demo
+  presets:
+    hostMetrics:
+      enabled: false
+    kubernetesAttributes:
+      enabled: false
+    kubeletMetrics:
+      enabled: false
+    clusterMetrics:
+      enabled: false
+    annotationDiscovery:
+      metrics:
+        enabled: false
+
+  image:
+    tag: 0.145.0
+  
+  # Service account for the k8sattributes processor
+  serviceAccount:
+    create: true
+  clusterRole:
+    create: true
+    rules:
+      - apiGroups: [""]
+        resources: ["pods", "namespaces"]
+        verbs: ["get", "watch", "list"]
+      - apiGroups: ["apps"]
+        resources: ["replicasets"]
+        verbs: ["get", "list", "watch"]
+      - apiGroups: ["extensions"]
+        resources: ["replicasets"]
+        verbs: ["get", "list", "watch"]
+  
+  # Volume mount for host metrics receiver
+  extraVolumes:
+    - name: hostfs
+      hostPath:
+        path: /
+  extraVolumeMounts:
+    - name: hostfs
+      mountPath: /hostfs
+      readOnly: true
+      mountPropagation: HostToContainer
+  
+  command:
+    extraArgs: ["--feature-gates", "+connector.spanmetrics.includeCollectorInstanceID"]
+  
+  extraEnvs:
+    - name: DD_SITE
+      #value: datadoghq.com # Update if necessary
+      value: datad0g.com
+    - name: DD_API_KEY
+      valueFrom:
+        secretKeyRef:
+          name: datadog-secrets
+          key: api-key
+  
+  alternateConfig:
+    receivers:
+      otlp:
+        protocols:
+          grpc:
+            endpoint: 0.0.0.0:4317
+          http:
+            endpoint: 0.0.0.0:4318
+      hostmetrics:
+        root_path: /hostfs # Necessary for Kubernetes, corresponds to / on host
+        collection_interval: 10s
+        scrapers:
+          cpu:
+            metrics:
+              system.cpu.utilization:
+                enabled: true
+              system.cpu.physical.count:
+                enabled: true
+              system.cpu.logical.count:
+                enabled: true
+              system.cpu.frequency:
+                enabled: true
+          memory:
+            metrics:
+              system.memory.limit:
+                enabled: true
+          paging:
+            metrics:
+              system.paging.utilization:
+                enabled: true
+              system.paging.usage:
+                enabled: true
+          disk: {}
+          filesystem:
+            metrics:
+              system.filesystem.utilization:
+                enabled: true
+          load: {}
+          network: {}
+          processes: {}
+    
+    processors:
+      resourcedetection:
+        detectors: [eks, ec2, env, system]
+        timeout: 2s
+        override: true # Disable if incoming attributes (especially host.name) are verified correct
+        eks:
+          resource_attributes:
+            k8s.cluster.name: { enabled: true }
+        ec2:
+          tags: ['^kubernetes\.io/cluster/.*$']
+        system:
+          resource_attributes:
+            host.arch:
+              enabled: true
+            host.cpu.cache.l2.size:
+              enabled: true
+            host.cpu.family:
+              enabled: true
+            host.cpu.model.id:
+              enabled: true
+            host.cpu.model.name:
+              enabled: true
+            host.cpu.stepping:
+              enabled: true
+            host.cpu.vendor.id:
+              enabled: true
+            host.ip:
+              enabled: true
+            host.mac:
+              enabled: true
+            os.description:
+              enabled: true
+      cumulativetodelta: {}
+      k8sattributes:
+        extract:
+          otel_annotations: true
+          metadata:
+            - k8s.node.name
+            - k8s.namespace.name
+            - service.namespace
+            - service.name
+            - service.version
+            - service.instance.id
+            - k8s.deployment.name
+            - k8s.replicaset.name
+            - k8s.daemonset.name
+            - k8s.statefulset.name
+            - k8s.cronjob.name
+            - k8s.job.name
+            - k8s.pod.uid
+            - k8s.pod.name
+            - container.id
+            - k8s.container.name
+            - container.image.name
+            - container.image.tag
+        pod_association:
+          - sources:
+              - from: resource_attribute
+                name: k8s.pod.uid
+          - sources:
+              - from: resource_attribute
+                name: k8s.pod.ip
+          - sources:
+              - from: resource_attribute
+                name: k8s.pod.name
+              - from: resource_attribute
+                name: k8s.namespace.name
+          - sources:
+              - from: connection
+    
+    connectors:
+      forward: {}
+      spanmetrics:
+        # Note: Spans without service.name will be ignored
+        aggregation_temporality: AGGREGATION_TEMPORALITY_DELTA
+        add_resource_attributes: true
+        histogram:
+          exponential: {}
+          unit: s
+        dimensions:
+          # (Duplicate dimensions are not allowed and are thus commented out)
+        
+          ## Universal Service Monitoring
+          - name: deployment.environment.name
+          - name: service.version
+          - name: http.response.status_code
+        
+          ## Container tags
+          - name: container.id
+          - name: container.name
+          - name: container.image.name
+          - name: container.image.tag
+          - name: container.runtime
+          - name: cloud.provider
+          - name: cloud.region
+          - name: cloud.availability_zone
+          - name: aws.ecs.task.family
+          - name: aws.ecs.task.arn
+          - name: aws.ecs.cluster.arn
+          - name: aws.ecs.task.revision
+          - name: aws.ecs.container.arn
+          - name: k8s.container.name
+          - name: k8s.cluster.name
+          - name: k8s.deployment.name
+          - name: k8s.replicaset.name
+          - name: k8s.statefulset.name
+          - name: k8s.daemonset.name
+          - name: k8s.job.name
+          - name: k8s.cronjob.name
+          - name: k8s.namespace.name
+          - name: k8s.pod.name
+        
+          ## Host name inference
+          - name: aws.ecs.launchtype
+          #- name: aws.ecs.task.arn
+          #- name: cloud.provider
+          - name: cloud.account.id
+          - name: host.id
+          - name: host.name
+          - name: k8s.node.name
+          #- name: k8s.cluster.name
+          - name: azure.resourcegroup.name
+        
+          ## Peer service inference
+          - name: aws.s3.bucket
+          - name: db.namespace
+          - name: messaging.destination.name
+          - name: messaging.system
+          - name: server.address
+        
+          ## Operation name inference
+          - name: operation.name
+          - name: http.request.method
+          - name: http.method
+          - name: db.system
+          #- name: messaging.system
+          - name: messaging.operation
+          - name: rpc.system
+          - name: rpc.service
+          - name: faas.invoked_provider
+          - name: faas.invoked_name
+          - name: faas.trigger
+          - name: graphql.operation.type
+          - name: network.protocol.name
+        
+          ## Resource name inference
+          - name: resource.name
+          #- name: http.request.method
+          #- name: http.method
+          - name: http.route
+          #- name: messaging.operation
+          - name: messaging.destination
+          #- name: messaging.destination.name
+          - name: rpc.method
+          #- name: rpc.service
+          #- name: graphql.operation.type
+          - name: graphql.operation.name
+          #- name: db.system
+          - name: db.statement
+          - name: db.query.text
+    
+    exporters:
+      debug:
+        verbosity: detailed
+      otlp_http:
+        endpoint: https://otlp.${env:DD_SITE}
+        metrics_endpoint: https://otlp.${env:DD_SITE}/api/v2/otlpmetrics
+        headers:
+          dd-api-key: ${env:DD_API_KEY}
+          dd-otel-metric-config: >-
+            {
+            "resource_attributes_as_tags": true,
+            "instrumentation_scope_metadata_as_tags": true
+            }
+        compression: zstd
+        compression_params:
+          level: 3 # Level must be set explicitly for zstd
+        sending_queue:
+          batch: {} # Default batch settings
+    
+    extensions:
+      health_check:
+        endpoint: ${env:MY_POD_IP}:13133
+      datadog:
+        api:
+          site: ${env:DD_SITE}
+          key: ${env:DD_API_KEY}
+        deployment_type: daemonset
+    
+    service:
+      extensions:
+        - health_check # May be necessary for liveness/readiness probe
+        - datadog
+      
+      pipelines:
+        logs:
+          receivers: [otlp]
+          processors:
+            - k8sattributes
+            - resourcedetection
+          exporters: [otlp_http]
+        
+        metrics:
+          receivers: [otlp, hostmetrics]
+          processors:
+            - k8sattributes
+            - resourcedetection
+            - cumulativetodelta
+          exporters: [otlp_http]
+        
+        traces:
+          receivers: [otlp]
+          processors:
+            - k8sattributes
+            - resourcedetection
+          exporters: [forward, spanmetrics]
+        
+        traces/sampling:
+          receivers: [forward]
+          # Perform any sampling here
+          exporters: [otlp_http]
+        
+        metrics/spanmetrics:
+          receivers: [spanmetrics]
+          exporters: [otlp_http]
+      
+      telemetry:
+        # Self-monitoring is not recommended, but currently the simplest way to perform enriching
+        metrics:
+          readers:
+            - periodic:
+                exporter:
+                  otlp:
+                    protocol: http/protobuf
+                    endpoint: http://localhost:4318
+
+# Disable other backends
+jaeger:
+  enabled: false
+prometheus:
+  enabled: false
+grafana:
+  enabled: false
+opensearch:
+  enabled: false
+
+# Add more Kubernetes-related resource attributes
+# Note: The container name being the same as the service name is specific to the OTel Demo
+default:
+  envOverrides:
+    - name: OTEL_K8S_POD_UID
+      valueFrom:
+        fieldRef:
+          fieldPath: metadata.uid
+    - name: OTEL_RESOURCE_ATTRIBUTES
+      value: >-
+        deployment.environment.name=otel-demo,
+        service.namespace=otel-demo,
+        service.instance.id=$(OTEL_K8S_POD_UID),
+        k8s.pod.uid=$(OTEL_K8S_POD_UID),
+        k8s.container.name=$(OTEL_SERVICE_NAME)

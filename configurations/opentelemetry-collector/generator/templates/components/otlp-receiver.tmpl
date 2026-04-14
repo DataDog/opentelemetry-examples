@@ -1,0 +1,5 @@
+protocols:
+  grpc:
+    endpoint: 0.0.0.0:4317 {{- /* TODO: Switch to localhost/${env:MY_POD_IP} */}}
+  http:
+    endpoint: 0.0.0.0:4318

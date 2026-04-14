@@ -1,0 +1,54 @@
+{{- set . "K8s" true }}
+{{- if .Preamble -}}
+# Recommended values.yaml for the OpenTelemetry Collector Helm Chart
+{{include "setup" .}}
+# Required secrets: datadog-secrets::api-key
+# Remember to modify DD_SITE if not using datadoghq.com
+{{- set . "Preamble" false}}
+{{- end}}
+
+image:
+  tag: {{.OtelcolVersion}}
+
+# Service account for the k8sattributes processor
+serviceAccount:
+  create: true
+clusterRole:
+  create: true
+  rules:
+    - apiGroups: [""]
+      resources: ["pods", "namespaces"]
+      verbs: ["get", "watch", "list"]
+    - apiGroups: ["apps"]
+      resources: ["replicasets"]
+      verbs: ["get", "list", "watch"]
+    - apiGroups: ["extensions"]
+      resources: ["replicasets"]
+      verbs: ["get", "list", "watch"]
+
+# Volume mount for host metrics receiver
+extraVolumes:
+  - name: hostfs
+    hostPath:
+      path: /
+extraVolumeMounts:
+  - name: hostfs
+    mountPath: /hostfs
+    readOnly: true
+    mountPropagation: HostToContainer
+
+command:
+  extraArgs: ["--feature-gates", "+connector.spanmetrics.includeCollectorInstanceID"]
+
+extraEnvs:
+  - name: DD_SITE
+    #value: datadoghq.com # Update if necessary
+    value: datad0g.com {{- /* TODO: Remove this */}}
+  - name: DD_API_KEY
+    valueFrom:
+      secretKeyRef:
+        name: datadog-secrets
+        key: api-key
+
+alternateConfig:
+  {{ include "otelcol-agent" . | indent 2 }}
