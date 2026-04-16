@@ -7,8 +7,13 @@
 {{- set . "Preamble" false}}
 {{- end}}
 
+mode: daemonset
 image:
+  repository: otel/opentelemetry-collector-contrib
   tag: {{.OtelcolVersion}}
+command:
+  name: "otelcol-contrib"
+  extraArgs: ["--feature-gates", "+connector.spanmetrics.includeCollectorInstanceID"]
 
 # Service account for the k8sattributes processor
 serviceAccount:
@@ -36,9 +41,6 @@ extraVolumeMounts:
     mountPath: /hostfs
     readOnly: true
     mountPropagation: HostToContainer
-
-command:
-  extraArgs: ["--feature-gates", "+connector.spanmetrics.includeCollectorInstanceID"]
 
 extraEnvs:
   - name: DD_SITE
