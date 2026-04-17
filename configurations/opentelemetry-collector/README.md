@@ -17,6 +17,7 @@ Which configuration file to use depends on four factors:
     - Non-cloud (on-premises)
     - Amazon Web Services (EC2, EKS, etc.)
     - Google Cloud Provider (GCE, etc.)
+    - Microsoft Azure
 
 Setups not listed above are not necessarily unsupported, and we may add recommended configurations for them in the future.
 
@@ -39,6 +40,7 @@ Files:
 - `otelcol-host.yaml`: Uncontainerized Agent in a non-cloud environment
 - `otelcol-host-gce.yaml`: Uncontainerized Agent in a GCE environment
 - `otelcol-host-ec2.yaml`: Uncontainerized Agent in an EC2 environment
+- `otelcol-host-azure.yaml`: Uncontainerized Agent in an Azure VM environment
 - `otelcol-daemonset.yaml`: Kubernetes Daemonset in a non-cloud environment
 - `otelcol-daemonset-eks.yaml`: Kubernetes Daemonset in an EKS environment
 
