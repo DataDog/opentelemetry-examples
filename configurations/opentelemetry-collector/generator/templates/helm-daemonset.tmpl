@@ -7,6 +7,15 @@
 {{- set . "Preamble" false}}
 {{- end}}
 
+extraEnvs:
+  - name: DD_SITE
+    value: datadoghq.com # Update if necessary
+  - name: DD_API_KEY
+    valueFrom:
+      secretKeyRef:
+        name: datadog-secrets
+        key: api-key
+
 mode: daemonset
 image:
   repository: otel/opentelemetry-collector-contrib
@@ -31,7 +40,7 @@ clusterRole:
       resources: ["replicasets"]
       verbs: ["get", "list", "watch"]
 
-# Volume mount for host metrics receiver
+# Volume mount for the host metrics receiver
 extraVolumes:
   - name: hostfs
     hostPath:
@@ -41,16 +50,6 @@ extraVolumeMounts:
     mountPath: /hostfs
     readOnly: true
     mountPropagation: HostToContainer
-
-extraEnvs:
-  - name: DD_SITE
-    #value: datadoghq.com # Update if necessary
-    value: datad0g.com {{- /* TODO: Remove this */}}
-  - name: DD_API_KEY
-    valueFrom:
-      secretKeyRef:
-        name: datadog-secrets
-        key: api-key
 
 alternateConfig:
   {{ include "otelcol-agent" . | indent 2 }}

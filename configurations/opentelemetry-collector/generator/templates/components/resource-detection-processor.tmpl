@@ -5,6 +5,8 @@ detectors: [ec2, env, system]
 detectors: [eks, ec2, env, system]
 {{- else if eq .CloudEnvironment "gce" }}
 detectors: [gcp, env, system]
+{{- else if eq .CloudEnvironment "azure" }}
+detectors: [azure, env, system]
 {{- else if eq .CloudEnvironment "" }}
 detectors: [env, system]
 {{- else }}
@@ -17,12 +19,10 @@ aks:
   resource_attributes:
     k8s.cluster.name: { enabled: true }
 {{- end}}
-{{- if or (eq .CloudEnvironment "ec2") (eq .CloudEnvironment "eks")}}
 {{- if eq .CloudEnvironment "eks"}}
 eks:
   resource_attributes:
     k8s.cluster.name: { enabled: true }
-{{- end}}
 ec2:
   tags: ['^kubernetes\.io/cluster/.*$']
 {{- end}}

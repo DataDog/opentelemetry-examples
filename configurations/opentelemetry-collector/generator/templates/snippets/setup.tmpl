@@ -12,6 +12,8 @@
 {{- $environment = "an EKS" }}
 {{- else if eq .CloudEnvironment "gce" -}}
 {{- $environment = "a GCE" }}
+{{- else if eq .CloudEnvironment "azure" -}}
+{{- $environment = "an Azure VM" }}
 {{- else if eq .CloudEnvironment "" -}}
 {{- $environment = "a non-cloud" }}
 {{- else -}}

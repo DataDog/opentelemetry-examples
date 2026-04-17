@@ -2,7 +2,7 @@ package main
 
 var otelcolVersion = "0.145.0"
 
-var hostEnvs = []string{"", "ec2", "gce"}
+var hostEnvs = []string{"", "ec2", "gce", "azure"}
 
 var k8sEnvs = []string{"", "eks"}
 
