@@ -4,7 +4,7 @@
 # Collector Contrib version: v{{.OtelcolVersion}}
 # Required Collector flags: --feature-gates connector.spanmetrics.includeCollectorInstanceID
 # Required environment variables: DD_SITE, DD_API_KEY
-{{- if .K8s}}
+{{- if .Container}}
 # Required mounts: /hostfs
 {{- end}}
 {{- end}}

@@ -4,5 +4,5 @@ An internal tool using Go templates to generate the configurations in `configura
 
 To regenerate the configurations, `cd` into the `generator` subdirectory and run:
 ```sh
-go run . templates ..
+go run .
 ```

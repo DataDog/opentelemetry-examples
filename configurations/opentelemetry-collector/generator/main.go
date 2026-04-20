@@ -38,7 +38,7 @@ func renderTemplate(templates *template.Template, outputsPath string, name strin
 	return templates.ExecuteTemplate(output, template+".tmpl", vars)
 }
 
-func renderConfigs(sourcesPath string, outputsPath string) error {
+func renderConfigs(templatesPath string, outputsPath string) error {
 	templates := template.New("root")
 	templates = templates.Funcs(template.FuncMap{
 		"include": func(name string, data any) (string, error) {
@@ -61,9 +61,9 @@ func renderConfigs(sourcesPath string, outputsPath string) error {
 		},
 	})
 	var err error
-	templates, err = templates.ParseGlob(path.Join(sourcesPath, "*.tmpl"))
+	templates, err = templates.ParseGlob(path.Join(templatesPath, "*.tmpl"))
 	if err == nil {
-		templates, err = templates.ParseGlob(path.Join(sourcesPath, "**/*.tmpl"))
+		templates, err = templates.ParseGlob(path.Join(templatesPath, "**/*.tmpl"))
 	}
 	if err != nil {
 		return err
@@ -81,20 +81,16 @@ func renderConfigs(sourcesPath string, outputsPath string) error {
 }
 
 func main() {
-	flag.Usage = func() {
-		fmt.Fprintf(os.Stderr, "Usage: generator [flags] [templates directory] [output directory]\n")
-		flag.PrintDefaults()
-	}
+	var templatesPath, outputPath string
+	flag.StringVar(&templatesPath, "templates", "templates", "path to the 'templates' directory")
+	flag.StringVar(&outputPath, "output", "..", "path to the output directory")
 	flag.Parse()
-	args := flag.Args()
-	if len(args) != 2 {
+	if len(flag.Args()) != 0 {
 		flag.Usage()
 		os.Exit(2)
 	}
-	sourcesPath := args[0]
-	outputPath := args[1]
 
-	if err := renderConfigs(sourcesPath, outputPath); err != nil {
+	if err := renderConfigs(templatesPath, outputPath); err != nil {
 		fmt.Fprintf(os.Stderr, "Failed to render config files: %s\n", err)
 		os.Exit(1)
 	}

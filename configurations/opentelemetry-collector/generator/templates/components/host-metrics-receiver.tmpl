@@ -1,5 +1,5 @@
-{{- if .K8s}}
-root_path: /hostfs # Necessary for Kubernetes, corresponds to / on host
+{{- if .Container}}
+root_path: /hostfs # Necessary inside containers, corresponds to / on host
 {{- end}}
 collection_interval: 10s
 scrapers:

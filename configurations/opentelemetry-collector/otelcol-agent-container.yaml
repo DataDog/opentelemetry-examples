@@ -1,5 +1,5 @@
 # Recommended OpenTelemetry Collector configuration
-# Setup: Kubernetes Daemonset in an EKS environment
+# Setup: Containerized Agent in a non-cloud environment
 # Collector Contrib version: v0.145.0
 # Required Collector flags: --feature-gates connector.spanmetrics.includeCollectorInstanceID
 # Required environment variables: DD_SITE, DD_API_KEY
@@ -47,53 +47,10 @@ receivers:
 
 processors:
   resourcedetection:
-    detectors: [eks, ec2, env]
+    detectors: [env]
     timeout: 2s
     override: true # Disable if incoming attributes (especially host.name) are verified correct
-    eks:
-      resource_attributes:
-        k8s.cluster.name: { enabled: true }
-    ec2:
-      tags: ['^kubernetes\.io/cluster/.*$']
   cumulativetodelta: {}
-  k8sattributes:
-    # Requires setting up ServiceAccount, (Cluster)Role, and (Cluster)RoleBinding resources
-    # See https://github.com/open-telemetry/opentelemetry-collector-contrib/tree/main/processor/k8sattributesprocessor#role-based-access-control
-    extract:
-      otel_annotations: true
-      metadata:
-        - k8s.node.name
-        - k8s.namespace.name
-        - service.namespace
-        - service.name
-        - service.version
-        - service.instance.id
-        - k8s.deployment.name
-        - k8s.replicaset.name
-        - k8s.daemonset.name
-        - k8s.statefulset.name
-        - k8s.cronjob.name
-        - k8s.job.name
-        - k8s.pod.uid
-        - k8s.pod.name
-        - container.id
-        - k8s.container.name
-        - container.image.name
-        - container.image.tag
-    pod_association:
-      - sources:
-          - from: resource_attribute
-            name: k8s.pod.uid
-      - sources:
-          - from: resource_attribute
-            name: k8s.pod.ip
-      - sources:
-          - from: resource_attribute
-            name: k8s.pod.name
-          - from: resource_attribute
-            name: k8s.namespace.name
-      - sources:
-          - from: connection
 
 connectors:
   forward: {}
@@ -206,8 +163,6 @@ exporters:
       batch: {} # Default batch settings
 
 extensions:
-  health_check:
-    endpoint: ${env:MY_POD_IP}:13133
   datadog:
     api:
       site: ${env:DD_SITE}
@@ -216,21 +171,18 @@ extensions:
 
 service:
   extensions:
-    - health_check # May be necessary for liveness/readiness probe
     - datadog
   
   pipelines:
     logs:
       receivers: [otlp]
       processors:
-        - k8sattributes
         - resourcedetection
       exporters: [otlp_http]
     
     metrics:
       receivers: [otlp, hostmetrics]
       processors:
-        - k8sattributes
         - resourcedetection
         - cumulativetodelta
       exporters: [otlp_http]
@@ -238,7 +190,6 @@ service:
     traces:
       receivers: [otlp]
       processors:
-        - k8sattributes
         - resourcedetection
       exporters: [forward, spanmetrics]
     

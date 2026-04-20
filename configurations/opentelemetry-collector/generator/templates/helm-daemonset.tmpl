@@ -1,4 +1,5 @@
 {{- set . "K8s" true }}
+{{- set . "Container" true }}
 {{- if .Preamble -}}
 # Recommended values.yaml for the OpenTelemetry Collector Helm Chart
 {{include "setup" .}}

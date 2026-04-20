@@ -1,14 +1,18 @@
 {{- /* TODO: Implement AKS, Azure, ECS, GKE environments */}}
+{{- $system := ", system"}}
+{{- if .Container}}
+{{- $system = ""}}
+{{- end}}
 {{- if eq .CloudEnvironment "ec2"}}
-detectors: [ec2, env, system]
+detectors: [ec2, env{{$system}}]
 {{- else if eq .CloudEnvironment "eks" }}
-detectors: [eks, ec2, env, system]
+detectors: [eks, ec2, env{{$system}}]
 {{- else if eq .CloudEnvironment "gce" }}
-detectors: [gcp, env, system]
+detectors: [gcp, env{{$system}}]
 {{- else if eq .CloudEnvironment "azure" }}
-detectors: [azure, env, system]
+detectors: [azure, env{{$system}}]
 {{- else if eq .CloudEnvironment "" }}
-detectors: [env, system]
+detectors: [env{{$system}}]
 {{- else }}
 {{- errorf "unknown cloud environment %q" .CloudEnvironment}}
 {{- end}}
@@ -26,9 +30,9 @@ eks:
 ec2:
   tags: ['^kubernetes\.io/cluster/.*$']
 {{- end}}
+{{- if not .Container}}
 system:
   resource_attributes:
-    {{- /* TODO: Check which of those are accurate in Kubernetes */}}
     host.arch:
       enabled: true
     host.cpu.cache.l2.size:
@@ -49,3 +53,4 @@ system:
       enabled: true
     os.description:
       enabled: true
+{{- end}}

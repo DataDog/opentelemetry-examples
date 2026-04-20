@@ -95,7 +95,7 @@ opentelemetry-collector:
           http:
             endpoint: 0.0.0.0:4318
       hostmetrics:
-        root_path: /hostfs # Necessary for Kubernetes, corresponds to / on host
+        root_path: /hostfs # Necessary inside containers, corresponds to / on host
         collection_interval: 10s
         scrapers:
           cpu:
@@ -129,7 +129,7 @@ opentelemetry-collector:
     
     processors:
       resourcedetection:
-        detectors: [eks, ec2, env, system]
+        detectors: [eks, ec2, env]
         timeout: 2s
         override: true # Disable if incoming attributes (especially host.name) are verified correct
         eks:
@@ -137,28 +137,6 @@ opentelemetry-collector:
             k8s.cluster.name: { enabled: true }
         ec2:
           tags: ['^kubernetes\.io/cluster/.*$']
-        system:
-          resource_attributes:
-            host.arch:
-              enabled: true
-            host.cpu.cache.l2.size:
-              enabled: true
-            host.cpu.family:
-              enabled: true
-            host.cpu.model.id:
-              enabled: true
-            host.cpu.model.name:
-              enabled: true
-            host.cpu.stepping:
-              enabled: true
-            host.cpu.vendor.id:
-              enabled: true
-            host.ip:
-              enabled: true
-            host.mac:
-              enabled: true
-            os.description:
-              enabled: true
       cumulativetodelta: {}
       k8sattributes:
         extract:

@@ -12,6 +12,7 @@ Which configuration file to use depends on four factors:
     - [Agent deployment pattern](https://opentelemetry.io/docs/collector/deploy/agent/)
 3. Execution environment:
     - Uncontainerized (bare-metal or VM)
+    - Unorchestrated container (Docker)
     - Kubernetes
 4. Cloud provider:
     - Non-cloud (on-premises)
@@ -34,13 +35,14 @@ DD_SITE=datadoghq.com DD_API_KEY='insertyourapikey' ./otelcol-contrib --config .
 
 ### Agent deployment pattern
 
-Either a "host" deployment (uncontainerized) or a Daemonset deployment (Kubernetes)
+Can be a Daemonset deployment (Kubernetes) or a manual (containerized or not) Agent deployment.
 
 Files:
-- `otelcol-host.yaml`: Uncontainerized Agent in a non-cloud environment
-- `otelcol-host-gce.yaml`: Uncontainerized Agent in a GCE environment
-- `otelcol-host-ec2.yaml`: Uncontainerized Agent in an EC2 environment
-- `otelcol-host-azure.yaml`: Uncontainerized Agent in an Azure VM environment
+- `otelcol-agent.yaml`: Uncontainerized Agent in a non-cloud environment
+- `otelcol-agent-gce.yaml`: Uncontainerized Agent in a GCE environment
+- `otelcol-agent-ec2.yaml`: Uncontainerized Agent in an EC2 environment
+- `otelcol-agent-azure.yaml`: Uncontainerized Agent in an Azure VM environment
+- `otelcol-agent-container.yaml`: Containerized Agent in a non-cloud environment
 - `otelcol-daemonset.yaml`: Kubernetes Daemonset in a non-cloud environment
 - `otelcol-daemonset-eks.yaml`: Kubernetes Daemonset in an EKS environment
 
