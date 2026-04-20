@@ -1,0 +1,33 @@
+{{- if .Container}}
+root_path: /hostfs # Necessary inside containers, corresponds to / on host
+{{- end}}
+collection_interval: 10s
+scrapers:
+  cpu:
+    metrics:
+      system.cpu.utilization:
+        enabled: true
+      system.cpu.physical.count:
+        enabled: true
+      system.cpu.logical.count:
+        enabled: true
+      system.cpu.frequency:
+        enabled: true
+  memory:
+    metrics:
+      system.memory.limit:
+        enabled: true
+  paging:
+    metrics:
+      system.paging.utilization:
+        enabled: true
+      system.paging.usage:
+        enabled: true
+  disk: {}
+  filesystem:
+    metrics:
+      system.filesystem.utilization:
+        enabled: true
+  load: {}
+  network: {}
+  processes: {}

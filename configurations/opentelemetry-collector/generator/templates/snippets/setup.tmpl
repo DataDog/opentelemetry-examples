@@ -1,0 +1,25 @@
+{{- $deployment := "" }}
+{{- if .K8s }}
+{{- $deployment = "Kubernetes Daemonset" }}
+{{- else if .Container }}
+{{- $deployment = "Containerized Agent" }}
+{{- else }}
+{{- $deployment = "Uncontainerized Agent" }}
+{{- end -}}
+
+{{- $environment := "" }}
+{{- if eq .CloudEnvironment "ec2" -}}
+{{- $environment = "an EC2" }}
+{{- else if eq .CloudEnvironment "eks" -}}
+{{- $environment = "an EKS" }}
+{{- else if eq .CloudEnvironment "gce" -}}
+{{- $environment = "a GCE" }}
+{{- else if eq .CloudEnvironment "azure" -}}
+{{- $environment = "an Azure VM" }}
+{{- else if eq .CloudEnvironment "" -}}
+{{- $environment = "a non-cloud" }}
+{{- else -}}
+{{- errorf "unknown cloud environment %q" .CloudEnvironment}}
+{{- end -}}
+
+# Setup: {{$deployment}} in {{$environment}} environment

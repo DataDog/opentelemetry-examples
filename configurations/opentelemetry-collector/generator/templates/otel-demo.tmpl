@@ -1,0 +1,49 @@
+{{- set . "K8s" true }}
+{{- if .Preamble -}}
+# Example values.yaml file for the OpenTelemetry Demo Helm chart
+{{include "setup" .}}
+{{- set . "Preamble" false}}
+{{- end}}
+
+# Disable other backends
+jaeger:
+  enabled: false
+prometheus:
+  enabled: false
+grafana:
+  enabled: false
+opensearch:
+  enabled: false
+
+# Add more Kubernetes-related resource attributes
+# Note: The container name being the same as the service name is specific to the OTel Demo
+default:
+  envOverrides:
+    - name: OTEL_K8S_POD_UID
+      valueFrom:
+        fieldRef:
+          fieldPath: metadata.uid
+    - name: OTEL_RESOURCE_ATTRIBUTES
+      value: >-
+        deployment.environment.name=otel-demo,
+        service.namespace=otel-demo,
+        service.instance.id=$(OTEL_K8S_POD_UID),
+        k8s.pod.uid=$(OTEL_K8S_POD_UID),
+        k8s.container.name=$(OTEL_SERVICE_NAME)
+
+opentelemetry-collector:
+  # Disable presets enabled by demo
+  presets:
+    hostMetrics:
+      enabled: false
+    kubernetesAttributes:
+      enabled: false
+    kubeletMetrics:
+      enabled: false
+    clusterMetrics:
+      enabled: false
+    annotationDiscovery:
+      metrics:
+        enabled: false
+
+  {{ include "helm-daemonset" . | indent 2 }}

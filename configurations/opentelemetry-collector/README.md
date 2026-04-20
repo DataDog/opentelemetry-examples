@@ -1,46 +1,85 @@
 # Collector Configurations
 
-This folder contains examples of OpenTelemetry Collector configuration files that we support for exporting to Datadog.
-`minimal-config.yaml` and `multiple-pipelines.yaml` are both pipeline configurations with the following flow of data:
+This directory contains example configuration files to deploy the OpenTelemetry Collector and have it export telemetry to Datadog.
 
-[OTLP Receiver](https://github.com/open-telemetry/opentelemetry-collector/blob/main/receiver/otlpreceiver/README.md) → [Batch Processor](https://github.com/open-telemetry/opentelemetry-collector/blob/main/processor/batchprocessor/README.md) → [Datadog Exporter](https://github.com/open-telemetry/opentelemetry-collector-contrib/tree/main/exporter/datadogexporter)
+Which configuration file to use depends on four factors:
 
-## Configuration Files
-These files define [Collector configurations](https://opentelemetry.io/docs/collector/configuration/) that can be used when building or running the Collector.
+1. Deployment method
+    - Manual
+    - Collector Helm chart
+    - OTel Demo Helm chart
+2. Deployment pattern:
+    - [Agent deployment pattern](https://opentelemetry.io/docs/collector/deploy/agent/)
+3. Execution environment:
+    - Uncontainerized (bare-metal or VM)
+    - Unorchestrated container (Docker)
+    - Kubernetes
+4. Cloud provider:
+    - Non-cloud (on-premises)
+    - Amazon Web Services (EC2, EKS, etc.)
+    - Google Cloud Provider (GCE, etc.)
+    - Microsoft Azure
 
-### `minimal-config.yaml`
-This is the minimal pipeline configuration we support for exporting to Datadog. This file defines two pipelines, one for metrics and one for traces.
+Setups not listed above are not necessarily unsupported, and we may add recommended configurations for them in the future.
 
-### `multiple-pipelines.yaml`
-This is a more complicated configuration: it does dual-shipping to EU and US and has two metrics pipelines.
+Make sure to read the comments in the configuration file you decide to use, as many of them have external dependencies (e.g. required secrets or environment variables), or fields that must be filled in before use (e.g. DD_SITE).
 
-### `sidecar-config.yaml`
-This example defines a sidecar Collector, that exports data to another Collector.
+## Raw Collector configurations (manual deployment)
 
-## Deployment Files
-These files define specifications and Collector configurations that can be used in the process of deploying to Kubernetes.
+These files are the raw YAML configuration we recommend passing to a Collector using the `--config` flag.
 
-### `minimal-helm-values.yaml`
-This is an example of a minimal [helm values file](https://helm.sh/docs/chart_template_guide/values_files/) that we support for exporting to Datadog. This file defines a similar pipeline to `minimal-config.yaml` with the addition of the [Resource Detection Processor](https://github.com/open-telemetry/opentelemetry-collector-contrib/blob/main/processor/resourcedetectionprocessor/README.md) and environment variables.
-
-### `daemonset.yaml`
-This file can be used for deploying a basic OpenTelemetry Collector for sending OpenTelemetry traces to Datadog. It is configured with the Datadog Exporter and the OTLP receiver.
-
-## Installing on Kubernetes
-Switch to your desired context and add the helm charts repo:
+Example:
+```sh
+DD_SITE=datadoghq.com DD_API_KEY='insertyourapikey' ./otelcol-contrib --config ./otelcol-host.yaml --feature-gates connector.spanmetrics.includeCollectorInstanceID
 ```
-kubectx <desired context>
+
+### Agent deployment pattern
+
+Can be a Daemonset deployment (Kubernetes) or a manual (containerized or not) Agent deployment.
+
+Files:
+- `otelcol-agent.yaml`: Uncontainerized Agent in a non-cloud environment
+- `otelcol-agent-gce.yaml`: Uncontainerized Agent in a GCE environment
+- `otelcol-agent-ec2.yaml`: Uncontainerized Agent in an EC2 environment
+- `otelcol-agent-azure.yaml`: Uncontainerized Agent in an Azure VM environment
+- `otelcol-agent-container.yaml`: Containerized Agent in a non-cloud environment
+- `otelcol-daemonset.yaml`: Kubernetes Daemonset in a non-cloud environment
+- `otelcol-daemonset-eks.yaml`: Kubernetes Daemonset in an EKS environment
+
+## Deployment using the Collector Helm chart
+
+A simple way to deploy the Collector in Kubernetes is to use [the official Helm chart](https://github.com/open-telemetry/opentelemetry-helm-charts/tree/main/charts/opentelemetry-collector).
+
+The following files are `values.yaml` files to be passed as a `--values` flag when deploying the Collector Helm chart.
+They are generated from the above raw Collector configurations and automate setting up some of the necessary feature gates / mounts.
+
+Example:
+```sh
+kubectl create secret generic datadog-secrets --from-literal=api-key='insertyourapikey'
 helm repo add open-telemetry https://open-telemetry.github.io/opentelemetry-helm-charts
+helm install otelcol open-telemetry/opentelemetry-collector --values ./helm-daemonset.yaml
 ```
 
-Create a secret with your datadog api key (alternatively you may update the secret in values.yaml or --set it when installing):
-```
-kubectl create secret generic datadog-secrets --from-literal api-key=<YOUR_KEY_HERE>
+Files:
+- `helm-daemonset.yaml`: Kubernetes Daemonset in a non-cloud environment
+- `helm-daemonset-eks.yaml`: Kubernetes Daemonset in an EKS environment
+
+## Deploying the OpenTelemetry Demo
+
+The [OpenTelemetry Demo](https://github.com/open-telemetry/opentelemetry-demo) is a community-built example application which serves to demonstrate the various features of OpenTelemetry. Like the Collector itself, it can be deployed in Kubernetes using [the official Helm chart](https://github.com/open-telemetry/opentelemetry-helm-charts/tree/main/charts/opentelemetry-demo).
+
+The following files are `values.yaml` files to be passed as a `--values` flag when deploying the Demo Helm chart.
+These will deploy a mostly vanilla version of the OpenTelemetry Demo, whose telemetry is exported via a Daemonset Collector using one of the above recommended configurations.
+
+Example:
+```sh
+kubectl create secret generic datadog-secrets --from-literal=api-key='insertyourapikey'
+helm repo add open-telemetry https://open-telemetry.github.io/opentelemetry-helm-charts
+helm install otel-demo open-telemetry/opentelemetry-demo --values ./otel-demo.yaml
 ```
 
-Install the helm chart:
-```
-helm install my-opentelemetry-collector open-telemetry/opentelemetry-collector -f <YOUR_VALUES_FILE>.yaml
-```
-
-See OpenTelemetry [docs](https://github.com/open-telemetry/opentelemetry-helm-charts/tree/main/charts/opentelemetry-collector) for more context.
+Files:
+- `otel-demo.yaml`: Kubernetes Daemonset in a non-cloud environment
+- `otel-demo-eks.yaml`: Kubernetes Daemonset in an EKS environment
+- `otel-demo-datadog-eks.yaml`: Kubernetes Daemonset in an EKS environment
+  (This is a legacy configuration using the Datadog Exporter for internal testing purposes.)

@@ -1,0 +1,126 @@
+{{- if .Preamble -}}
+# Recommended OpenTelemetry Collector configuration
+{{include "setup" .}}
+# Collector Contrib version: v{{.OtelcolVersion}}
+# Required Collector flags: --feature-gates connector.spanmetrics.includeCollectorInstanceID
+# Required environment variables: DD_SITE, DD_API_KEY
+{{- if .Container}}
+# Required mounts: /hostfs
+{{- end}}
+{{- end}}
+
+receivers:
+  otlp:
+    {{include "otlp-receiver" . | indent 4}}
+  hostmetrics:
+    {{include "host-metrics-receiver" . | indent 4}}
+
+processors:
+  resourcedetection:
+    {{include "resource-detection-processor" . | indent 4}}
+  cumulativetodelta: {}
+  {{- if .K8s}}
+  k8sattributes:
+    {{include "k8s-attributes-processor" . | indent 4}}
+  {{- end}}
+
+connectors:
+  {{- if .DatadogExporter}}
+  datadog/connector: {}
+  {{- else}}
+  forward: {}
+  spanmetrics:
+    {{include "span-metrics-connector" . | indent 4}}
+  {{- end}}
+
+exporters:
+  debug:
+    verbosity: detailed
+  {{- if .DatadogExporter}}
+  datadog:
+    {{include "datadog-exporter" . | indent 4}}
+  {{- else}}
+  otlp_http:
+    {{include "otlp-http-exporter" . | indent 4}}
+  {{- end}}
+
+extensions:
+  {{- if .K8s}}
+  health_check:
+    {{include "health-check-extension" . | indent 4}}
+  {{- end}}
+  datadog:
+    {{include "datadog-extension" . | indent 4}}
+
+service:
+  extensions:
+    {{- if .K8s}}
+    - health_check # May be necessary for liveness/readiness probe
+    {{- end}}
+    - datadog
+  
+  pipelines:
+    logs:
+      receivers: [otlp]
+      processors:
+        {{- if .K8s}}
+        - k8sattributes
+        {{- end}}
+        - resourcedetection
+      {{- if .DatadogExporter}}
+      exporters: [datadog]
+      {{- else}}
+      exporters: [otlp_http]
+      {{- end}}
+    
+    metrics:
+      receivers: [otlp, hostmetrics]
+      processors:
+        {{- if .K8s}}
+        - k8sattributes
+        {{- end}}
+        - resourcedetection
+        {{- if not .DatadogExporter}}
+        - cumulativetodelta
+        {{- end}}
+      {{- if .DatadogExporter}}
+      exporters: [datadog]
+      {{- else}}
+      exporters: [otlp_http]
+      {{- end}}
+    
+    traces:
+      receivers: [otlp]
+      processors:
+        {{- if .K8s}}
+        - k8sattributes
+        {{- end}}
+        - resourcedetection
+      {{- if .DatadogExporter}}
+      exporters: [datadog/connector]
+      {{- else}}
+      exporters: [forward, spanmetrics]
+      {{- end}}
+    
+    {{if .DatadogExporter -}}
+    traces/sampling:
+      receivers: [datadog/connector]
+      # Perform any sampling here
+      exporters: [datadog]
+    
+    metrics/spanmetrics:
+      receivers: [datadog/connector]
+      exporters: [datadog]
+    {{else -}}
+    traces/sampling:
+      receivers: [forward]
+      # Perform any sampling here
+      exporters: [otlp_http]
+    
+    metrics/spanmetrics:
+      receivers: [spanmetrics]
+      exporters: [otlp_http]
+    {{- end}}
+  
+  telemetry:
+    {{include "self-telemetry" . | indent 4}}

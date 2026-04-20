@@ -1,0 +1,56 @@
+{{- /* TODO: Implement AKS, Azure, ECS, GKE environments */}}
+{{- $system := ", system"}}
+{{- if .Container}}
+{{- $system = ""}}
+{{- end}}
+{{- if eq .CloudEnvironment "ec2"}}
+detectors: [ec2, env{{$system}}]
+{{- else if eq .CloudEnvironment "eks" }}
+detectors: [eks, ec2, env{{$system}}]
+{{- else if eq .CloudEnvironment "gce" }}
+detectors: [gcp, env{{$system}}]
+{{- else if eq .CloudEnvironment "azure" }}
+detectors: [azure, env{{$system}}]
+{{- else if eq .CloudEnvironment "" }}
+detectors: [env{{$system}}]
+{{- else }}
+{{- errorf "unknown cloud environment %q" .CloudEnvironment}}
+{{- end}}
+timeout: 2s
+override: true # Disable if incoming attributes (especially host.name) are verified correct
+{{- if eq .CloudEnvironment "aks"}}
+aks:
+  resource_attributes:
+    k8s.cluster.name: { enabled: true }
+{{- end}}
+{{- if eq .CloudEnvironment "eks"}}
+eks:
+  resource_attributes:
+    k8s.cluster.name: { enabled: true }
+ec2:
+  tags: ['^kubernetes\.io/cluster/.*$']
+{{- end}}
+{{- if not .Container}}
+system:
+  resource_attributes:
+    host.arch:
+      enabled: true
+    host.cpu.cache.l2.size:
+      enabled: true
+    host.cpu.family:
+      enabled: true
+    host.cpu.model.id:
+      enabled: true
+    host.cpu.model.name:
+      enabled: true
+    host.cpu.stepping:
+      enabled: true
+    host.cpu.vendor.id:
+      enabled: true
+    host.ip:
+      enabled: true
+    host.mac:
+      enabled: true
+    os.description:
+      enabled: true
+{{- end}}

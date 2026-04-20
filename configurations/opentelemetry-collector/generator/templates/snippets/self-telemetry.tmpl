@@ -1,0 +1,8 @@
+# Self-monitoring is not recommended, but currently the simplest way to perform enriching
+metrics:
+  readers:
+    - periodic:
+        exporter:
+          otlp:
+            protocol: http/protobuf
+            endpoint: http://localhost:4318
