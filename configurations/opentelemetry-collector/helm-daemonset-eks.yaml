@@ -15,12 +15,12 @@ extraEnvs:
 mode: daemonset
 image:
   repository: otel/opentelemetry-collector-contrib
-  tag: 0.145.0
+  tag: 0.150.1
 command:
   name: "otelcol-contrib"
   extraArgs: ["--feature-gates", "+connector.spanmetrics.includeCollectorInstanceID"]
 
-# Service account for the k8sattributes processor
+# Service account for the k8s_attributes processor
 serviceAccount:
   create: true
 clusterRole:
@@ -99,7 +99,7 @@ alternateConfig:
       ec2:
         tags: ['^kubernetes\.io/cluster/.*$']
     cumulativetodelta: {}
-    k8sattributes:
+    k8s_attributes:
       extract:
         otel_annotations: true
         metadata:
@@ -264,14 +264,14 @@ alternateConfig:
       logs:
         receivers: [otlp]
         processors:
-          - k8sattributes
+          - k8s_attributes
           - resourcedetection
         exporters: [otlp_http]
       
       metrics:
         receivers: [otlp, hostmetrics]
         processors:
-          - k8sattributes
+          - k8s_attributes
           - resourcedetection
           - cumulativetodelta
         exporters: [otlp_http]
@@ -279,7 +279,7 @@ alternateConfig:
       traces:
         receivers: [otlp]
         processors:
-          - k8sattributes
+          - k8s_attributes
           - resourcedetection
         exporters: [forward, spanmetrics]
       

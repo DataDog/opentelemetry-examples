@@ -1,6 +1,6 @@
 package main
 
-var otelcolVersion = "0.145.0"
+var otelcolVersion = "0.150.1"
 
 var hostEnvs = []string{"", "ec2", "gce", "azure"}
 

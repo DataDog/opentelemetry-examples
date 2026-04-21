@@ -20,7 +20,7 @@ processors:
     {{include "resource-detection-processor" . | indent 4}}
   cumulativetodelta: {}
   {{- if .K8s}}
-  k8sattributes:
+  k8s_attributes:
     {{include "k8s-attributes-processor" . | indent 4}}
   {{- end}}
 
@@ -64,7 +64,7 @@ service:
       receivers: [otlp]
       processors:
         {{- if .K8s}}
-        - k8sattributes
+        - k8s_attributes
         {{- end}}
         - resourcedetection
       {{- if .DatadogExporter}}
@@ -77,7 +77,7 @@ service:
       receivers: [otlp, hostmetrics]
       processors:
         {{- if .K8s}}
-        - k8sattributes
+        - k8s_attributes
         {{- end}}
         - resourcedetection
         {{- if not .DatadogExporter}}
@@ -93,7 +93,7 @@ service:
       receivers: [otlp]
       processors:
         {{- if .K8s}}
-        - k8sattributes
+        - k8s_attributes
         {{- end}}
         - resourcedetection
       {{- if .DatadogExporter}}
