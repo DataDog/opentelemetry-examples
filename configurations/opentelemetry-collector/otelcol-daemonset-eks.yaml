@@ -1,6 +1,6 @@
 # Recommended OpenTelemetry Collector configuration
 # Setup: Kubernetes Daemonset in an EKS environment
-# Collector Contrib version: v0.145.0
+# Collector Contrib version: v0.150.1
 # Required Collector flags: --feature-gates connector.spanmetrics.includeCollectorInstanceID
 # Required environment variables: DD_SITE, DD_API_KEY
 # Required mounts: /hostfs
@@ -56,7 +56,7 @@ processors:
     ec2:
       tags: ['^kubernetes\.io/cluster/.*$']
   cumulativetodelta: {}
-  k8sattributes:
+  k8s_attributes:
     # Requires setting up ServiceAccount, (Cluster)Role, and (Cluster)RoleBinding resources
     # See https://github.com/open-telemetry/opentelemetry-collector-contrib/tree/main/processor/k8sattributesprocessor#role-based-access-control
     extract:
@@ -223,14 +223,14 @@ service:
     logs:
       receivers: [otlp]
       processors:
-        - k8sattributes
+        - k8s_attributes
         - resourcedetection
       exporters: [otlp_http]
     
     metrics:
       receivers: [otlp, hostmetrics]
       processors:
-        - k8sattributes
+        - k8s_attributes
         - resourcedetection
         - cumulativetodelta
       exporters: [otlp_http]
@@ -238,7 +238,7 @@ service:
     traces:
       receivers: [otlp]
       processors:
-        - k8sattributes
+        - k8s_attributes
         - resourcedetection
       exporters: [forward, spanmetrics]
     

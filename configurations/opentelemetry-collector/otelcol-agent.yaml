@@ -1,6 +1,6 @@
 # Recommended OpenTelemetry Collector configuration
 # Setup: Uncontainerized Agent in a non-cloud environment
-# Collector Contrib version: v0.145.0
+# Collector Contrib version: v0.150.1
 # Required Collector flags: --feature-gates connector.spanmetrics.includeCollectorInstanceID
 # Required environment variables: DD_SITE, DD_API_KEY
 
