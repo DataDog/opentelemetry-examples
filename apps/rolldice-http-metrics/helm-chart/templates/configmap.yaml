@@ -1,4 +1,4 @@
-{{- if and (not .Values.global.useOldConventions) (not .Values.global.useSpanMetricsConnector) }}
+{{- if and (not .Values.global.useOldConventions) (not .Values.global.useSpanMetricsConnector) (not .Values.global.useOtlpIntake) (not .Values.global.useSpanMetricsConnectorNoRouting) (not .Values.global.useDatadogConnectorNoRouting) (not .Values.global.useOtlpHttpNoRouting) }}
 apiVersion: v1
 kind: ConfigMap
 metadata:

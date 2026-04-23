@@ -37,7 +37,6 @@ data:
           key: ${env:DD_API_KEY}
       otlphttp:
         headers:
-          "Dd-Protocol": "otlp"
           "Dd-Api-Key": "${env:DD_API_KEY}"
         metrics_endpoint: https://trace.agent.${env:DD_SITE}/api/v0.2/stats
         tls:
@@ -59,6 +58,11 @@ data:
     processors:
       batch:
       cumulativetodelta:
+      transform/unit:
+        metric_statements:
+        - context: datapoint
+          statements:
+            - set(metric.unit, "ms") where metric.name == "http.server.duration" or metric.name == "http.client.duration" or metric.name == "http.server.request.duration"
       filter/debug_nonzero:
         metrics:
           datapoint:
@@ -84,7 +88,7 @@ data:
           exporters: [datadog/exporter]
         metrics:
           receivers: [otlp]
-          processors: [cumulativetodelta, metricstransform/rename_http_metrics]
+          processors: [cumulativetodelta, metricstransform/rename_http_metrics, transform/unit]
           exporters: [routing]
         metrics/datadog:
           receivers: [routing]
