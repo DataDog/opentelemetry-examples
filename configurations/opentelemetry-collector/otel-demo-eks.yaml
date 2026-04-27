@@ -26,6 +26,8 @@ default:
         service.instance.id=$(OTEL_K8S_POD_UID),
         k8s.pod.uid=$(OTEL_K8S_POD_UID),
         k8s.container.name=$(OTEL_SERVICE_NAME)
+    - name: OTEL_INSTRUMENTATION_RUNTIME_TELEMETRY_EMIT_EXPERIMENTAL_TELEMETRY
+      value: "true"
 
 opentelemetry-collector:
   # Disable presets enabled by demo
@@ -138,6 +140,14 @@ opentelemetry-collector:
         ec2:
           tags: ['^kubernetes\.io/cluster/.*$']
       cumulativetodelta: {}
+      deltatorate:
+        metrics:
+          # JVM
+          - jvm.gc.collections.count
+          - jvm.gc.collections.elapsed
+          # .NET
+          - dotnet.process.cpu.time
+          - process.cpu.time # Should we exclude this since other languages may use this too?
       k8s_attributes:
         extract:
           otel_annotations: true
@@ -313,6 +323,7 @@ opentelemetry-collector:
             - k8s_attributes
             - resourcedetection
             - cumulativetodelta
+            - deltatorate
           exporters: [otlp_http]
         
         traces:
