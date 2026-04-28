@@ -16,7 +16,6 @@ import (
 type Server struct {
 	*health.Server
 	calendarpb.UnimplementedCalendarServiceServer
-	healthpb.UnimplementedHealthServer
 }
 
 func (s *Server) GetRandomDate(
