@@ -133,8 +133,7 @@ func realMain() error {
 
 	logger.Info("Starting on port ", zap.String("port", port))
 	grpcServer := grpc.NewServer(
-		grpc.UnaryInterceptor(otelgrpc.UnaryServerInterceptor()),
-		grpc.StreamInterceptor(otelgrpc.StreamServerInterceptor()),
+		grpc.StatsHandler(otelgrpc.NewServerHandler()),
 		grpc.StatsHandler(new(ocgrpc.ServerHandler)),
 	)
 	reflection.Register(grpcServer)
