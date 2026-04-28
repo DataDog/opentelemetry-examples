@@ -139,7 +139,19 @@ opentelemetry-collector:
             k8s.cluster.name: { enabled: true }
         ec2:
           tags: ['^kubernetes\.io/cluster/.*$']
-      cumulativetodelta: {}
+      # Go runtime: semantic-core sor/domains/metrics/integrations/go/_equivalence/README.md
+      transform/go-runtime:
+        error_mode: ignore
+        metric_statements:
+          - convert_sum_to_gauge() where metric.name == "process.runtime.go.gc.pause_total_ns" or metric.name == "process.runtime.go.gc.count" or metric.name == "go.memory.allocated" or metric.name == "go.memory.allocations"
+      cumulativetodelta:
+        exclude:
+          metrics:
+            - process.runtime.go.gc.pause_total_ns
+            - process.runtime.go.gc.count
+            - go.memory.allocated
+            - go.memory.allocations
+          match_type: strict
       deltatorate:
         metrics:
           # JVM
@@ -322,6 +334,7 @@ opentelemetry-collector:
           processors:
             - k8s_attributes
             - resourcedetection
+            - transform/go-runtime
             - cumulativetodelta
             - deltatorate
           exporters: [otlp_http]
