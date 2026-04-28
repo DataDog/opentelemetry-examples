@@ -81,5 +81,5 @@ helm install otel-demo open-telemetry/opentelemetry-demo --values ./otel-demo.ya
 Files:
 - `otel-demo.yaml`: Kubernetes Daemonset in a non-cloud environment
 - `otel-demo-eks.yaml`: Kubernetes Daemonset in an EKS environment
-- `otel-demo-datadog-eks.yaml`: Kubernetes Daemonset in an EKS environment
-  (This is a legacy configuration using the Datadog Exporter for internal testing purposes.)
+
+The `otel-demo-testing-*.yaml` files are for internal testing purposes and are not recommended for general use.

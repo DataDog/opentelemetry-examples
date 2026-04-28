@@ -23,6 +23,16 @@ processors:
   k8s_attributes:
     {{include "k8s-attributes-processor" . | indent 4}}
   {{- end}}
+  {{- if .ExperimentalRuntimeMetrics}}
+  deltatorate/runtime_metrics:
+    metrics:
+      # JVM
+      - jvm.gc.collections.count
+      - jvm.gc.collections.elapsed
+      # .NET
+      - dotnet.process.cpu.time
+      - process.cpu.time
+  {{- end}}
 
 connectors:
   {{- if .DatadogExporter}}
@@ -80,8 +90,11 @@ service:
         - k8s_attributes
         {{- end}}
         - resourcedetection
-        {{- if not .DatadogExporter}}
+        {{- if or (not .DatadogExporter) .ExperimentalRuntimeMetrics}}
         - cumulativetodelta
+        {{- end}}
+        {{- if .ExperimentalRuntimeMetrics}}
+        - deltatorate/runtime_metrics
         {{- end}}
       {{- if .DatadogExporter}}
       exporters: [datadog]
