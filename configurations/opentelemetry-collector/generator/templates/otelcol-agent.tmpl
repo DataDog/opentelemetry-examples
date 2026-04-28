@@ -16,32 +16,53 @@ receivers:
     {{include "host-metrics-receiver" . | indent 4}}
 
 processors:
+  # Enrich telemetry with host metadata
   resourcedetection:
     {{include "resource-detection-processor" . | indent 4}}
-  cumulativetodelta: {}
   {{- if .K8s}}
   k8s_attributes:
     {{include "k8s-attributes-processor" . | indent 4}}
   {{- end}}
-  {{- if .ExperimentalRuntimeMetrics}}
+
+  # Transform metrics to fit Datadog platform constraints
+  deltatocumulative: {}
+  transform/sum_to_gauge:
+    error_mode: ignore
+    metric_statements:
+      - context: metric
+        statements:
+          - convert_sum_to_gauge()
+  cumulativetodelta: {}
   deltatorate/runtime_metrics:
     metrics:
-      # JVM
+      # JVM runtime metrics
       - jvm.gc.collections.count
       - jvm.gc.collections.elapsed
-      # .NET
+      # .NET runtime metrics
       - dotnet.process.cpu.time
       - process.cpu.time
-  {{- end}}
 
 connectors:
   {{- if .DatadogExporter}}
   datadog/connector: {}
   {{- else}}
-  forward: {}
   spanmetrics:
     {{include "span-metrics-connector" . | indent 4}}
+  forward/traces_sample: {}
   {{- end}}
+
+  routing/metrics:
+    default_pipelines: [metrics/default]
+    table:
+      - context: metric
+        condition: ContainsValue([
+            "process.runtime.go.gc.pause_total_ns",
+            "process.runtime.go.gc.count",
+            "go.memory.allocated",
+            "go.memory.allocations"
+          ], metric.name)
+        pipelines: [metrics/sum_to_gauge]
+  forward/metrics_default: {}
 
 exporters:
   debug:
@@ -90,12 +111,20 @@ service:
         - k8s_attributes
         {{- end}}
         - resourcedetection
-        {{- if or (not .DatadogExporter) .ExperimentalRuntimeMetrics}}
+      exporters: [routing/metrics]
+    
+    metrics/sum_to_gauge:
+      receivers: [routing/metrics]
+      processors:
+        - deltatocumulative
+        - transform/sum_to_gauge
+      exporters: [forward/metrics_default]
+    
+    metrics/default:
+      receivers: [routing/metrics, forward/metrics_default]
+      processors:
         - cumulativetodelta
-        {{- end}}
-        {{- if .ExperimentalRuntimeMetrics}}
         - deltatorate/runtime_metrics
-        {{- end}}
       {{- if .DatadogExporter}}
       exporters: [datadog]
       {{- else}}
@@ -112,11 +141,11 @@ service:
       {{- if .DatadogExporter}}
       exporters: [datadog/connector]
       {{- else}}
-      exporters: [forward, spanmetrics]
+      exporters: [forward/traces_sample, spanmetrics]
       {{- end}}
     
     {{if .DatadogExporter -}}
-    traces/sampling:
+    traces/sample:
       receivers: [datadog/connector]
       # Perform any sampling here
       exporters: [datadog]
@@ -125,8 +154,8 @@ service:
       receivers: [datadog/connector]
       exporters: [datadog]
     {{else -}}
-    traces/sampling:
-      receivers: [forward]
+    traces/sample:
+      receivers: [forward/traces_sample]
       # Perform any sampling here
       exporters: [otlp_http]
     

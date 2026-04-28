@@ -128,6 +128,7 @@ opentelemetry-collector:
           processes: {}
     
     processors:
+      # Enrich telemetry with host metadata
       resourcedetection:
         detectors: [eks, ec2, env]
         timeout: 2s
@@ -137,7 +138,6 @@ opentelemetry-collector:
             k8s.cluster.name: { enabled: true }
         ec2:
           tags: ['^kubernetes\.io/cluster/.*$']
-      cumulativetodelta: {}
       k8s_attributes:
         extract:
           otel_annotations: true
@@ -175,8 +175,25 @@ opentelemetry-collector:
           - sources:
               - from: connection
     
+      # Transform metrics to fit Datadog platform constraints
+      deltatocumulative: {}
+      transform/sum_to_gauge:
+        error_mode: ignore
+        metric_statements:
+          - context: metric
+            statements:
+              - convert_sum_to_gauge()
+      cumulativetodelta: {}
+      deltatorate/runtime_metrics:
+        metrics:
+          # JVM runtime metrics
+          - jvm.gc.collections.count
+          - jvm.gc.collections.elapsed
+          # .NET runtime metrics
+          - dotnet.process.cpu.time
+          - process.cpu.time
+    
     connectors:
-      forward: {}
       spanmetrics:
         # Note: Spans without service.name will be ignored
         aggregation_temporality: AGGREGATION_TEMPORALITY_DELTA
@@ -265,6 +282,20 @@ opentelemetry-collector:
           #- name: db.system
           - name: db.statement
           - name: db.query.text
+      forward/traces_sample: {}
+    
+      routing/metrics:
+        default_pipelines: [metrics/default]
+        table:
+          - context: metric
+            condition: ContainsValue([
+                "process.runtime.go.gc.pause_total_ns",
+                "process.runtime.go.gc.count",
+                "go.memory.allocated",
+                "go.memory.allocations"
+              ], metric.name)
+            pipelines: [metrics/sum_to_gauge]
+      forward/metrics_default: {}
     
     exporters:
       debug:
@@ -312,7 +343,20 @@ opentelemetry-collector:
           processors:
             - k8s_attributes
             - resourcedetection
+          exporters: [routing/metrics]
+        
+        metrics/sum_to_gauge:
+          receivers: [routing/metrics]
+          processors:
+            - deltatocumulative
+            - transform/sum_to_gauge
+          exporters: [forward/metrics_default]
+        
+        metrics/default:
+          receivers: [routing/metrics, forward/metrics_default]
+          processors:
             - cumulativetodelta
+            - deltatorate/runtime_metrics
           exporters: [otlp_http]
         
         traces:
@@ -320,10 +364,10 @@ opentelemetry-collector:
           processors:
             - k8s_attributes
             - resourcedetection
-          exporters: [forward, spanmetrics]
+          exporters: [forward/traces_sample, spanmetrics]
         
-        traces/sampling:
-          receivers: [forward]
+        traces/sample:
+          receivers: [forward/traces_sample]
           # Perform any sampling here
           exporters: [otlp_http]
         
