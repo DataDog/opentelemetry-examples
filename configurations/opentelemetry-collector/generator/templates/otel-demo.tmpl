@@ -74,6 +74,6 @@ components:
       - name: otel-jmx-rules
         mountPath: /etc/otel-jmx
         data:
-          otel-jmx-rules: |
+          jvm.yaml: |
             {{include "jmx-rules" . | indent 12}}
 {{- end}}
