@@ -1,0 +1,47 @@
+global:
+  useExponentialHistograms: false
+  useOldConventions: false
+  useSpanMetricsConnector: false
+  useOtlpIntake: true
+
+  resourceAttributes:
+    deploymentEnvironment: "otel-otlp-intake"
+    hostName: "eks-host-otlp-intake"
+    serviceVersion: "v1.0"
+
+image:
+  registry: "217139788599.dkr.ecr.us-east-2.amazonaws.com/rolldice/"
+  pullPolicy: IfNotPresent
+
+gameController:
+  image:
+    repository: "game-controller"
+    tag: "auto"
+
+rolling:
+  image:
+    repository: "rolling"
+    tag: "auto"
+
+scoring:
+  image:
+    repository: "scoring"
+    tag: "auto"
+
+otelCollector:
+  image:
+    repository: "otel/opentelemetry-collector-contrib"
+    tag: "latest"
+  datadog:
+    site: "datad0g.com"
+    apiKeySecret:
+      name: "datadog-secret"
+      key: "api-key"
+
+datadogAgent:
+  enabled: false
+
+loadGenerator:
+  image:
+    repository: "load-generator"
+    tag: "error-mix"

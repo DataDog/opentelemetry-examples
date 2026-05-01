@@ -9,6 +9,8 @@ global:
   useOldConventions: false
   # Use span metrics connector instead of routing connector
   useSpanMetricsConnector: false
+  # Use OTLP intake: spanmetrics connector + dual export (otlphttp to /v2/otlpmetrics and datadog/exporter with clone. prefix)
+  useOtlpIntake: false
   
   # OpenTelemetry configuration
   otel:
@@ -140,6 +142,19 @@ otelCollector:
     apiKeySecret:
       name: ""  # Name of the existing secret (required)
       key: "api-key"  # Key in the secret containing the API key
+    otlpMetricsEndpoint: ""  # OTLP HTTP endpoint for metrics (e.g. https://otlp.datadoghq.com/api/v2/otlpmetrics)
+    otlpTracesEndpoint: ""  # OTLP HTTP endpoint for traces (e.g. https://otlp.datadoghq.com/v1/traces)
+    # Optional secondary API key for a second otlphttp exporter
+    secondaryApiKeySecret:
+      name: ""
+      key: "api-key"
+    secondaryOtlpMetricsEndpoint: ""
+    secondaryOtlpTracesEndpoint: ""
+    tertiaryApiKeySecret:
+      name: ""
+      key: "api-key"
+    tertiaryOtlpMetricsEndpoint: ""
+    tertiaryOtlpTracesEndpoint: ""
 
 # Datadog Agent for infrastructure metrics
 datadogAgent:
