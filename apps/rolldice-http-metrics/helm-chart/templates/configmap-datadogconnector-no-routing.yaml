@@ -1,0 +1,72 @@
+{{- if .Values.global.useDatadogConnectorNoRouting }}
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ .Release.Name }}-otel-config
+  labels:
+    app.kubernetes.io/name: otel-config
+    app.kubernetes.io/instance: {{ .Release.Name }}
+data:
+  config.yml: |
+    receivers:
+      otlp:
+        protocols:
+          grpc:
+            endpoint: 0.0.0.0:4317
+          http:
+            endpoint: 0.0.0.0:4318
+      hostmetrics:
+        # collect metrics every 10 seconds.
+        collection_interval: 10s
+        scrapers:
+          cpu:
+          disk:
+          filesystem:
+          memory:
+          network:
+          load:
+          paging:
+          processes:
+
+    exporters:
+      datadog/exporter:
+        api:
+          site: ${env:DD_SITE}
+          key: ${env:DD_API_KEY}
+      debug:
+        verbosity: detailed
+
+    connectors:
+      datadog/connector:
+        traces:
+          compute_stats_by_span_kind: true
+          peer_tags_aggregation: true
+
+    processors:
+      batch:
+      cumulativetodelta:
+        include:
+          match_type: regexp
+          metrics:
+            - .*
+      transform/unit:
+        metric_statements:
+        - context: datapoint
+          statements:
+            - set(metric.unit, "ms") where metric.name == "http.server.duration" or metric.name == "http.client.duration" or metric.name == "http.server.request.duration"
+    service:
+      pipelines:
+        traces:
+          receivers: [otlp]
+          processors: [batch]
+          exporters: [datadog/exporter, datadog/connector]
+
+        metrics/datadogconnector:
+          receivers: [datadog/connector]
+          exporters: [datadog/exporter, debug]
+
+        metrics:
+          receivers: [otlp]
+          processors: [cumulativetodelta, transform/unit]
+          exporters: [datadog/exporter, debug]
+{{- end }}

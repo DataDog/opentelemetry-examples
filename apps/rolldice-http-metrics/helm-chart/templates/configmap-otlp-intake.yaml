@@ -1,0 +1,195 @@
+{{- if .Values.global.useOtlpIntake }}
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ .Release.Name }}-otel-config
+  labels:
+    app.kubernetes.io/name: otel-config
+    app.kubernetes.io/instance: {{ .Release.Name }}
+data:
+  config.yml: |
+    receivers:
+      otlp:
+        protocols:
+          grpc:
+            endpoint: 0.0.0.0:4317
+          http:
+            endpoint: 0.0.0.0:4318
+      hostmetrics:
+        # collect metrics every 10 seconds.
+        collection_interval: 10s
+        scrapers:
+          cpu:
+          disk:
+          filesystem:
+          memory:
+          network:
+          load:
+          paging:
+          processes:
+
+    exporters:
+      debug:
+        verbosity: detailed
+      datadog/exporter:
+        api:
+          site: ${env:DD_SITE}
+          key: ${env:DD_API_KEY}
+      otlphttp:
+        headers:
+          "Dd-Api-Key": "${env:DD_API_KEY}"
+        metrics_endpoint: "https://otlp.{{ .Values.otelCollector.datadog.site | default "datadoghq.com" }}/api/v2/otlpmetrics"
+
+    connectors:
+      forward:
+      forward/debug:
+      forward/clone:
+      spanmetrics:
+        aggregation_temporality: AGGREGATION_TEMPORALITY_DELTA
+        add_resource_attributes: true
+        dimensions:
+          # env
+          - name: deployment.environment.name
+
+          # version
+          - name: service.version
+
+          # status code
+          - name: http.response.status_code
+
+          # all inputs for host
+          - name: host
+          - name: aws.ecs.launchtype
+          - name: aws.ecs.task.arn
+          - name: cloud.provider
+          - name: cloud.account.id
+          - name: host.id
+          - name: host.name
+          - name: k8s.node.name
+          - name: k8s.cluster.name
+          - name: azure.resourcegroup.name
+
+          # peer tags
+          - name: aws.sqs.queue.url
+          - name: aws.s3.bucket
+          - name: db.hostname
+          - name: db.namespace
+          - name: db.system.name
+          - name: messaging.destination.name
+          - name: messaging.system
+          - name: service.peer.name
+          - name: rpc.method
+          - name: rpc.system.name
+          - name: server.address
+
+          # container tags
+          - name: container.id
+          - name: container.name
+          - name: container.image.name
+          - name: container.image.tag
+          - name: container.runtime
+          - name: cloud.region
+          - name: cloud.availability_zone
+          - name: aws.ecs.task.family
+          - name: aws.ecs.cluster.arn
+          - name: aws.ecs.task.revision
+          - name: aws.ecs.container.arn
+          - name: k8s.container.name
+          - name: k8s.deployment.name
+          - name: k8s.replicaset.name
+          - name: k8s.statefulset.name
+          - name: k8s.daemon.set.name
+          - name: k8s.job.name
+          - name: k8s.cronjob.name
+          - name: k8s.namespace.name
+          - name: k8s.pod.name
+
+          # all inputs for operation name
+          - name: operation.name
+          - name: http.request.method
+          - name: http.method
+          - name: db.system
+          - name: messaging.operation
+          - name: rpc.system
+          - name: rpc.service
+          - name: faas.invoked_provider
+          - name: faas.invoked_name
+          - name: faas.trigger
+          - name: graphql.operation.type
+          - name: network.protocol.name
+
+          # all inputs for resource name
+          - name: resource.name
+          - name: http.route
+          - name: messaging.destination
+          - name: graphql.operation.name
+          - name: db.statement
+          - name: db.query.text
+
+      routing:
+        default_pipelines: [metrics/datadog]
+        table:
+          - context: datapoint
+            condition: (metric.name == "traces.span.metrics.duration" or metric.name == "traces.span.metrics.calls") and not (datapoint.attributes["operation.name"] == "http.server.request" or datapoint.attributes  ["operation.name"] == "http.client.request")
+            pipelines: [metrics/dd_trace_metrics]
+          - context: datapoint
+            condition: metric.name == "http.server.request.duration" or metric.name == "http.client.request.duration"
+            pipelines: [metrics/dd_trace_metrics]
+
+    processors:
+      batch:
+      cumulativetodelta:
+      filter/allow_calls:
+        metrics:
+          metric:
+            - 'metric.name != "traces.span.metrics.calls"'
+      filter/allow_duration:
+        metrics:
+          metric:
+            - 'metric.name != "traces.span.metrics.duration"'
+      filter/debug_nonzero:
+        metrics:
+          datapoint:
+            - 'datapoint.count == 0'
+      transform/clone_prefix:
+        metric_statements:
+          - context: metric
+            statements:
+              - set(name, Concat(["clone.", name], ""))
+
+    service:
+      pipelines:
+        traces:
+          receivers: [otlp]
+          processors: [batch]
+          exporters: [datadog/exporter, spanmetrics]
+
+        # === Metrics Stage 1
+        metrics/spanmetricsconnector:
+          receivers: [spanmetrics]
+          exporters: [routing]
+        metrics:
+          receivers: [otlp]
+          processors: [cumulativetodelta]
+          exporters: [routing]
+
+        # === Metrics Stage 2
+        metrics/datadog:
+          receivers: [routing]
+          exporters: [otlphttp, forward/clone]
+        metrics/dd_trace_metrics:
+          receivers: [routing]
+          exporters: [otlphttp, forward/clone, forward/debug]
+
+        # === Clone (renamed copy via datadog/exporter)
+        metrics/clone:
+          receivers: [forward/clone]
+          processors: [transform/clone_prefix]
+          exporters: [datadog/exporter]
+
+        # === Debug
+        metrics/debug_filtered:
+          receivers: [forward/debug]
+          processors: [filter/debug_nonzero]
+          exporters: [debug]
+{{- end }}
