@@ -45,6 +45,7 @@ receivers:
       processes: {}
 
 processors:
+  # Enrich telemetry with host metadata
   resourcedetection:
     detectors: [env, system]
     timeout: 2s
@@ -71,6 +72,8 @@ processors:
           enabled: true
         os.description:
           enabled: true
+
+  # Transform metrics to fit Datadog platform constraints
   cumulativetodelta: {}
 
 connectors:
@@ -112,6 +115,7 @@ service:
       receivers: [otlp, hostmetrics]
       processors:
         - resourcedetection
+        - cumulativetodelta
       exporters: [datadog]
     
     traces:
@@ -120,7 +124,7 @@ service:
         - resourcedetection
       exporters: [datadog/connector]
     
-    traces/sampling:
+    traces/sample:
       receivers: [datadog/connector]
       # Perform any sampling here
       exporters: [datadog]

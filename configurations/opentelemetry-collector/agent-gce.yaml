@@ -44,6 +44,7 @@ receivers:
       processes: {}
 
 processors:
+  # Enrich telemetry with host metadata
   resourcedetection:
     detectors: [gcp, env, system]
     timeout: 2s
@@ -70,10 +71,11 @@ processors:
           enabled: true
         os.description:
           enabled: true
+
+  # Transform metrics to fit Datadog platform constraints
   cumulativetodelta: {}
 
 connectors:
-  forward: {}
   spanmetrics:
     # Note: Spans without service.name will be ignored
     aggregation_temporality: AGGREGATION_TEMPORALITY_DELTA
@@ -162,6 +164,7 @@ connectors:
       #- name: db.system
       - name: db.statement
       - name: db.query.text
+  forward/traces_sample: {}
 
 exporters:
   debug:
@@ -211,10 +214,10 @@ service:
       receivers: [otlp]
       processors:
         - resourcedetection
-      exporters: [forward, spanmetrics]
+      exporters: [forward/traces_sample, spanmetrics]
     
-    traces/sampling:
-      receivers: [forward]
+    traces/sample:
+      receivers: [forward/traces_sample]
       # Perform any sampling here
       exporters: [otlp_http]
     

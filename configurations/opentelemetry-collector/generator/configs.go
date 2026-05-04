@@ -14,6 +14,6 @@ var configs = []config{
 
 	{"testing/agent-datadog", "otelcol-agent", []string{""}, map[string]any{"DatadogExporter": true, "Testing": true}},
 	{"testing/daemonset-datadog", "otelcol-agent", []string{""}, map[string]any{"Container": true, "K8s": true, "DatadogExporter": true, "Testing": true}},
-	{"testing/otel-demo-datadog", "otel-demo", []string{"eks"}, map[string]any{"DatadogExporter": true, "Testing": true}},
-	{"testing/otel-demo", "otel-demo", k8sEnvs, map[string]any{"Testing": true}},
+	{"testing/otel-demo-datadog", "otel-demo", []string{"eks"}, map[string]any{"DatadogExporter": true, "Testing": true, "ExperimentalRuntimeMetrics": true, "MapRuntimeMetrics": true}},
+	{"testing/otel-demo", "otel-demo", []string{"eks"}, map[string]any{"Testing": true, "ExperimentalRuntimeMetrics": true, "MapRuntimeMetrics": true}},
 }
