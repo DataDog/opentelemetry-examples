@@ -1,5 +1,8 @@
 {{- set . "K8s" true }}
 {{- if .Preamble -}}
+{{- if .Testing -}}
+# FOR INTERNAL TESTING PURPOSES ONLY
+{{end -}}
 # Example values.yaml file for the OpenTelemetry Demo Helm chart
 {{include "setup" .}}
 {{- set . "Preamble" false}}

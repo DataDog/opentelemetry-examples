@@ -1,4 +1,7 @@
 {{- if .Preamble -}}
+{{- if .Testing -}}
+# FOR INTERNAL TESTING PURPOSES ONLY
+{{end -}}
 # Recommended OpenTelemetry Collector configuration
 {{include "setup" .}}
 # Collector Contrib version: v{{.OtelcolVersion}}

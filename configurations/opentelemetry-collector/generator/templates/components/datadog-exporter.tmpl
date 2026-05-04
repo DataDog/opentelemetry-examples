@@ -2,5 +2,8 @@ api:
   key: ${env:DD_API_KEY}
   site: ${env:DD_SITE}
 hostname_detection_timeout: 5s
+metrics:
+  resource_attributes_as_tags: true
+  instrumentation_scope_metadata_as_tags: true
 sending_queue:
   batch: {} # Default batch settings

@@ -1,0 +1,141 @@
+# FOR INTERNAL TESTING PURPOSES ONLY
+# Recommended OpenTelemetry Collector configuration
+# Setup: Uncontainerized Agent in a non-cloud environment
+# Collector Contrib version: v0.150.1
+# Required Collector flags: --feature-gates connector.spanmetrics.includeCollectorInstanceID
+# Required environment variables: DD_SITE, DD_API_KEY
+
+receivers:
+  otlp:
+    protocols:
+      grpc:
+        endpoint: 0.0.0.0:4317
+      http:
+        endpoint: 0.0.0.0:4318
+  hostmetrics:
+    collection_interval: 10s
+    scrapers:
+      cpu:
+        metrics:
+          system.cpu.utilization:
+            enabled: true
+          system.cpu.physical.count:
+            enabled: true
+          system.cpu.logical.count:
+            enabled: true
+          system.cpu.frequency:
+            enabled: true
+      memory:
+        metrics:
+          system.memory.limit:
+            enabled: true
+      paging:
+        metrics:
+          system.paging.utilization:
+            enabled: true
+          system.paging.usage:
+            enabled: true
+      disk: {}
+      filesystem:
+        metrics:
+          system.filesystem.utilization:
+            enabled: true
+      load: {}
+      network: {}
+      processes: {}
+
+processors:
+  resourcedetection:
+    detectors: [env, system]
+    timeout: 2s
+    override: true # Disable if incoming attributes (especially host.name) are verified correct
+    system:
+      resource_attributes:
+        host.arch:
+          enabled: true
+        host.cpu.cache.l2.size:
+          enabled: true
+        host.cpu.family:
+          enabled: true
+        host.cpu.model.id:
+          enabled: true
+        host.cpu.model.name:
+          enabled: true
+        host.cpu.stepping:
+          enabled: true
+        host.cpu.vendor.id:
+          enabled: true
+        host.ip:
+          enabled: true
+        host.mac:
+          enabled: true
+        os.description:
+          enabled: true
+  cumulativetodelta: {}
+
+connectors:
+  datadog/connector: {}
+
+exporters:
+  debug:
+    verbosity: detailed
+  datadog:
+    api:
+      key: ${env:DD_API_KEY}
+      site: ${env:DD_SITE}
+    hostname_detection_timeout: 5s
+    metrics:
+      resource_attributes_as_tags: true
+      instrumentation_scope_metadata_as_tags: true
+    sending_queue:
+      batch: {} # Default batch settings
+
+extensions:
+  datadog:
+    api:
+      site: ${env:DD_SITE}
+      key: ${env:DD_API_KEY}
+    deployment_type: daemonset
+
+service:
+  extensions:
+    - datadog
+  
+  pipelines:
+    logs:
+      receivers: [otlp]
+      processors:
+        - resourcedetection
+      exporters: [datadog]
+    
+    metrics:
+      receivers: [otlp, hostmetrics]
+      processors:
+        - resourcedetection
+      exporters: [datadog]
+    
+    traces:
+      receivers: [otlp]
+      processors:
+        - resourcedetection
+      exporters: [datadog/connector]
+    
+    traces/sampling:
+      receivers: [datadog/connector]
+      # Perform any sampling here
+      exporters: [datadog]
+    
+    metrics/spanmetrics:
+      receivers: [datadog/connector]
+      exporters: [datadog]
+    
+  
+  telemetry:
+    # Self-monitoring is not recommended, but currently the simplest way to perform enriching
+    metrics:
+      readers:
+        - periodic:
+            exporter:
+              otlp:
+                protocol: http/protobuf
+                endpoint: http://localhost:4318

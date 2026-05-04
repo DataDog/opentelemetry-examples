@@ -1,3 +1,4 @@
+# FOR INTERNAL TESTING PURPOSES ONLY
 # Example values.yaml file for the OpenTelemetry Demo Helm chart
 # Setup: Kubernetes Daemonset in a non-cloud environment
 
@@ -182,7 +183,7 @@ opentelemetry-collector:
         dimensions:
           # (Duplicate dimensions are not allowed and are thus commented out)
         
-          ## Universal Service Monitoring
+          ## Unified Service Tagging
           - name: deployment.environment.name
           - name: service.version
           - name: http.response.status_code

@@ -84,7 +84,7 @@ connectors:
     dimensions:
       # (Duplicate dimensions are not allowed and are thus commented out)
     
-      ## Universal Service Monitoring
+      ## Unified Service Tagging
       - name: deployment.environment.name
       - name: service.version
       - name: http.response.status_code

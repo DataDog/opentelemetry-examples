@@ -1,9 +1,8 @@
 # Recommended OpenTelemetry Collector configuration
-# Setup: Kubernetes Daemonset in an EKS environment
+# Setup: Uncontainerized Agent in a GCE environment
 # Collector Contrib version: v0.150.1
 # Required Collector flags: --feature-gates connector.spanmetrics.includeCollectorInstanceID
 # Required environment variables: DD_SITE, DD_API_KEY
-# Required mounts: /hostfs
 
 receivers:
   otlp:
@@ -13,7 +12,6 @@ receivers:
       http:
         endpoint: 0.0.0.0:4318
   hostmetrics:
-    root_path: /hostfs # Necessary inside containers, corresponds to / on host
     collection_interval: 10s
     scrapers:
       cpu:
@@ -47,53 +45,32 @@ receivers:
 
 processors:
   resourcedetection:
-    detectors: [eks, ec2, env]
+    detectors: [gcp, env, system]
     timeout: 2s
     override: true # Disable if incoming attributes (especially host.name) are verified correct
-    eks:
+    system:
       resource_attributes:
-        k8s.cluster.name: { enabled: true }
-    ec2:
-      tags: ['^kubernetes\.io/cluster/.*$']
+        host.arch:
+          enabled: true
+        host.cpu.cache.l2.size:
+          enabled: true
+        host.cpu.family:
+          enabled: true
+        host.cpu.model.id:
+          enabled: true
+        host.cpu.model.name:
+          enabled: true
+        host.cpu.stepping:
+          enabled: true
+        host.cpu.vendor.id:
+          enabled: true
+        host.ip:
+          enabled: true
+        host.mac:
+          enabled: true
+        os.description:
+          enabled: true
   cumulativetodelta: {}
-  k8s_attributes:
-    # Requires setting up ServiceAccount, (Cluster)Role, and (Cluster)RoleBinding resources
-    # See https://github.com/open-telemetry/opentelemetry-collector-contrib/tree/main/processor/k8sattributesprocessor#role-based-access-control
-    extract:
-      otel_annotations: true
-      metadata:
-        - k8s.node.name
-        - k8s.namespace.name
-        - service.namespace
-        - service.name
-        - service.version
-        - service.instance.id
-        - k8s.deployment.name
-        - k8s.replicaset.name
-        - k8s.daemonset.name
-        - k8s.statefulset.name
-        - k8s.cronjob.name
-        - k8s.job.name
-        - k8s.pod.uid
-        - k8s.pod.name
-        - container.id
-        - k8s.container.name
-        - container.image.name
-        - container.image.tag
-    pod_association:
-      - sources:
-          - from: resource_attribute
-            name: k8s.pod.uid
-      - sources:
-          - from: resource_attribute
-            name: k8s.pod.ip
-      - sources:
-          - from: resource_attribute
-            name: k8s.pod.name
-          - from: resource_attribute
-            name: k8s.namespace.name
-      - sources:
-          - from: connection
 
 connectors:
   forward: {}
@@ -107,7 +84,7 @@ connectors:
     dimensions:
       # (Duplicate dimensions are not allowed and are thus commented out)
     
-      ## Universal Service Monitoring
+      ## Unified Service Tagging
       - name: deployment.environment.name
       - name: service.version
       - name: http.response.status_code
@@ -206,8 +183,6 @@ exporters:
       batch: {} # Default batch settings
 
 extensions:
-  health_check:
-    endpoint: ${env:MY_POD_IP}:13133
   datadog:
     api:
       site: ${env:DD_SITE}
@@ -216,21 +191,18 @@ extensions:
 
 service:
   extensions:
-    - health_check # May be necessary for liveness/readiness probe
     - datadog
   
   pipelines:
     logs:
       receivers: [otlp]
       processors:
-        - k8s_attributes
         - resourcedetection
       exporters: [otlp_http]
     
     metrics:
       receivers: [otlp, hostmetrics]
       processors:
-        - k8s_attributes
         - resourcedetection
         - cumulativetodelta
       exporters: [otlp_http]
@@ -238,7 +210,6 @@ service:
     traces:
       receivers: [otlp]
       processors:
-        - k8s_attributes
         - resourcedetection
       exporters: [forward, spanmetrics]
     

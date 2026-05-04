@@ -1,9 +1,8 @@
 # Recommended OpenTelemetry Collector configuration
-# Setup: Containerized Agent in a non-cloud environment
+# Setup: Uncontainerized Agent in an Azure VM environment
 # Collector Contrib version: v0.150.1
 # Required Collector flags: --feature-gates connector.spanmetrics.includeCollectorInstanceID
 # Required environment variables: DD_SITE, DD_API_KEY
-# Required mounts: /hostfs
 
 receivers:
   otlp:
@@ -13,7 +12,6 @@ receivers:
       http:
         endpoint: 0.0.0.0:4318
   hostmetrics:
-    root_path: /hostfs # Necessary inside containers, corresponds to / on host
     collection_interval: 10s
     scrapers:
       cpu:
@@ -47,9 +45,31 @@ receivers:
 
 processors:
   resourcedetection:
-    detectors: [env]
+    detectors: [azure, env, system]
     timeout: 2s
     override: true # Disable if incoming attributes (especially host.name) are verified correct
+    system:
+      resource_attributes:
+        host.arch:
+          enabled: true
+        host.cpu.cache.l2.size:
+          enabled: true
+        host.cpu.family:
+          enabled: true
+        host.cpu.model.id:
+          enabled: true
+        host.cpu.model.name:
+          enabled: true
+        host.cpu.stepping:
+          enabled: true
+        host.cpu.vendor.id:
+          enabled: true
+        host.ip:
+          enabled: true
+        host.mac:
+          enabled: true
+        os.description:
+          enabled: true
   cumulativetodelta: {}
 
 connectors:
@@ -64,7 +84,7 @@ connectors:
     dimensions:
       # (Duplicate dimensions are not allowed and are thus commented out)
     
-      ## Universal Service Monitoring
+      ## Unified Service Tagging
       - name: deployment.environment.name
       - name: service.version
       - name: http.response.status_code
