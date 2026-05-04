@@ -2,6 +2,10 @@
 
 This directory contains Collector configurations for internal testing purposes.
 
+> [!WARNING]  
+> These files are not recommended for use by Datadog users,
+> and are only meant for testing and comparison by Datadog employees.
+
 ## Raw Collector configurations for manual deployment
 
 Files:

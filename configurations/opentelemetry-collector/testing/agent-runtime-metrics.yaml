@@ -75,6 +75,8 @@ processors:
 
   # Transform metrics to fit Datadog platform constraints
   cumulativetodelta: {}
+
+  # Runtime metric mapping adapted from https://docs.datadoghq.com/opentelemetry/integrations/runtime_metrics
   deltatocumulative: {}
   transform/sum_to_gauge:
     error_mode: ignore
@@ -181,6 +183,7 @@ connectors:
       - name: db.statement
       - name: db.query.text
   forward/traces_sample: {}
+  # Runtime metric mapping adapted from https://docs.datadoghq.com/opentelemetry/integrations/runtime_metrics
   routing/metrics:
     default_pipelines: [metrics/default]
     table:

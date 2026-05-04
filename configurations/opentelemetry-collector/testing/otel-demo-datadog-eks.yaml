@@ -184,6 +184,8 @@ opentelemetry-collector:
     
       # Transform metrics to fit Datadog platform constraints
       cumulativetodelta: {}
+    
+      # Runtime metric mapping adapted from https://docs.datadoghq.com/opentelemetry/integrations/runtime_metrics
       deltatocumulative: {}
       transform/sum_to_gauge:
         error_mode: ignore
@@ -202,6 +204,7 @@ opentelemetry-collector:
     
     connectors:
       datadog/connector: {}
+      # Runtime metric mapping adapted from https://docs.datadoghq.com/opentelemetry/integrations/runtime_metrics
       routing/metrics:
         default_pipelines: [metrics/default]
         table:
