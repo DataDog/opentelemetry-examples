@@ -11,8 +11,12 @@ extraEnvs:
       secretKeyRef:
         name: datadog-secrets
         key: api-key
+  - name: NODE_NAME
+    valueFrom:
+      fieldRef:
+        fieldPath: spec.nodeName
   - name: OTEL_RESOURCE_ATTRIBUTES
-    value: "k8s.node.name=$(OTEL_K8S_NODE_NAME)" # Source variables are set by Helm chart
+    value: "k8s.node.name=$(NODE_NAME)"
 
 mode: daemonset
 image:
@@ -48,6 +52,15 @@ extraVolumeMounts:
     mountPath: /hostfs
     readOnly: true
     mountPropagation: HostToContainer
+
+# Some components take a long time to start, so set a startup probe
+startupProbe:
+  initialDelaySeconds: 1
+  periodSeconds: 2
+  failureThreshold: 20 # 40 seconds
+  httpGet:
+    port: 13133
+    path: /
 
 alternateConfig:
   receivers:

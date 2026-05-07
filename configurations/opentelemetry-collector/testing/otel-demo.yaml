@@ -1,6 +1,6 @@
 # FOR INTERNAL TESTING PURPOSES ONLY
 # Example values.yaml file for the OpenTelemetry Demo Helm chart
-# Setup: Kubernetes Daemonset in an EKS environment
+# Setup: Kubernetes Daemonset in a non-cloud environment
 
 # Disable other backends
 jaeger:
@@ -57,6 +57,12 @@ opentelemetry-collector:
         secretKeyRef:
           name: datadog-secrets
           key: api-key
+    - name: NODE_NAME
+      valueFrom:
+        fieldRef:
+          fieldPath: spec.nodeName
+    - name: OTEL_RESOURCE_ATTRIBUTES
+      value: "k8s.node.name=$(NODE_NAME)"
   
   mode: daemonset
   image:
@@ -146,14 +152,9 @@ opentelemetry-collector:
     processors:
       # Enrich telemetry with host metadata
       resourcedetection:
-        detectors: [eks, ec2, env]
+        detectors: [env]
         timeout: 2s
         override: true # Disable if incoming attributes (especially host.name) are verified correct
-        eks:
-          resource_attributes:
-            k8s.cluster.name: { enabled: true }
-        ec2:
-          tags: ['^kubernetes\.io/cluster/.*$']
       k8s_attributes:
         extract:
           otel_annotations: true

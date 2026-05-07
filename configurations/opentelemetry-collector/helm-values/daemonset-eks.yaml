@@ -47,6 +47,15 @@ extraVolumeMounts:
     readOnly: true
     mountPropagation: HostToContainer
 
+# Some components take a long time to start, so set a startup probe
+startupProbe:
+  initialDelaySeconds: 1
+  periodSeconds: 2
+  failureThreshold: 20 # 40 seconds
+  httpGet:
+    port: 13133
+    path: /
+
 alternateConfig:
   receivers:
     otlp:

@@ -93,6 +93,15 @@ opentelemetry-collector:
       readOnly: true
       mountPropagation: HostToContainer
   
+  # Some components take a long time to start, so set a startup probe
+  startupProbe:
+    initialDelaySeconds: 1
+    periodSeconds: 2
+    failureThreshold: 20 # 40 seconds
+    httpGet:
+      port: 13133
+      path: /
+  
   alternateConfig:
     receivers:
       otlp:
@@ -187,12 +196,18 @@ opentelemetry-collector:
     
       # Runtime metric mapping adapted from https://docs.datadoghq.com/opentelemetry/integrations/runtime_metrics
       deltatocumulative: {}
-      transform/sum_to_gauge:
+      transform/cumul_sum_to_gauge:
         error_mode: ignore
         metric_statements:
           - context: metric
             statements:
               - convert_sum_to_gauge()
+      transform/delta_sum_to_gauge:
+        error_mode: ignore
+        metric_statements:
+          - context: metric
+            statements:
+              - convert_sum_to_gauge() where metric.name == "system.network.io"
       deltatorate/runtime_metrics:
         metrics:
           # JVM runtime metrics
@@ -215,7 +230,7 @@ opentelemetry-collector:
                 "go.memory.allocated",
                 "go.memory.allocations"
               ], metric.name)
-            pipelines: [metrics/sum_to_gauge]
+            pipelines: [metrics/cumul_sum_to_gauge]
       forward/metrics_default: {}
     
     exporters:
@@ -261,17 +276,18 @@ opentelemetry-collector:
             - resourcedetection
           exporters: [routing/metrics]
         
-        metrics/sum_to_gauge:
+        metrics/cumul_sum_to_gauge:
           receivers: [routing/metrics]
           processors:
             - deltatocumulative
-            - transform/sum_to_gauge
+            - transform/cumul_sum_to_gauge
           exporters: [forward/metrics_default]
         
         metrics/default:
           receivers: [routing/metrics, forward/metrics_default]
           processors:
             - cumulativetodelta
+            - transform/delta_sum_to_gauge
             - deltatorate/runtime_metrics
           exporters: [datadog]
         
