@@ -156,7 +156,8 @@ alternateConfig:
         - name: http.response.status_code
       
         ## Container tags
-        - name: container.id
+        ## May be used as additional primary tags or in service remapping rules
+        - name: container.id # Required for correct aggregation
         - name: container.name
         - name: container.image.name
         - name: container.image.tag
