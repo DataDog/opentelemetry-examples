@@ -2,7 +2,10 @@
 # Setup: Containerized Agent in a non-cloud environment
 # Collector Contrib version: v0.150.1
 # Required Collector flags: --feature-gates connector.spanmetrics.includeCollectorInstanceID
-# Required environment variables: DD_SITE, DD_API_KEY
+# Required environment variables:
+# - DD_SITE: Datadog site for your region, e.g. datadog.com
+# - DD_API_KEY: A Datadog API key
+# - OTEL_RESOURCE_ATTRIBUTES: Host information (no host detection possible in this setup)
 # Required mounts: /hostfs
 
 receivers:
