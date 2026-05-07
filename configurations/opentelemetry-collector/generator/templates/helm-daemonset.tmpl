@@ -17,8 +17,12 @@ extraEnvs:
         name: datadog-secrets
         key: api-key
   {{- if eq .CloudEnvironment ""}}
+  - name: NODE_NAME
+    valueFrom:
+      fieldRef:
+        fieldPath: spec.nodeName
   - name: OTEL_RESOURCE_ATTRIBUTES
-    value: "k8s.node.name=$(OTEL_K8S_NODE_NAME)" # Source variables are set by Helm chart
+    value: "k8s.node.name=$(NODE_NAME)"
   {{- end}}
 
 mode: daemonset
