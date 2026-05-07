@@ -34,16 +34,22 @@ processors:
 
   # Transform metrics to fit Datadog platform constraints
   cumulativetodelta: {}
-  {{- if .MapRuntimeMetrics}}
+  {{- if .MapEquivalentMetrics}}
 
   # Runtime metric mapping adapted from https://docs.datadoghq.com/opentelemetry/integrations/runtime_metrics
   deltatocumulative: {}
-  transform/sum_to_gauge:
+  transform/cumul_sum_to_gauge:
     error_mode: ignore
     metric_statements:
       - context: metric
         statements:
           - convert_sum_to_gauge()
+  transform/delta_sum_to_gauge:
+    error_mode: ignore
+    metric_statements:
+      - context: metric
+        statements:
+          - convert_sum_to_gauge() where metric.name == "system.network.io"
   deltatorate/runtime_metrics:
     metrics:
       # JVM runtime metrics
@@ -63,7 +69,7 @@ connectors:
   forward/traces_sample: {}
   {{- end}}
 
-  {{- if .MapRuntimeMetrics}}
+  {{- if .MapEquivalentMetrics}}
   # Runtime metric mapping adapted from https://docs.datadoghq.com/opentelemetry/integrations/runtime_metrics
   routing/metrics:
     default_pipelines: [metrics/default]
@@ -75,7 +81,7 @@ connectors:
             "go.memory.allocated",
             "go.memory.allocations"
           ], metric.name)
-        pipelines: [metrics/sum_to_gauge]
+        pipelines: [metrics/cumul_sum_to_gauge]
   forward/metrics_default: {}
   {{- end}}
 
@@ -126,14 +132,14 @@ service:
         - k8s_attributes
         {{- end}}
         - resourcedetection
-    {{- if .MapRuntimeMetrics}}
+    {{- if .MapEquivalentMetrics}}
       exporters: [routing/metrics]
     
-    metrics/sum_to_gauge:
+    metrics/cumul_sum_to_gauge:
       receivers: [routing/metrics]
       processors:
         - deltatocumulative
-        - transform/sum_to_gauge
+        - transform/cumul_sum_to_gauge
       exporters: [forward/metrics_default]
     
     metrics/default:
@@ -141,7 +147,8 @@ service:
       processors:
     {{- end}}
         - cumulativetodelta
-    {{- if .MapRuntimeMetrics}}
+    {{- if .MapEquivalentMetrics}}
+        - transform/delta_sum_to_gauge
         - deltatorate/runtime_metrics
     {{- end}}
       {{- if .DatadogExporter}}
