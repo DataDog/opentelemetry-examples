@@ -44,13 +44,7 @@ processors:
       - context: metric
         statements:
           - convert_sum_to_gauge()
-  transform/delta_sum_to_gauge:
-    error_mode: ignore
-    metric_statements:
-      - context: metric
-        statements:
-          - convert_sum_to_gauge() where metric.name == "system.network.io"
-  deltatorate/runtime_metrics:
+  deltatorate:
     metrics:
       # JVM runtime metrics
       - jvm.gc.collections.count
@@ -58,6 +52,14 @@ processors:
       # .NET runtime metrics
       - dotnet.process.cpu.time
       - process.cpu.time
+      # System metrics
+      - system.network.io
+  transform/rate_to_gauge:
+    error_mode: ignore
+    metric_statements:
+      - context: metric
+        statements:
+          - convert_sum_to_gauge() where metric.name == "system.network.io"
   {{- end}}
 
 connectors:
@@ -148,8 +150,8 @@ service:
     {{- end}}
         - cumulativetodelta
     {{- if .MapEquivalentMetrics}}
-        - transform/delta_sum_to_gauge
-        - deltatorate/runtime_metrics
+        - deltatorate
+        - transform/rate_to_gauge
     {{- end}}
       {{- if .DatadogExporter}}
       exporters: [datadog]
