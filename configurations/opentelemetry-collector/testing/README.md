@@ -25,11 +25,12 @@ Example:
 ```sh
 kubectl create secret generic datadog-secrets --from-literal=api-key='insertyourapikey'
 helm repo add open-telemetry https://open-telemetry.github.io/opentelemetry-helm-charts
-helm install otel-demo open-telemetry/opentelemetry-demo --values ./internal/otel-demo.yaml
+helm install otel-demo open-telemetry/opentelemetry-demo --values ./testing/otel-demo.yaml
 ```
 
 Files:
 - `otel-demo.yaml`: Kubernetes Daemonset in a non-cloud environment
 - `otel-demo-eks.yaml`: Kubernetes Daemonset in an EKS environment
+- `otel-demo-datadog.yaml`: Kubernetes Daemonset in a non-cloud environment using the Datadog exporter
 - `otel-demo-datadog-eks.yaml`: Kubernetes Daemonset in an EKS environment using the Datadog exporter
 

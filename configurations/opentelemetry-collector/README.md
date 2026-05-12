@@ -31,7 +31,7 @@ These files are the raw YAML configuration we recommend passing to a Collector u
 
 Example:
 ```sh
-DD_SITE=datadoghq.com DD_API_KEY='insertyourapikey' ./otelcol-contrib --config ./otelcol-host.yaml --feature-gates connector.spanmetrics.includeCollectorInstanceID
+DD_SITE=datadoghq.com DD_API_KEY='insertyourapikey' ./otelcol-contrib --config ./agent.yaml --feature-gates connector.spanmetrics.includeCollectorInstanceID
 ```
 
 ### Agent deployment pattern
@@ -58,7 +58,7 @@ Example:
 ```sh
 kubectl create secret generic datadog-secrets --from-literal=api-key='insertyourapikey'
 helm repo add open-telemetry https://open-telemetry.github.io/opentelemetry-helm-charts
-helm install otelcol open-telemetry/opentelemetry-collector --values ./helm-daemonset.yaml
+helm install otelcol open-telemetry/opentelemetry-collector --values ./helm-values/daemonset.yaml
 ```
 
 Files:
