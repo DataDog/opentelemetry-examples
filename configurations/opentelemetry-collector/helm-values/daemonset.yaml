@@ -11,6 +11,12 @@ extraEnvs:
       secretKeyRef:
         name: datadog-secrets
         key: api-key
+  - name: NODE_NAME
+    valueFrom:
+      fieldRef:
+        fieldPath: spec.nodeName
+  - name: OTEL_RESOURCE_ATTRIBUTES
+    value: "k8s.node.name=$(NODE_NAME)"
 
 mode: daemonset
 image:
@@ -46,6 +52,15 @@ extraVolumeMounts:
     mountPath: /hostfs
     readOnly: true
     mountPropagation: HostToContainer
+
+# Some components take a long time to start, so set a startup probe
+startupProbe:
+  initialDelaySeconds: 1
+  periodSeconds: 2
+  failureThreshold: 20 # 40 seconds
+  httpGet:
+    port: 13133
+    path: /
 
 alternateConfig:
   receivers:
@@ -89,11 +104,11 @@ alternateConfig:
         processes: {}
   
   processors:
+    # Enrich telemetry with host metadata
     resourcedetection:
       detectors: [env]
       timeout: 2s
       override: true # Disable if incoming attributes (especially host.name) are verified correct
-    cumulativetodelta: {}
     k8s_attributes:
       extract:
         otel_annotations: true
@@ -131,8 +146,10 @@ alternateConfig:
         - sources:
             - from: connection
   
+    # Transform metrics to fit Datadog platform constraints
+    cumulativetodelta: {}
+  
   connectors:
-    forward: {}
     spanmetrics:
       # Note: Spans without service.name will be ignored
       aggregation_temporality: AGGREGATION_TEMPORALITY_DELTA
@@ -143,13 +160,14 @@ alternateConfig:
       dimensions:
         # (Duplicate dimensions are not allowed and are thus commented out)
       
-        ## Universal Service Monitoring
+        ## Unified Service Tagging
         - name: deployment.environment.name
         - name: service.version
         - name: http.response.status_code
       
         ## Container tags
-        - name: container.id
+        ## May be used as additional primary tags or in service remapping rules
+        - name: container.id # Required for correct aggregation
         - name: container.name
         - name: container.image.name
         - name: container.image.tag
@@ -221,6 +239,7 @@ alternateConfig:
         #- name: db.system
         - name: db.statement
         - name: db.query.text
+    forward/traces_sample: {}
   
   exporters:
     debug:
@@ -276,10 +295,10 @@ alternateConfig:
         processors:
           - k8s_attributes
           - resourcedetection
-        exporters: [forward, spanmetrics]
+        exporters: [forward/traces_sample, spanmetrics]
       
-      traces/sampling:
-        receivers: [forward]
+      traces/sample:
+        receivers: [forward/traces_sample]
         # Perform any sampling here
         exporters: [otlp_http]
       

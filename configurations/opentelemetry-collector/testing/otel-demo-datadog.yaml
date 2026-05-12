@@ -1,0 +1,431 @@
+# FOR INTERNAL TESTING PURPOSES ONLY
+# Example values.yaml file for the OpenTelemetry Demo Helm chart
+# Setup: Kubernetes Daemonset in a non-cloud environment
+
+# Disable other backends
+jaeger:
+  enabled: false
+prometheus:
+  enabled: false
+grafana:
+  enabled: false
+opensearch:
+  enabled: false
+
+# Add more Kubernetes-related resource attributes
+# Note: The container name being the same as the service name is specific to the OTel Demo
+default:
+  envOverrides:
+    - name: OTEL_K8S_POD_UID
+      valueFrom:
+        fieldRef:
+          fieldPath: metadata.uid
+    - name: OTEL_RESOURCE_ATTRIBUTES
+      value: >-
+        deployment.environment.name=otel-demo,
+        service.namespace=otel-demo,
+        service.instance.id=$(OTEL_K8S_POD_UID),
+        k8s.pod.uid=$(OTEL_K8S_POD_UID),
+        k8s.container.name=$(OTEL_SERVICE_NAME)
+    - name: OTEL_INSTRUMENTATION_RUNTIME_TELEMETRY_EMIT_EXPERIMENTAL_TELEMETRY
+      value: "true"
+    - name: OTEL_INSTRUMENTATION_JMX_ENABLED
+      value: "true"
+    - name: OTEL_JMX_CONFIG
+      value: /etc/otel-jmx/jvm.yaml
+
+opentelemetry-collector:
+  # Disable presets enabled by demo
+  presets:
+    hostMetrics:
+      enabled: false
+    kubernetesAttributes:
+      enabled: false
+    kubeletMetrics:
+      enabled: false
+    clusterMetrics:
+      enabled: false
+    annotationDiscovery:
+      metrics:
+        enabled: false
+
+  extraEnvs:
+    - name: DD_SITE
+      value: datadoghq.com # Update if necessary
+    - name: DD_API_KEY
+      valueFrom:
+        secretKeyRef:
+          name: datadog-secrets
+          key: api-key
+    - name: NODE_NAME
+      valueFrom:
+        fieldRef:
+          fieldPath: spec.nodeName
+    - name: OTEL_RESOURCE_ATTRIBUTES
+      value: "k8s.node.name=$(NODE_NAME)"
+  
+  mode: daemonset
+  image:
+    repository: otel/opentelemetry-collector-contrib
+    tag: 0.150.1
+  command:
+    name: "otelcol-contrib"
+    extraArgs: ["--feature-gates", "+connector.spanmetrics.includeCollectorInstanceID"]
+  
+  # Service account for the k8s_attributes processor
+  serviceAccount:
+    create: true
+  clusterRole:
+    create: true
+    rules:
+      - apiGroups: [""]
+        resources: ["pods", "namespaces"]
+        verbs: ["get", "watch", "list"]
+      - apiGroups: ["apps"]
+        resources: ["replicasets"]
+        verbs: ["get", "list", "watch"]
+      - apiGroups: ["extensions"]
+        resources: ["replicasets"]
+        verbs: ["get", "list", "watch"]
+  
+  # Volume mount for the host metrics receiver
+  extraVolumes:
+    - name: hostfs
+      hostPath:
+        path: /
+  extraVolumeMounts:
+    - name: hostfs
+      mountPath: /hostfs
+      readOnly: true
+      mountPropagation: HostToContainer
+  
+  # Some components take a long time to start, so set a startup probe
+  startupProbe:
+    initialDelaySeconds: 1
+    periodSeconds: 2
+    failureThreshold: 20 # 40 seconds
+    httpGet:
+      port: 13133
+      path: /
+  
+  alternateConfig:
+    receivers:
+      otlp:
+        protocols:
+          grpc:
+            endpoint: 0.0.0.0:4317
+          http:
+            endpoint: 0.0.0.0:4318
+      hostmetrics:
+        root_path: /hostfs # Necessary inside containers, corresponds to / on host
+        collection_interval: 10s
+        scrapers:
+          cpu:
+            metrics:
+              system.cpu.utilization:
+                enabled: true
+              system.cpu.physical.count:
+                enabled: true
+              system.cpu.logical.count:
+                enabled: true
+              system.cpu.frequency:
+                enabled: true
+          memory:
+            metrics:
+              system.memory.limit:
+                enabled: true
+          paging:
+            metrics:
+              system.paging.utilization:
+                enabled: true
+              system.paging.usage:
+                enabled: true
+          disk: {}
+          filesystem:
+            metrics:
+              system.filesystem.utilization:
+                enabled: true
+          load: {}
+          network: {}
+          processes: {}
+    
+    processors:
+      # Enrich telemetry with host metadata
+      resourcedetection:
+        detectors: [env]
+        timeout: 2s
+        override: true # Disable if incoming attributes (especially host.name) are verified correct
+      k8s_attributes:
+        extract:
+          otel_annotations: true
+          metadata:
+            - k8s.node.name
+            - k8s.namespace.name
+            - service.namespace
+            - service.name
+            - service.version
+            - service.instance.id
+            - k8s.deployment.name
+            - k8s.replicaset.name
+            - k8s.daemonset.name
+            - k8s.statefulset.name
+            - k8s.cronjob.name
+            - k8s.job.name
+            - k8s.pod.uid
+            - k8s.pod.name
+            - container.id
+            - k8s.container.name
+            - container.image.name
+            - container.image.tag
+        pod_association:
+          - sources:
+              - from: resource_attribute
+                name: k8s.pod.uid
+          - sources:
+              - from: resource_attribute
+                name: k8s.pod.ip
+          - sources:
+              - from: resource_attribute
+                name: k8s.pod.name
+              - from: resource_attribute
+                name: k8s.namespace.name
+          - sources:
+              - from: connection
+    
+      # Transform metrics to fit Datadog platform constraints
+      cumulativetodelta: {}
+    
+      # Runtime metric mapping adapted from https://docs.datadoghq.com/opentelemetry/integrations/runtime_metrics
+      deltatocumulative: {}
+      transform/cumul_sum_to_gauge:
+        error_mode: ignore
+        metric_statements:
+          - context: metric
+            statements:
+              - convert_sum_to_gauge()
+      deltatorate:
+        metrics:
+          # JVM runtime metrics
+          - jvm.gc.collections.count
+          - jvm.gc.collections.elapsed
+          # .NET runtime metrics
+          - dotnet.process.cpu.time
+          - process.cpu.time
+          # System metrics
+          - system.network.io
+      transform/rate_to_gauge:
+        error_mode: ignore
+        metric_statements:
+          - context: metric
+            statements:
+              - convert_sum_to_gauge() where metric.name == "system.network.io"
+    
+    connectors:
+      datadog/connector: {}
+      # Runtime metric mapping adapted from https://docs.datadoghq.com/opentelemetry/integrations/runtime_metrics
+      routing/metrics:
+        default_pipelines: [metrics/default]
+        table:
+          - context: metric
+            condition: ContainsValue([
+                "process.runtime.go.gc.pause_total_ns",
+                "process.runtime.go.gc.count",
+                "go.memory.allocated",
+                "go.memory.allocations"
+              ], metric.name)
+            pipelines: [metrics/cumul_sum_to_gauge]
+      forward/metrics_default: {}
+    
+    exporters:
+      debug:
+        verbosity: detailed
+      datadog:
+        api:
+          key: ${env:DD_API_KEY}
+          site: ${env:DD_SITE}
+        hostname_detection_timeout: 5s
+        metrics:
+          resource_attributes_as_tags: true
+          instrumentation_scope_metadata_as_tags: true
+        sending_queue:
+          batch: {} # Default batch settings
+    
+    extensions:
+      health_check:
+        endpoint: ${env:MY_POD_IP}:13133
+      datadog:
+        api:
+          site: ${env:DD_SITE}
+          key: ${env:DD_API_KEY}
+        deployment_type: daemonset
+    
+    service:
+      extensions:
+        - health_check # May be necessary for liveness/readiness probe
+        - datadog
+      
+      pipelines:
+        logs:
+          receivers: [otlp]
+          processors:
+            - k8s_attributes
+            - resourcedetection
+          exporters: [datadog]
+        
+        metrics:
+          receivers: [otlp, hostmetrics]
+          processors:
+            - k8s_attributes
+            - resourcedetection
+          exporters: [routing/metrics]
+        
+        metrics/cumul_sum_to_gauge:
+          receivers: [routing/metrics]
+          processors:
+            - deltatocumulative
+            - transform/cumul_sum_to_gauge
+          exporters: [forward/metrics_default]
+        
+        metrics/default:
+          receivers: [routing/metrics, forward/metrics_default]
+          processors:
+            - cumulativetodelta
+            - deltatorate
+            - transform/rate_to_gauge
+          exporters: [datadog]
+        
+        traces:
+          receivers: [otlp]
+          processors:
+            - k8s_attributes
+            - resourcedetection
+          exporters: [datadog/connector]
+        
+        traces/sample:
+          receivers: [datadog/connector]
+          # Perform any sampling here
+          exporters: [datadog]
+        
+        metrics/spanmetrics:
+          receivers: [datadog/connector]
+          exporters: [datadog]
+        
+      
+      telemetry:
+        # Self-monitoring is not recommended, but currently the simplest way to perform enriching
+        metrics:
+          readers:
+            - periodic:
+                exporter:
+                  otlp:
+                    protocol: http/protobuf
+                    endpoint: http://localhost:4318
+
+components:
+  ad:
+    mountedConfigMaps:
+      - name: otel-jmx-rules
+        mountPath: /etc/otel-jmx
+        existingConfigMap: kafka-otel-jmx-rules
+  fraud-detection:
+    mountedConfigMaps:
+      - name: otel-jmx-rules
+        mountPath: /etc/otel-jmx
+        existingConfigMap: kafka-otel-jmx-rules
+  kafka:
+    mountedConfigMaps:
+      - name: otel-jmx-rules
+        mountPath: /etc/otel-jmx
+        data:
+          jvm.yaml: |
+            ---
+            
+            rules:
+            
+              - bean: java.lang:type=ClassLoading
+                mapping:
+                  LoadedClassCount:
+                    metric: jvm.classes.loaded
+                    type: gauge
+                    unit: "{class}"
+                    desc: number of loaded classes
+            
+              - bean: java.lang:type=GarbageCollector,name=*
+                mapping:
+                  CollectionCount:
+                    metric: jvm.gc.collections.count
+                    type: counter
+                    unit: "{collection}"
+                    desc: total number of collections that have occurred
+                    metricAttribute:
+                      name: param(name)
+                  CollectionTime:
+                    metric: jvm.gc.collections.elapsed
+                    type: counter
+                    unit: ms
+                    desc: the approximate accumulated collection elapsed time in milliseconds
+                    metricAttribute:
+                      name: param(name)
+            
+              - bean: java.lang:type=Memory
+                unit: By
+                prefix: jvm.memory.
+                mapping:
+                  HeapMemoryUsage.committed:
+                    metric: heap.committed
+                    desc: current heap usage
+                    type: gauge
+                  HeapMemoryUsage.init:
+                    metric: heap.init
+                    desc: current heap usage
+                    type: gauge
+                  HeapMemoryUsage.max:
+                    metric: heap.max
+                    desc: current heap usage
+                    type: gauge
+                  HeapMemoryUsage.used:
+                    metric: heap.used
+                    desc: current heap usage
+                    type: gauge
+                  NonHeapMemoryUsage.committed:
+                    metric: nonheap.committed
+                    desc: current non-heap usage
+                    type: gauge
+                  NonHeapMemoryUsage.init:
+                    metric: nonheap.init
+                    desc: current non-heap usage
+                    type: gauge
+                  NonHeapMemoryUsage.max:
+                    metric: nonheap.max
+                    desc: current non-heap usage
+                    type: gauge
+                  NonHeapMemoryUsage.used:
+                    metric: nonheap.used
+                    desc: current non-heap usage
+                    type: gauge
+            
+              - bean: java.lang:type=MemoryPool,name=*
+                type: gauge
+                unit: By
+                metricAttribute:
+                  name: param(name)
+                mapping:
+                  Usage.committed:
+                    metric: jvm.memory.pool.committed
+                    desc: current memory pool usage
+                  Usage.init:
+                    metric: jvm.memory.pool.init
+                    desc: current memory pool usage
+                  Usage.max:
+                    metric: jvm.memory.pool.max
+                    desc: current memory pool usage
+                  Usage.used:
+                    metric: jvm.memory.pool.used
+                    desc: current memory pool usage
+            
+              - bean: java.lang:type=Threading
+                mapping:
+                  ThreadCount:
+                    metric: jvm.threads.count
+                    unit: "{thread}"
+                    desc: number of threads

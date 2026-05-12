@@ -1,8 +1,10 @@
 # Recommended OpenTelemetry Collector configuration
-# Setup: Uncontainerized Agent in an Azure VM environment
+# Setup: Uncontainerized Agent in an EC2 environment
 # Collector Contrib version: v0.150.1
 # Required Collector flags: --feature-gates connector.spanmetrics.includeCollectorInstanceID
-# Required environment variables: DD_SITE, DD_API_KEY
+# Required environment variables:
+# - DD_SITE: Datadog site for your region, e.g. datadog.com
+# - DD_API_KEY: A Datadog API key
 
 receivers:
   otlp:
@@ -44,8 +46,9 @@ receivers:
       processes: {}
 
 processors:
+  # Enrich telemetry with host metadata
   resourcedetection:
-    detectors: [azure, env, system]
+    detectors: [ec2, env, system]
     timeout: 2s
     override: true # Disable if incoming attributes (especially host.name) are verified correct
     system:
@@ -70,10 +73,11 @@ processors:
           enabled: true
         os.description:
           enabled: true
+
+  # Transform metrics to fit Datadog platform constraints
   cumulativetodelta: {}
 
 connectors:
-  forward: {}
   spanmetrics:
     # Note: Spans without service.name will be ignored
     aggregation_temporality: AGGREGATION_TEMPORALITY_DELTA
@@ -84,13 +88,14 @@ connectors:
     dimensions:
       # (Duplicate dimensions are not allowed and are thus commented out)
     
-      ## Universal Service Monitoring
+      ## Unified Service Tagging
       - name: deployment.environment.name
       - name: service.version
       - name: http.response.status_code
     
       ## Container tags
-      - name: container.id
+      ## May be used as additional primary tags or in service remapping rules
+      - name: container.id # Required for correct aggregation
       - name: container.name
       - name: container.image.name
       - name: container.image.tag
@@ -162,6 +167,7 @@ connectors:
       #- name: db.system
       - name: db.statement
       - name: db.query.text
+  forward/traces_sample: {}
 
 exporters:
   debug:
@@ -211,10 +217,10 @@ service:
       receivers: [otlp]
       processors:
         - resourcedetection
-      exporters: [forward, spanmetrics]
+      exporters: [forward/traces_sample, spanmetrics]
     
-    traces/sampling:
-      receivers: [forward]
+    traces/sample:
+      receivers: [forward/traces_sample]
       # Perform any sampling here
       exporters: [otlp_http]
     

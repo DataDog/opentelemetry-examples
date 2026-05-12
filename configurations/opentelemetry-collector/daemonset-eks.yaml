@@ -1,8 +1,11 @@
 # Recommended OpenTelemetry Collector configuration
-# Setup: Uncontainerized Agent in an EC2 environment
+# Setup: Kubernetes Daemonset in an EKS environment
 # Collector Contrib version: v0.150.1
 # Required Collector flags: --feature-gates connector.spanmetrics.includeCollectorInstanceID
-# Required environment variables: DD_SITE, DD_API_KEY
+# Required environment variables:
+# - DD_SITE: Datadog site for your region, e.g. datadog.com
+# - DD_API_KEY: A Datadog API key
+# Required mounts: /hostfs
 
 receivers:
   otlp:
@@ -12,6 +15,7 @@ receivers:
       http:
         endpoint: 0.0.0.0:4318
   hostmetrics:
+    root_path: /hostfs # Necessary inside containers, corresponds to / on host
     collection_interval: 10s
     scrapers:
       cpu:
@@ -44,36 +48,59 @@ receivers:
       processes: {}
 
 processors:
+  # Enrich telemetry with host metadata
   resourcedetection:
-    detectors: [ec2, env, system]
+    detectors: [eks, ec2, env]
     timeout: 2s
     override: true # Disable if incoming attributes (especially host.name) are verified correct
-    system:
+    eks:
       resource_attributes:
-        host.arch:
-          enabled: true
-        host.cpu.cache.l2.size:
-          enabled: true
-        host.cpu.family:
-          enabled: true
-        host.cpu.model.id:
-          enabled: true
-        host.cpu.model.name:
-          enabled: true
-        host.cpu.stepping:
-          enabled: true
-        host.cpu.vendor.id:
-          enabled: true
-        host.ip:
-          enabled: true
-        host.mac:
-          enabled: true
-        os.description:
-          enabled: true
+        k8s.cluster.name: { enabled: true }
+    ec2:
+      tags: ['^kubernetes\.io/cluster/.*$']
+  k8s_attributes:
+    # Requires setting up ServiceAccount, (Cluster)Role, and (Cluster)RoleBinding resources
+    # See https://github.com/open-telemetry/opentelemetry-collector-contrib/tree/main/processor/k8sattributesprocessor#role-based-access-control
+    extract:
+      otel_annotations: true
+      metadata:
+        - k8s.node.name
+        - k8s.namespace.name
+        - service.namespace
+        - service.name
+        - service.version
+        - service.instance.id
+        - k8s.deployment.name
+        - k8s.replicaset.name
+        - k8s.daemonset.name
+        - k8s.statefulset.name
+        - k8s.cronjob.name
+        - k8s.job.name
+        - k8s.pod.uid
+        - k8s.pod.name
+        - container.id
+        - k8s.container.name
+        - container.image.name
+        - container.image.tag
+    pod_association:
+      - sources:
+          - from: resource_attribute
+            name: k8s.pod.uid
+      - sources:
+          - from: resource_attribute
+            name: k8s.pod.ip
+      - sources:
+          - from: resource_attribute
+            name: k8s.pod.name
+          - from: resource_attribute
+            name: k8s.namespace.name
+      - sources:
+          - from: connection
+
+  # Transform metrics to fit Datadog platform constraints
   cumulativetodelta: {}
 
 connectors:
-  forward: {}
   spanmetrics:
     # Note: Spans without service.name will be ignored
     aggregation_temporality: AGGREGATION_TEMPORALITY_DELTA
@@ -84,13 +111,14 @@ connectors:
     dimensions:
       # (Duplicate dimensions are not allowed and are thus commented out)
     
-      ## Universal Service Monitoring
+      ## Unified Service Tagging
       - name: deployment.environment.name
       - name: service.version
       - name: http.response.status_code
     
       ## Container tags
-      - name: container.id
+      ## May be used as additional primary tags or in service remapping rules
+      - name: container.id # Required for correct aggregation
       - name: container.name
       - name: container.image.name
       - name: container.image.tag
@@ -162,6 +190,7 @@ connectors:
       #- name: db.system
       - name: db.statement
       - name: db.query.text
+  forward/traces_sample: {}
 
 exporters:
   debug:
@@ -183,6 +212,8 @@ exporters:
       batch: {} # Default batch settings
 
 extensions:
+  health_check:
+    endpoint: ${env:MY_POD_IP}:13133
   datadog:
     api:
       site: ${env:DD_SITE}
@@ -191,18 +222,21 @@ extensions:
 
 service:
   extensions:
+    - health_check # May be necessary for liveness/readiness probe
     - datadog
   
   pipelines:
     logs:
       receivers: [otlp]
       processors:
+        - k8s_attributes
         - resourcedetection
       exporters: [otlp_http]
     
     metrics:
       receivers: [otlp, hostmetrics]
       processors:
+        - k8s_attributes
         - resourcedetection
         - cumulativetodelta
       exporters: [otlp_http]
@@ -210,11 +244,12 @@ service:
     traces:
       receivers: [otlp]
       processors:
+        - k8s_attributes
         - resourcedetection
-      exporters: [forward, spanmetrics]
+      exporters: [forward/traces_sample, spanmetrics]
     
-    traces/sampling:
-      receivers: [forward]
+    traces/sample:
+      receivers: [forward/traces_sample]
       # Perform any sampling here
       exporters: [otlp_http]
     

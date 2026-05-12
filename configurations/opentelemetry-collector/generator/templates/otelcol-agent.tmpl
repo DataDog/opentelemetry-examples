@@ -1,9 +1,17 @@
 {{- if .Preamble -}}
+{{- if .Testing -}}
+# FOR INTERNAL TESTING PURPOSES ONLY
+{{end -}}
 # Recommended OpenTelemetry Collector configuration
 {{include "setup" .}}
 # Collector Contrib version: v{{.OtelcolVersion}}
 # Required Collector flags: --feature-gates connector.spanmetrics.includeCollectorInstanceID
-# Required environment variables: DD_SITE, DD_API_KEY
+# Required environment variables:
+# - DD_SITE: Datadog site for your region, e.g. datadog.com
+# - DD_API_KEY: A Datadog API key
+{{- if and .Container (eq .CloudEnvironment "")}}
+# - OTEL_RESOURCE_ATTRIBUTES: Host information (no host detection possible in this setup)
+{{- end}}
 {{- if .Container}}
 # Required mounts: /hostfs
 {{- end}}
@@ -16,21 +24,67 @@ receivers:
     {{include "host-metrics-receiver" . | indent 4}}
 
 processors:
+  # Enrich telemetry with host metadata
   resourcedetection:
     {{include "resource-detection-processor" . | indent 4}}
-  cumulativetodelta: {}
   {{- if .K8s}}
   k8s_attributes:
     {{include "k8s-attributes-processor" . | indent 4}}
+  {{- end}}
+
+  # Transform metrics to fit Datadog platform constraints
+  cumulativetodelta: {}
+  {{- if .MapEquivalentMetrics}}
+
+  # Runtime metric mapping adapted from https://docs.datadoghq.com/opentelemetry/integrations/runtime_metrics
+  deltatocumulative: {}
+  transform/cumul_sum_to_gauge:
+    error_mode: ignore
+    metric_statements:
+      - context: metric
+        statements:
+          - convert_sum_to_gauge()
+  deltatorate:
+    metrics:
+      # JVM runtime metrics
+      - jvm.gc.collections.count
+      - jvm.gc.collections.elapsed
+      # .NET runtime metrics
+      - dotnet.process.cpu.time
+      - process.cpu.time
+      # System metrics
+      - system.network.io
+  transform/rate_to_gauge:
+    error_mode: ignore
+    metric_statements:
+      - context: metric
+        statements:
+          - convert_sum_to_gauge() where metric.name == "system.network.io"
   {{- end}}
 
 connectors:
   {{- if .DatadogExporter}}
   datadog/connector: {}
   {{- else}}
-  forward: {}
   spanmetrics:
     {{include "span-metrics-connector" . | indent 4}}
+  forward/traces_sample: {}
+  {{- end}}
+
+  {{- if .MapEquivalentMetrics}}
+  # Runtime metric mapping adapted from https://docs.datadoghq.com/opentelemetry/integrations/runtime_metrics
+  routing/metrics:
+    default_pipelines: [metrics/default]
+    table:
+      - context: metric
+        condition: ContainsValue([
+            "process.runtime.go.gc.pause_total_ns",
+            "process.runtime.go.gc.count",
+            "go.memory.allocated",
+            "go.memory.allocations"
+          ], metric.name)
+        pipelines: [metrics/cumul_sum_to_gauge]
+  forward/metrics_default: {}
   {{- end}}
 
 exporters:
@@ -80,9 +134,25 @@ service:
         - k8s_attributes
         {{- end}}
         - resourcedetection
-        {{- if not .DatadogExporter}}
+    {{- if .MapEquivalentMetrics}}
+      exporters: [routing/metrics]
+    
+    metrics/cumul_sum_to_gauge:
+      receivers: [routing/metrics]
+      processors:
+        - deltatocumulative
+        - transform/cumul_sum_to_gauge
+      exporters: [forward/metrics_default]
+    
+    metrics/default:
+      receivers: [routing/metrics, forward/metrics_default]
+      processors:
+    {{- end}}
         - cumulativetodelta
-        {{- end}}
+    {{- if .MapEquivalentMetrics}}
+        - deltatorate
+        - transform/rate_to_gauge
+    {{- end}}
       {{- if .DatadogExporter}}
       exporters: [datadog]
       {{- else}}
@@ -99,11 +169,11 @@ service:
       {{- if .DatadogExporter}}
       exporters: [datadog/connector]
       {{- else}}
-      exporters: [forward, spanmetrics]
+      exporters: [forward/traces_sample, spanmetrics]
       {{- end}}
     
     {{if .DatadogExporter -}}
-    traces/sampling:
+    traces/sample:
       receivers: [datadog/connector]
       # Perform any sampling here
       exporters: [datadog]
@@ -112,8 +182,8 @@ service:
       receivers: [datadog/connector]
       exporters: [datadog]
     {{else -}}
-    traces/sampling:
-      receivers: [forward]
+    traces/sample:
+      receivers: [forward/traces_sample]
       # Perform any sampling here
       exporters: [otlp_http]
     

@@ -1,8 +1,12 @@
 # Recommended OpenTelemetry Collector configuration
-# Setup: Uncontainerized Agent in a non-cloud environment
+# Setup: Containerized Agent in a non-cloud environment
 # Collector Contrib version: v0.150.1
 # Required Collector flags: --feature-gates connector.spanmetrics.includeCollectorInstanceID
-# Required environment variables: DD_SITE, DD_API_KEY
+# Required environment variables:
+# - DD_SITE: Datadog site for your region, e.g. datadog.com
+# - DD_API_KEY: A Datadog API key
+# - OTEL_RESOURCE_ATTRIBUTES: Host information (no host detection possible in this setup)
+# Required mounts: /hostfs
 
 receivers:
   otlp:
@@ -12,6 +16,7 @@ receivers:
       http:
         endpoint: 0.0.0.0:4318
   hostmetrics:
+    root_path: /hostfs # Necessary inside containers, corresponds to / on host
     collection_interval: 10s
     scrapers:
       cpu:
@@ -44,36 +49,16 @@ receivers:
       processes: {}
 
 processors:
+  # Enrich telemetry with host metadata
   resourcedetection:
-    detectors: [env, system]
+    detectors: [env]
     timeout: 2s
     override: true # Disable if incoming attributes (especially host.name) are verified correct
-    system:
-      resource_attributes:
-        host.arch:
-          enabled: true
-        host.cpu.cache.l2.size:
-          enabled: true
-        host.cpu.family:
-          enabled: true
-        host.cpu.model.id:
-          enabled: true
-        host.cpu.model.name:
-          enabled: true
-        host.cpu.stepping:
-          enabled: true
-        host.cpu.vendor.id:
-          enabled: true
-        host.ip:
-          enabled: true
-        host.mac:
-          enabled: true
-        os.description:
-          enabled: true
+
+  # Transform metrics to fit Datadog platform constraints
   cumulativetodelta: {}
 
 connectors:
-  forward: {}
   spanmetrics:
     # Note: Spans without service.name will be ignored
     aggregation_temporality: AGGREGATION_TEMPORALITY_DELTA
@@ -84,13 +69,14 @@ connectors:
     dimensions:
       # (Duplicate dimensions are not allowed and are thus commented out)
     
-      ## Universal Service Monitoring
+      ## Unified Service Tagging
       - name: deployment.environment.name
       - name: service.version
       - name: http.response.status_code
     
       ## Container tags
-      - name: container.id
+      ## May be used as additional primary tags or in service remapping rules
+      - name: container.id # Required for correct aggregation
       - name: container.name
       - name: container.image.name
       - name: container.image.tag
@@ -162,6 +148,7 @@ connectors:
       #- name: db.system
       - name: db.statement
       - name: db.query.text
+  forward/traces_sample: {}
 
 exporters:
   debug:
@@ -211,10 +198,10 @@ service:
       receivers: [otlp]
       processors:
         - resourcedetection
-      exporters: [forward, spanmetrics]
+      exporters: [forward/traces_sample, spanmetrics]
     
-    traces/sampling:
-      receivers: [forward]
+    traces/sample:
+      receivers: [forward/traces_sample]
       # Perform any sampling here
       exporters: [otlp_http]
     

@@ -16,6 +16,14 @@ extraEnvs:
       secretKeyRef:
         name: datadog-secrets
         key: api-key
+  {{- if eq .CloudEnvironment ""}}
+  - name: NODE_NAME
+    valueFrom:
+      fieldRef:
+        fieldPath: spec.nodeName
+  - name: OTEL_RESOURCE_ATTRIBUTES
+    value: "k8s.node.name=$(NODE_NAME)"
+  {{- end}}
 
 mode: daemonset
 image:
@@ -51,6 +59,15 @@ extraVolumeMounts:
     mountPath: /hostfs
     readOnly: true
     mountPropagation: HostToContainer
+
+# Some components take a long time to start, so set a startup probe
+startupProbe:
+  initialDelaySeconds: 1
+  periodSeconds: 2
+  failureThreshold: 20 # 40 seconds
+  httpGet:
+    port: 13133
+    path: /
 
 alternateConfig:
   {{ include "otelcol-agent" . | indent 2 }}
