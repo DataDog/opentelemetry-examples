@@ -1,10 +1,11 @@
 # Recommended OpenTelemetry Collector configuration (Deployment mode)
-# Paired with daemonset-eks.yaml to collect cluster level resources to support K8s Explorer
-# Setup: Kubernetes per-cluster Deployment (k8sobjects) in an EKS environment
-# Collector Contrib version: v0.150.1
+# Paired with daemonset.yaml to collect cluster level resources to support K8s Explorer
+# Setup: Kubernetes per-cluster Deployment (k8s_objects) in a non-cloud environment
+# Collector Contrib version: v0.152.0
 # Required environment variables:
 # - DD_SITE: Datadog site for your region, e.g. datadog.com
 # - DD_API_KEY: A Datadog API key
+# - OTEL_K8S_CLUSTER_NAME: The name of the Kubernetes cluster
 
 receivers:
   k8s_cluster:
@@ -23,8 +24,8 @@ receivers:
             - source_labels: [__name__]
               regex: "kube_daemonset_.*|kube_deployment_.*|kube_job_.*|kube_namespace_.*|kube_node_.*|kube_pod_.*|kube_replicaset_.*|kube_statefulset_.*|kube_service_spec_type"
               action: keep
-  # k8sobjects receiver for orchestrator check
-  k8sobjects:
+  # k8s_objects receiver for orchestrator check
+  k8s_objects:
     auth_type: serviceAccount
     objects:
       - name: namespaces
@@ -271,20 +272,22 @@ processors:
     metrics:
       metric:
         - metric.name == "kube_service_spec_type"
+  # In non-cloud environments, k8s.cluster.name must be set manually.
+  # Set the OTEL_K8S_CLUSTER_NAME environment variable with your actual cluster name.
+  resource/add-cluster-name:
+    attributes:
+      - key: k8s.cluster.name
+        value: "${env:OTEL_K8S_CLUSTER_NAME}"
+        action: upsert
   resourcedetection:
-    detectors: [eks, ec2, env, kubeadm, system]
+    detectors: [env, kubeadm, system]
     timeout: 2s
     override: true # Disable if incoming attributes (especially host.name) are verified correct
-    # kubeadm detector is required by the k8sobjects receiver to add k8s.cluster.uid into attributes
+    # kubeadm detector is required by the k8s_objects receiver to add k8s.cluster.uid into attributes
     kubeadm:
       resource_attributes:
         k8s.cluster.name:
           enabled: false
-    eks:
-      resource_attributes:
-        k8s.cluster.name: { enabled: true }
-    ec2:
-      tags: ['^kubernetes\.io/cluster/.*$']
     system:
       resource_attributes:
         host.arch:
@@ -384,13 +387,13 @@ service:
 
   pipelines:
     logs/orchestrator:
-      receivers: [k8sobjects]
-      processors: [resourcedetection]
+      receivers: [k8s_objects]
+      processors: [resource/add-cluster-name, resourcedetection]
       exporters: [datadog]
 
     metrics/cluster:
       receivers: [k8s_cluster]
-      processors: [resourcedetection]
+      processors: [resource/add-cluster-name, resourcedetection]
       exporters: [otlp_http]
     metrics/count:
       receivers: [prometheus]
@@ -400,6 +403,7 @@ service:
       receivers: [prometheus, count]
       processors:
         - filter/ksm
+        - resource/add-cluster-name
         - resourcedetection
         - transform/ksm_to_dd
         - transform/rename_uid

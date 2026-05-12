@@ -54,10 +54,13 @@ A simple way to deploy the Collector in Kubernetes is to use [the official Helm 
 The following files are `values.yaml` files to be passed as a `--values` flag when deploying the Collector Helm chart.
 They are generated from the above raw Collector configurations and automate setting up some of the necessary feature gates / mounts.
 
+These files should be compatible with version 0.147.1 or higher of the Helm chart.
+
 Example:
 ```sh
 kubectl create secret generic datadog-secrets --from-literal=api-key='insertyourapikey'
-helm repo add open-telemetry https://open-telemetry.github.io/opentelemetry-helm-charts
+helm repo add open-telemetry https://open-telemetry.github.io/opentelemetry-helm-charts # if not previously added
+helm repo update open-telemetry # if previously added
 helm install otelcol open-telemetry/opentelemetry-collector --values ./helm-values/daemonset.yaml
 ```
 

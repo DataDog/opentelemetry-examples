@@ -90,4 +90,4 @@ clusterRole:
       verbs: ["get", "list", "watch"]
 
 alternateConfig:
-  {{ include "otelcol-k8sobjects" . | indent 2 }}
+  {{ include "otelcol-k8s-objects" . | indent 2 }}

@@ -57,12 +57,9 @@ opentelemetry-collector:
         secretKeyRef:
           name: datadog-secrets
           key: api-key
-    - name: NODE_NAME
-      valueFrom:
-        fieldRef:
-          fieldPath: spec.nodeName
+    # Use the K8s-related variables predefined by the Helm chart
     - name: OTEL_RESOURCE_ATTRIBUTES
-      value: "k8s.node.name=$(NODE_NAME)"
+      value: "k8s.node.name=$(OTEL_K8S_NODE_NAME)"
     - name: K8S_NODE_NAME
       valueFrom:
         fieldRef:
@@ -71,7 +68,7 @@ opentelemetry-collector:
   mode: daemonset
   image:
     repository: otel/opentelemetry-collector-contrib
-    tag: 0.150.1
+    tag: 0.152.0
   command:
     name: "otelcol-contrib"
     extraArgs: ["--feature-gates", "+connector.spanmetrics.includeCollectorInstanceID"]
@@ -120,7 +117,7 @@ opentelemetry-collector:
             endpoint: 0.0.0.0:4317
           http:
             endpoint: 0.0.0.0:4318
-      hostmetrics:
+      host_metrics:
         root_path: /hostfs # Necessary inside containers, corresponds to / on host
         collection_interval: 10s
         scrapers:
@@ -152,7 +149,7 @@ opentelemetry-collector:
           load: {}
           network: {}
           processes: {}
-      kubeletstats:
+      kubelet_stats:
         collection_interval: 15s
         auth_type: "serviceAccount"
         endpoint: "${env:K8S_NODE_NAME}:10250"
@@ -237,7 +234,7 @@ opentelemetry-collector:
           - process.cpu.time
           # System metrics
           - system.network.io
-          # Kubeletstats metrics
+          # Kubelet stats metrics
           - k8s.pod.network.io
           - k8s.pod.network.errors
       transform/rate_to_gauge:
@@ -300,7 +297,7 @@ opentelemetry-collector:
           exporters: [datadog]
         
         metrics:
-          receivers: [otlp, hostmetrics, kubeletstats]
+          receivers: [otlp, host_metrics, kubelet_stats]
           processors:
             - k8s_attributes
             - resourcedetection
@@ -333,7 +330,7 @@ opentelemetry-collector:
           # Perform any sampling here
           exporters: [datadog]
         
-        metrics/spanmetrics:
+        metrics/span_metrics:
           receivers: [datadog/connector]
           exporters: [datadog]
         

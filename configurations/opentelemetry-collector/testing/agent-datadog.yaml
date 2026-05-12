@@ -1,7 +1,7 @@
 # FOR INTERNAL TESTING PURPOSES ONLY
 # Recommended OpenTelemetry Collector configuration
 # Setup: Uncontainerized Agent in a non-cloud environment
-# Collector Contrib version: v0.150.1
+# Collector Contrib version: v0.152.0
 # Required Collector flags: --feature-gates connector.spanmetrics.includeCollectorInstanceID
 # Required environment variables:
 # - DD_SITE: Datadog site for your region, e.g. datadog.com
@@ -14,7 +14,7 @@ receivers:
         endpoint: 0.0.0.0:4317
       http:
         endpoint: 0.0.0.0:4318
-  hostmetrics:
+  host_metrics:
     collection_interval: 10s
     scrapers:
       cpu:
@@ -114,7 +114,7 @@ service:
       exporters: [datadog]
     
     metrics:
-      receivers: [otlp, hostmetrics]
+      receivers: [otlp, host_metrics]
       processors:
         - resourcedetection
         - cumulativetodelta
@@ -131,7 +131,7 @@ service:
       # Perform any sampling here
       exporters: [datadog]
     
-    metrics/spanmetrics:
+    metrics/span_metrics:
       receivers: [datadog/connector]
       exporters: [datadog]
     

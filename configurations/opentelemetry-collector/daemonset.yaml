@@ -1,11 +1,11 @@
 # Recommended OpenTelemetry Collector configuration
 # Setup: Kubernetes Daemonset in a non-cloud environment
-# Collector Contrib version: v0.150.1
+# Collector Contrib version: v0.152.0
 # Required Collector flags: --feature-gates connector.spanmetrics.includeCollectorInstanceID
 # Required environment variables:
 # - DD_SITE: Datadog site for your region, e.g. datadog.com
 # - DD_API_KEY: A Datadog API key
-# - K8S_NODE_NAME: The name of the Kubernetes node (used by the kubeletstats receiver)
+# - K8S_NODE_NAME: The name of the Kubernetes node (used by the kubelet_stats receiver)
 # - OTEL_RESOURCE_ATTRIBUTES: Host information (no host detection possible in this setup)
 # Required mounts: /hostfs
 
@@ -16,7 +16,7 @@ receivers:
         endpoint: 0.0.0.0:4317
       http:
         endpoint: 0.0.0.0:4318
-  hostmetrics:
+  host_metrics:
     root_path: /hostfs # Necessary inside containers, corresponds to / on host
     collection_interval: 10s
     scrapers:
@@ -48,7 +48,7 @@ receivers:
       load: {}
       network: {}
       processes: {}
-  kubeletstats:
+  kubelet_stats:
     collection_interval: 15s
     auth_type: "serviceAccount"
     endpoint: "${env:K8S_NODE_NAME}:10250"
@@ -122,7 +122,7 @@ processors:
       - k8s.pod.network.errors
 
 connectors:
-  spanmetrics:
+  span_metrics:
     # Note: Spans without service.name will be ignored
     aggregation_temporality: AGGREGATION_TEMPORALITY_DELTA
     add_resource_attributes: true
@@ -255,7 +255,7 @@ service:
       exporters: [otlp_http]
     
     metrics:
-      receivers: [otlp, hostmetrics, kubeletstats]
+      receivers: [otlp, host_metrics, kubelet_stats]
       processors:
         - k8s_attributes
         - resourcedetection
@@ -268,15 +268,15 @@ service:
       processors:
         - k8s_attributes
         - resourcedetection
-      exporters: [forward/traces_sample, spanmetrics]
+      exporters: [forward/traces_sample, span_metrics]
     
     traces/sample:
       receivers: [forward/traces_sample]
       # Perform any sampling here
       exporters: [otlp_http]
     
-    metrics/spanmetrics:
-      receivers: [spanmetrics]
+    metrics/span_metrics:
+      receivers: [span_metrics]
       exporters: [otlp_http]
   
   telemetry:
