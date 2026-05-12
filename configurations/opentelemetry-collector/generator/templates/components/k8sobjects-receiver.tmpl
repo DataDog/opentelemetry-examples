@@ -1,0 +1,141 @@
+auth_type: serviceAccount
+objects:
+  - name: namespaces
+    mode: pull
+    interval: 3m
+  - name: namespaces
+    mode: watch
+  - name: pods
+    mode: pull
+    interval: 3m
+  - name: pods
+    mode: watch
+  - name: nodes
+    mode: pull
+    interval: 3m
+  - name: nodes
+    mode: watch
+  - name: replicasets
+    mode: pull
+    interval: 3m
+  - name: replicasets
+    mode: watch
+  - name: daemonsets
+    mode: pull
+    interval: 3m
+  - name: daemonsets
+    mode: watch
+  - name: statefulsets
+    mode: pull
+    interval: 3m
+    group: apps
+  - name: statefulsets
+    mode: watch
+    group: apps
+  - name: cronjobs
+    mode: pull
+    interval: 3m
+  - name: cronjobs
+    mode: watch
+  - name: jobs
+    mode: pull
+    interval: 3m
+  - name: jobs
+    mode: watch
+  - name: services
+    mode: pull
+    interval: 3m
+  - name: services
+    mode: watch
+  - name: deployments
+    mode: pull
+    interval: 3m
+    group: apps
+  - name: deployments
+    mode: watch
+    group: apps
+  - name: roles
+    mode: pull
+    interval: 3m
+    group: rbac.authorization.k8s.io
+  - name: roles
+    mode: watch
+    group: rbac.authorization.k8s.io
+  - name: rolebindings
+    mode: pull
+    interval: 3m
+    group: rbac.authorization.k8s.io
+  - name: rolebindings
+    mode: watch
+    group: rbac.authorization.k8s.io
+  - name: clusterroles
+    mode: pull
+    interval: 3m
+    group: rbac.authorization.k8s.io
+  - name: clusterroles
+    mode: watch
+    group: rbac.authorization.k8s.io
+  - name: clusterrolebindings
+    mode: pull
+    interval: 3m
+    group: rbac.authorization.k8s.io
+  - name: clusterrolebindings
+    mode: watch
+    group: rbac.authorization.k8s.io
+  - name: storageclasses
+    mode: pull
+    interval: 3m
+    group: storage.k8s.io
+  - name: storageclasses
+    mode: watch
+    group: storage.k8s.io
+  - name: networkpolicies
+    mode: pull
+    interval: 3m
+    group: networking.k8s.io
+  - name: networkpolicies
+    mode: watch
+    group: networking.k8s.io
+  - name: ingresses
+    mode: pull
+    interval: 3m
+    group: networking.k8s.io
+  - name: ingresses
+    mode: watch
+    group: networking.k8s.io
+  - name: persistentvolumes
+    mode: pull
+    interval: 3m
+  - name: persistentvolumes
+    mode: watch
+  - name: persistentvolumeclaims
+    mode: pull
+    interval: 3m
+  - name: persistentvolumeclaims
+    mode: watch
+  - name: poddisruptionbudgets
+    mode: pull
+    interval: 3m
+    group: policy
+  - name: poddisruptionbudgets
+    mode: watch
+    group: policy
+  - name: serviceaccounts
+    mode: pull
+    interval: 3m
+  - name: serviceaccounts
+    mode: watch
+  - name: horizontalpodautoscalers
+    mode: pull
+    interval: 3m
+    group: autoscaling
+  - name: horizontalpodautoscalers
+    mode: watch
+    group: autoscaling
+  - name: customresourcedefinitions
+    mode: pull
+    interval: 3m
+    group: apiextensions.k8s.io
+  - name: customresourcedefinitions
+    mode: watch
+    group: apiextensions.k8s.io

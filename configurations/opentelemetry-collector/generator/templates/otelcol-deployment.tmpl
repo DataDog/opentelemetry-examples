@@ -1,0 +1,189 @@
+{{- set . "Container" true }}
+{{- if .Preamble -}}
+{{- if .Testing -}}
+# FOR INTERNAL TESTING PURPOSES ONLY
+{{end -}}
+# values.yaml for the OpenTelemetry Collector Helm Chart (Deployment mode)
+# Paired with {{- if .Testing}} otel-demo-datadog{{- else}} daemonset{{- end}}{{- if ne .CloudEnvironment ""}}-{{.CloudEnvironment}}{{- end}}.yaml to collect cluster level resources to support K8s Explorer
+{{include "setup" .}}
+# Required secrets: datadog-secrets::api-key
+# Remember to modify DD_SITE if not using datadoghq.com
+{{- if eq .CloudEnvironment ""}}
+# Remember to update k8s.cluster.name in resource/add-cluster-name processor with your actual cluster name
+{{- end}}
+{{- set . "Preamble" false}}
+{{- end}}
+
+extraEnvs:
+  - name: DD_SITE
+    value: datadoghq.com # Update if necessary
+  - name: DD_API_KEY
+    valueFrom:
+      secretKeyRef:
+        name: datadog-secrets
+        key: api-key
+
+mode: deployment
+image:
+  repository: otel/opentelemetry-collector-contrib
+  tag: {{.OtelcolVersion}}
+command:
+  name: "otelcol-contrib"
+
+presets:
+  clusterMetrics:
+    enabled: true
+
+serviceAccount:
+  create: true
+clusterRole:
+  create: true
+  rules:
+    - apiGroups: [""]
+      resources:
+        - events
+        - endpoints
+        - namespaces
+        - namespaces/status
+        - nodes
+        - nodes/spec
+        - nodes/stats
+        - pods
+        - pods/status
+        - replicationcontrollers
+        - replicationcontrollers/status
+        - resourcequotas
+        - services
+        - persistentvolumes
+        - persistentvolumeclaims
+        - serviceaccounts
+      verbs: ["get", "list", "watch"]
+    - apiGroups: ["policy"]
+      resources: ["poddisruptionbudgets"]
+      verbs: ["get", "list", "watch"]
+    - apiGroups: ["apps"]
+      resources: ["daemonsets", "deployments", "replicasets", "statefulsets"]
+      verbs: ["get", "list", "watch"]
+    - apiGroups: ["extensions"]
+      resources: ["daemonsets", "deployments", "replicasets", "statefulsets"]
+      verbs: ["get", "list", "watch"]
+    - apiGroups: ["batch"]
+      resources: ["jobs", "cronjobs"]
+      verbs: ["get", "list", "watch"]
+    - apiGroups: ["autoscaling"]
+      resources: ["horizontalpodautoscalers"]
+      verbs: ["get", "list", "watch"]
+    - apiGroups: ["rbac.authorization.k8s.io"]
+      resources: ["roles", "rolebindings", "clusterroles", "clusterrolebindings"]
+      verbs: ["get", "list", "watch"]
+    - apiGroups: ["storage.k8s.io"]
+      resources: ["storageclasses"]
+      verbs: ["get", "list", "watch"]
+    - apiGroups: ["autoscaling.k8s.io"]
+      resources: ["verticalpodautoscalers"]
+      verbs: ["get", "list", "watch"]
+    - apiGroups: ["networking.k8s.io"]
+      resources: ["networkpolicies", "ingresses"]
+      verbs: ["get", "list", "watch"]
+    - apiGroups: ["apiextensions.k8s.io"]
+      resources: ["customresourcedefinitions"]
+      verbs: ["get", "list", "watch"]
+
+config:
+  receivers:
+    {{- if .KSM}}
+    # Prometheus receiver is used to scrape kube state metrics
+    prometheus:
+      {{include "prometheus-receiver" . | indent 6}}
+    {{- end}}
+    # k8sobjects receiver for orchestrator check
+    k8sobjects:
+      {{include "k8sobjects-receiver" . | indent 6}}
+
+  processors:
+    {{- if .KSM}}
+    cumulativetodelta: {}
+    # Rename KSM metric prometheus label uid -> k8s.pod.uid to adhere to OTel standard and
+    # facilitate the groupby specified below.
+    transform/rename_uid:
+      {{include "transform-rename-uid-processor" . | indent 6}}
+    # Grouping by k8s.pod.uid (a globally unique ID) correctly associates the
+    # kube-state-metrics pod metrics with their respective OTel resources.
+    groupbyattrs:
+      {{include "groupbyattrs-processor" . | indent 6}}
+    # Modify kube-state-metric Datapoint attributes so that they adhere to Datadog's
+    # expected schema.
+    transform/ksm_to_dd:
+      {{include "transform-ksm-to-dd-processor" . | indent 6}}
+    # k8sattributesprocessor is used to enrich metrics with additional metadata
+    k8s_attributes:
+      {{include "k8s-attributes-processor" . | indent 6}}
+    transform/sum_to_gauge:
+      {{include "transform-sum-to-gauge-processor" . | indent 6}}
+    # Drop metric after count connector has used it
+    filter/ksm:
+      {{include "filter-ksm-processor" . | indent 6}}
+    {{- end}}
+    {{- if eq .CloudEnvironment ""}}
+    # In non-cloud environments, k8s.cluster.name must be set manually.
+    # Replace "my-cluster-name" with your actual cluster name.
+    resource/add-cluster-name:
+      attributes:
+        - key: k8s.cluster.name
+          value: "my-cluster-name"
+          action: upsert
+    {{- end}}
+    resourcedetection:
+      {{include "resource-detection-processor" . | indent 6}}
+
+  {{- if .KSM}}
+  connectors:
+    # The count connector generates custom metrics by counting the number
+    # of metric series.
+    count:
+      {{include "count-connector" . | indent 6}}
+  {{- end}}
+
+  exporters:
+    debug:
+      verbosity: detailed
+    datadog:
+      {{include "datadog-exporter" . | indent 6}}
+    otlp_http:
+      {{include "otlp-http-exporter" . | indent 6}}
+
+  extensions:
+    health_check:
+      {{include "health-check-extension" . | indent 6}}
+
+  service:
+    extensions:
+      - health_check
+
+    pipelines:
+      logs/orchestrator:
+        receivers: [k8sobjects]
+        processors: [{{- if eq .CloudEnvironment ""}}resource/add-cluster-name, {{end}}resourcedetection]
+        exporters: [datadog]
+
+      {{- if .KSM}}
+      metrics/count:
+        receivers: [prometheus]
+        exporters: [count]
+
+      metrics/ksm:
+        receivers: [prometheus, count]
+        processors:
+          - filter/ksm
+          {{- if eq .CloudEnvironment ""}}
+          - resource/add-cluster-name
+          {{- end}}
+          - resourcedetection
+          - transform/ksm_to_dd
+          - transform/rename_uid
+          - groupbyattrs
+          - k8s_attributes
+          - cumulativetodelta
+          - transform/sum_to_gauge
+        exporters: [otlp_http]
+      {{- end}}

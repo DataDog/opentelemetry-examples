@@ -1,0 +1,12 @@
+metric_statements:
+  - context: datapoint
+    statements:
+      - set(attributes["k8s.pod.uid"], attributes["uid"])
+      - delete_key(attributes, "uid")
+  # We have to delete these from the resource because they were incorrectly
+  # set by the prometheus receiver, k8sattributes will repopulate them but
+  # cannot overwrite them.
+  - context: resource
+    statements:
+      - delete_key(attributes, "service.name")
+      - delete_key(attributes, "service.instance.id")

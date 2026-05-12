@@ -23,10 +23,16 @@ extract:
     - k8s.container.name
     - container.image.name
     - container.image.tag
+{{- if .KSM}}
+# By default association is done via Pod IP, we need to override
+# this so it doesn't erroneously associate metrics with the
+# kube-state-metrics pod.
+{{- end}}
 pod_association:
   - sources:
       - from: resource_attribute
         name: k8s.pod.uid
+{{- if not .KSM}}
   - sources:
       - from: resource_attribute
         name: k8s.pod.ip
@@ -37,3 +43,4 @@ pod_association:
         name: k8s.namespace.name
   - sources:
       - from: connection
+{{- end}}

@@ -24,6 +24,12 @@ extraEnvs:
   - name: OTEL_RESOURCE_ATTRIBUTES
     value: "k8s.node.name=$(NODE_NAME)"
   {{- end}}
+{{- if .Kubeletstats}}
+  - name: K8S_NODE_NAME
+    valueFrom:
+      fieldRef:
+        fieldPath: spec.nodeName
+{{- end}}
 
 mode: daemonset
 image:
@@ -40,7 +46,7 @@ clusterRole:
   create: true
   rules:
     - apiGroups: [""]
-      resources: ["pods", "namespaces"]
+      resources: ["pods", "namespaces"{{- if .Kubeletstats}}, "nodes", "nodes/stats"{{- end}}]
       verbs: ["get", "watch", "list"]
     - apiGroups: ["apps"]
       resources: ["replicasets"]

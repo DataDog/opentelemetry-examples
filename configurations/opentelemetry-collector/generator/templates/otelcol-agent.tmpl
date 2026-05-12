@@ -9,6 +9,9 @@
 # Required environment variables:
 # - DD_SITE: Datadog site for your region, e.g. datadog.com
 # - DD_API_KEY: A Datadog API key
+{{- if .Kubeletstats}}
+# - K8S_NODE_NAME: The name of the Kubernetes node (used by the kubeletstats receiver)
+{{- end}}
 {{- if and .Container (eq .CloudEnvironment "")}}
 # - OTEL_RESOURCE_ATTRIBUTES: Host information (no host detection possible in this setup)
 {{- end}}
@@ -22,6 +25,10 @@ receivers:
     {{include "otlp-receiver" . | indent 4}}
   hostmetrics:
     {{include "host-metrics-receiver" . | indent 4}}
+  {{- if .Kubeletstats}}
+  kubeletstats:
+    {{include "kubeletstats-receiver" . | indent 4}}
+  {{- end}}
 
 processors:
   # Enrich telemetry with host metadata
@@ -34,6 +41,12 @@ processors:
 
   # Transform metrics to fit Datadog platform constraints
   cumulativetodelta: {}
+  {{- if and .Kubeletstats (not .MapEquivalentMetrics)}}
+  deltatorate:
+    metrics:
+      - k8s.pod.network.io
+      - k8s.pod.network.errors
+  {{- end}}
   {{- if .MapEquivalentMetrics}}
 
   # Runtime metric mapping adapted from https://docs.datadoghq.com/opentelemetry/integrations/runtime_metrics
@@ -54,6 +67,11 @@ processors:
       - process.cpu.time
       # System metrics
       - system.network.io
+  {{- if .Kubeletstats}}
+      # Kubeletstats metrics
+      - k8s.pod.network.io
+      - k8s.pod.network.errors
+  {{- end}}
   transform/rate_to_gauge:
     error_mode: ignore
     metric_statements:
@@ -128,7 +146,7 @@ service:
       {{- end}}
     
     metrics:
-      receivers: [otlp, hostmetrics]
+      receivers: [otlp, hostmetrics{{- if .Kubeletstats}}, kubeletstats{{- end}}]
       processors:
         {{- if .K8s}}
         - k8s_attributes
@@ -149,8 +167,10 @@ service:
       processors:
     {{- end}}
         - cumulativetodelta
-    {{- if .MapEquivalentMetrics}}
+    {{- if or .MapEquivalentMetrics .Kubeletstats}}
         - deltatorate
+    {{- end}}
+    {{- if .MapEquivalentMetrics}}
         - transform/rate_to_gauge
     {{- end}}
       {{- if .DatadogExporter}}
