@@ -162,7 +162,6 @@ exporters:
   # Send telemetry to Datadog's OTLP intake endpoints
   otlp_http:
     endpoint: https://otlp.${env:DD_SITE}
-    metrics_endpoint: https://otlp.${env:DD_SITE}/api/v2/otlpmetrics
     headers:
       dd-api-key: ${env:DD_API_KEY}
       # Send resource attributes and scope metadata as metric tags
