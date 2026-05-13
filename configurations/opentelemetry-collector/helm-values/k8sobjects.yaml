@@ -3,7 +3,7 @@
 # Setup: Kubernetes per-cluster Deployment (k8sobjects) in a non-cloud environment
 # Required secrets: datadog-secrets::api-key
 # Remember to modify DD_SITE if not using datadoghq.com
-# Remember to update k8s.cluster.name in resource/add-cluster-name processor with your actual cluster name
+# Remember to set OTEL_K8S_CLUSTER_NAME with your actual cluster name
 
 extraEnvs:
   - name: DD_SITE
@@ -13,6 +13,8 @@ extraEnvs:
       secretKeyRef:
         name: datadog-secrets
         key: api-key
+  - name: OTEL_K8S_CLUSTER_NAME
+    value: my-cluster-name # Update with your actual cluster name
 
 mode: deployment
 image:
@@ -341,11 +343,11 @@ alternateConfig:
         metric:
           - metric.name == "kube_service_spec_type"
     # In non-cloud environments, k8s.cluster.name must be set manually.
-    # Replace "my-cluster-name" with your actual cluster name.
+    # Set the OTEL_K8S_CLUSTER_NAME environment variable with your actual cluster name.
     resource/add-cluster-name:
       attributes:
         - key: k8s.cluster.name
-          value: "my-cluster-name"
+          value: "${env:OTEL_K8S_CLUSTER_NAME}"
           action: upsert
     resourcedetection:
       detectors: [env, kubeadm]

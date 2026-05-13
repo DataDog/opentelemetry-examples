@@ -9,7 +9,7 @@
 # Required secrets: datadog-secrets::api-key
 # Remember to modify DD_SITE if not using datadoghq.com
 {{- if eq .CloudEnvironment ""}}
-# Remember to update k8s.cluster.name in resource/add-cluster-name processor with your actual cluster name
+# Remember to set OTEL_K8S_CLUSTER_NAME with your actual cluster name
 {{- end}}
 {{- set . "Preamble" false}}
 {{- end}}
@@ -22,6 +22,10 @@ extraEnvs:
       secretKeyRef:
         name: datadog-secrets
         key: api-key
+{{- if eq .CloudEnvironment ""}}
+  - name: OTEL_K8S_CLUSTER_NAME
+    value: my-cluster-name # Update with your actual cluster name
+{{- end}}
 
 mode: deployment
 image:
