@@ -148,7 +148,7 @@ opentelemetry-collector:
     processors:
       # Detect host and cloud metadata for hostname resolution and tagging
       resourcedetection:
-        detectors: [eks, ec2, env]
+        detectors: [eks, ec2, env, system]
         timeout: 2s
         override: true # Disable if incoming attributes (especially host.name) are verified correct
         eks:
@@ -156,6 +156,27 @@ opentelemetry-collector:
             k8s.cluster.name: { enabled: true }
         ec2:
           tags: ['^kubernetes\.io/cluster/.*$']
+        system:
+          resource_attributes:
+            host.name:
+              enabled: false # Containers report inaccurate host names
+        # Uncomment this section if you want to get additional metadata about your host
+        #     host.arch:
+        #       enabled: true
+        #     host.cpu.cache.l2.size:
+        #       enabled: true
+        #     host.cpu.family:
+        #       enabled: true
+        #     host.cpu.model.id:
+        #       enabled: true
+        #     host.cpu.model.name:
+        #       enabled: true
+        #     host.cpu.stepping:
+        #       enabled: true
+        #     host.cpu.vendor.id:
+        #       enabled: true
+        #     os.description:
+        #       enabled: true
       k8s_attributes:
         extract:
           otel_annotations: true

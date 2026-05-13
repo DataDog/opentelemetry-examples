@@ -302,11 +302,11 @@ processors:
     #       enabled: true
     #     host.cpu.vendor.id:
     #       enabled: true
+    #     os.description:
+    #       enabled: true
     #     host.ip:
     #       enabled: true
     #     host.mac:
-    #       enabled: true
-    #     os.description:
     #       enabled: true
 connectors:
   # The count connector generates custom metrics by counting the number
