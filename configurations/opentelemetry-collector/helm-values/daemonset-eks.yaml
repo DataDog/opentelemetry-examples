@@ -22,7 +22,7 @@ image:
   tag: 0.152.0
 command:
   name: "otelcol-contrib"
-  extraArgs: ["--feature-gates", "+connector.spanmetrics.includeCollectorInstanceID"]
+  extraArgs: []
 
 # Service account for the k8s_attributes processor
 serviceAccount:

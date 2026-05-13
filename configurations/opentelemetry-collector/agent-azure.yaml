@@ -1,7 +1,6 @@
 # Recommended OpenTelemetry Collector configuration
 # Setup: Uncontainerized Agent in an Azure VM environment
 # Collector Contrib version: v0.152.0
-# Required Collector flags: --feature-gates connector.spanmetrics.includeCollectorInstanceID
 # Required environment variables:
 # - DD_SITE: Datadog site for your region, e.g. datadog.com
 # - DD_API_KEY: A Datadog API key
