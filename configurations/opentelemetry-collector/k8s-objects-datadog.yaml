@@ -288,28 +288,29 @@ processors:
       resource_attributes:
         k8s.cluster.name:
           enabled: false
-    system:
-      resource_attributes:
-        host.arch:
-          enabled: true
-        host.cpu.cache.l2.size:
-          enabled: true
-        host.cpu.family:
-          enabled: true
-        host.cpu.model.id:
-          enabled: true
-        host.cpu.model.name:
-          enabled: true
-        host.cpu.stepping:
-          enabled: true
-        host.cpu.vendor.id:
-          enabled: true
-        host.ip:
-          enabled: true
-        host.mac:
-          enabled: true
-        os.description:
-          enabled: true
+    # Uncomment this section if you want to get additional metadata about your host
+    # system:
+    #   resource_attributes:
+    #     host.arch:
+    #       enabled: true
+    #     host.cpu.cache.l2.size:
+    #       enabled: true
+    #     host.cpu.family:
+    #       enabled: true
+    #     host.cpu.model.id:
+    #       enabled: true
+    #     host.cpu.model.name:
+    #       enabled: true
+    #     host.cpu.stepping:
+    #       enabled: true
+    #     host.cpu.vendor.id:
+    #       enabled: true
+    #     host.ip:
+    #       enabled: true
+    #     host.mac:
+    #       enabled: true
+    #     os.description:
+    #       enabled: true
 connectors:
   # The count connector generates custom metrics by counting the number
   # of metric series.
