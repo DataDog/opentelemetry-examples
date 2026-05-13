@@ -16,6 +16,131 @@ extraEnvs:
         name: datadog-secret
         key: api-key
 
+clusterRole:
+  rules:
+    - apiGroups:
+        - ""
+      resources:
+        - events
+        - endpoints
+        - namespaces
+        - namespaces/status
+        - nodes
+        - nodes/spec
+        - nodes/stats
+        - pods
+        - pods/status
+        - replicationcontrollers
+        - replicationcontrollers/status
+        - resourcequotas
+        - services
+        - persistentvolumes
+        - persistentvolumeclaims
+        - serviceaccounts
+      verbs:
+        - get
+        - list
+        - watch
+    - apiGroups:
+        - policy
+      resources:
+        - poddisruptionbudgets
+      verbs:
+        - get
+        - list
+        - watch
+    - apiGroups:
+        - apps
+      resources:
+        - daemonsets
+        - deployments
+        - replicasets
+        - statefulsets
+      verbs:
+        - get
+        - list
+        - watch
+    - apiGroups:
+        - extensions
+      resources:
+        - daemonsets
+        - deployments
+        - replicasets
+        - statefulsets
+      verbs:
+        - get
+        - list
+        - watch
+    - apiGroups:
+        - batch
+      resources:
+        - jobs
+        - cronjobs
+      verbs:
+        - get
+        - list
+        - watch
+    - apiGroups:
+        - autoscaling
+      resources:
+        - horizontalpodautoscalers
+      verbs:
+        - get
+        - list
+        - watch
+    - apiGroups:
+        - rbac.authorization.k8s.io
+      resources:
+        - roles
+        - rolebindings
+        - clusterroles
+        - clusterrolebindings
+      verbs:
+        - get
+        - list
+        - watch
+    - apiGroups:
+        - "storage.k8s.io"
+      resources:
+        - storageclasses
+      verbs:
+        - list
+        - get
+        - watch
+    - apiGroups:
+        - autoscaling.k8s.io
+      resources:
+        - verticalpodautoscalers
+      verbs:
+        - list
+        - get
+        - watch
+    - apiGroups:
+        - "autoscaling"
+      resources:
+        - horizontalpodautoscalers
+      verbs:
+        - get
+        - list
+        - watch
+    - apiGroups:
+        - "networking.k8s.io"
+      resources:
+        - networkpolicies
+        - ingresses
+      verbs:
+        - list
+        - get
+        - watch
+    - apiGroups:
+        - apiextensions.k8s.io
+      resources:
+        - customresourcedefinitions
+      verbs:
+        - get
+        - list
+        - watch
+
 config:
   receivers:
     k8s_cluster:
@@ -36,15 +161,161 @@ config:
                 regex: 'kube_daemonset_.*|kube_deployment_.*|kube_job_.*|kube_node_.*|kube_pod_.*|kube_replicaset_.*|kube_statefulset_.*|kube_service_spec_type'
                 action: keep
 
+    # orchestrator check
+    k8sobjects:
+      auth_type: serviceAccount
+      objects:
+        - name: namespaces
+          mode: pull
+          interval: 3m
+        - name: namespaces
+          mode: watch
+        - name: pods
+          mode: pull
+          interval: 3m
+        - name: pods
+          mode: watch
+        - name: nodes
+          mode: pull
+          interval: 3m
+        - name: nodes
+          mode: watch
+        - name: replicasets
+          mode: pull
+          interval: 3m
+        - name: replicasets
+          mode: watch
+        - name: daemonsets
+          mode: pull
+          interval: 3m
+        - name: daemonsets
+          mode: watch
+        - name: statefulsets
+          mode: pull
+          interval: 3m
+          group: apps
+        - name: statefulsets
+          mode: watch
+          group: apps
+        - name: cronjobs
+          mode: pull
+          interval: 3m
+        - name: cronjobs
+          mode: watch
+        - name: jobs
+          mode: pull
+          interval: 3m
+        - name: jobs
+          mode: watch
+        - name: services
+          mode: pull
+          interval: 3m
+        - name: services
+          mode: watch
+        - name: deployments
+          mode: pull
+          interval: 3m
+          group: apps
+        - name: deployments
+          mode: watch
+          group: apps
+        - name: roles
+          mode: pull
+          interval: 3m
+          group: rbac.authorization.k8s.io
+        - name: roles
+          mode: watch
+          group: rbac.authorization.k8s.io
+        - name: rolebindings
+          mode: pull
+          interval: 3m
+          group: rbac.authorization.k8s.io
+        - name: rolebindings
+          mode: watch
+          group: rbac.authorization.k8s.io
+        - name: clusterroles
+          mode: pull
+          interval: 3m
+          group: rbac.authorization.k8s.io
+        - name: clusterroles
+          mode: watch
+          group: rbac.authorization.k8s.io
+        - name: clusterrolebindings
+          mode: pull
+          interval: 3m
+          group: rbac.authorization.k8s.io
+        - name: clusterrolebindings
+          mode: watch
+          group: rbac.authorization.k8s.io
+        - name: storageclasses
+          mode: pull
+          interval: 3m
+          group: storage.k8s.io
+        - name: storageclasses
+          mode: watch
+          group: storage.k8s.io
+        - name: networkpolicies
+          mode: pull
+          interval: 3m
+          group: networking.k8s.io
+        - name: networkpolicies
+          mode: watch
+          group: networking.k8s.io
+        - name: ingresses
+          mode: pull
+          interval: 3m
+          group: networking.k8s.io
+        - name: ingresses
+          mode: watch
+          group: networking.k8s.io
+        - name: persistentvolumes
+          mode: pull
+          interval: 3m
+        - name: persistentvolumes
+          mode: watch
+        - name: persistentvolumeclaims
+          mode: pull
+          interval: 3m
+        - name: persistentvolumeclaims
+          mode: watch
+        - name: poddisruptionbudgets
+          mode: pull
+          interval: 3m
+          group: policy
+        - name: poddisruptionbudgets
+          mode: watch
+          group: policy
+        - name: serviceaccounts
+          mode: pull
+          interval: 3m
+        - name: serviceaccounts
+          mode: watch
+        - name: horizontalpodautoscalers
+          mode: pull
+          interval: 3m
+          group: autoscaling
+        - name: horizontalpodautoscalers
+          mode: watch
+          group: autoscaling
+        - name: customresourcedefinitions
+          mode: pull
+          interval: 3m
+          group: apiextensions.k8s.io
+        - name: customresourcedefinitions
+          mode: watch
+          group: apiextensions.k8s.io
+        # Uncomment it if VPA CRD is installed
+        # - name: verticalpodautoscalers
+        #   mode: pull
+        #   interval: 3m
+        #   group: autoscaling.k8s.io
+        # - name: verticalpodautoscalers
+        #   mode: watch
+        #   group: autoscaling.k8s.io
+  
   processors:
     cumulativetodelta: {}
-    resource:
-      attributes:
-        # Globally set k8s cluster name on all resources
-        - key: k8s.cluster.name
-          value: <YOUR K8S CLUSTER NAME HERE>
-          action: "insert"
-    
+
     # Rename KSM metric prometheus label uid -> k8s.pod.uid to adhere to OTel standard and
     # facililtate the groupby specified below.
     transform/rename_uid:
@@ -129,8 +400,8 @@ config:
       # kube-state-metrics pod.
       pod_association:
         - sources:
-          - from: resource_attribute
-            name: k8s.pod.uid
+            - from: resource_attribute
+              name: k8s.pod.uid
     
     transform/sum_to_gauge:
       metric_statements:
@@ -143,6 +414,33 @@ config:
       metrics:
         metric:
           - metric.name == "kube_service_spec_type"
+
+    # Inject k8s.cluster.uid by detector: kubeadm, which is required by orchestrator check
+    # Inject k8s.cluster.name by automatic cluster name detection,
+    # Adjust the `k8s.cluster.name` section for your cloud provider.
+    # See https://github.com/open-telemetry/opentelemetry-collector-contrib/tree/v0.152.0/processor/resourcedetectionprocessor#amazon-eks
+    resourcedetection:
+      detectors: [env, kubeadm, eks, ec2, aks, azure, gcp, system]
+      override: false
+      kubeadm:
+        resource_attributes:
+          k8s.cluster.name:
+            enabled: false
+      eks:
+        resource_attributes:
+          k8s.cluster.name:
+            enabled: true
+      aks:
+        resource_attributes:
+          k8s.cluster.name:
+            enabled: true
+    
+    # # Optional: manually inject the cluster name if the resourcedetection processor does not support your cloud provider.
+    # resource:
+    #       attributes:
+    #         - key: k8s.cluster.name
+    #           value: <YOUR K8S CLUSTER NAME HERE>
+    #           action: upsert
   
   connectors:
     # The count connector helps us generate three custom metrics by counting the number 
@@ -176,14 +474,22 @@ config:
     datadog/exporter:
       api:
         key: ${env:DD_API_KEY}
+      orchestrator_explorer:
+          enabled: true
   
   service:
+    extensions: [health_check]
     pipelines:
+      logs/orchestrator:
+        receivers: [k8sobjects]
+        processors: [resourcedetection]
+        exporters: [datadog/exporter]
+      
       metrics/count:
         receivers: [prometheus]
         exporters: [count]
         
       metrics:
         receivers: [otlp, prometheus, count]
-        processors: [filter/ksm, resource, transform/ksm_to_dd, transform/rename_uid, groupbyattrs, k8sattributes, cumulativetodelta, transform/sum_to_gauge]
+        processors: [filter/ksm, resourcedetection, transform/ksm_to_dd, transform/rename_uid, groupbyattrs, k8sattributes, cumulativetodelta, transform/sum_to_gauge]
         exporters: [datadog/exporter]
