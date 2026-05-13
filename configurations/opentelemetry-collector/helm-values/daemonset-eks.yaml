@@ -62,12 +62,14 @@ startupProbe:
 
 alternateConfig:
   receivers:
+    # Receive telemetry from OpenTelemetry-instrumented applications
     otlp:
       protocols:
         grpc:
           endpoint: 0.0.0.0:4317
         http:
           endpoint: 0.0.0.0:4318
+    # Collect host-level metrics for the Infrastructure List
     host_metrics:
       root_path: /hostfs # Necessary inside containers, corresponds to / on host
       collection_interval: 10s
@@ -122,7 +124,7 @@ alternateConfig:
           enabled: true
   
   processors:
-    # Enrich telemetry with host metadata
+    # Detect host and cloud metadata for hostname resolution and tagging
     resourcedetection:
       detectors: [eks, ec2, env]
       timeout: 2s
@@ -177,6 +179,7 @@ alternateConfig:
         - k8s.pod.network.errors
   
   connectors:
+    # Generate RED (Rate, Error, Duration) metrics from traces for APM
     span_metrics:
       # Note: Spans without service.name will be ignored
       aggregation_temporality: AGGREGATION_TEMPORALITY_DELTA
@@ -269,16 +272,19 @@ alternateConfig:
         # - name: k8s.cronjob.name
         # - name: k8s.namespace.name
         # - name: k8s.pod.name
+    # Separate trace processing from sampling so span metrics are computed on all traces
     forward/traces_sample: {}
   
   exporters:
     debug:
       verbosity: detailed
+    # Send telemetry to Datadog's OTLP intake endpoints
     otlp_http:
       endpoint: https://otlp.${env:DD_SITE}
       metrics_endpoint: https://otlp.${env:DD_SITE}/api/v2/otlpmetrics
       headers:
         dd-api-key: ${env:DD_API_KEY}
+        # Send resource attributes and scope metadata as metric tags
         dd-otel-metric-config: >-
           {
           "resource_attributes_as_tags": true,
@@ -293,6 +299,7 @@ alternateConfig:
   extensions:
     health_check:
       endpoint: ${env:MY_POD_IP}:13133
+    # Report Collector status to Datadog for Fleet Automation
     datadog:
       api:
         site: ${env:DD_SITE}
@@ -330,7 +337,7 @@ alternateConfig:
       
       traces/sample:
         receivers: [forward/traces_sample]
-        # Perform any sampling here
+        # Add sampling processors here (for example, tail_sampling) before exporting traces
         exporters: [otlp_http]
       
       metrics/span_metrics:
@@ -338,7 +345,7 @@ alternateConfig:
         exporters: [otlp_http]
     
     telemetry:
-      # Self-monitoring is not recommended, but currently the simplest way to perform enriching
+      # Route Collector internal metrics through its own pipelines for enrichment purposes
       metrics:
         readers:
           - periodic:

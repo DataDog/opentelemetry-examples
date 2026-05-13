@@ -410,6 +410,7 @@ alternateConfig:
       metrics_endpoint: https://otlp.${env:DD_SITE}/api/v2/otlpmetrics
       headers:
         dd-api-key: ${env:DD_API_KEY}
+        # Send resource attributes and scope metadata as metric tags
         dd-otel-metric-config: >-
           {
           "resource_attributes_as_tags": true,
