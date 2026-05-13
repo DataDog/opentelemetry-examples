@@ -1,7 +1,6 @@
-# FOR INTERNAL TESTING PURPOSES ONLY
 # values.yaml for the OpenTelemetry Collector Helm Chart (Deployment mode)
-# Paired with otel-demo-datadog-eks.yaml to collect cluster level resources to support K8s Explorer
-# Setup: Kubernetes Deployment in an EKS environment
+# Paired with daemonset-eks.yaml to collect cluster level resources to support K8s Explorer
+# Setup: Kubernetes per-cluster Deployment (k8sobjects) in an EKS environment
 # Required secrets: datadog-secrets::api-key
 # Remember to modify DD_SITE if not using datadoghq.com
 
@@ -20,10 +19,6 @@ image:
   tag: 0.150.1
 command:
   name: "otelcol-contrib"
-
-presets:
-  clusterMetrics:
-    enabled: true
 
 serviceAccount:
   create: true
@@ -80,8 +75,10 @@ clusterRole:
       resources: ["customresourcedefinitions"]
       verbs: ["get", "list", "watch"]
 
-config:
+alternateConfig:
   receivers:
+    k8s_cluster:
+      auth_type: serviceAccount
     # Prometheus receiver is used to scrape kube state metrics
     prometheus:
       config:
@@ -239,7 +236,7 @@ config:
         - name: customresourcedefinitions
           mode: watch
           group: apiextensions.k8s.io
-
+  
   processors:
     cumulativetodelta: {}
     # Rename KSM metric prometheus label uid -> k8s.pod.uid to adhere to OTel standard and
@@ -391,7 +388,7 @@ config:
         k8s.job.count:
           conditions:
             - metric.name == "kube_job_owner"
-
+  
   exporters:
     debug:
       verbosity: detailed
@@ -422,24 +419,29 @@ config:
         level: 3 # Level must be set explicitly for zstd
       sending_queue:
         batch: {} # Default batch settings
-
+  
   extensions:
     health_check:
       endpoint: ${env:MY_POD_IP}:13133
-
+  
   service:
     extensions:
       - health_check
-
+  
     pipelines:
       logs/orchestrator:
         receivers: [k8sobjects]
         processors: [resourcedetection]
         exporters: [datadog]
+  
+      metrics/cluster:
+        receivers: [k8s_cluster]
+        processors: [resourcedetection]
+        exporters: [otlp_http]
       metrics/count:
         receivers: [prometheus]
         exporters: [count]
-
+  
       metrics/ksm:
         receivers: [prometheus, count]
         processors:

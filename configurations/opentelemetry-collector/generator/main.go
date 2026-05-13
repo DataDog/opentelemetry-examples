@@ -65,6 +65,9 @@ func renderConfigs(templatesPath string, outputsPath string) error {
 	if err == nil {
 		templates, err = templates.ParseGlob(path.Join(templatesPath, "**/*.tmpl"))
 	}
+	if err == nil {
+		templates, err = templates.ParseGlob(path.Join(templatesPath, "**/**/*.tmpl"))
+	}
 	if err != nil {
 		return err
 	}

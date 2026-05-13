@@ -1,6 +1,6 @@
 {{- $deployment := "" }}
 {{- if .Deployment }}
-{{- $deployment = "Kubernetes Deployment" }}
+{{- $deployment = "Kubernetes per-cluster Deployment (k8sobjects)" }}
 {{- else if .K8s }}
 {{- $deployment = "Kubernetes Daemonset" }}
 {{- else if .Container }}

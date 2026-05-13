@@ -81,13 +81,10 @@ exporters:
 extensions:
   health_check:
     {{include "health-check-extension" . | indent 4}}
-  datadog:
-    {{include "datadog-extension" . | indent 4}}
 
 service:
   extensions:
     - health_check
-    - datadog
 
   pipelines:
     logs/orchestrator:
