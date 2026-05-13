@@ -5,6 +5,7 @@
 # Required environment variables:
 # - DD_SITE: Datadog site for your region, e.g. datadog.com
 # - DD_API_KEY: A Datadog API key
+# - K8S_NODE_NAME: The name of the Kubernetes node (used by the kubeletstats receiver)
 # - OTEL_RESOURCE_ATTRIBUTES: Host information (no host detection possible in this setup)
 # Required mounts: /hostfs
 
@@ -47,6 +48,26 @@ receivers:
       load: {}
       network: {}
       processes: {}
+  kubeletstats:
+    collection_interval: 15s
+    auth_type: "serviceAccount"
+    endpoint: "${env:K8S_NODE_NAME}:10250"
+    node: "${env:K8S_NODE_NAME}"
+    insecure_skip_verify: true
+    metric_groups:
+      - node
+      - pod
+      - container
+      - volume
+    metrics:
+      k8s.container.cpu.node.utilization:
+        enabled: true
+      k8s.pod.cpu.node.utilization:
+        enabled: true
+      k8s.container.memory.node.utilization:
+        enabled: true
+      k8s.pod.memory.node.utilization:
+        enabled: true
 
 processors:
   # Enrich telemetry with host metadata
@@ -95,6 +116,10 @@ processors:
 
   # Transform metrics to fit Datadog platform constraints
   cumulativetodelta: {}
+  deltatorate:
+    metrics:
+      - k8s.pod.network.io
+      - k8s.pod.network.errors
 
 connectors:
   spanmetrics:
@@ -230,11 +255,12 @@ service:
       exporters: [otlp_http]
     
     metrics:
-      receivers: [otlp, hostmetrics]
+      receivers: [otlp, hostmetrics, kubeletstats]
       processors:
         - k8s_attributes
         - resourcedetection
         - cumulativetodelta
+        - deltatorate
       exporters: [otlp_http]
     
     traces:

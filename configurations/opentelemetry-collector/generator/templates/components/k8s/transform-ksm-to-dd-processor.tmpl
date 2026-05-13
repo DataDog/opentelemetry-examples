@@ -1,0 +1,34 @@
+metric_statements:
+  - context: datapoint
+    statements:
+      # statefulset
+      - set(attributes["kube_namespace"], attributes["namespace"])
+      - delete_key(attributes, "namespace")
+
+      # statefulset
+      - set(attributes["kube_deployment"], attributes["deployment"])
+      - delete_key(attributes, "deployment")
+
+      # phase
+      - set(attributes["pod_phase"], attributes["phase"])
+      - delete_key(attributes, "phase")
+
+      # statefulset
+      - set(attributes["kube_stateful_set"], attributes["statefulset"])
+      - delete_key(attributes, "statefulset")
+
+      # daemonset
+      - set(attributes["kube_daemon_set"], attributes["daemonset"])
+      - delete_key(attributes, "daemonset")
+
+      # replicaset
+      - set(attributes["kube_replica_set"], attributes["replicaset"])
+      - delete_key(attributes, "replicaset")
+
+      # job_name
+      - set(attributes["kube_job"], attributes["job_name"])
+      - delete_key(attributes, "job_name")
+
+      # service
+      - set(attributes["kube_service"], attributes["service"])
+      - delete_key(attributes, "service")

@@ -1,5 +1,7 @@
 {{- $deployment := "" }}
-{{- if .K8s }}
+{{- if .Deployment }}
+{{- $deployment = "Kubernetes per-cluster Deployment (k8sobjects)" }}
+{{- else if .K8s }}
 {{- $deployment = "Kubernetes Daemonset" }}
 {{- else if .Container }}
 {{- $deployment = "Containerized Agent" }}

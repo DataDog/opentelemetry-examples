@@ -1,0 +1,7 @@
+metric_statements:
+  - convert_sum_to_gauge() where metric.name == "k8s.deployment.count"
+  - convert_sum_to_gauge() where metric.name == "k8s.namespace.count"
+  - convert_sum_to_gauge() where metric.name == "k8s.service.count"
+  - convert_sum_to_gauge() where metric.name == "k8s.node.count"
+  - convert_sum_to_gauge() where metric.name == "k8s.pod.count"
+  - convert_sum_to_gauge() where metric.name == "k8s.job.count"
