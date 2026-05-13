@@ -9,8 +9,8 @@
 # Required environment variables:
 # - DD_SITE: Datadog site for your region, e.g. datadog.com
 # - DD_API_KEY: A Datadog API key
-{{- if .Kubeletstats}}
-# - K8S_NODE_NAME: The name of the Kubernetes node (used by the kubeletstats receiver)
+{{- if .KubeletStats}}
+# - K8S_NODE_NAME: The name of the Kubernetes node (used by the kubelet_stats receiver)
 {{- end}}
 {{- if and .Container (eq .CloudEnvironment "")}}
 # - OTEL_RESOURCE_ATTRIBUTES: Host information (no host detection possible in this setup)
@@ -23,11 +23,11 @@
 receivers:
   otlp:
     {{include "otlp-receiver" . | indent 4}}
-  hostmetrics:
+  host_metrics:
     {{include "host-metrics-receiver" . | indent 4}}
-  {{- if .Kubeletstats}}
-  kubeletstats:
-    {{include "kubeletstats-receiver" . | indent 4}}
+  {{- if .KubeletStats}}
+  kubelet_stats:
+    {{include "kubelet-stats-receiver" . | indent 4}}
   {{- end}}
 
 processors:
@@ -41,7 +41,7 @@ processors:
 
   # Transform metrics to fit Datadog platform constraints
   cumulativetodelta: {}
-  {{- if and .Kubeletstats (not .MapEquivalentMetrics)}}
+  {{- if and .KubeletStats (not .MapEquivalentMetrics)}}
   deltatorate:
     metrics:
       - k8s.pod.network.io
@@ -67,8 +67,8 @@ processors:
       - process.cpu.time
       # System metrics
       - system.network.io
-  {{- if .Kubeletstats}}
-      # Kubeletstats metrics
+  {{- if .KubeletStats}}
+      # Kubelet stats metrics
       - k8s.pod.network.io
       - k8s.pod.network.errors
   {{- end}}
@@ -84,7 +84,7 @@ connectors:
   {{- if .DatadogExporter}}
   datadog/connector: {}
   {{- else}}
-  spanmetrics:
+  span_metrics:
     {{include "span-metrics-connector" . | indent 4}}
   forward/traces_sample: {}
   {{- end}}
@@ -146,7 +146,7 @@ service:
       {{- end}}
     
     metrics:
-      receivers: [otlp, hostmetrics{{- if .Kubeletstats}}, kubeletstats{{- end}}]
+      receivers: [otlp, host_metrics{{- if .KubeletStats}}, kubelet_stats{{- end}}]
       processors:
         {{- if .K8s}}
         - k8s_attributes
@@ -167,7 +167,7 @@ service:
       processors:
     {{- end}}
         - cumulativetodelta
-    {{- if or .MapEquivalentMetrics .Kubeletstats}}
+    {{- if or .MapEquivalentMetrics .KubeletStats}}
         - deltatorate
     {{- end}}
     {{- if .MapEquivalentMetrics}}
@@ -189,7 +189,7 @@ service:
       {{- if .DatadogExporter}}
       exporters: [datadog/connector]
       {{- else}}
-      exporters: [forward/traces_sample, spanmetrics]
+      exporters: [forward/traces_sample, span_metrics]
       {{- end}}
     
     {{if .DatadogExporter -}}
@@ -198,7 +198,7 @@ service:
       # Perform any sampling here
       exporters: [datadog]
     
-    metrics/spanmetrics:
+    metrics/span_metrics:
       receivers: [datadog/connector]
       exporters: [datadog]
     {{else -}}
@@ -207,8 +207,8 @@ service:
       # Perform any sampling here
       exporters: [otlp_http]
     
-    metrics/spanmetrics:
-      receivers: [spanmetrics]
+    metrics/span_metrics:
+      receivers: [span_metrics]
       exporters: [otlp_http]
     {{- end}}
   

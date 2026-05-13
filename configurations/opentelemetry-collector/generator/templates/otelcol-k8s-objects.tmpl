@@ -22,9 +22,9 @@ receivers:
   prometheus:
     {{include "prometheus-receiver" . | indent 4}}
   {{- end}}
-  # k8sobjects receiver for orchestrator check
-  k8sobjects:
-    {{include "k8sobjects-receiver" . | indent 4}}
+  # k8s_objects receiver for orchestrator check
+  k8s_objects:
+    {{include "k8s-objects-receiver" . | indent 4}}
 
 processors:
   {{- if .KSM}}
@@ -88,7 +88,7 @@ service:
 
   pipelines:
     logs/orchestrator:
-      receivers: [k8sobjects]
+      receivers: [k8s_objects]
       processors: [{{- if eq .CloudEnvironment ""}}resource/add-cluster-name, {{end}}resourcedetection]
       exporters: [datadog]
 

@@ -19,7 +19,7 @@ extraEnvs:
 mode: daemonset
 image:
   repository: otel/opentelemetry-collector-contrib
-  tag: 0.150.1
+  tag: 0.152.0
 command:
   name: "otelcol-contrib"
   extraArgs: ["--feature-gates", "+connector.spanmetrics.includeCollectorInstanceID"]
@@ -68,7 +68,7 @@ alternateConfig:
           endpoint: 0.0.0.0:4317
         http:
           endpoint: 0.0.0.0:4318
-    hostmetrics:
+    host_metrics:
       root_path: /hostfs # Necessary inside containers, corresponds to / on host
       collection_interval: 10s
       scrapers:
@@ -100,7 +100,7 @@ alternateConfig:
         load: {}
         network: {}
         processes: {}
-    kubeletstats:
+    kubelet_stats:
       collection_interval: 15s
       auth_type: "serviceAccount"
       endpoint: "${env:K8S_NODE_NAME}:10250"
@@ -177,7 +177,7 @@ alternateConfig:
         - k8s.pod.network.errors
   
   connectors:
-    spanmetrics:
+    span_metrics:
       # Note: Spans without service.name will be ignored
       aggregation_temporality: AGGREGATION_TEMPORALITY_DELTA
       add_resource_attributes: true
@@ -313,7 +313,7 @@ alternateConfig:
         exporters: [otlp_http]
       
       metrics:
-        receivers: [otlp, hostmetrics, kubeletstats]
+        receivers: [otlp, host_metrics, kubelet_stats]
         processors:
           - k8s_attributes
           - resourcedetection
@@ -326,15 +326,15 @@ alternateConfig:
         processors:
           - k8s_attributes
           - resourcedetection
-        exporters: [forward/traces_sample, spanmetrics]
+        exporters: [forward/traces_sample, span_metrics]
       
       traces/sample:
         receivers: [forward/traces_sample]
         # Perform any sampling here
         exporters: [otlp_http]
       
-      metrics/spanmetrics:
-        receivers: [spanmetrics]
+      metrics/span_metrics:
+        receivers: [span_metrics]
         exporters: [otlp_http]
     
     telemetry:

@@ -1,9 +1,9 @@
+# FOR INTERNAL TESTING PURPOSES ONLY
 # values.yaml for the OpenTelemetry Collector Helm Chart (Deployment mode)
-# Paired with daemonset.yaml to collect cluster level resources to support K8s Explorer
-# Setup: Kubernetes per-cluster Deployment (k8sobjects) in a non-cloud environment
+# Paired with otel-demo-datadog-eks.yaml to collect cluster level resources to support K8s Explorer
+# Setup: Kubernetes per-cluster Deployment (k8s_objects) in an EKS environment
 # Required secrets: datadog-secrets::api-key
 # Remember to modify DD_SITE if not using datadoghq.com
-# Remember to set OTEL_K8S_CLUSTER_NAME with your actual cluster name
 
 extraEnvs:
   - name: DD_SITE
@@ -13,13 +13,11 @@ extraEnvs:
       secretKeyRef:
         name: datadog-secrets
         key: api-key
-  - name: OTEL_K8S_CLUSTER_NAME
-    value: my-cluster-name # Update with your actual cluster name
 
 mode: deployment
 image:
   repository: otel/opentelemetry-collector-contrib
-  tag: 0.150.1
+  tag: 0.152.0
 command:
   name: "otelcol-contrib"
 
@@ -96,8 +94,8 @@ alternateConfig:
               - source_labels: [__name__]
                 regex: "kube_daemonset_.*|kube_deployment_.*|kube_job_.*|kube_namespace_.*|kube_node_.*|kube_pod_.*|kube_replicaset_.*|kube_statefulset_.*|kube_service_spec_type"
                 action: keep
-    # k8sobjects receiver for orchestrator check
-    k8sobjects:
+    # k8s_objects receiver for orchestrator check
+    k8s_objects:
       auth_type: serviceAccount
       objects:
         - name: namespaces
@@ -342,22 +340,20 @@ alternateConfig:
       metrics:
         metric:
           - metric.name == "kube_service_spec_type"
-    # In non-cloud environments, k8s.cluster.name must be set manually.
-    # Set the OTEL_K8S_CLUSTER_NAME environment variable with your actual cluster name.
-    resource/add-cluster-name:
-      attributes:
-        - key: k8s.cluster.name
-          value: "${env:OTEL_K8S_CLUSTER_NAME}"
-          action: upsert
     resourcedetection:
-      detectors: [env, kubeadm]
+      detectors: [eks, ec2, env, kubeadm]
       timeout: 2s
       override: true # Disable if incoming attributes (especially host.name) are verified correct
-      # kubeadm detector is required by the k8sobjects receiver to add k8s.cluster.uid into attributes
+      # kubeadm detector is required by the k8s_objects receiver to add k8s.cluster.uid into attributes
       kubeadm:
         resource_attributes:
           k8s.cluster.name:
             enabled: false
+      eks:
+        resource_attributes:
+          k8s.cluster.name: { enabled: true }
+      ec2:
+        tags: ['^kubernetes\.io/cluster/.*$']
   connectors:
     # The count connector generates custom metrics by counting the number
     # of metric series.
@@ -435,13 +431,13 @@ alternateConfig:
   
     pipelines:
       logs/orchestrator:
-        receivers: [k8sobjects]
-        processors: [resource/add-cluster-name, resourcedetection]
+        receivers: [k8s_objects]
+        processors: [resourcedetection]
         exporters: [datadog]
   
       metrics/cluster:
         receivers: [k8s_cluster]
-        processors: [resource/add-cluster-name, resourcedetection]
+        processors: [resourcedetection]
         exporters: [otlp_http]
       metrics/count:
         receivers: [prometheus]
@@ -451,7 +447,6 @@ alternateConfig:
         receivers: [prometheus, count]
         processors:
           - filter/ksm
-          - resource/add-cluster-name
           - resourcedetection
           - transform/ksm_to_dd
           - transform/rename_uid

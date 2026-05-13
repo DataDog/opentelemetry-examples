@@ -1,7 +1,6 @@
-# FOR INTERNAL TESTING PURPOSES ONLY
 # values.yaml for the OpenTelemetry Collector Helm Chart (Deployment mode)
-# Paired with otel-demo-datadog.yaml to collect cluster level resources to support K8s Explorer
-# Setup: Kubernetes per-cluster Deployment (k8sobjects) in a non-cloud environment
+# Paired with daemonset.yaml to collect cluster level resources to support K8s Explorer
+# Setup: Kubernetes per-cluster Deployment (k8s_objects) in a non-cloud environment
 # Required secrets: datadog-secrets::api-key
 # Remember to modify DD_SITE if not using datadoghq.com
 # Remember to set OTEL_K8S_CLUSTER_NAME with your actual cluster name
@@ -20,7 +19,7 @@ extraEnvs:
 mode: deployment
 image:
   repository: otel/opentelemetry-collector-contrib
-  tag: 0.150.1
+  tag: 0.152.0
 command:
   name: "otelcol-contrib"
 
@@ -97,8 +96,8 @@ alternateConfig:
               - source_labels: [__name__]
                 regex: "kube_daemonset_.*|kube_deployment_.*|kube_job_.*|kube_namespace_.*|kube_node_.*|kube_pod_.*|kube_replicaset_.*|kube_statefulset_.*|kube_service_spec_type"
                 action: keep
-    # k8sobjects receiver for orchestrator check
-    k8sobjects:
+    # k8s_objects receiver for orchestrator check
+    k8s_objects:
       auth_type: serviceAccount
       objects:
         - name: namespaces
@@ -354,7 +353,7 @@ alternateConfig:
       detectors: [env, kubeadm]
       timeout: 2s
       override: true # Disable if incoming attributes (especially host.name) are verified correct
-      # kubeadm detector is required by the k8sobjects receiver to add k8s.cluster.uid into attributes
+      # kubeadm detector is required by the k8s_objects receiver to add k8s.cluster.uid into attributes
       kubeadm:
         resource_attributes:
           k8s.cluster.name:
@@ -436,7 +435,7 @@ alternateConfig:
   
     pipelines:
       logs/orchestrator:
-        receivers: [k8sobjects]
+        receivers: [k8s_objects]
         processors: [resource/add-cluster-name, resourcedetection]
         exporters: [datadog]
   

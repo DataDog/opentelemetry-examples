@@ -17,14 +17,11 @@ extraEnvs:
         name: datadog-secrets
         key: api-key
   {{- if eq .CloudEnvironment ""}}
-  - name: NODE_NAME
-    valueFrom:
-      fieldRef:
-        fieldPath: spec.nodeName
+  # Use the K8s-related variables predefined by the Helm chart
   - name: OTEL_RESOURCE_ATTRIBUTES
-    value: "k8s.node.name=$(NODE_NAME)"
+    value: "k8s.node.name=$(OTEL_K8S_NODE_NAME)"
   {{- end}}
-{{- if .Kubeletstats}}
+{{- if .KubeletStats}}
   - name: K8S_NODE_NAME
     valueFrom:
       fieldRef:
@@ -46,7 +43,7 @@ clusterRole:
   create: true
   rules:
     - apiGroups: [""]
-      resources: ["pods", "namespaces"{{- if .Kubeletstats}}, "nodes", "nodes/stats"{{- end}}]
+      resources: ["pods", "namespaces"{{- if .KubeletStats}}, "nodes", "nodes/stats"{{- end}}]
       verbs: ["get", "watch", "list"]
     - apiGroups: ["apps"]
       resources: ["replicasets"]
