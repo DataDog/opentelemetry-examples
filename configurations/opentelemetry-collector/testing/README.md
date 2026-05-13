@@ -33,4 +33,5 @@ Files:
 - `otel-demo-eks.yaml`: Kubernetes Daemonset in an EKS environment
 - `otel-demo-datadog.yaml`: Kubernetes Daemonset in a non-cloud environment using the Datadog exporter
 - `otel-demo-datadog-eks.yaml`: Kubernetes Daemonset in an EKS environment using the Datadog exporter
-
+- `helm-k8s-objects-datadog.yaml`: Kubernetes per-cluster Deployment (k8s_objects) in a non-cloud environment using the Datadog exporter
+- `helm-k8s-objects-datadog-eks.yaml`: Kubernetes per-cluster Deployment (k8s_objects) in an EKS environment using the Datadog exporter

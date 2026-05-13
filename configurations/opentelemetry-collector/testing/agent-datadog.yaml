@@ -8,12 +8,14 @@
 # - DD_API_KEY: A Datadog API key
 
 receivers:
+  # Receive telemetry from OpenTelemetry-instrumented applications
   otlp:
     protocols:
       grpc:
         endpoint: 0.0.0.0:4317
       http:
         endpoint: 0.0.0.0:4318
+  # Collect host-level metrics for the Infrastructure List
   host_metrics:
     collection_interval: 10s
     scrapers:
@@ -47,7 +49,7 @@ receivers:
       processes: {}
 
 processors:
-  # Enrich telemetry with host metadata
+  # Detect host and cloud metadata for hostname resolution and tagging
   resourcedetection:
     detectors: [env, system]
     timeout: 2s
@@ -97,6 +99,7 @@ exporters:
       batch: {} # Default batch settings
 
 extensions:
+  # Report Collector status to Datadog for Fleet Automation
   datadog:
     api:
       site: ${env:DD_SITE}
@@ -138,7 +141,7 @@ service:
     
   
   telemetry:
-    # Self-monitoring is not recommended, but currently the simplest way to perform enriching
+    # Route Collector internal metrics through its own pipelines for enrichment purposes
     metrics:
       readers:
         - periodic:
