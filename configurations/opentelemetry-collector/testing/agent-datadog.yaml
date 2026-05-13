@@ -70,11 +70,11 @@ processors:
     #       enabled: true
     #     host.cpu.vendor.id:
     #       enabled: true
+    #     os.description:
+    #       enabled: true
     #     host.ip:
     #       enabled: true
     #     host.mac:
-    #       enabled: true
-    #     os.description:
     #       enabled: true
 
   # Transform metrics to fit Datadog platform constraints

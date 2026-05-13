@@ -350,7 +350,7 @@ alternateConfig:
           value: "${env:OTEL_K8S_CLUSTER_NAME}"
           action: upsert
     resourcedetection:
-      detectors: [env, kubeadm]
+      detectors: [env, kubeadm, system]
       timeout: 2s
       override: true # Disable if incoming attributes (especially host.name) are verified correct
       # kubeadm detector is required by the k8s_objects receiver to add k8s.cluster.uid into attributes
@@ -358,6 +358,27 @@ alternateConfig:
         resource_attributes:
           k8s.cluster.name:
             enabled: false
+      system:
+        resource_attributes:
+          host.name:
+            enabled: false # Containers report inaccurate host names
+      # Uncomment this section if you want to get additional metadata about your host
+      #     host.arch:
+      #       enabled: true
+      #     host.cpu.cache.l2.size:
+      #       enabled: true
+      #     host.cpu.family:
+      #       enabled: true
+      #     host.cpu.model.id:
+      #       enabled: true
+      #     host.cpu.model.name:
+      #       enabled: true
+      #     host.cpu.stepping:
+      #       enabled: true
+      #     host.cpu.vendor.id:
+      #       enabled: true
+      #     os.description:
+      #       enabled: true
   connectors:
     # The count connector generates custom metrics by counting the number
     # of metric series.
