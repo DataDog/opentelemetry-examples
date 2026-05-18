@@ -16,6 +16,15 @@ extraEnvs:
       secretKeyRef:
         name: datadog-secrets
         key: api-key
+  {{- if .DualShip}}
+  - name: DD_SITE_DUAL_SHIP
+    value: datadoghq.com # Update if necessary
+  - name: DD_API_KEY_DUAL_SHIP
+    valueFrom:
+      secretKeyRef:
+        name: datadog-secrets-dual-ship
+        key: api-key
+  {{- end}}
   {{- if eq .CloudEnvironment ""}}
   # Use the K8s-related variables predefined by the Helm chart
   - name: OTEL_RESOURCE_ATTRIBUTES

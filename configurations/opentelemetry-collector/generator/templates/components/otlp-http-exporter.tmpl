@@ -1,6 +1,7 @@
-endpoint: https://otlp.${env:DD_SITE}
+{{if not .EnvSuffix}}{{set . "EnvSuffix" ""}}{{end}}
+endpoint: https://otlp.${env:DD_SITE{{.EnvSuffix}}}
 headers:
-  dd-api-key: ${env:DD_API_KEY}
+  dd-api-key: ${env:DD_API_KEY{{.EnvSuffix}}}
   # Send resource attributes and scope metadata as metric tags
   dd-otel-metric-config: >-
     {
