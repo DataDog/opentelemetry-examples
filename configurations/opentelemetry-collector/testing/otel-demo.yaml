@@ -398,14 +398,20 @@ opentelemetry-collector:
       # Report Collector status to Datadog for Fleet Automation
       datadog:
         api:
-          site: ${env:DD_SITE}
-          key: ${env:DD_API_KEY}
+          site: ${env:DD_SITE_DUAL_SHIP}
+          key: ${env:DD_API_KEY_DUAL_SHIP}
+        deployment_type: daemonset
+      datadog/dual_ship:
+        api:
+          site: ${env:DD_SITE_DUAL_SHIP}
+          key: ${env:DD_API_KEY_DUAL_SHIP}
         deployment_type: daemonset
     
     service:
       extensions:
         - health_check # May be necessary for liveness/readiness probe
         - datadog
+        - datadog/dual_ship
       
       pipelines:
         logs:

@@ -133,6 +133,11 @@ extensions:
   # Report Collector status to Datadog for Fleet Automation
   datadog:
     {{include "datadog-extension" . | indent 4}}
+  {{- if .DualShip}}
+  datadog/dual_ship:
+    {{- set . "EnvSuffix" "_DUAL_SHIP"}}
+    {{include "datadog-extension" . | indent 4}}
+  {{- end}}
 
 service:
   extensions:
@@ -140,6 +145,9 @@ service:
     - health_check # May be necessary for liveness/readiness probe
     {{- end}}
     - datadog
+    {{- if .DualShip}}
+    - datadog/dual_ship
+    {{- end}}
   
   pipelines:
     logs:
