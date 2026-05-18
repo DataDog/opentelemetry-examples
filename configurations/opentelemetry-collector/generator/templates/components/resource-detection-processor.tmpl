@@ -1,22 +1,18 @@
 {{- /* TODO: Implement AKS, Azure, ECS, GKE environments */}}
-{{- $system := ", system"}}
-{{- if .Container}}
-{{- $system = ""}}
-{{- end}}
 {{- $kubeadm := ""}}
 {{- if .K8sObjects}}
 {{- $kubeadm = ", kubeadm"}}
 {{- end}}
 {{- if eq .CloudEnvironment "ec2"}}
-detectors: [ec2, env{{$kubeadm}}{{$system}}]
+detectors: [ec2, env{{$kubeadm}}, system]
 {{- else if eq .CloudEnvironment "eks" }}
-detectors: [eks, ec2, env{{$kubeadm}}{{$system}}]
+detectors: [eks, ec2, env{{$kubeadm}}, system]
 {{- else if eq .CloudEnvironment "gce" }}
-detectors: [gcp, env{{$kubeadm}}{{$system}}]
+detectors: [gcp, env{{$kubeadm}}, system]
 {{- else if eq .CloudEnvironment "azure" }}
-detectors: [azure, env{{$kubeadm}}{{$system}}]
+detectors: [azure, env{{$kubeadm}}, system]
 {{- else if eq .CloudEnvironment "" }}
-detectors: [env{{$kubeadm}}{{$system}}]
+detectors: [env{{$kubeadm}}, system]
 {{- else }}
 {{- errorf "unknown cloud environment %q" .CloudEnvironment}}
 {{- end}}
@@ -41,10 +37,17 @@ eks:
 ec2:
   tags: ['^kubernetes\.io/cluster/.*$']
 {{- end}}
-{{- if not .Container}}
+{{- if .Container}}
+system:
+  resource_attributes:
+    host.name:
+      enabled: false # Containers report inaccurate host names
+# Uncomment this section if you want to get additional metadata about your host
+{{- else}}
 # Uncomment this section if you want to get additional metadata about your host
 # system:
 #   resource_attributes:
+{{- end}}
 #     host.arch:
 #       enabled: true
 #     host.cpu.cache.l2.size:
@@ -59,10 +62,11 @@ ec2:
 #       enabled: true
 #     host.cpu.vendor.id:
 #       enabled: true
+#     os.description:
+#       enabled: true
+{{- if not .Container}} {{- /* Containers report inaccurate network information */}}
 #     host.ip:
 #       enabled: true
 #     host.mac:
-#       enabled: true
-#     os.description:
 #       enabled: true
 {{- end}}
