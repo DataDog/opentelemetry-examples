@@ -98,7 +98,7 @@ config:
     # If your cloud provider is not supported, use the optional resource/add-cluster-name processor below instead.
     # See: https://github.com/open-telemetry/opentelemetry-collector-contrib/tree/v0.152.0/processor/resourcedetectionprocessor#cluster-name
     resourcedetection:
-      detectors: ["k8snode", "system", "ec2", "eks", "aks", "gcp", "kubeadm"]
+      detectors: ["k8snode", "ec2", "eks", "aks", "gcp", "kubeadm"]
       override: false
       # kubeadm adds k8s.cluster.uid; k8s.cluster.name is disabled to prevent the detector
       # from searching for the kubeadm-config ConfigMap on non-kubeadm clusters.
