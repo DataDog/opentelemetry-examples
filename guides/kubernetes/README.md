@@ -24,10 +24,10 @@ Many of the metrics collected for the Kubernetes integration report on the _over
 | receiver    | [prometheus][1]         | Scrapes your cluster's kube-state-metrics endpoint |
 | receiver    | [k8s_cluster][2]        | Collects additional cluster-level metrics |
 | processor   | [cumulativetodelta][4]  | Converts monotonic, cumulative sum and histogram metrics to monotonic, delta metrics |
-| processor   | [resource][5]           | Globally sets the `k8s.cluster.name` attribute on resources for tagging purposes |
+| processor   | [resourcedetection][14] | Automatically detects [`k8s.cluster.name`][16] (EKS/AKS/GKE) and `k8s.cluster.uid` (kubeadm) |
 | processor   | [transform][6]          | Modifies, adds, and deletes resource/datapoint attributes |
 | processor   | [groupbyattrs][7]       | Associates kube-state-metrics Pod datapoints with the correct OTel resource by Pod UID |
-| processor   | [k8sattributes][8]      | Enriches Kubernetes metrics with additional metadata (ex: annotations/labels) |
+| processor   | [k8s_attributes][8]     | Enriches Kubernetes metrics with additional metadata (ex: annotations/labels) |
 | connector   | [count][9]              | Counts Kubernetes metrics to generate `k8s.node.count`, `k8s.job.count`, and `k8s.service.count` |
 | exporter    | [datadog][10]           | Ships telemetry to Datadog |
 
@@ -38,10 +38,8 @@ Many of the metrics collected for the Kubernetes integration report on the _over
 | receiver    | [kubeletstats][12]      | Collects node, pod, container, and volume metrics from the Kubelet |
 | processor   | [cumulativetodelta][4]  | Converts monotonic, cumulative sum and histogram metrics to monotonic, delta metrics |
 | processor   | [deltatorate][13]       | Converts delta sum metrics to rate metrics that are sent as gauges |
-| processor   | [resource][5]           | Globally sets the `k8s.cluster.name` attribute on resources for tagging purposes |
-| processor   | [transform][6]          | Modifies, adds, and deletes resource/datapoint attributes |
-| processor   | [k8sattributes][8]      | Enriches Kubernetes metrics with additional metadata (ex: annotations/labels) |
-| processor   | [resourcedetection][14] | Detects environment information from a variety of sources |
+| processor   | [resourcedetection][14] | Automatically detects [`k8s.cluster.name`][16] (EKS/AKS/GKE) and `k8s.cluster.uid` (kubeadm) |
+| processor   | [k8s_attributes][8]     | Enriches Kubernetes metrics with additional metadata (ex: annotations/labels) |
 | connector   | [datadog/connector][15] | Converts OTel traces into Datadog compatible traces for consumption in Datadog's APM products |
 | exporter    | [datadog][10]           | Ships telemetry to Datadog |
 
@@ -157,31 +155,23 @@ helm repo add open-telemetry https://open-telemetry.github.io/opentelemetry-helm
 helm repo update
 ```
 ```bash
-# Export your cluster name
-export K8S_CLUSTER_NAME=<YOUR CLUSTER NAME HERE>
-```
-
-```bash
-# Install the Daemonset Collector 
+# Install the Daemonset Collector
 helm install otel-daemon-collector open-telemetry/opentelemetry-collector -f configuration/daemonset-collector.yaml \
   --set image.repository=otel/opentelemetry-collector-contrib \
-  --set image.tag=0.130.0 \
-  --set-string "config.processors.resource.attributes[0].key=k8s.cluster.name" \
-  --set-string "config.processors.resource.attributes[0].value=${K8S_CLUSTER_NAME}"
-
+  --set image.tag=0.130.0
 
 # Install the Cluster Collector
 helm install otel-cluster-collector open-telemetry/opentelemetry-collector -f configuration/cluster-collector.yaml \
   --set image.repository=otel/opentelemetry-collector-contrib \
-  --set image.tag=0.130.0 \
-  --set-string "config.processors.resource.attributes[0].key=k8s.cluster.name" \
-  --set-string "config.processors.resource.attributes[0].value=${K8S_CLUSTER_NAME}"
+  --set image.tag=0.130.0
 ```
+
+> [!NOTE]
+> The cluster name is automatically detected from the cloud environment (EKS, AKS, GKE) via the `resourcedetection` processor. See the [cluster-name detection docs][16] for supported providers. If your cloud provider is not supported, uncomment the `resource/add-cluster-name` processor block in both configuration files and set your cluster name there.
 
 [1]: https://github.com/open-telemetry/opentelemetry-collector-contrib/tree/main/receiver/prometheusreceiver
 [2]: https://github.com/open-telemetry/opentelemetry-collector-contrib/tree/main/receiver/k8sclusterreceiver
 [4]: https://github.com/open-telemetry/opentelemetry-collector-contrib/tree/main/processor/cumulativetodeltaprocessor
-[5]: https://github.com/open-telemetry/opentelemetry-collector-contrib/tree/main/processor/resourceprocessor
 [6]: https://github.com/open-telemetry/opentelemetry-collector-contrib/tree/main/processor/transformprocessor
 [7]: https://github.com/open-telemetry/opentelemetry-collector-contrib/tree/main/processor/groupbyattrsprocessor
 [8]: https://github.com/open-telemetry/opentelemetry-collector-contrib/tree/main/processor/k8sattributesprocessor
@@ -192,4 +182,5 @@ helm install otel-cluster-collector open-telemetry/opentelemetry-collector -f co
 [13]: https://github.com/open-telemetry/opentelemetry-collector-contrib/tree/main/processor/deltatorateprocessor
 [14]: https://github.com/open-telemetry/opentelemetry-collector-contrib/tree/main/processor/resourcedetectionprocessor
 [15]: https://github.com/open-telemetry/opentelemetry-collector-contrib/tree/main/connector/datadogconnector
+[16]: https://github.com/open-telemetry/opentelemetry-collector-contrib/tree/v0.152.0/processor/resourcedetectionprocessor#cluster-name
 

@@ -17,8 +17,6 @@ extraEnvs:
       secretKeyRef:
         name: datadog-secret
         key: api-key
-  - name: CLUSTER_NAME
-    valueFrom: 
 
 config:
   receivers:
@@ -57,14 +55,7 @@ config:
         - k8s.pod.network.io
         - k8s.pod.network.errors
 
-    resource:
-      attributes:
-        # Globally set k8s cluster name on all resources
-        - key: k8s.cluster.name
-          value: <YOUR K8S CLUSTER NAME HERE>
-          action: "insert"
-
-    k8sattributes:
+    k8s_attributes:
       auth_type: "serviceAccount"
       extract:
         otel_annotations: true
@@ -77,19 +68,65 @@ config:
           - k8s.replicaset.name
           - k8s.statefulset.name
           - k8s.daemonset.name
-          - service.namespace
+          - k8s.cronjob.name
+          - k8s.job.name
           - k8s.container.name
+          - service.namespace
           - service.name
           - service.version
           - service.instance.id
           - container.id
-      passthrough: false
-
-    # the order of resource detection is important as it will influence how attributes
-    # like "host" are sourced
+          - container.image.name
+          - container.image.tag
+      pod_association:
+        - sources:
+            - from: resource_attribute
+              name: k8s.pod.uid
+        - sources:
+            - from: resource_attribute
+              name: k8s.pod.ip
+        - sources:
+            - from: resource_attribute
+              name: k8s.pod.name
+            - from: resource_attribute
+              name: k8s.namespace.name
+        - sources:
+            - from: connection
+    
+    # Detects k8s.cluster.name (gcp, eks, aks) and k8s.cluster.uid (kubeadm).
+    # Adjust the k8s.cluster.name settings below for your cloud provider.
+    # If your cloud provider is not supported, use the optional resource/add-cluster-name processor below instead.
+    # See: https://github.com/open-telemetry/opentelemetry-collector-contrib/tree/v0.152.0/processor/resourcedetectionprocessor#cluster-name
     resourcedetection:
-      detectors: ["k8snode", "system", "ec2", "eks", "kubeadm"]
+      detectors: ["k8snode", "system", "ec2", "eks", "aks", "gcp", "kubeadm"]
       override: false
+      # kubeadm adds k8s.cluster.uid; k8s.cluster.name is disabled to prevent the detector
+      # from searching for the kubeadm-config ConfigMap on non-kubeadm clusters.
+      # If running on a kubeadm cluster, set k8s.cluster.name.enabled to true.
+      kubeadm:
+        resource_attributes:
+          k8s.cluster.name:
+            enabled: false
+      eks:
+        resource_attributes:
+          k8s.cluster.name:
+            enabled: true
+      aks:
+        resource_attributes:
+          k8s.cluster.name:
+            enabled: true
+      gcp:
+        resource_attributes:
+          k8s.cluster.name:
+            enabled: true
+
+    # Manually inject the cluster name if your cloud provider is not supported by the resourcedetection processor.
+    # resource/add-cluster-name:
+    #   attributes:
+    #     - key: k8s.cluster.name
+    #       value: <YOUR_CLUSTER_NAME>
+    #       action: upsert
+  
     
     memory_limiter:
       check_interval: 5s
@@ -113,5 +150,5 @@ config:
 
       metrics:
         receivers: [datadog/connector, otlp]
-        processors: [resourcedetection, resource, k8sattributes, cumulativetodelta, deltatorate]
+        processors: [resourcedetection, k8s_attributes, cumulativetodelta, deltatorate]
         exporters: [datadog/exporter]
