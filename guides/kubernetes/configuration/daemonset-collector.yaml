@@ -1,11 +1,9 @@
 enabled: true
 mode: daemonset
 
-# Enabling presets automatically configures the necessary service accounts 
+# Enabling presets automatically configures the necessary service accounts
 # and sane defaults
 presets:
-  kubernetesAttributes:
-    enabled: true
   hostMetrics:
     enabled: true
   kubeletMetrics:
@@ -18,20 +16,59 @@ extraEnvs:
         name: datadog-secret
         key: api-key
 
+service:
+  enabled: true
+
+clusterRole:
+  create: true
+  rules:
+    - apiGroups: [""]
+      resources: ["pods", "namespaces", "nodes", "nodes/stats"]
+      verbs: ["get", "watch", "list"]
+    - apiGroups: ["apps"]
+      resources: ["replicasets"]
+      verbs: ["get", "list", "watch"]
+
 config:
   receivers:
     hostmetrics:
+      root_path: /hostfs # Necessary inside containers, corresponds to / on host
+      collection_interval: 10s
       scrapers:
         cpu:
           metrics:
+            system.cpu.utilization:
+              enabled: true
+            system.cpu.physical.count:
+              enabled: true
             system.cpu.logical.count:
-              enabled: true # this is disabled by default, but we need to map system.cpu.num_cores
+              enabled: true
+            system.cpu.frequency:
+              enabled: true
+        memory:
+          metrics:
+            system.memory.limit:
+              enabled: true
+        paging:
+          metrics:
+            system.paging.utilization:
+              enabled: true
+            system.paging.usage:
+              enabled: true
+        disk: {}
+        filesystem:
+          metrics:
+            system.filesystem.utilization:
+              enabled: true
+        load: {}
+        network: {}
+        processes: {}
 
     kubeletstats:
       collection_interval: 15s
-      auth_type: 'serviceAccount'
-      endpoint: '${env:K8S_NODE_NAME}:10250'
-      node: '${env:K8S_NODE_NAME}'
+      auth_type: "serviceAccount"
+      endpoint: "${env:K8S_NODE_NAME}:10250"
+      node: "${env:K8S_NODE_NAME}"
       insecure_skip_verify: true
       metric_groups:
         - node
@@ -47,7 +84,7 @@ config:
           enabled: true
         k8s.pod.memory.node.utilization:
           enabled: true
-          
+
   processors:
     cumulativetodelta: {}
     deltatorate:
@@ -92,7 +129,7 @@ config:
               name: k8s.namespace.name
         - sources:
             - from: connection
-    
+
     # Detects k8s.cluster.name (gcp, eks, aks) and k8s.cluster.uid (kubeadm).
     # Adjust the k8s.cluster.name settings below for your cloud provider.
     # If your cloud provider is not supported, use the optional resource/add-cluster-name processor below instead.
@@ -126,29 +163,49 @@ config:
     #     - key: k8s.cluster.name
     #       value: <YOUR_CLUSTER_NAME>
     #       action: upsert
-  
-    
+
     memory_limiter:
       check_interval: 5s
       limit_percentage: 75
       spike_limit_percentage: 15
 
   connectors:
-    datadog/connector:
-      traces:
-  
+    datadog/connector: {}
+
   exporters:
     datadog/exporter:
       api:
         key: ${env:DD_API_KEY}
 
+  extensions:
+    datadog:
+      api:
+        key: ${env:DD_API_KEY}
+      deployment_type: daemonset
+
   service:
+    extensions:
+      - health_check
+      - datadog
+
     pipelines:
-      traces: 
+      logs:
         receivers: [otlp]
+        processors: [resourcedetection, k8s_attributes]
+        exporters: [datadog/exporter]
+
+      traces:
+        receivers: [otlp]
+        processors: [resourcedetection, k8s_attributes]
         exporters: [datadog/connector]
+
+      traces/sampling:
+        receivers: [datadog/connector]
+        # Perform any sampling here
+        exporters: [datadog/exporter]
 
       metrics:
         receivers: [datadog/connector, otlp]
-        processors: [resourcedetection, k8s_attributes, cumulativetodelta, deltatorate]
+        processors:
+          [resourcedetection, k8s_attributes, cumulativetodelta, deltatorate]
         exporters: [datadog/exporter]
