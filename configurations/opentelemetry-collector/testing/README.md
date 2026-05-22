@@ -21,9 +21,13 @@ The [OpenTelemetry Demo](https://github.com/open-telemetry/opentelemetry-demo) i
 The following files are `values.yaml` files to be passed as a `--values` flag when deploying the Demo Helm chart.
 These will deploy a mostly vanilla version of the OpenTelemetry Demo, whose telemetry is exported via a Daemonset Collector using one of the above recommended configurations.
 
+The current testing configuration has experimental flags enabled to dual ship the data to two orgs, and to transform metrics to enable equivalences for runtime metrics.
+
 Example:
 ```sh
-kubectl create secret generic datadog-secrets --from-literal=api-key='insertyourapikey'
+# Update DD_SITE, DD_SITE_DUAL_SHIP, and deployment.environment.name in ./testing/otel-demo.yaml
+kubectl create secret generic datadog-secrets --from-literal=api-key='insertyourapikey' \
+  --from-literal=api-key-dual-ship='insertyourapikey'
 helm repo add open-telemetry https://open-telemetry.github.io/opentelemetry-helm-charts
 helm install otel-demo open-telemetry/opentelemetry-demo --values ./testing/otel-demo.yaml
 ```

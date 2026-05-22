@@ -118,6 +118,11 @@ exporters:
   # Send telemetry to Datadog's OTLP intake endpoints
   otlp_http:
     {{include "otlp-http-exporter" . | indent 4}}
+  {{- if .DualShip}}
+  otlp_http/dual_ship:
+    {{- set . "EnvSuffix" "_DUAL_SHIP"}}
+    {{include "otlp-http-exporter" . | indent 4}}
+  {{- end}}
   {{- end}}
 
 extensions:
@@ -128,6 +133,11 @@ extensions:
   # Report Collector status to Datadog for Fleet Automation
   datadog:
     {{include "datadog-extension" . | indent 4}}
+  {{- if .DualShip}}
+  datadog/dual_ship:
+    {{- set . "EnvSuffix" "_DUAL_SHIP"}}
+    {{include "datadog-extension" . | indent 4}}
+  {{- end}}
 
 service:
   extensions:
@@ -135,6 +145,9 @@ service:
     - health_check # May be necessary for liveness/readiness probe
     {{- end}}
     - datadog
+    {{- if .DualShip}}
+    - datadog/dual_ship
+    {{- end}}
   
   pipelines:
     logs:
@@ -146,6 +159,8 @@ service:
         - resourcedetection
       {{- if .DatadogExporter}}
       exporters: [datadog]
+      {{- else if .DualShip}}
+      exporters: [otlp_http, otlp_http/dual_ship]
       {{- else}}
       exporters: [otlp_http]
       {{- end}}
@@ -180,6 +195,8 @@ service:
     {{- end}}
       {{- if .DatadogExporter}}
       exporters: [datadog]
+      {{- else if .DualShip}}
+      exporters: [otlp_http, otlp_http/dual_ship]
       {{- else}}
       exporters: [otlp_http]
       {{- end}}
@@ -210,11 +227,19 @@ service:
     traces/sample:
       receivers: [forward/traces_sample]
       # Add sampling processors here (for example, tail_sampling) before exporting traces
+      {{- if .DualShip}}
+      exporters: [otlp_http, otlp_http/dual_ship]
+      {{- else}}
       exporters: [otlp_http]
+      {{- end}}
     
     metrics/span_metrics:
       receivers: [span_metrics]
+      {{- if .DualShip}}
+      exporters: [otlp_http, otlp_http/dual_ship]
+      {{- else}}
       exporters: [otlp_http]
+      {{- end}}
     {{- end}}
   
   telemetry:

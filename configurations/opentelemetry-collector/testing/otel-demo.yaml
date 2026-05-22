@@ -57,6 +57,13 @@ opentelemetry-collector:
         secretKeyRef:
           name: datadog-secrets
           key: api-key
+    - name: DD_SITE_DUAL_SHIP
+      value: datadoghq.com # Update if necessary
+    - name: DD_API_KEY_DUAL_SHIP
+      valueFrom:
+        secretKeyRef:
+          name: datadog-secrets-dual-ship
+          key: api-key
     # Use the K8s-related variables predefined by the Helm chart
     - name: OTEL_RESOURCE_ATTRIBUTES
       value: "k8s.node.name=$(OTEL_K8S_NODE_NAME)"
@@ -369,6 +376,21 @@ opentelemetry-collector:
           level: 3 # Level must be set explicitly for zstd
         sending_queue:
           batch: {} # Default batch settings
+      otlp_http/dual_ship:
+        endpoint: https://otlp.${env:DD_SITE_DUAL_SHIP}
+        headers:
+          dd-api-key: ${env:DD_API_KEY_DUAL_SHIP}
+          # Send resource attributes and scope metadata as metric tags
+          dd-otel-metric-config: >-
+            {
+            "resource_attributes_as_tags": true,
+            "instrumentation_scope_metadata_as_tags": true
+            }
+        compression: zstd
+        compression_params:
+          level: 3 # Level must be set explicitly for zstd
+        sending_queue:
+          batch: {} # Default batch settings
     
     extensions:
       health_check:
@@ -376,14 +398,20 @@ opentelemetry-collector:
       # Report Collector status to Datadog for Fleet Automation
       datadog:
         api:
-          site: ${env:DD_SITE}
-          key: ${env:DD_API_KEY}
+          site: ${env:DD_SITE_DUAL_SHIP}
+          key: ${env:DD_API_KEY_DUAL_SHIP}
+        deployment_type: daemonset
+      datadog/dual_ship:
+        api:
+          site: ${env:DD_SITE_DUAL_SHIP}
+          key: ${env:DD_API_KEY_DUAL_SHIP}
         deployment_type: daemonset
     
     service:
       extensions:
         - health_check # May be necessary for liveness/readiness probe
         - datadog
+        - datadog/dual_ship
       
       pipelines:
         logs:
@@ -391,7 +419,7 @@ opentelemetry-collector:
           processors:
             - k8s_attributes
             - resourcedetection
-          exporters: [otlp_http]
+          exporters: [otlp_http, otlp_http/dual_ship]
         
         metrics:
           receivers: [otlp, host_metrics]
@@ -413,7 +441,7 @@ opentelemetry-collector:
             - cumulativetodelta
             - deltatorate
             - transform/rate_to_gauge
-          exporters: [otlp_http]
+          exporters: [otlp_http, otlp_http/dual_ship]
         
         traces:
           receivers: [otlp]
@@ -425,11 +453,11 @@ opentelemetry-collector:
         traces/sample:
           receivers: [forward/traces_sample]
           # Add sampling processors here (for example, tail_sampling) before exporting traces
-          exporters: [otlp_http]
+          exporters: [otlp_http, otlp_http/dual_ship]
         
         metrics/span_metrics:
           receivers: [span_metrics]
-          exporters: [otlp_http]
+          exporters: [otlp_http, otlp_http/dual_ship]
       
       telemetry:
         # Route Collector internal metrics through its own pipelines for enrichment purposes

@@ -1,4 +1,5 @@
+{{if not .EnvSuffix}}{{set . "EnvSuffix" ""}}{{end}}
 api:
-  site: ${env:DD_SITE}
-  key: ${env:DD_API_KEY}
+  site: ${env:DD_SITE{{.EnvSuffix}}}
+  key: ${env:DD_API_KEY{{.EnvSuffix}}}
 deployment_type: daemonset
