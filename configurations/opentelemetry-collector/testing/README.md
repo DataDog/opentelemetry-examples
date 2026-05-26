@@ -26,8 +26,8 @@ The current testing configuration has experimental flags enabled to dual ship th
 Example:
 ```sh
 # Update DD_SITE, DD_SITE_DUAL_SHIP, and deployment.environment.name in ./testing/otel-demo.yaml
-kubectl create secret generic datadog-secrets --from-literal=api-key='insertyourapikey' \
-  --from-literal=api-key-dual-ship='insertyourapikey'
+kubectl create secret generic datadog-secrets --from-literal=api-key='insertyourapikey'
+kubectl create secret generic datadog-secrets-dual-ship --from-literal=api-key='insertyourapikey'
 helm repo add open-telemetry https://open-telemetry.github.io/opentelemetry-helm-charts
 helm install otel-demo open-telemetry/opentelemetry-demo --values ./testing/otel-demo.yaml
 ```

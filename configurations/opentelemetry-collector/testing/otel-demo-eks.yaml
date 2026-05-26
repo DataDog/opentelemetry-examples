@@ -404,6 +404,8 @@ opentelemetry-collector:
           key: ${env:DD_API_KEY_DUAL_SHIP}
         deployment_type: daemonset
       datadog/dual_ship:
+        http:
+          endpoint: "localhost:9876" # Avoid port collision
         api:
           site: ${env:DD_SITE_DUAL_SHIP}
           key: ${env:DD_API_KEY_DUAL_SHIP}
