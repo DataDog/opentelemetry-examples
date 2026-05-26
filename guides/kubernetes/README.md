@@ -23,6 +23,7 @@ Many of the metrics collected for the Kubernetes integration report on the _over
 | :---------- | :---------------------- | :------ |
 | receiver    | [prometheus][1]         | Scrapes your cluster's kube-state-metrics endpoint |
 | receiver    | [k8s_cluster][2]        | Collects additional cluster-level metrics |
+| receiver    | [k8sobjects][3]         | Collects Kubernetes objects for the Kubernetes Explorer |
 | processor   | [cumulativetodelta][4]  | Converts monotonic, cumulative sum and histogram metrics to monotonic, delta metrics |
 | processor   | [resourcedetection][14] | Automatically detects [`k8s.cluster.name`][16] (EKS/AKS/GKE) and `k8s.cluster.uid` (kubeadm) |
 | processor   | [transform][6]          | Modifies, adds, and deletes resource/datapoint attributes |
@@ -122,8 +123,8 @@ spec:
 
 <blockquote> NOTE: If you are incorporating the configuration files found in [/configuration](/documentation/kubernetes/configuration/) into your existing OpenTelemetry collector deployment, please be aware that they are specifically written for
 
-* [opentelemetry-collector](https://github.com/open-telemetry/opentelemetry-helm-charts/tree/main/charts/opentelemetry-collector) helm chart 
-* OTel image `otel/opentelemetry-collector-contrib` >= `0.152.0`
+* [opentelemetry-collector](https://github.com/open-telemetry/opentelemetry-helm-charts/tree/main/charts/opentelemetry-collector) helm chart >= `0.156.2`
+* OTel image `otel/opentelemetry-collector-contrib` >= `0.153.0`
 
 </blockquote>
 
@@ -158,19 +159,20 @@ helm repo update
 # Install the Daemonset Collector
 helm install otel-daemon-collector open-telemetry/opentelemetry-collector -f configuration/daemonset-collector.yaml \
   --set image.repository=otel/opentelemetry-collector-contrib \
-  --set image.tag=0.152.0
+  --set image.tag=0.153.0
 
 # Install the Cluster Collector
 helm install otel-cluster-collector open-telemetry/opentelemetry-collector -f configuration/cluster-collector.yaml \
   --set image.repository=otel/opentelemetry-collector-contrib \
-  --set image.tag=0.152.0
+  --set image.tag=0.153.0
 ```
 
 > [!NOTE]
-> The cluster name is automatically detected from the cloud environment (EKS, AKS, GKE) via the `resourcedetection` processor. See the [cluster-name detection docs][16] for supported providers. If your cloud provider is not supported, in both configuration files: (1) uncomment the `resource/add-cluster-name` processor block and set your cluster name, and (2) add `resource/add-cluster-name` to the `processors` list in the metrics pipeline.
+> The cluster name is automatically detected from the cloud environment (EKS, AKS, GKE) via the `resourcedetection` processor. See the [cluster-name detection docs][16] for supported providers. If your cloud provider is not supported, in both configuration files: (1) uncomment the `resource/add-cluster-name` processor block and set your cluster name, and (2) add `resource/add-cluster-name` to the `processors` list in the all pipelines.
 
 [1]: https://github.com/open-telemetry/opentelemetry-collector-contrib/tree/main/receiver/prometheusreceiver
 [2]: https://github.com/open-telemetry/opentelemetry-collector-contrib/tree/main/receiver/k8sclusterreceiver
+[3]: https://github.com/open-telemetry/opentelemetry-collector-contrib/tree/main/receiver/k8sobjectsreceiver
 [4]: https://github.com/open-telemetry/opentelemetry-collector-contrib/tree/main/processor/cumulativetodeltaprocessor
 [6]: https://github.com/open-telemetry/opentelemetry-collector-contrib/tree/main/processor/transformprocessor
 [7]: https://github.com/open-telemetry/opentelemetry-collector-contrib/tree/main/processor/groupbyattrsprocessor
@@ -182,5 +184,5 @@ helm install otel-cluster-collector open-telemetry/opentelemetry-collector -f co
 [13]: https://github.com/open-telemetry/opentelemetry-collector-contrib/tree/main/processor/deltatorateprocessor
 [14]: https://github.com/open-telemetry/opentelemetry-collector-contrib/tree/main/processor/resourcedetectionprocessor
 [15]: https://github.com/open-telemetry/opentelemetry-collector-contrib/tree/main/connector/datadogconnector
-[16]: https://github.com/open-telemetry/opentelemetry-collector-contrib/tree/v0.152.0/processor/resourcedetectionprocessor#cluster-name
+[16]: https://github.com/open-telemetry/opentelemetry-collector-contrib/tree/v0.153.0/processor/resourcedetectionprocessor#cluster-name
 
