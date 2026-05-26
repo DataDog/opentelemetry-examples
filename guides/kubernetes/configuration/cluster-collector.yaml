@@ -6,6 +6,13 @@ mode: deployment
 presets:
   clusterMetrics:
     enabled: true
+  kubernetesObjects:
+    enabled: true
+    watch: true
+    autoscaling:
+      vpa:
+        # enable this to collect VPAs (requires VPA CRD to be pre-installed)
+        enabled: false
 
 extraEnvs:
   - name: DD_API_KEY
@@ -20,6 +27,9 @@ extraEnvs:
 
 config:
   receivers:
+    k8sobjects:
+      interval: 3m
+
     # Prometheus receiver is used to scrape kube state metrics
     prometheus:
       config:
@@ -144,7 +154,7 @@ config:
     # Detects k8s.cluster.name (gcp, eks, aks) and k8s.cluster.uid (kubeadm).
     # Adjust the k8s.cluster.name settings below for your cloud provider.
     # If your cloud provider is not supported, use the optional resource/add-cluster-name processor below instead.
-    # See: https://github.com/open-telemetry/opentelemetry-collector-contrib/tree/v0.152.0/processor/resourcedetectionprocessor#cluster-name
+    # See: https://github.com/open-telemetry/opentelemetry-collector-contrib/tree/v0.153.0/processor/resourcedetectionprocessor#cluster-name
     resourcedetection:
       detectors: ["k8snode", "ec2", "eks", "aks", "gcp", "kubeadm"]
       override: false
@@ -206,9 +216,16 @@ config:
     datadog/exporter:
       api:
         key: ${env:DD_API_KEY}
+      orchestrator_explorer:
+        enabled: true
 
   service:
     pipelines:
+      logs:
+        receivers: [k8sobjects]
+        processors: [resourcedetection]
+        exporters: [datadog/exporter]
+
       metrics/count:
         receivers: [prometheus]
         exporters: [count]
