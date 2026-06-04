@@ -29,7 +29,7 @@ Many of the metrics collected for the Kubernetes integration report on the _over
 | processor   | [transform][6]          | Modifies, adds, and deletes resource/datapoint attributes |
 | processor   | [groupbyattrs][7]       | Associates kube-state-metrics Pod datapoints with the correct OTel resource by Pod UID |
 | processor   | [k8s_attributes][8]     | Enriches Kubernetes metrics with additional metadata (ex: annotations/labels) |
-| connector   | [count][9]              | Counts Kubernetes metrics to generate `k8s.node.count`, `k8s.job.count`, and `k8s.service.count` |
+| connector   | [count][9]              | Counts Kubernetes metrics to generate `k8s.node.count`, `k8s.job.count`, `k8s.service.count`, `k8s.deployment.count`, and `k8s.pod.count` |
 | exporter    | [datadog][10]           | Ships telemetry to Datadog |
 
 ### Node Collector

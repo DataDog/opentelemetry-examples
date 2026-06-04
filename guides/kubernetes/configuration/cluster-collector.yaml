@@ -144,6 +144,8 @@ config:
         - convert_sum_to_gauge() where metric.name == "k8s.service.count"
         - convert_sum_to_gauge() where metric.name == "k8s.node.count"
         - convert_sum_to_gauge() where metric.name == "k8s.job.count"
+        - convert_sum_to_gauge() where metric.name == "k8s.deployment.count"
+        - convert_sum_to_gauge() where metric.name == "k8s.pod.count"
 
     # Drop metric after count connector has used it
     filter/ksm:
@@ -191,6 +193,8 @@ config:
     # 1. k8s.service.count
     # 2. k8s.node.count
     # 3. k8s.job.count
+    # 4. k8s.deployment.count
+    # 5. k8s.pod.count
     count:
       datapoints:
         k8s.service.count:
@@ -211,6 +215,20 @@ config:
         k8s.job.count:
           conditions:
             - metric.name == "kube_job_owner"
+
+        k8s.deployment.count:
+          attributes:
+            - key: namespace
+              default_value: unspecified_namespace
+          conditions:
+            - metric.name == "kube_deployment_created"
+
+        k8s.pod.count:
+          attributes:
+            - key: namespace
+              default_value: unspecified_namespace
+          conditions:
+            - metric.name == "kube_pod_info"
 
   exporters:
     datadog/exporter:
