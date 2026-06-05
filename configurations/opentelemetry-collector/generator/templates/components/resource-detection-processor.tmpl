@@ -1,4 +1,4 @@
-{{- /* TODO: Implement AKS, Azure, ECS, GKE environments */}}
+{{- /* TODO: Implement ECS environments */}}
 {{- $system := ""}}
 {{- if or (not .Container) .K8s}}{{- $system = ", system"}}{{- end}}
 {{- $kubeadm := ""}}
@@ -7,7 +7,7 @@
 detectors: [ec2, env{{$kubeadm}}{{$system}}]
 {{- else if eq .CloudEnvironment "eks" }}
 detectors: [eks, ec2, env{{$kubeadm}}{{$system}}]
-{{- else if eq .CloudEnvironment "gce" }}
+{{- else if eq .CloudEnvironment "gce" "gke" "gke-autopilot" }}
 detectors: [gcp, env{{$kubeadm}}{{$system}}]
 {{- else if eq .CloudEnvironment "azure" }}
 detectors: [azure, env{{$kubeadm}}{{$system}}]

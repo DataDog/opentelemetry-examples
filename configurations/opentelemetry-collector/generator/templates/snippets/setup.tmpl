@@ -16,6 +16,11 @@
 {{- $environment = "an EKS" }}
 {{- else if eq .CloudEnvironment "gce" -}}
 {{- $environment = "a GCE" }}
+{{- else if eq .CloudEnvironment "gke" -}}
+{{- $environment = "a GKE" }}
+{{- else if eq .CloudEnvironment "gke-autopilot" -}}
+{{- $environment = "a GKE Autopilot" }}
+{{- set . "NoHostMetrics" true}} {{- /* Autopilot mode doesn't allow mounting /hostfs */}}
 {{- else if eq .CloudEnvironment "azure" -}}
 {{- $environment = "an Azure VM" }}
 {{- else if eq .CloudEnvironment "" -}}
