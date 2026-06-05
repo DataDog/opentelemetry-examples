@@ -40,17 +40,6 @@ clusterRole:
       resources: ["replicasets"]
       verbs: ["get", "list", "watch"]
 
-# Volume mount for the host metrics receiver
-extraVolumes:
-  - name: hostfs
-    hostPath:
-      path: /
-extraVolumeMounts:
-  - name: hostfs
-    mountPath: /hostfs
-    readOnly: true
-    mountPropagation: HostToContainer
-
 # Some components take a long time to start, so set a startup probe
 startupProbe:
   initialDelaySeconds: 1
