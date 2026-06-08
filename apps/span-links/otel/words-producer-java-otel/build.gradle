@@ -41,8 +41,8 @@ dependencies {
 group = 'com.datadog.example'
 version = '0.0.1-SNAPSHOT'
 description = 'words'
-java.sourceCompatibility = 17
-mainClassName = 'com.otel.main.SpringApp'
+java.sourceCompatibility = 25
+application.mainClass = 'com.otel.main.SpringApp'
 
 tasks.withType(JavaCompile) {
     options.encoding = 'UTF-8'
