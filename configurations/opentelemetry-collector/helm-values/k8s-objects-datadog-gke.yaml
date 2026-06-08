@@ -341,6 +341,7 @@ alternateConfig:
           - metric.name == "kube_service_spec_type"
     resourcedetection:
       detectors: [gcp, env, kubeadm, system]
+      # If using older unsupported versions of GKE, you may need to supply the node name as `host.name` in `OTEL_RESOURCE_ATTRIBUTES`
       timeout: 2s
       override: true # Disable if incoming attributes (especially host.name) are verified correct
       # kubeadm detector is required by the k8s_objects receiver to add k8s.cluster.uid into attributes
