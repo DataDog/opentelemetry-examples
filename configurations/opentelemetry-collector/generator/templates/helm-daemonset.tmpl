@@ -61,6 +61,8 @@ clusterRole:
       resources: ["replicasets"]
       verbs: ["get", "list", "watch"]
 
+{{- if not .NoHostMetrics}}
+
 # Volume mount for the host metrics receiver
 extraVolumes:
   - name: hostfs
@@ -71,6 +73,7 @@ extraVolumeMounts:
     mountPath: /hostfs
     readOnly: true
     mountPropagation: HostToContainer
+{{- end}}
 
 # Some components take a long time to start, so set a startup probe
 startupProbe:

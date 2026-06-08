@@ -1,4 +1,4 @@
-{{- /* TODO: Implement AKS, Azure, ECS, GKE environments */}}
+{{- /* TODO: Implement ECS environments */}}
 {{- $system := ""}}
 {{- if or (not .Container) .K8s}}{{- $system = ", system"}}{{- end}}
 {{- $kubeadm := ""}}
@@ -7,8 +7,11 @@
 detectors: [ec2, env{{$kubeadm}}{{$system}}]
 {{- else if eq .CloudEnvironment "eks" }}
 detectors: [eks, ec2, env{{$kubeadm}}{{$system}}]
-{{- else if eq .CloudEnvironment "gce" }}
+{{- else if eq .CloudEnvironment "gce" "gke" "gke-autopilot" }}
 detectors: [gcp, env{{$kubeadm}}{{$system}}]
+{{- if eq .CloudEnvironment "gke" "gke-autopilot" }}
+# If using older unsupported versions of GKE, you may need to supply the node name as `host.name` in `OTEL_RESOURCE_ATTRIBUTES`
+{{- end}}
 {{- else if eq .CloudEnvironment "azure" }}
 detectors: [azure, env{{$kubeadm}}{{$system}}]
 {{- else if eq .CloudEnvironment "" }}

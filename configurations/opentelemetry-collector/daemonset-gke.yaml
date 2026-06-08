@@ -1,5 +1,5 @@
 # Recommended OpenTelemetry Collector configuration
-# Setup: Kubernetes Daemonset in an EKS environment
+# Setup: Kubernetes Daemonset in a GKE environment
 # Collector Contrib version: v0.152.0
 # Required environment variables:
 # - DD_SITE: Datadog site for your region, e.g. datadog.com
@@ -63,14 +63,10 @@ receivers:
 processors:
   # Detect host and cloud metadata for hostname resolution and tagging
   resourcedetection:
-    detectors: [eks, ec2, env, system]
+    detectors: [gcp, env, system]
+    # If using older unsupported versions of GKE, you may need to supply the node name as `host.name` in `OTEL_RESOURCE_ATTRIBUTES`
     timeout: 2s
     override: true # Disable if incoming attributes (especially host.name) are verified correct
-    eks:
-      resource_attributes:
-        k8s.cluster.name: { enabled: true }
-    ec2:
-      tags: ['^kubernetes\.io/cluster/.*$']
     system:
       resource_attributes:
         host.name:

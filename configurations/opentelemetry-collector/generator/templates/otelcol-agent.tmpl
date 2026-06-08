@@ -14,7 +14,7 @@
 {{- if and .Container (eq .CloudEnvironment "")}}
 # - OTEL_RESOURCE_ATTRIBUTES: Host information (no host detection possible in this setup)
 {{- end}}
-{{- if .Container}}
+{{- if and .Container (not .NoHostMetrics)}}
 # Required mounts: /hostfs
 {{- end}}
 {{- end}}
@@ -23,9 +23,11 @@ receivers:
   # Receive telemetry from OpenTelemetry-instrumented applications
   otlp:
     {{include "otlp-receiver" . | indent 4}}
+  {{- if not .NoHostMetrics}}
   # Collect host-level metrics for the Infrastructure List
   host_metrics:
     {{include "host-metrics-receiver" . | indent 4}}
+  {{- end}}
   {{- if .KubeletStats}}
   kubelet_stats:
     {{include "kubelet-stats-receiver" . | indent 4}}
@@ -168,7 +170,7 @@ service:
       {{- end}}
     
     metrics:
-      receivers: [otlp, host_metrics{{- if .KubeletStats}}, kubelet_stats{{- end}}]
+      receivers: [otlp{{- if not .NoHostMetrics}}, host_metrics{{- end}}{{- if .KubeletStats}}, kubelet_stats{{- end}}]
       processors:
         {{- if .K8s}}
         - k8s_attributes

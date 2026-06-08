@@ -46,8 +46,11 @@ Files:
 - `agent-container.yaml`: Containerized Agent in a non-cloud environment
 - `daemonset.yaml`: Kubernetes Daemonset in a non-cloud environment
 - `daemonset-eks.yaml`: Kubernetes Daemonset in an EKS environment
+- `daemonset-gke.yaml`: Kubernetes Daemonset in a GKE environment
+- `daemonset-gke-autopilot.yaml`: Kubernetes Daemonset in a GKE Autopilot environment
 - `k8s-objects-datadog.yaml`: Kubernetes per-cluster Deployment (k8s_objects) in a non-cloud environment using the Datadog exporter
 - `k8s-objects-datadog-eks.yaml`: Kubernetes per-cluster Deployment (k8s_objects) in an EKS environment using the Datadog exporter
+- `k8s-objects-datadog-gke.yaml`: Kubernetes per-cluster Deployment (k8s_objects) in a GKE environment using the Datadog exporter
 
 ## Values files for the Collector Helm chart
 
@@ -69,5 +72,8 @@ helm install otelcol open-telemetry/opentelemetry-collector --values ./helm-valu
 Files:
 - `helm-values/daemonset.yaml`: Kubernetes Daemonset in a non-cloud environment
 - `helm-values/daemonset-eks.yaml`: Kubernetes Daemonset in an EKS environment
+- `helm-values/daemonset-gke.yaml`: Kubernetes Daemonset in a GKE Standard environment
+- `helm-values/daemonset-gke-autopilot.yaml`: Kubernetes Daemonset in a GKE Autopilot environment
 - `helm-values/k8s-objects-datadog.yaml`: Kubernetes per-cluster Deployment (k8s_objects) in a non-cloud environment using the Datadog exporter
 - `helm-values/k8s-objects-datadog-eks.yaml`: Kubernetes per-cluster Deployment (k8s_objects) in an EKS environment using the Datadog exporter
+- `helm-values/k8s-objects-datadog-gke.yaml`: Kubernetes per-cluster Deployment (k8s_objects) in a GKE environment using the Datadog exporter

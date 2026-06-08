@@ -1,5 +1,5 @@
 # Recommended values.yaml for the OpenTelemetry Collector Helm Chart
-# Setup: Kubernetes Daemonset in an EKS environment
+# Setup: Kubernetes Daemonset in a GKE environment
 # Required secrets: datadog-secrets::api-key
 # Remember to modify DD_SITE if not using datadoghq.com
 
@@ -117,14 +117,10 @@ alternateConfig:
   processors:
     # Detect host and cloud metadata for hostname resolution and tagging
     resourcedetection:
-      detectors: [eks, ec2, env, system]
+      detectors: [gcp, env, system]
+      # If using older unsupported versions of GKE, you may need to supply the node name as `host.name` in `OTEL_RESOURCE_ATTRIBUTES`
       timeout: 2s
       override: true # Disable if incoming attributes (especially host.name) are verified correct
-      eks:
-        resource_attributes:
-          k8s.cluster.name: { enabled: true }
-      ec2:
-        tags: ['^kubernetes\.io/cluster/.*$']
       system:
         resource_attributes:
           host.name:
