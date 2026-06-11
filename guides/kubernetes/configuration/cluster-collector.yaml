@@ -1,4 +1,5 @@
 enabled: true
+
 mode: deployment
 
 # Enabling presets automatically configures the necessary service accounts
@@ -42,7 +43,7 @@ config:
                   - kube-state-metrics.default.svc:8080
             metric_relabel_configs:
               - source_labels: [__name__]
-                regex: "kube_daemonset_.*|kube_deployment_.*|kube_job_.*|kube_node_.*|kube_pod_.*|kube_replicaset_.*|kube_statefulset_.*|kube_service_spec_type"
+                regex: "kube_daemonset_.*|kube_deployment_.*|kube_job_.*|kube_namespace_created|kube_node_.*|kube_pod_.*|kube_replicaset_.*|kube_statefulset_.*|kube_service_spec_type"
                 action: keep
 
   processors:
@@ -146,12 +147,14 @@ config:
         - convert_sum_to_gauge() where metric.name == "k8s.job.count"
         - convert_sum_to_gauge() where metric.name == "k8s.deployment.count"
         - convert_sum_to_gauge() where metric.name == "k8s.pod.count"
+        - convert_sum_to_gauge() where metric.name == "k8s.namespace.count"
 
-    # Drop metric after count connector has used it
+    # Drop metrics after count connector has used them
     filter/ksm:
       metrics:
         metric:
           - metric.name == "kube_service_spec_type"
+          - metric.name == "kube_namespace_created"
 
     # Detects k8s.cluster.name (gcp, eks, aks) and k8s.cluster.uid (k8s_api).
     # Adjust the k8s.cluster.name settings below for your cloud provider.
@@ -181,13 +184,14 @@ config:
     #       action: upsert
 
   connectors:
-    # The count connector helps us generate three custom metrics by counting the number
+    # The count connector helps us generate six custom metrics by counting the number
     # of metric series. It generates the following metrics:
     # 1. k8s.service.count
     # 2. k8s.node.count
     # 3. k8s.job.count
     # 4. k8s.deployment.count
     # 5. k8s.pod.count
+    # 6. k8s.namespace.count
     count:
       datapoints:
         k8s.service.count:
@@ -222,6 +226,10 @@ config:
               default_value: unspecified_namespace
           conditions:
             - metric.name == "kube_pod_info"
+
+        k8s.namespace.count:
+          conditions:
+            - metric.name == "kube_namespace_created"
 
   exporters:
     datadog/exporter:
