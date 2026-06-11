@@ -121,20 +121,13 @@ config:
         - sources:
             - from: connection
 
-    # Detects k8s.cluster.name (gcp, eks, aks) and k8s.cluster.uid (kubeadm).
+    # Detects k8s.cluster.name (gcp, eks, aks) and k8s.cluster.uid (k8s_api).
     # Adjust the k8s.cluster.name settings below for your cloud provider.
     # If your cloud provider is not supported, use the optional resource/add-cluster-name processor below instead.
     # See: https://github.com/open-telemetry/opentelemetry-collector-contrib/tree/v0.153.0/processor/resourcedetectionprocessor#cluster-name
     resourcedetection:
-      detectors: ["k8snode", "ec2", "eks", "aks", "gcp", "kubeadm"]
+      detectors: ["k8s_api", "ec2", "eks", "aks", "gcp"]
       override: false
-      # kubeadm adds k8s.cluster.uid; k8s.cluster.name is disabled to prevent the detector
-      # from searching for the kubeadm-config ConfigMap on non-kubeadm clusters.
-      # If running on a kubeadm cluster, set k8s.cluster.name.enabled to true.
-      kubeadm:
-        resource_attributes:
-          k8s.cluster.name:
-            enabled: false
       eks:
         resource_attributes:
           k8s.cluster.name:
