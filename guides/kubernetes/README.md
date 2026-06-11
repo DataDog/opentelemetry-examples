@@ -124,7 +124,7 @@ spec:
 <blockquote> NOTE: If you are incorporating the configuration files found in [/configuration](/documentation/kubernetes/configuration/) into your existing OpenTelemetry collector deployment, please be aware that they are specifically written for
 
 * [opentelemetry-collector](https://github.com/open-telemetry/opentelemetry-helm-charts/tree/main/charts/opentelemetry-collector) helm chart >= `0.156.2`
-* OTel image `otel/opentelemetry-collector-contrib` >= `0.153.0`
+* OTel image `otel/opentelemetry-collector-contrib` >= `0.154.0`
 
 </blockquote>
 
@@ -159,12 +159,12 @@ helm repo update
 # Install the Daemonset Collector
 helm install otel-daemon-collector open-telemetry/opentelemetry-collector -f configuration/daemonset-collector.yaml \
   --set image.repository=otel/opentelemetry-collector-contrib \
-  --set image.tag=0.153.0
+  --set image.tag=0.154.0
 
 # Install the Cluster Collector
 helm install otel-cluster-collector open-telemetry/opentelemetry-collector -f configuration/cluster-collector.yaml \
   --set image.repository=otel/opentelemetry-collector-contrib \
-  --set image.tag=0.153.0
+  --set image.tag=0.154.0
 ```
 
 > [!NOTE]
