@@ -8,10 +8,10 @@ import (
 	"os/signal"
 	"time"
 
-	"github.com/Shopify/sarama"
+	"github.com/IBM/sarama"
+	"github.com/dnwe/otelsarama"
 	"github.com/redis/go-redis/extra/redisotel/v9"
 	"github.com/redis/go-redis/v9"
-	"go.opentelemetry.io/contrib/instrumentation/github.com/Shopify/sarama/otelsarama"
 	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/exporters/otlp/otlptrace/otlptracegrpc"
 	"go.opentelemetry.io/otel/propagation"
