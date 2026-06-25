@@ -31,7 +31,7 @@ These files are the raw YAML configuration we recommend passing to a Collector u
 
 Example:
 ```sh
-DD_SITE=datadoghq.com DD_API_KEY='insertyourapikey' ./otelcol-contrib --config ./agent.yaml --feature-gates connector.spanmetrics.includeCollectorInstanceID
+DD_SITE=datadoghq.com DD_API_KEY='insertyourapikey' ./otelcol-contrib --config ./agent.yaml
 ```
 
 ### Agent deployment pattern
