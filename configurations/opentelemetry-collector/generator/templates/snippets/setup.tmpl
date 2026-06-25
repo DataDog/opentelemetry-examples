@@ -23,6 +23,11 @@
 {{- set . "NoHostMetrics" true}} {{- /* Autopilot mode doesn't allow mounting /hostfs */}}
 {{- else if eq .CloudEnvironment "azure" -}}
 {{- $environment = "an Azure VM" }}
+{{- else if eq .CloudEnvironment "aks" -}}
+{{- $environment = "an AKS" }}
+{{- else if eq .CloudEnvironment "aks-automatic" -}}
+{{- $environment = "an AKS Automatic" }}
+{{- set . "NoHostMetrics" true}} {{- /* Automatic mode doesn't allow mounting /hostfs */}}
 {{- else if eq .CloudEnvironment "" -}}
 {{- $environment = "a non-cloud" }}
 {{- else -}}

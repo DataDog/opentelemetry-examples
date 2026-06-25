@@ -1,0 +1,163 @@
+# FOR INTERNAL TESTING PURPOSES ONLY
+# Recommended OpenTelemetry Collector configuration
+# Setup: Kubernetes Daemonset in an AKS Automatic environment
+# Collector Contrib version: v0.152.0
+# Required environment variables:
+# - DD_SITE: Datadog site for your region, e.g. datadog.com
+# - DD_API_KEY: A Datadog API key
+
+receivers:
+  # Receive telemetry from OpenTelemetry-instrumented applications
+  otlp:
+    protocols:
+      grpc:
+        endpoint: 0.0.0.0:4317
+      http:
+        endpoint: 0.0.0.0:4318
+
+processors:
+  # Detect host and cloud metadata for hostname resolution and tagging
+  resourcedetection:
+    detectors: [aks, azure, env, system]
+    timeout: 2s
+    override: true # Disable if incoming attributes (especially host.name) are verified correct
+    aks:
+      resource_attributes:
+        k8s.cluster.name: { enabled: true }
+    system:
+      resource_attributes:
+        host.name:
+          enabled: false # Containers report inaccurate host names
+    # Uncomment this section if you want to get additional metadata about your host
+    #     host.arch:
+    #       enabled: true
+    #     host.cpu.cache.l2.size:
+    #       enabled: true
+    #     host.cpu.family:
+    #       enabled: true
+    #     host.cpu.model.id:
+    #       enabled: true
+    #     host.cpu.model.name:
+    #       enabled: true
+    #     host.cpu.stepping:
+    #       enabled: true
+    #     host.cpu.vendor.id:
+    #       enabled: true
+    #     os.description:
+    #       enabled: true
+  k8s_attributes:
+    # Requires setting up ServiceAccount, (Cluster)Role, and (Cluster)RoleBinding resources
+    # See https://github.com/open-telemetry/opentelemetry-collector-contrib/tree/main/processor/k8sattributesprocessor#role-based-access-control
+    extract:
+      otel_annotations: true
+      metadata:
+        - k8s.node.name
+        - k8s.namespace.name
+        - service.namespace
+        - service.name
+        - service.version
+        - service.instance.id
+        - k8s.deployment.name
+        - k8s.replicaset.name
+        - k8s.daemonset.name
+        - k8s.statefulset.name
+        - k8s.cronjob.name
+        - k8s.job.name
+        - k8s.pod.uid
+        - k8s.pod.name
+        - container.id
+        - k8s.container.name
+        - container.image.name
+        - container.image.tag
+    pod_association:
+      - sources:
+          - from: resource_attribute
+            name: k8s.pod.uid
+      - sources:
+          - from: resource_attribute
+            name: k8s.pod.ip
+      - sources:
+          - from: resource_attribute
+            name: k8s.pod.name
+          - from: resource_attribute
+            name: k8s.namespace.name
+      - sources:
+          - from: connection
+
+  # Transform metrics to fit Datadog platform constraints
+  cumulativetodelta: {}
+
+connectors:
+  datadog/connector: {}
+
+exporters:
+  debug:
+    verbosity: detailed
+  datadog:
+    api:
+      key: ${env:DD_API_KEY}
+      site: ${env:DD_SITE}
+    hostname_detection_timeout: 5s
+    metrics:
+      resource_attributes_as_tags: true
+      instrumentation_scope_metadata_as_tags: true
+    sending_queue:
+      batch: {} # Default batch settings
+
+extensions:
+  health_check:
+    endpoint: ${env:MY_POD_IP}:13133
+  # Report Collector status to Datadog for Fleet Automation
+  datadog:
+    api:
+      site: ${env:DD_SITE}
+      key: ${env:DD_API_KEY}
+    deployment_type: daemonset
+
+service:
+  extensions:
+    - health_check # May be necessary for liveness/readiness probe
+    - datadog
+  
+  pipelines:
+    logs:
+      receivers: [otlp]
+      processors:
+        - k8s_attributes
+        - resourcedetection
+      exporters: [datadog]
+    
+    metrics:
+      receivers: [otlp]
+      processors:
+        - k8s_attributes
+        - resourcedetection
+        - cumulativetodelta
+      exporters: [datadog]
+    
+    traces:
+      receivers: [otlp]
+      processors:
+        - k8s_attributes
+        - resourcedetection
+      exporters: [datadog/connector]
+    
+    traces/sample:
+      receivers: [datadog/connector]
+      # Perform any sampling here
+      exporters: [datadog]
+    
+    metrics/span_metrics:
+      receivers: [datadog/connector]
+      exporters: [datadog]
+    
+  
+  telemetry:
+    # Route Collector internal metrics through its own pipelines for enrichment purposes
+    metrics:
+      readers:
+        - periodic:
+            exporter:
+              otlp:
+                protocol: http/protobuf
+                endpoint: http://localhost:4318
