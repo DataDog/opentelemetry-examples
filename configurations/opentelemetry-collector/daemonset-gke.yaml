@@ -214,9 +214,9 @@ connectors:
       # - name: cloud.region
       # - name: cloud.availability_zone
       ## Comment out all aws.ecs tags above if you uncomment this
-      # - name: aws.ecs.**
+      # - glob: aws.ecs.**
       ## Comment out all k8s.*.name tags above if you uncomment this
-      # - name: k8s.*.name
+      # - glob: k8s.*.name
   # Separate trace processing from sampling so span metrics are computed on all traces
   forward/traces_sample: {}
 
