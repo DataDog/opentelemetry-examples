@@ -71,7 +71,7 @@ opentelemetry-collector:
   mode: daemonset
   image:
     repository: otel/opentelemetry-collector-contrib
-    tag: 0.152.0
+    tag: 0.154.0
   command:
     name: "otelcol-contrib"
     extraArgs: []
