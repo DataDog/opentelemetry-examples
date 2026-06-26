@@ -131,13 +131,11 @@ connectors:
     
       ## Optional container tags
       ## May be used as additional primary tags or in service remapping rules
-      # - name: container.name
-      # - name: container.image.name
-      # - name: container.image.tag
-      # - name: container.runtime
       # # - name: cloud.provider
       # - name: cloud.region
       # - name: cloud.availability_zone
+      ## Comment out all container tags above if you uncomment this
+      # - glob: container.**
       ## Comment out all aws.ecs tags above if you uncomment this
       # - glob: aws.ecs.**
       ## Comment out all k8s.*.name tags above if you uncomment this
