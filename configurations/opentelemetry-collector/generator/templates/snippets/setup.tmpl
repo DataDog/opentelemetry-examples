@@ -21,6 +21,7 @@
 {{- else if eq .CloudEnvironment "gke-autopilot" -}}
 {{- $environment = "a GKE Autopilot" }}
 {{- set . "NoHostMetrics" true}} {{- /* Autopilot mode doesn't allow mounting /hostfs */}}
+{{- set . "NoHostPorts" true}} {{- /* Autopilot mode doesn't allow hostPorts */}}
 {{- else if eq .CloudEnvironment "azure" -}}
 {{- $environment = "an Azure VM" }}
 {{- else if eq .CloudEnvironment "aks" -}}

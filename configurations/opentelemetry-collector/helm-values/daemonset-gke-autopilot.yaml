@@ -48,6 +48,11 @@ clusterRole:
 
 # Disable unused ports
 ports:
+  # This environment doesn't allow hostPorts by default, disable them
+  otlp:
+    hostPort: null
+  otlp-http:
+    hostPort: null
   jaeger-compact:
     enabled: false
   jaeger-thrift:
