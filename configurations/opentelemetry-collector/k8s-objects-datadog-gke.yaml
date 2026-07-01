@@ -1,7 +1,7 @@
 # Recommended OpenTelemetry Collector configuration (Deployment mode)
 # Paired with daemonset-gke.yaml to collect cluster level resources to support K8s Explorer
 # Setup: Kubernetes per-cluster Deployment (k8s_objects) in a GKE environment
-# Collector Contrib version: v0.152.0
+# Collector Contrib version: v0.154.0
 # Required environment variables:
 # - DD_SITE: Datadog site for your region, e.g. datadog.com
 # - DD_API_KEY: A Datadog API key
