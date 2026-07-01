@@ -62,6 +62,10 @@ ports:
   zipkin:
     enabled: false
 
+# Since hostPorts are disabled, create a node-local service instead
+service:
+  enabled: true
+
 # Some components take a long time to start, so set a startup probe
 startupProbe:
   initialDelaySeconds: 1
