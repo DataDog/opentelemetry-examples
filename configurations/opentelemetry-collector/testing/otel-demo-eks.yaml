@@ -73,6 +73,12 @@ opentelemetry-collector:
     name: "otelcol-contrib"
     extraArgs: []
   
+  # Set some default resource requests, increase as needed based on load
+  resources:
+    requests:
+      cpu: 500m
+      memory: 512Mi
+  
   # Service account for the k8s_attributes processor
   serviceAccount:
     create: true
@@ -99,6 +105,17 @@ opentelemetry-collector:
       mountPath: /hostfs
       readOnly: true
       mountPropagation: HostToContainer
+  
+  # Disable unused ports
+  ports:
+    jaeger-compact:
+      enabled: false
+    jaeger-thrift:
+      enabled: false
+    jaeger-grpc:
+      enabled: false
+    zipkin:
+      enabled: false
   
   # Some components take a long time to start, so set a startup probe
   startupProbe:

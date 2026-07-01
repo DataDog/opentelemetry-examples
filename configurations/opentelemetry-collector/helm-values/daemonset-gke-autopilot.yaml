@@ -24,6 +24,12 @@ command:
   name: "otelcol-contrib"
   extraArgs: []
 
+# Set some default resource requests, increase as needed based on load
+resources:
+  requests:
+    cpu: 500m
+    memory: 512Mi
+
 # Service account for the k8s_attributes processor
 serviceAccount:
   create: true
@@ -39,6 +45,17 @@ clusterRole:
     - apiGroups: ["extensions"]
       resources: ["replicasets"]
       verbs: ["get", "list", "watch"]
+
+# Disable unused ports
+ports:
+  jaeger-compact:
+    enabled: false
+  jaeger-thrift:
+    enabled: false
+  jaeger-grpc:
+    enabled: false
+  zipkin:
+    enabled: false
 
 # Some components take a long time to start, so set a startup probe
 startupProbe:

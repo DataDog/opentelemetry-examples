@@ -45,6 +45,12 @@ command:
   name: "otelcol-contrib"
   extraArgs: []
 
+# Set some default resource requests, increase as needed based on load
+resources:
+  requests:
+    cpu: 500m
+    memory: 512Mi
+
 # Service account for the k8s_attributes processor
 serviceAccount:
   create: true
@@ -74,6 +80,24 @@ extraVolumeMounts:
     readOnly: true
     mountPropagation: HostToContainer
 {{- end}}
+
+# Disable unused ports
+ports:
+  {{- if .NoHostPorts}}
+  # This environment doesn't allow hostPorts by default, disable them
+  otlp:
+    hostPort: null
+  otlp-http:
+    hostPort: null
+  {{- end}}
+  jaeger-compact:
+    enabled: false
+  jaeger-thrift:
+    enabled: false
+  jaeger-grpc:
+    enabled: false
+  zipkin:
+    enabled: false
 
 # Some components take a long time to start, so set a startup probe
 startupProbe:
