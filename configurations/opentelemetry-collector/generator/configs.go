@@ -4,8 +4,8 @@ var otelcolVersion = "0.154.0"
 
 var hostEnvs = []string{"", "ec2", "gce", "azure"}
 
-var k8sDaemonsetEnvs = []string{"", "eks", "gke", "gke-autopilot"}
-var k8sDeploymentEnvs = []string{"", "eks", "gke"}
+var k8sDaemonsetEnvs = []string{"", "eks", "gke", "gke-autopilot", "aks", "aks-automatic"}
+var k8sDeploymentEnvs = []string{"", "eks", "gke", "aks"}
 
 var configs = []config{
 	{"agent", "otelcol-agent", hostEnvs, nil},

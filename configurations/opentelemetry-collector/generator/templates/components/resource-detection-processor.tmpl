@@ -14,6 +14,8 @@ detectors: [gcp, env{{$kubeadm}}{{$system}}]
 {{- end}}
 {{- else if eq .CloudEnvironment "azure" }}
 detectors: [azure, env{{$kubeadm}}{{$system}}]
+{{- else if eq .CloudEnvironment "aks" "aks-automatic" }}
+detectors: [aks, azure, env{{$kubeadm}}{{$system}}]
 {{- else if eq .CloudEnvironment "" }}
 detectors: [env{{$kubeadm}}{{$system}}]
 {{- else }}
@@ -28,7 +30,7 @@ kubeadm:
     k8s.cluster.name:
       enabled: false
 {{- end}}
-{{- if eq .CloudEnvironment "aks"}}
+{{- if eq .CloudEnvironment "aks" "aks-automatic"}}
 aks:
   resource_attributes:
     k8s.cluster.name: { enabled: true }
