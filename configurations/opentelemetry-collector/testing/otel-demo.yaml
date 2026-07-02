@@ -381,8 +381,8 @@ opentelemetry-collector:
         sending_queue:
           batch:
             sizer: bytes
-            min_size: 2097152 # Accumulate at least 2MiB before flushing (2 * 1024 * 1024)
-            max_size: 4194304 # Flush batches at 4MiB (4 * 1024 * 1024)
+            min_size: 2097152 # Start flushing batches at 2MiB (2 * 1024 * 1024)
+            max_size: 4194304 # Split large batches at 4MiB (4 * 1024 * 1024)
       otlp_http/dual_ship:
         endpoint: https://otlp.${env:DD_SITE_DUAL_SHIP}
         headers:
@@ -399,8 +399,8 @@ opentelemetry-collector:
         sending_queue:
           batch:
             sizer: bytes
-            min_size: 2097152 # Accumulate at least 2MiB before flushing (2 * 1024 * 1024)
-            max_size: 4194304 # Flush batches at 4MiB (4 * 1024 * 1024)
+            min_size: 2097152 # Start flushing batches at 2MiB (2 * 1024 * 1024)
+            max_size: 4194304 # Split large batches at 4MiB (4 * 1024 * 1024)
     
     extensions:
       health_check:
