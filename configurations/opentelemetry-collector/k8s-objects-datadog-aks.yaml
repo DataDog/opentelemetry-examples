@@ -371,7 +371,8 @@ exporters:
     sending_queue:
       batch:
         sizer: bytes
-        max_size: 4194304 # Flush batches at 4MB (4 * 1024 * 1024)
+        min_size: 524288 # Accumulate at least 512KiB before flushing (512 * 1024)
+        max_size: 4194304 # Flush batches at 4MiB (4 * 1024 * 1024)
 
 extensions:
   health_check:
