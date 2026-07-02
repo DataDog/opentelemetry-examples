@@ -381,7 +381,9 @@ opentelemetry-collector:
         compression_params:
           level: 3 # Level must be set explicitly for zstd
         sending_queue:
-          batch: {} # Default batch settings
+          batch:
+            sizer: bytes
+            max_size: 4194304 # Flush batches at 4MB (4 * 1024 * 1024)
       otlp_http/dual_ship:
         endpoint: https://otlp.${env:DD_SITE_DUAL_SHIP}
         headers:
@@ -396,7 +398,9 @@ opentelemetry-collector:
         compression_params:
           level: 3 # Level must be set explicitly for zstd
         sending_queue:
-          batch: {} # Default batch settings
+          batch:
+            sizer: bytes
+            max_size: 4194304 # Flush batches at 4MB (4 * 1024 * 1024)
     
     extensions:
       health_check:
