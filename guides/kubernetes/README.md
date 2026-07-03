@@ -145,8 +145,11 @@ helm install kube-state-metrics prometheus-community/kube-state-metrics
 # Export your API Key
 export DD_API_KEY=<YOUR API KEY>
 
+# Export your Datadog site: datadoghq.com, us3.datadoghq.com, datadoghq.eu...
+export DD_SITE=datadoghq.com
+
 # Create the secret on your cluster
-kubectl create secret generic datadog-secret --from-literal api-key=$DD_API_KEY
+kubectl create secret generic datadog-secret --from-literal="api-key=$DD_API_KEY" --from-literal="dd-site=${DD_SITE:-datadoghq.com}"
 ```
 
 #### Install the Collectors
