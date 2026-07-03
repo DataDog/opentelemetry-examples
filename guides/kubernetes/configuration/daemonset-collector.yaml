@@ -15,6 +15,12 @@ extraEnvs:
       secretKeyRef:
         name: datadog-secret
         key: api-key
+  - name: DD_SITE  # datadoghq.com, us3.datadoghq.com, datadoghq.eu... Defaults to datadoghq.com
+    valueFrom:
+      secretKeyRef:
+        name: datadog-secret
+        key: dd-site
+        optional: true
 
 service:
   enabled: true
@@ -160,11 +166,13 @@ config:
     datadog/exporter:
       api:
         key: ${env:DD_API_KEY}
+        site: ${env:DD_SITE:-datadoghq.com}
 
   extensions:
     datadog:
       api:
         key: ${env:DD_API_KEY}
+        site: ${env:DD_SITE:-datadoghq.com}
       deployment_type: daemonset
 
   service:

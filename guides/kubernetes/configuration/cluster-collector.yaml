@@ -21,6 +21,12 @@ extraEnvs:
       secretKeyRef:
         name: datadog-secret
         key: api-key
+  - name: DD_SITE  # datadoghq.com, us3.datadoghq.com, datadoghq.eu... Defaults to datadoghq.com
+    valueFrom:
+      secretKeyRef:
+        name: datadog-secret
+        key: dd-site
+        optional: true
   - name: K8S_NODE_NAME
     valueFrom:
       fieldRef:
@@ -177,11 +183,11 @@ config:
             enabled: true
 
     # Manually inject the cluster name if your cloud provider is not supported by the resourcedetection processor.
-    # resource/add-cluster-name:
-    #   attributes:
-    #     - key: k8s.cluster.name
-    #       value: <YOUR_CLUSTER_NAME>
-    #       action: upsert
+    resource/add-cluster-name:
+      attributes:
+        - key: k8s.cluster.name
+          value: "my_k8s_cluster_dd"
+          action: upsert
 
   connectors:
     # The count connector helps us generate six custom metrics by counting the number
@@ -235,6 +241,7 @@ config:
     datadog/exporter:
       api:
         key: ${env:DD_API_KEY}
+        site: ${env:DD_SITE:-datadoghq.com}
       orchestrator_explorer:
         enabled: true
 
@@ -242,7 +249,7 @@ config:
     pipelines:
       logs:
         receivers: [k8sobjects]
-        processors: [resourcedetection]
+        processors: [resourcedetection, resource/add-cluster-name]
         exporters: [datadog/exporter]
 
       metrics/count:
@@ -255,6 +262,7 @@ config:
           [
             filter/ksm,
             resourcedetection,
+            resource/add-cluster-name,
             transform/ksm_to_dd,
             transform/rename_uid,
             groupbyattrs,
