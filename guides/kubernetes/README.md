@@ -140,7 +140,7 @@ helm repo update
 helm install kube-state-metrics prometheus-community/kube-state-metrics
 ```
 
-#### Create the `DD_API_KEY` Kubernetes Secret
+#### Create the  Kubernetes Secret for `DD_API_KEY` and `DD_SITE`
 ```sh
 # Export your API Key
 export DD_API_KEY=<YOUR API KEY>
