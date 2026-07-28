@@ -1,0 +1,387 @@
+# Leave empty to auto-discover cluster name from the cloud provider
+clusterName: ""
+
+opentelemetry-operator:
+  manager:
+    collectorImage:
+      repository: otel/opentelemetry-collector-contrib
+      tag: "0.154.0"
+
+kubeStateMetrics:
+  enabled: true
+kube-state-metrics:
+  fullnameOverride: kube-state-metrics
+
+extraEnvs:
+  - name: DD_API_KEY
+    valueFrom:
+      secretKeyRef:
+        name: datadog-secret
+        key: api-key
+  - name: DD_SITE  # e.g. datadoghq.com, us3.datadoghq.com, datadoghq.eu. Defaults to datadoghq.com.
+    valueFrom:
+      secretKeyRef:
+        name: datadog-secret
+        key: dd-site
+        optional: true
+
+collectors:
+
+  cluster:
+    enabled: true
+    suffix: cluster
+    mode: deployment
+    replicas: 1
+
+    presets:
+      kubernetesObjects:
+        enabled: true
+        watch: true
+      kubernetesAttributes:
+        enabled: true
+
+    config:
+      receivers:
+        otlp:
+          protocols:
+            grpc:
+              endpoint: 0.0.0.0:4317
+            http:
+              endpoint: 0.0.0.0:4318
+
+        # Override the kubernetesObjects preset's default 1h interval.
+        k8s_objects:
+          interval: 3m
+
+        prometheus:
+          config:
+            scrape_configs:
+              - job_name: "kube-state-metrics"
+                metrics_path: /metrics
+                scheme: http
+                static_configs:
+                  - targets:
+                      - kube-state-metrics:8080
+                metric_relabel_configs:
+                  - source_labels: [__name__]
+                    regex: "kube_daemonset_.*|kube_deployment_.*|kube_job_.*|kube_namespace_created|kube_node_.*|kube_pod_.*|kube_replicaset_.*|kube_statefulset_.*|kube_service_spec_type"
+                    action: keep
+
+      processors:
+        cumulativetodelta: {}
+
+        # Rename the prometheus `uid` label to k8s.pod.uid (OTel standard),
+        # required for the groupbyattrs step below.
+        transform/rename_uid:
+          metric_statements:
+            - context: datapoint
+              statements:
+                - set(attributes["k8s.pod.uid"], attributes["uid"])
+                - delete_key(attributes, "uid")
+            # Prometheus receiver sets these on the resource incorrectly;
+            # k8s_attributes cannot overwrite them (override: false), so drop first.
+            - context: resource
+              statements:
+                - delete_key(attributes, "service.name")
+                - delete_key(attributes, "service.instance.id")
+
+        groupbyattrs:
+          keys: [k8s.pod.uid]
+
+        # Rewrite KSM datapoint attributes to Datadog tag names.
+        transform/ksm_to_dd:
+          metric_statements:
+            - context: datapoint
+              statements:
+                - set(attributes["kube_namespace"], attributes["namespace"])
+                - delete_key(attributes, "namespace")
+                - set(attributes["kube_deployment"], attributes["deployment"])
+                - delete_key(attributes, "deployment")
+                - set(attributes["pod_phase"], attributes["phase"])
+                - delete_key(attributes, "phase")
+                - set(attributes["kube_stateful_set"], attributes["statefulset"])
+                - delete_key(attributes, "statefulset")
+                - set(attributes["kube_daemon_set"], attributes["daemonset"])
+                - delete_key(attributes, "daemonset")
+                - set(attributes["kube_replica_set"], attributes["replicaset"])
+                - delete_key(attributes, "replicaset")
+                - set(attributes["kube_job"], attributes["job_name"])
+                - delete_key(attributes, "job_name")
+                - set(attributes["kube_service"], attributes["service"])
+                - delete_key(attributes, "service")
+
+        # Override the k8s_attributes from kubernetesAttributes preset: pin
+        # pod_association to k8s.pod.uid so KSM metrics are associated with
+        # their target pod, not the KSM pod itself.
+        k8s_attributes:
+          auth_type: "serviceAccount"
+          extract:
+            otel_annotations: true
+            metadata:
+              - k8s.pod.name
+              - k8s.pod.uid
+              - k8s.deployment.name
+              - k8s.namespace.name
+              - k8s.node.name
+              - k8s.replicaset.name
+              - k8s.statefulset.name
+              - k8s.daemonset.name
+              - k8s.cronjob.name
+              - k8s.job.name
+              - k8s.container.name
+              - service.namespace
+              - service.name
+              - service.version
+              - service.instance.id
+              - container.id
+              - container.image.name
+              - container.image.tag
+          pod_association:
+            - sources:
+                - from: resource_attribute
+                  name: k8s.pod.uid
+
+        transform/sum_to_gauge:
+          metric_statements:
+            - convert_sum_to_gauge() where metric.name == "k8s.service.count"
+            - convert_sum_to_gauge() where metric.name == "k8s.node.count"
+            - convert_sum_to_gauge() where metric.name == "k8s.job.count"
+            - convert_sum_to_gauge() where metric.name == "k8s.deployment.count"
+            - convert_sum_to_gauge() where metric.name == "k8s.pod.count"
+            - convert_sum_to_gauge() where metric.name == "k8s.namespace.count"
+
+        # Drop KSM series once the count connector has consumed them.
+        filter/ksm:
+          metrics:
+            metric:
+              - metric.name == "kube_service_spec_type"
+              - metric.name == "kube_namespace_created"
+
+        resourcedetection:
+          detectors: ["env", "k8s_api", "ec2", "eks", "aks", "gcp"]
+          override: false
+          eks:
+            resource_attributes:
+              k8s.cluster.name: {enabled: true}
+          aks:
+            resource_attributes:
+              k8s.cluster.name: {enabled: true}
+          gcp:
+            resource_attributes:
+              k8s.cluster.name: {enabled: true}
+
+      connectors:
+        count:
+          datapoints:
+            k8s.service.count:
+              attributes:
+                - key: namespace
+                  default_value: unspecified_namespace
+                - key: type
+                  default_value: unspecified_service_type
+              conditions: [metric.name == "kube_service_spec_type"]
+            k8s.node.count:
+              conditions: [metric.name == "kube_node_info"]
+            k8s.job.count:
+              conditions: [metric.name == "kube_job_owner"]
+            k8s.deployment.count:
+              attributes:
+                - key: namespace
+                  default_value: unspecified_namespace
+              conditions: [metric.name == "kube_deployment_created"]
+            k8s.pod.count:
+              attributes:
+                - key: namespace
+                  default_value: unspecified_namespace
+              conditions: [metric.name == "kube_pod_info"]
+            k8s.namespace.count:
+              conditions: [metric.name == "kube_namespace_created"]
+
+      exporters:
+        datadog/exporter:
+          api:
+            key: ${env:DD_API_KEY}
+            site: ${env:DD_SITE:-datadoghq.com}
+          metrics:
+            resource_attributes_as_tags: true
+          orchestrator_explorer:
+            enabled: true
+
+      service:
+        pipelines:
+          logs:
+            receivers: [k8s_objects]
+            processors: [resourcedetection]
+            exporters: [datadog/exporter]
+
+          metrics/count:
+            receivers: [prometheus]
+            exporters: [count]
+
+          metrics:
+            receivers: [otlp, prometheus, count]
+            processors:
+              - filter/ksm
+              - resourcedetection
+              - transform/ksm_to_dd
+              - transform/rename_uid
+              - groupbyattrs
+              - k8s_attributes
+              - cumulativetodelta
+              - transform/sum_to_gauge
+            exporters: [datadog/exporter]
+
+  daemon:
+    # Disable the chart-default daemon_scrape_configs.yaml Prometheus scrape.
+    scrape_configs_file: ""
+
+    presets:
+      clusterMetrics:
+        enabled: true
+
+    config:
+      receivers:
+        host_metrics:
+          root_path: /hostfs
+          collection_interval: 10s
+          scrapers:
+            cpu:
+              metrics:
+                system.cpu.utilization: {enabled: true}
+                system.cpu.physical.count: {enabled: true}
+                system.cpu.logical.count: {enabled: true}
+                system.cpu.frequency: {enabled: true}
+            memory:
+              metrics:
+                system.memory.limit: {enabled: true}
+            paging:
+              metrics:
+                system.paging.utilization: {enabled: true}
+                system.paging.usage: {enabled: true}
+            disk: {}
+            filesystem:
+              metrics:
+                system.filesystem.utilization: {enabled: true}
+            load: {}
+            network: {}
+            processes: {}
+
+        kubelet_stats:
+          collection_interval: 15s
+          auth_type: "serviceAccount"
+          endpoint: "${env:K8S_NODE_NAME}:10250"
+          node: "${env:K8S_NODE_NAME}"
+          insecure_skip_verify: true
+          metric_groups: [node, pod, container, volume]
+
+        otlp:
+          protocols:
+            grpc:
+              endpoint: 0.0.0.0:4317
+            http:
+              endpoint: 0.0.0.0:4318
+
+      processors:
+        cumulativetodelta: {}
+        deltatorate:
+          metrics:
+            - k8s.pod.network.io
+            - k8s.pod.network.errors
+
+        k8s_attributes:
+          auth_type: "serviceAccount"
+          extract:
+            otel_annotations: true
+            metadata:
+              - k8s.pod.name
+              - k8s.pod.uid
+              - k8s.deployment.name
+              - k8s.namespace.name
+              - k8s.node.name
+              - k8s.replicaset.name
+              - k8s.statefulset.name
+              - k8s.daemonset.name
+              - k8s.cronjob.name
+              - k8s.job.name
+              - k8s.container.name
+              - service.namespace
+              - service.name
+              - service.version
+              - service.instance.id
+              - container.id
+              - container.image.name
+              - container.image.tag
+          pod_association:
+            - sources:
+                - from: resource_attribute
+                  name: k8s.pod.uid
+            - sources:
+                - from: resource_attribute
+                  name: k8s.pod.ip
+            - sources:
+                - from: resource_attribute
+                  name: k8s.pod.name
+                - from: resource_attribute
+                  name: k8s.namespace.name
+            - sources:
+                - from: connection
+
+        resourcedetection:
+          detectors: ["env", "k8s_api", "ec2", "eks", "aks", "gcp"]
+          override: false
+          eks:
+            resource_attributes:
+              k8s.cluster.name: {enabled: true}
+          aks:
+            resource_attributes:
+              k8s.cluster.name: {enabled: true}
+          gcp:
+            resource_attributes:
+              k8s.cluster.name: {enabled: true}
+
+      connectors:
+        datadog/connector: {}
+
+      exporters:
+        datadog/exporter:
+          api:
+            key: ${env:DD_API_KEY}
+            site: ${env:DD_SITE:-datadoghq.com}
+          metrics:
+            resource_attributes_as_tags: true
+
+      extensions:
+        health_check: {}
+        datadog:
+          api:
+            key: ${env:DD_API_KEY}
+            site: ${env:DD_SITE:-datadoghq.com}
+          deployment_type: daemonset
+
+      service:
+        extensions: [health_check, datadog]
+
+        pipelines:
+          logs:
+            receivers: [otlp]
+            processors: [resourcedetection, k8s_attributes]
+            exporters: [datadog/exporter]
+
+          traces:
+            receivers: [otlp]
+            processors: [resourcedetection, k8s_attributes]
+            exporters: [datadog/connector]
+
+          # Add sampling processors here if needed.
+          traces/sampling:
+            receivers: [datadog/connector]
+            exporters: [datadog/exporter]
+
+          metrics:
+            receivers: [datadog/connector, otlp]
+            processors:
+              - resourcedetection
+              - k8s_attributes
+              - cumulativetodelta
+              - deltatorate
+            exporters: [datadog/exporter]
