@@ -238,6 +238,8 @@ collectors:
     presets:
       clusterMetrics:
         enabled: true
+      kubernetesEvents:
+        enabled: false
 
     config:
       receivers:
