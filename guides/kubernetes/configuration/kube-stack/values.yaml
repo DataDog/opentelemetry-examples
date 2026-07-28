@@ -1,4 +1,5 @@
-# Leave empty to auto-discover cluster name from the cloud provider
+# For clusters on providers not supported by resource detection processor,
+# set this to your cluster name.
 clusterName: ""
 
 opentelemetry-operator:
@@ -158,7 +159,7 @@ collectors:
               - metric.name == "kube_namespace_created"
 
         resourcedetection:
-          detectors: ["env", "k8s_api", "ec2", "eks", "aks", "gcp"]
+          detectors: ["k8s_api", "ec2", "eks", "aks", "gcp", "env"]
           override: false
           eks:
             resource_attributes:
@@ -329,7 +330,7 @@ collectors:
                 - from: connection
 
         resourcedetection:
-          detectors: ["env", "k8s_api", "ec2", "eks", "aks", "gcp"]
+          detectors: ["k8s_api", "ec2", "eks", "aks", "gcp", "env"]
           override: false
           eks:
             resource_attributes:

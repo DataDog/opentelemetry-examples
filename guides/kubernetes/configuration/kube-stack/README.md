@@ -29,7 +29,7 @@ helm repo add jetstack https://charts.jetstack.io
 helm repo update
 helm install cert-manager jetstack/cert-manager \
   --namespace cert-manager --create-namespace \
-  --set installCRDs=true
+  --set crds.enabled=true
 
 # 3. Install the kube-stack chart with this values file
 helm repo add open-telemetry https://open-telemetry.github.io/opentelemetry-helm-charts
@@ -39,9 +39,9 @@ helm install otel-k8s open-telemetry/opentelemetry-kube-stack -f values.yaml
 
 ## Cluster name detection
 
-Both collectors run `resourcedetection` with `k8s_api, ec2, eks, aks, gcp, env` detectors to populate `k8s.cluster.name` and `k8s.cluster.uid`. Cloud detectors handle EKS/AKS/GKE automatically.
+Both collectors run `resourcedetection` with `k8s_api, ec2, eks, aks, gcp, env` detectors to populate `k8s.cluster.name` and `k8s.cluster.uid`. The `eks`, `aks`, and `gcp` detectors handle EKS/AKS/GKE automatically.
 
-If your cloud provider isn't supported (or you want to override auto-discovery), set the chart's top-level `clusterName` to a non-empty string — this value is injected via `OTEL_RESOURCE_ATTRIBUTES` on the collector pod and lands on the resource before the detectors run.
+If your cloud provider isn't supported, set the chart's top-level `clusterName` to your cluster name. The chart injects it into `OTEL_RESOURCE_ATTRIBUTES` and the `env` detector picks it up.
 
 ## Chart version
 
