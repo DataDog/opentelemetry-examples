@@ -47,7 +47,7 @@ If your cloud provider isn't supported, set the chart's top-level `clusterName` 
 
 Verified against:
 
-- `opentelemetry-kube-stack` chart `>= 0.19.1`
+- `opentelemetry-kube-stack` chart `>= 0.19.2`
 - Collector image `otel/opentelemetry-collector-contrib >= 0.154.0` (pinned in values.yaml under `opentelemetry-operator.manager.collectorImage`)
 
 [chart]: https://github.com/open-telemetry/opentelemetry-helm-charts/tree/main/charts/opentelemetry-kube-stack

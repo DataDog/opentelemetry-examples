@@ -40,6 +40,8 @@ collectors:
         watch: true
       kubernetesAttributes:
         enabled: true
+      clusterMetrics:
+        enabled: true
 
     config:
       receivers:
@@ -111,32 +113,10 @@ collectors:
                 - set(attributes["kube_service"], attributes["service"])
                 - delete_key(attributes, "service")
 
-        # Override the k8s_attributes from kubernetesAttributes preset: pin
-        # pod_association to k8s.pod.uid so KSM metrics are associated with
-        # their target pod, not the KSM pod itself.
+        # Pin pod_association to k8s.pod.uid so KSM metrics are associated
+        # with their target pod (uid set by transform/rename_uid), not the
+        # KSM pod itself via ip/name fallbacks from the preset default.
         k8s_attributes:
-          auth_type: "serviceAccount"
-          extract:
-            otel_annotations: true
-            metadata:
-              - k8s.pod.name
-              - k8s.pod.uid
-              - k8s.deployment.name
-              - k8s.namespace.name
-              - k8s.node.name
-              - k8s.replicaset.name
-              - k8s.statefulset.name
-              - k8s.daemonset.name
-              - k8s.cronjob.name
-              - k8s.job.name
-              - k8s.container.name
-              - service.namespace
-              - service.name
-              - service.version
-              - service.instance.id
-              - container.id
-              - container.image.name
-              - container.image.tag
           pod_association:
             - sources:
                 - from: resource_attribute
@@ -237,9 +217,11 @@ collectors:
     scrape_configs_file: ""
 
     presets:
-      clusterMetrics:
+      kubernetesAttributes:
         enabled: true
       kubernetesEvents:
+        enabled: false
+      clusterMetrics:
         enabled: false
 
     config:
@@ -290,44 +272,6 @@ collectors:
           metrics:
             - k8s.pod.network.io
             - k8s.pod.network.errors
-
-        k8s_attributes:
-          auth_type: "serviceAccount"
-          extract:
-            otel_annotations: true
-            metadata:
-              - k8s.pod.name
-              - k8s.pod.uid
-              - k8s.deployment.name
-              - k8s.namespace.name
-              - k8s.node.name
-              - k8s.replicaset.name
-              - k8s.statefulset.name
-              - k8s.daemonset.name
-              - k8s.cronjob.name
-              - k8s.job.name
-              - k8s.container.name
-              - service.namespace
-              - service.name
-              - service.version
-              - service.instance.id
-              - container.id
-              - container.image.name
-              - container.image.tag
-          pod_association:
-            - sources:
-                - from: resource_attribute
-                  name: k8s.pod.uid
-            - sources:
-                - from: resource_attribute
-                  name: k8s.pod.ip
-            - sources:
-                - from: resource_attribute
-                  name: k8s.pod.name
-                - from: resource_attribute
-                  name: k8s.namespace.name
-            - sources:
-                - from: connection
 
         resourcedetection:
           detectors: ["k8s_api", "ec2", "eks", "aks", "gcp", "env"]
