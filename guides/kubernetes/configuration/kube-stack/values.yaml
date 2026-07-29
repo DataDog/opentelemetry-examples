@@ -58,6 +58,32 @@ defaultCRConfig:
           site: ${env:DD_SITE:-datadoghq.com}
         metrics:
           resource_attributes_as_tags: true
+    extensions:
+      health_check: {}
+      datadog:
+        api:
+          key: ${env:DD_API_KEY}
+          site: ${env:DD_SITE:-datadoghq.com}
+        deployment_type: gateway
+    service:
+      extensions: [health_check, datadog]
+      # Ship the collector's own metrics/logs through its OTLP receiver so
+      # they flow out via the normal pipelines (tagged like everything else).
+      telemetry:
+        metrics:
+          readers:
+            - periodic:
+                exporter:
+                  otlp:
+                    protocol: http/protobuf
+                    endpoint: http://localhost:4318
+        logs:
+          processors:
+            - batch:
+                exporter:
+                  otlp:
+                    protocol: http/protobuf
+                    endpoint: http://localhost:4318
 
 collectors:
 
@@ -80,7 +106,7 @@ collectors:
         k8s_objects:
           interval: 3m
 
-        prometheus:
+        prometheus/ksm:
           config:
             scrape_configs:
               - job_name: "kube-state-metrics"
@@ -161,7 +187,7 @@ collectors:
               - metric.name == "kube_namespace_created"
 
       connectors:
-        count:
+        count/k8s_entities:
           datapoints:
             k8s.service.count:
               attributes:
@@ -195,16 +221,16 @@ collectors:
       service:
         pipelines:
           logs:
-            receivers: [k8s_objects]
+            receivers: [k8s_objects, otlp]
             processors: [resource_detection/env]
             exporters: [datadog/exporter]
 
           metrics/count:
-            receivers: [prometheus]
-            exporters: [count]
+            receivers: [prometheus/ksm]
+            exporters: [count/k8s_entities]
 
           metrics:
-            receivers: [otlp, prometheus, count]
+            receivers: [otlp, prometheus/ksm, count/k8s_entities]
             processors:
               - filter/ksm
               - resource_detection/env
@@ -283,16 +309,10 @@ collectors:
         datadog/connector: {}
 
       extensions:
-        health_check: {}
         datadog:
-          api:
-            key: ${env:DD_API_KEY}
-            site: ${env:DD_SITE:-datadoghq.com}
           deployment_type: daemonset
 
       service:
-        extensions: [health_check, datadog]
-
         pipelines:
           logs:
             receivers: [otlp]

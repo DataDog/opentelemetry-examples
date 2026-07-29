@@ -17,10 +17,12 @@ The `opentelemetry-kube-stack` chart installs the OpenTelemetry Operator and ren
 ## Quickstart
 
 ```sh
-# 1. Create the Datadog secret
+# 1. Create the Datadog secret in a dedicated namespace
 export DD_API_KEY=<YOUR API KEY>
 export DD_SITE=datadoghq.com
+kubectl create namespace opentelemetry-operator-system
 kubectl create secret generic datadog-secret \
+  --namespace opentelemetry-operator-system \
   --from-literal="api-key=$DD_API_KEY" \
   --from-literal="dd-site=$DD_SITE"
 
@@ -34,7 +36,9 @@ helm install cert-manager jetstack/cert-manager \
 # 3. Install the kube-stack chart with this values file
 helm repo add open-telemetry https://open-telemetry.github.io/opentelemetry-helm-charts
 helm repo update
-helm install otel-k8s open-telemetry/opentelemetry-kube-stack -f values.yaml
+helm install opentelemetry-kube-stack open-telemetry/opentelemetry-kube-stack \
+  --namespace opentelemetry-operator-system \
+  -f values.yaml
 ```
 
 ## Cluster name detection
