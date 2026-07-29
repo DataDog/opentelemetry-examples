@@ -1,8 +1,3 @@
-> [!IMPORTANT]  
-> OTel Kubernetes Metrics Remapping is in closed preview. If you would like to participate, please reach out to your account team.
-
-</br>
-
 # Kubernetes Integration
 This guide documents how to configure OpenTelemetry collectors to support Datadog's Kubernetes Integration.
 
