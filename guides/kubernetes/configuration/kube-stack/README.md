@@ -56,6 +56,10 @@ processors:
         action: insert
 ```
 
+## Resource allocation
+
+Both collectors default to `500m` CPU / `1Gi` memory limits and `200m` CPU / `500Mi` memory requests. Scale up for large clusters.
+
 ## Chart version
 
 Verified against:

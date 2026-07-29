@@ -27,6 +27,14 @@ extraEnvs:
 # not supported by the resource detection processor, set k8s.cluster.name via
 # a resource/cluster processor (see README).
 defaultCRConfig:
+  # Starting-point resource allocation. Scale up for large clusters.
+  resources:
+    limits:
+      cpu: 500m
+      memory: 1Gi
+    requests:
+      cpu: 200m
+      memory: 500Mi
   presets:
     kubernetesAttributes:
       enabled: true
@@ -245,6 +253,15 @@ collectors:
   daemon:
     # Disable the chart-default daemon_scrape_configs.yaml Prometheus scrape.
     scrape_configs_file: ""
+
+    # Chart's daemon defaults set lower limits; raise to match defaultCRConfig.
+    resources:
+      limits:
+        cpu: 500m
+        memory: 1Gi
+      requests:
+        cpu: 200m
+        memory: 500Mi
 
     presets:
       kubernetesEvents:
