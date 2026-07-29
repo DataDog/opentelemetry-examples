@@ -9,24 +9,24 @@ kubeStateMetrics:
 kube-state-metrics:
   fullnameOverride: kube-state-metrics
 
-extraEnvs:
-  - name: DD_API_KEY
-    valueFrom:
-      secretKeyRef:
-        name: datadog-secret
-        key: api-key
-  - name: DD_SITE  # e.g. datadoghq.com, us3.datadoghq.com, datadoghq.eu. Defaults to datadoghq.com.
-    valueFrom:
-      secretKeyRef:
-        name: datadog-secret
-        key: dd-site
-        optional: true
-
 # Shared defaults merged into every collector. env detector stays off (it
 # would stamp the collector pod's identity on incoming telemetry); for clouds
 # not supported by the resource detection processor, set k8s.cluster.name via
 # a resource/cluster processor (see README).
 defaultCRConfig:
+  env:
+    - name: DD_API_KEY
+      valueFrom:
+        secretKeyRef:
+          name: datadog-secret
+          key: api-key
+    - name: DD_SITE  # e.g. datadoghq.com, us3.datadoghq.com, datadoghq.eu. Defaults to datadoghq.com.
+      valueFrom:
+        secretKeyRef:
+          name: datadog-secret
+          key: dd-site
+          optional: true
+
   # Starting-point resource allocation. Scale up for large clusters.
   resources:
     limits:
