@@ -75,19 +75,12 @@ defaultCRConfig:
         deployment_type: gateway
     service:
       extensions: [health_check, datadog]
-      # Ship the collector's own metrics/logs through its OTLP receiver so
-      # they flow out via the normal pipelines (tagged like everything else).
+      # Loop collector metrics through the OTLP receiver for unified tagging.
+      # Logs are picked up by the daemon's filelog receiver — no loopback (avoids dup).
       telemetry:
         metrics:
           readers:
             - periodic:
-                exporter:
-                  otlp:
-                    protocol: http/protobuf
-                    endpoint: http://localhost:4318
-        logs:
-          processors:
-            - batch:
                 exporter:
                   otlp:
                     protocol: http/protobuf
@@ -229,7 +222,7 @@ collectors:
       service:
         pipelines:
           logs:
-            receivers: [k8s_objects, otlp]
+            receivers: [k8s_objects]
             processors: [resource_detection/env]
             exporters: [datadog/exporter]
 
