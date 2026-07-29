@@ -1,7 +1,3 @@
-# For clusters on providers not supported by resource detection processor,
-# set this to your cluster name.
-clusterName: ""
-
 opentelemetry-operator:
   manager:
     collectorImage:
@@ -26,6 +22,43 @@ extraEnvs:
         key: dd-site
         optional: true
 
+# Shared defaults merged into every collector. env detector stays off (it
+# would stamp the collector pod's identity on incoming telemetry); for clouds
+# not supported by the resource detection processor, set k8s.cluster.name via
+# a resource/cluster processor (see README).
+defaultCRConfig:
+  presets:
+    kubernetesAttributes:
+      enabled: true
+    resourceDetection:
+      k8s_api:
+        enabled: true
+      eks:
+        enabled: true
+      aks:
+        enabled: true
+      gcp:
+        enabled: true
+  config:
+    receivers:
+      otlp:
+        protocols:
+          grpc:
+            endpoint: 0.0.0.0:4317
+          http:
+            endpoint: 0.0.0.0:4318
+    processors:
+      cumulativetodelta: {}
+      resource_detection/env:
+        override: false
+    exporters:
+      datadog/exporter:
+        api:
+          key: ${env:DD_API_KEY}
+          site: ${env:DD_SITE:-datadoghq.com}
+        metrics:
+          resource_attributes_as_tags: true
+
 collectors:
 
   cluster:
@@ -38,20 +71,11 @@ collectors:
       kubernetesObjects:
         enabled: true
         watch: true
-      kubernetesAttributes:
-        enabled: true
       clusterMetrics:
         enabled: true
 
     config:
       receivers:
-        otlp:
-          protocols:
-            grpc:
-              endpoint: 0.0.0.0:4317
-            http:
-              endpoint: 0.0.0.0:4318
-
         # Override the kubernetesObjects preset's default 1h interval.
         k8s_objects:
           interval: 3m
@@ -71,8 +95,6 @@ collectors:
                     action: keep
 
       processors:
-        cumulativetodelta: {}
-
         # Rename the prometheus `uid` label to k8s.pod.uid (OTel standard),
         # required for the groupbyattrs step below.
         transform/rename_uid:
@@ -138,19 +160,6 @@ collectors:
               - metric.name == "kube_service_spec_type"
               - metric.name == "kube_namespace_created"
 
-        resourcedetection:
-          detectors: ["k8s_api", "ec2", "eks", "aks", "gcp", "env"]
-          override: false
-          eks:
-            resource_attributes:
-              k8s.cluster.name: {enabled: true}
-          aks:
-            resource_attributes:
-              k8s.cluster.name: {enabled: true}
-          gcp:
-            resource_attributes:
-              k8s.cluster.name: {enabled: true}
-
       connectors:
         count:
           datapoints:
@@ -180,11 +189,6 @@ collectors:
 
       exporters:
         datadog/exporter:
-          api:
-            key: ${env:DD_API_KEY}
-            site: ${env:DD_SITE:-datadoghq.com}
-          metrics:
-            resource_attributes_as_tags: true
           orchestrator_explorer:
             enabled: true
 
@@ -192,7 +196,7 @@ collectors:
         pipelines:
           logs:
             receivers: [k8s_objects]
-            processors: [resourcedetection]
+            processors: [resource_detection/env]
             exporters: [datadog/exporter]
 
           metrics/count:
@@ -203,7 +207,7 @@ collectors:
             receivers: [otlp, prometheus, count]
             processors:
               - filter/ksm
-              - resourcedetection
+              - resource_detection/env
               - transform/ksm_to_dd
               - transform/rename_uid
               - groupbyattrs
@@ -217,12 +221,22 @@ collectors:
     scrape_configs_file: ""
 
     presets:
-      kubernetesAttributes:
-        enabled: true
       kubernetesEvents:
         enabled: false
       clusterMetrics:
         enabled: false
+      # Chart's daemon defaults enable env and disable aks/eks/gcp — flip both.
+      # env would stamp the collector pod's own identity (k8s.pod.name/namespace/ip,
+      # node.name, host.name) on incoming telemetry.
+      resourceDetection:
+        env:
+          enabled: false
+        eks:
+          enabled: true
+        aks:
+          enabled: true
+        gcp:
+          enabled: true
 
     config:
       receivers:
@@ -259,43 +273,14 @@ collectors:
           insecure_skip_verify: true
           metric_groups: [node, pod, container, volume]
 
-        otlp:
-          protocols:
-            grpc:
-              endpoint: 0.0.0.0:4317
-            http:
-              endpoint: 0.0.0.0:4318
-
       processors:
-        cumulativetodelta: {}
         deltatorate:
           metrics:
             - k8s.pod.network.io
             - k8s.pod.network.errors
 
-        resourcedetection:
-          detectors: ["k8s_api", "ec2", "eks", "aks", "gcp", "env"]
-          override: false
-          eks:
-            resource_attributes:
-              k8s.cluster.name: {enabled: true}
-          aks:
-            resource_attributes:
-              k8s.cluster.name: {enabled: true}
-          gcp:
-            resource_attributes:
-              k8s.cluster.name: {enabled: true}
-
       connectors:
         datadog/connector: {}
-
-      exporters:
-        datadog/exporter:
-          api:
-            key: ${env:DD_API_KEY}
-            site: ${env:DD_SITE:-datadoghq.com}
-          metrics:
-            resource_attributes_as_tags: true
 
       extensions:
         health_check: {}
@@ -311,12 +296,12 @@ collectors:
         pipelines:
           logs:
             receivers: [otlp]
-            processors: [resourcedetection, k8s_attributes]
+            processors: [resource_detection/env, k8s_attributes]
             exporters: [datadog/exporter]
 
           traces:
             receivers: [otlp]
-            processors: [resourcedetection, k8s_attributes]
+            processors: [resource_detection/env, k8s_attributes]
             exporters: [datadog/connector]
 
           # Add sampling processors here if needed.
@@ -327,7 +312,7 @@ collectors:
           metrics:
             receivers: [datadog/connector, otlp]
             processors:
-              - resourcedetection
+              - resource_detection/env
               - k8s_attributes
               - cumulativetodelta
               - deltatorate

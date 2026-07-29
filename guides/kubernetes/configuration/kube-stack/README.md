@@ -39,15 +39,24 @@ helm install otel-k8s open-telemetry/opentelemetry-kube-stack -f values.yaml
 
 ## Cluster name detection
 
-Both collectors run `resourcedetection` with `k8s_api, ec2, eks, aks, gcp, env` detectors to populate `k8s.cluster.name` and `k8s.cluster.uid`. The `eks`, `aks`, and `gcp` detectors handle EKS/AKS/GKE automatically.
+The `resourceDetection` preset (`eks`, `aks`, `gcp`) populates `k8s.cluster.name` on EKS/AKS/GKE. The `env` detector is off: it would stamp the collector pod's own identity on incoming resources.
 
-If your cloud provider isn't supported, set the chart's top-level `clusterName` to your cluster name. The chart injects it into `OTEL_RESOURCE_ATTRIBUTES` and the `env` detector picks it up.
+For clouds not covered by the built-in detectors, add a `resource/cluster` processor at the start of each pipeline:
+
+```yaml
+processors:
+  resource/cluster:
+    attributes:
+      - key: k8s.cluster.name
+        value: my-cluster
+        action: insert
+```
 
 ## Chart version
 
 Verified against:
 
-- `opentelemetry-kube-stack` chart `>= 0.19.2`
+- `opentelemetry-kube-stack` chart `>= 0.20.0`
 - Collector image `otel/opentelemetry-collector-contrib >= 0.154.0` (pinned in values.yaml under `opentelemetry-operator.manager.collectorImage`)
 
 [chart]: https://github.com/open-telemetry/opentelemetry-helm-charts/tree/main/charts/opentelemetry-kube-stack
