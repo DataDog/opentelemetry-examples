@@ -353,11 +353,11 @@ spec:
           - datadog/exporter
           processors:
           - filter/ksm
-          - resource_detection/env
           - transform/ksm_to_dd
           - transform/rename_uid
           - groupbyattrs
           - k8s_attributes
+          - resource_detection/env
           - cumulativetodelta
           - transform/sum_to_gauge
           receivers:
