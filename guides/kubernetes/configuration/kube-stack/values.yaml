@@ -325,6 +325,7 @@ collectors:
               - deltatorate
             exporters: [datadog/exporter]
 instrumentation:
+  # TODO verify if we actually need to specify the `image` for each language, or if the operator has sensible defaults.
   enabled: true
   name: "otel-instrumentation"
   env:
@@ -333,6 +334,7 @@ instrumentation:
     - name: OTEL_EXPORTER_OTLP_METRICS_TEMPORALITY_PREFERENCE
       value: delta
   exporter:
+    # TODO verify the trade-offs of using `OTEL_K8S_NODE_IP:4318` for the `endpoint` instead of the full service name below.
     endpoint: http://opentelemetry-stack-daemon-collector.opentelemetry-operator-system.svc.cluster.local:4318
   resource:
     resourceAttributes:
