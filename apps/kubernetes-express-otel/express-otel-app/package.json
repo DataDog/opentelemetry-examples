@@ -20,10 +20,8 @@
   "overrides": {
     "@opentelemetry/auto-instrumentations-node": {
       "@opentelemetry/resources": "^1.30.1",
-      "require-in-the-middle": "^7.5.2",
       "@opentelemetry/core": "^1.30.1",
       "undici-types": "^5.28.4",
-      "cjs-module-lexer": "^1.4.3",
       "@opentelemetry/semantic-conventions": "^1.43.0",
       "import-in-the-middle": "^1.15.0",
       "@opentelemetry/sdk-metrics": "^1.30.1"
@@ -31,8 +29,6 @@
     "@opentelemetry/exporter-metrics-otlp-http": {
       "@opentelemetry/resources": "^1.30.1",
       "@opentelemetry/core": "^1.30.1",
-      "@opentelemetry/semantic-conventions": "^1.43.0",
-      "@opentelemetry/sdk-trace-base": "^1.30.1",
       "@opentelemetry/sdk-metrics": "^1.30.1"
     },
     "@opentelemetry/exporter-trace-otlp-http": {
@@ -58,16 +54,7 @@
       "@opentelemetry/sdk-metrics": "^1.30.1",
       "@opentelemetry/propagator-b3": "^1.30.1"
     },
-    "agent-base": {
-      "ms": "^2.1.3"
-    },
     "express": {
-      "ms": "^2.1.3"
-    },
-    "https-proxy-agent": {
-      "ms": "^2.1.3"
-    },
-    "require-in-the-middle": {
       "ms": "^2.1.3"
     },
     "send": {
