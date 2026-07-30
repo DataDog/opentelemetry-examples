@@ -75,19 +75,12 @@ defaultCRConfig:
         deployment_type: gateway
     service:
       extensions: [health_check, datadog]
-      # Ship the collector's own metrics/logs through its OTLP receiver so
-      # they flow out via the normal pipelines (tagged like everything else).
+      # Loop collector metrics through the OTLP receiver for unified tagging.
+      # Logs are picked up by the daemon's filelog receiver — no loopback (avoids dup).
       telemetry:
         metrics:
           readers:
             - periodic:
-                exporter:
-                  otlp:
-                    protocol: http/protobuf
-                    endpoint: http://localhost:4318
-        logs:
-          processors:
-            - batch:
                 exporter:
                   otlp:
                     protocol: http/protobuf
@@ -229,7 +222,7 @@ collectors:
       service:
         pipelines:
           logs:
-            receivers: [k8s_objects, otlp]
+            receivers: [k8s_objects]
             processors: [resource_detection/env]
             exporters: [datadog/exporter]
 
@@ -324,3 +317,33 @@ collectors:
               - cumulativetodelta
               - deltatorate
             exporters: [datadog/exporter]
+instrumentation:
+  # TODO: check whether the operator's default `image` per language is sufficient, and weigh the pros and cons of overriding it explicitly.
+  enabled: true
+  name: "otel-instrumentation"
+  env:
+    - name: OTEL_SEMCONV_STABILITY_OPT_IN
+      value: "http,database,rpc,messaging"
+    - name: OTEL_EXPORTER_OTLP_METRICS_TEMPORALITY_PREFERENCE
+      value: delta
+  exporter:
+    # TODO: evaluate the trade-offs of using `OTEL_K8S_NODE_IP:4318` for `endpoint` instead of the full service name below.
+    # The full service name is more robust to cluster changes and is the officially recommended approach, but the node-IP
+    # variant is simpler to set up since it avoids hardcoding the collector daemonset's name and namespace in this config.
+    endpoint: http://opentelemetry-stack-daemon-collector.opentelemetry-operator-system.svc.cluster.local:4318
+  resource:
+    resourceAttributes:
+      deployment.environment.name: production # overwrite as needed
+  propagators:
+    - tracecontext
+    - baggage
+  sampler:
+    type: parentbased_always_on
+  java:
+    image: ghcr.io/open-telemetry/opentelemetry-operator/autoinstrumentation-java:2.30.0
+  python:
+    image: ghcr.io/open-telemetry/opentelemetry-operator/autoinstrumentation-python:0.64b0
+  dotnet:
+    image: ghcr.io/open-telemetry/opentelemetry-operator/autoinstrumentation-dotnet:1.16.0
+  nodejs:
+    image: ghcr.io/open-telemetry/opentelemetry-operator/autoinstrumentation-nodejs:0.78.0
