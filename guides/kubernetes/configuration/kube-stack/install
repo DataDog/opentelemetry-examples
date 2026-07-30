@@ -34,8 +34,28 @@ echo ""
 echo "Collecting deployment configuration..."
 echo ""
 
-read -p "Kubernetes Cluster Name (default: 'my_k8s_cluster'): " K8S_CLUSTER_NAME
-export K8S_CLUSTER_NAME=${K8S_CLUSTER_NAME:-my_k8s_cluster}
+echo "Kubernetes Cluster Type:"
+PS3="Select the Kubernetes cluster type (enter a number): "
+select KUBE_CLUSTER_TYPE in "Amazon Elastic Kubernetes Service (EKS)" "Google Kubernetes Engine (GKE)" "Azure Kubernetes Service (AKS)" "Other"; do
+    [[ -n "$KUBE_CLUSTER_TYPE" ]] && break
+    echo "Invalid selection, please try again."
+done
+
+case "$KUBE_CLUSTER_TYPE" in
+    "Amazon Elastic Kubernetes Service (EKS)") K8S_MANAGED_SERVICE_DETECTOR="eks" ;;
+    "Google Kubernetes Engine (GKE)") K8S_MANAGED_SERVICE_DETECTOR="gcp" ;;
+    "Azure Kubernetes Service (AKS)") K8S_MANAGED_SERVICE_DETECTOR="aks" ;;
+    *) K8S_MANAGED_SERVICE_DETECTOR="" ;;
+esac
+export K8S_MANAGED_SERVICE_DETECTOR
+
+
+K8S_CLUSTER_NAME="unknown_k8s_cluster"
+if [[ "$KUBE_CLUSTER_TYPE" == "Other" ]]; then
+    read -p "Kubernetes Cluster Name (default: 'unknown_k8s_cluster'): " K8S_CLUSTER_NAME
+    K8S_CLUSTER_NAME=${K8S_CLUSTER_NAME:-unknown_k8s_cluster}
+fi
+export K8S_CLUSTER_NAME
 
 read -p "Deployment Environment Name like 'production', 'staging'... (default: 'production'): " DEPLOYMENT_ENVIRONMENT_NAME
 export DEPLOYMENT_ENVIRONMENT_NAME=${DEPLOYMENT_ENVIRONMENT_NAME:-production}
@@ -82,5 +102,6 @@ helm upgrade opentelemetry-stack \
     --namespace opentelemetry-operator-system \
     --set opentelemetry-operator.admissionWebhooks.certManager.enabled=$OTEL_OPERATOR_CERT_MANAGER_ENABLED \
     --set-string clusterName=$K8S_CLUSTER_NAME \
+    --set-string defaultCRConfig.env[2].value=$K8S_CLUSTER_NAME \
     --set-string instrumentation.resource.resourceAttributes.deployment\\.environment\\.name="$DEPLOYMENT_ENVIRONMENT_NAME" \
     -f values.yaml

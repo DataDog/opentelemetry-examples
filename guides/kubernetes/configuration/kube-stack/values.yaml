@@ -15,8 +15,6 @@ kube-state-metrics:
 # a resource/cluster processor (see README).
 defaultCRConfig:
   env:
-    - name: OTEL_K8S_CLUSTER_NAME
-      value: unknown_k8s_cluster
     - name: DD_API_KEY
       valueFrom:
         secretKeyRef:
@@ -28,6 +26,8 @@ defaultCRConfig:
           name: datadog-secret
           key: dd-site
           optional: true
+    - name: OTEL_K8S_CLUSTER_NAME
+      value: unknown_k8s_cluster
 
   # Starting-point resource allocation. Scale up for large clusters.
   resources:
@@ -44,11 +44,11 @@ defaultCRConfig:
       k8s_api:
         enabled: true
       eks:
-        enabled: true
+        enabled: false
       aks:
-        enabled: true
+        enabled: false
       gcp:
-        enabled: true
+        enabled: false
   config:
     receivers:
       otlp:
