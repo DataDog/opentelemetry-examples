@@ -18,7 +18,6 @@ generate-examples:
 				open-telemetry/opentelemetry-kube-stack  \
 				--namespace opentelemetry-operator-system \
 				--version "0.20.0" \
-				--set-string clusterName="test_k8s_cluster" \
 				--values ./values.yaml --values $${value} \
 				--output-dir "$${EXAMPLES_DIR}/$${example}/rendered"; \
 			mv $${EXAMPLES_DIR}/$${example}/rendered/opentelemetry-kube-stack/templates/* "$${EXAMPLES_DIR}/$${example}/rendered"; \
