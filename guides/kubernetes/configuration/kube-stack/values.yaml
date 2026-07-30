@@ -15,6 +15,8 @@ kube-state-metrics:
 # a resource/cluster processor (see README).
 defaultCRConfig:
   env:
+    - name: OTEL_K8S_CLUSTER_NAME
+      value: unknown_k8s_cluster
     - name: DD_API_KEY
       valueFrom:
         secretKeyRef:
@@ -59,6 +61,11 @@ defaultCRConfig:
       cumulativetodelta: {}
       resource_detection/env:
         override: false
+      resource/insert_k8s_cluster_name:
+        attributes:
+          - key: k8s.cluster.name
+            value: "${env:OTEL_K8S_CLUSTER_NAME}"
+            action: insert
     exporters:
       datadog/exporter:
         api:
@@ -230,7 +237,7 @@ collectors:
         pipelines:
           logs:
             receivers: [k8s_objects, otlp]
-            processors: [resource_detection/env]
+            processors: [resource_detection/env, resource/insert_k8s_cluster_name]
             exporters: [datadog/exporter]
 
           metrics/count:
@@ -242,6 +249,7 @@ collectors:
             processors:
               - filter/ksm
               - resource_detection/env
+              - resource/insert_k8s_cluster_name
               - transform/ksm_to_dd
               - transform/rename_uid
               - groupbyattrs
@@ -303,12 +311,12 @@ collectors:
         pipelines:
           logs:
             receivers: [otlp]
-            processors: [resource_detection/env, k8s_attributes]
+            processors: [resource_detection/env, resource/insert_k8s_cluster_name]
             exporters: [datadog/exporter]
 
           traces:
             receivers: [otlp]
-            processors: [resource_detection/env, k8s_attributes]
+            processors: [resource_detection/env, resource/insert_k8s_cluster_name]
             exporters: [datadog/connector]
 
           # Add sampling processors here if needed.
@@ -320,7 +328,7 @@ collectors:
             receivers: [datadog/connector, otlp]
             processors:
               - resource_detection/env
-              - k8s_attributes
+              - resource/insert_k8s_cluster_name
               - cumulativetodelta
               - deltatorate
             exporters: [datadog/exporter]

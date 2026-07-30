@@ -1,0 +1,86 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+
+# Load environment variables from .env file if it exists
+[[ -f "$SCRIPT_DIR/.env" ]] && source "$SCRIPT_DIR/.env"
+
+if [[ ! -f "$SCRIPT_DIR/.env" ]]; then
+    echo ".env file not found in folder $SCRIPT_DIR . Entering interactive setup..."
+
+    read -p "Datadog Site (eg: 'datadoghq.eu'): " DD_SITE
+    [[ -z "$DD_SITE" ]] && error "Datadog Site cannot be empty"
+
+    read -p "Datadog API Key (eg: '1234...'): " DD_API_KEY
+    [[ -z "$DD_API_KEY" ]] && error "Datadog API Key cannot be empty"
+
+    # Ask if user wants to save to .env file
+    read -p "Save credentials to .env file? (y/n): " SAVE_TO_ENV
+    if [[ "$SAVE_TO_ENV" == "y" || "$SAVE_TO_ENV" == "Y" ]]; then
+        # Save to .env file
+        {
+            echo "export DD_SITE=\"${DD_SITE}\""
+            echo "export DD_API_KEY=\"${DD_API_KEY}\""
+        } >> "$SCRIPT_DIR/.env"
+        echo "$SCRIPT_DIR/.env file created successfully."
+    fi
+fi
+
+# Verify all required credentials are set
+[[ -z "${DD_API_KEY:-}" ]] && error "DD_API_KEY is not set"
+
+echo ""
+echo "Collecting deployment configuration..."
+echo ""
+
+read -p "Kubernetes Cluster Name (default: 'my_k8s_cluster'): " K8S_CLUSTER_NAME
+export K8S_CLUSTER_NAME=${K8S_CLUSTER_NAME:-my_k8s_cluster}
+
+read -p "Deployment Environment Name like 'production', 'staging'... (default: 'production'): " DEPLOYMENT_ENVIRONMENT_NAME
+export DEPLOYMENT_ENVIRONMENT_NAME=${DEPLOYMENT_ENVIRONMENT_NAME:-production}
+
+echo ""
+
+#### BEGINNING OF INSTALLATION SCRIPT
+
+# WARNING: dont change "namespace=opentelemetry-operator-system" as it is used in the 'instrumentation' CRD defined in values.yaml
+
+# TODO
+# - NICE TO HAVE: Add Kubernetes provider handling in the pipeline to get `k8s.cluster.name`, `host.id`, `cloud.*``, requires user to indicate which provider they are using (EKS, GKE, AKS, etc)
+
+echo "Creating Kubernetes namespace..."
+
+kubectl create namespace opentelemetry-operator-system || echo "WARNING: Could not create namespace 'opentelemetry-operator-system' (may already exist or insufficient permissions). Continuing..."
+
+echo "Creating Datadog secret..."
+
+kubectl create secret generic datadog-secret \
+  --namespace opentelemetry-operator-system  \
+  --from-literal="api-key=$DD_API_KEY" \
+  --from-literal="dd-site=${DD_SITE:-datadoghq.com}" \
+  || echo "WARNING: Could not create secret 'datadog-secret' (may already exist or insufficient permissions). Continuing..."
+
+echo "Installing cert-manager (if not already installed)..."
+
+helm repo add jetstack https://charts.jetstack.io
+helm repo update
+helm install cert-manager jetstack/cert-manager \
+  --namespace cert-manager --create-namespace \
+  --set crds.enabled=true  \
+  || echo "WARNING: Could not install cert-manager (may already exist or insufficient permissions). Continuing..."
+
+echo "Installing OpenTelemetry Kube Stack Helm Chart..."
+
+helm repo add open-telemetry https://open-telemetry.github.io/opentelemetry-helm-charts
+helm repo update
+
+helm upgrade opentelemetry-stack \
+    open-telemetry/opentelemetry-kube-stack \
+    --version 0.20.0 \
+    --install \
+    --namespace opentelemetry-operator-system \
+    --set opentelemetry-operator.admissionWebhooks.certManager.enabled=$OTEL_OPERATOR_CERT_MANAGER_ENABLED \
+    --set-string clusterName=$K8S_CLUSTER_NAME \
+    --set-string instrumentation.resource.resourceAttributes.deployment\\.environment\\.name="$DEPLOYMENT_ENVIRONMENT_NAME" \
+    -f values.yaml

@@ -115,6 +115,11 @@ spec:
         - sources:
           - from: resource_attribute
             name: k8s.pod.uid
+      resource/insert_k8s_cluster_name:
+        attributes:
+        - action: insert
+          key: k8s.cluster.name
+          value: ${env:OTEL_K8S_CLUSTER_NAME}
       resource_detection/env:
         aks:
           resource_attributes:
@@ -346,6 +351,7 @@ spec:
           processors:
           - k8s_attributes
           - resource_detection/env
+          - resource/insert_k8s_cluster_name
           receivers:
           - k8s_objects
           - otlp
@@ -355,6 +361,7 @@ spec:
           processors:
           - filter/ksm
           - resource_detection/env
+          - resource/insert_k8s_cluster_name
           - transform/ksm_to_dd
           - transform/rename_uid
           - groupbyattrs
@@ -430,6 +437,8 @@ spec:
   - name: OTEL_RESOURCE_ATTRIBUTES
     value: "k8s.pod.name=$(OTEL_K8S_POD_NAME),k8s.namespace.name=$(OTEL_K8S_NAMESPACE),k8s.node.name=$(OTEL_K8S_NODE_NAME),host.name=$(OTEL_K8S_NODE_NAME),k8s.node.ip=$(OTEL_K8S_NODE_IP),k8s.pod.ip=$(OTEL_K8S_POD_IP),k8s.cluster.name=test_k8s_cluster"
   
+  - name: OTEL_K8S_CLUSTER_NAME
+    value: "unknown_k8s_cluster"
   - name: DD_API_KEY
     valueFrom:
       secretKeyRef:
@@ -547,6 +556,11 @@ spec:
         - action: insert
           from_attribute: k8s.node.name
           key: host.name
+      resource/insert_k8s_cluster_name:
+        attributes:
+        - action: insert
+          key: k8s.cluster.name
+          value: ${env:OTEL_K8S_CLUSTER_NAME}
       resource_detection/env:
         aks:
           resource_attributes:
@@ -689,8 +703,9 @@ spec:
           exporters:
           - datadog/exporter
           processors:
-          - resource_detection/env
           - k8s_attributes
+          - resource_detection/env
+          - resource/insert_k8s_cluster_name
           receivers:
           - otlp
           - file_log
@@ -698,8 +713,9 @@ spec:
           exporters:
           - datadog/exporter
           processors:
-          - resource_detection/env
           - k8s_attributes
+          - resource_detection/env
+          - resource/insert_k8s_cluster_name
           - cumulativetodelta
           - deltatorate
           receivers:
@@ -711,8 +727,9 @@ spec:
           exporters:
           - datadog/connector
           processors:
-          - resource_detection/env
           - k8s_attributes
+          - resource_detection/env
+          - resource/insert_k8s_cluster_name
           receivers:
           - otlp
         traces/sampling:
@@ -789,6 +806,8 @@ spec:
   - name: OTEL_RESOURCE_ATTRIBUTES
     value: "k8s.pod.name=$(OTEL_K8S_POD_NAME),k8s.namespace.name=$(OTEL_K8S_NAMESPACE),k8s.node.name=$(OTEL_K8S_NODE_NAME),host.name=$(OTEL_K8S_NODE_NAME),k8s.node.ip=$(OTEL_K8S_NODE_IP),k8s.pod.ip=$(OTEL_K8S_POD_IP),k8s.cluster.name=test_k8s_cluster"
   
+  - name: OTEL_K8S_CLUSTER_NAME
+    value: "unknown_k8s_cluster"
   - name: DD_API_KEY
     valueFrom:
       secretKeyRef:
