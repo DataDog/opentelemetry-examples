@@ -54,6 +54,10 @@ K8S_CLUSTER_NAME="unknown_k8s_cluster"
 if [[ "$KUBE_CLUSTER_TYPE" == "Other" ]]; then
     read -p "Kubernetes Cluster Name (default: 'unknown_k8s_cluster'): " K8S_CLUSTER_NAME
     K8S_CLUSTER_NAME=${K8S_CLUSTER_NAME:-unknown_k8s_cluster}
+else
+  # k8s.cluster.name will be auto-detected by the OpenTelemetry Collector Resource Detection Processor
+  # based on the cloud provider detector (eks, gcp, aks)
+  K8S_CLUSTER_NAME=""
 fi
 export K8S_CLUSTER_NAME
 
@@ -65,9 +69,6 @@ echo ""
 #### BEGINNING OF INSTALLATION SCRIPT
 
 # WARNING: dont change "namespace=opentelemetry-operator-system" as it is used in the 'instrumentation' CRD defined in values.yaml
-
-# TODO
-# - NICE TO HAVE: Add Kubernetes provider handling in the pipeline to get `k8s.cluster.name`, `host.id`, `cloud.*``, requires user to indicate which provider they are using (EKS, GKE, AKS, etc)
 
 echo "Creating Kubernetes namespace..."
 
@@ -100,7 +101,6 @@ helm upgrade opentelemetry-stack \
     --version 0.20.0 \
     --install \
     --namespace opentelemetry-operator-system \
-    --set opentelemetry-operator.admissionWebhooks.certManager.enabled=$OTEL_OPERATOR_CERT_MANAGER_ENABLED \
     --set-string clusterName=$K8S_CLUSTER_NAME \
     --set-string defaultCRConfig.env[2].value=$K8S_CLUSTER_NAME \
     --set-string instrumentation.resource.resourceAttributes.deployment\\.environment\\.name="$DEPLOYMENT_ENVIRONMENT_NAME" \

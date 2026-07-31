@@ -3,7 +3,7 @@
 apiVersion: opentelemetry.io/v1alpha1
 kind: Instrumentation
 metadata:
-  name: otel-instrumentation
+  name: opentelemetry-stack
   labels:
     helm.sh/chart: opentelemetry-kube-stack-0.20.0
     app.kubernetes.io/version: "0.154.0"
@@ -11,10 +11,15 @@ metadata:
     release: "opentelemetry-stack"    
 spec:
   exporter:
-    endpoint: http://opentelemetry-stack-daemon-collector.opentelemetry-operator-system.svc.cluster.local:4318
+    endpoint: http://opentelemetry-kube-stack-daemon-collector.opentelemetry-operator-system.svc.cluster.local:4318
   propagators:
     - tracecontext
     - baggage
+    - b3
+    - b3multi
+    - jaeger
+    - xray
+    - ottrace
   sampler:
     type: parentbased_always_on
   env:
@@ -26,12 +31,4 @@ spec:
     addK8sUIDAttributes: true
     resourceAttributes:
       deployment.environment.name: production
-  java:
-    image: ghcr.io/open-telemetry/opentelemetry-operator/autoinstrumentation-java:2.30.0
-  nodejs:
-    image: ghcr.io/open-telemetry/opentelemetry-operator/autoinstrumentation-nodejs:0.78.0
-  python:
-    image: ghcr.io/open-telemetry/opentelemetry-operator/autoinstrumentation-python:0.64b0
-  dotnet:
-    image: ghcr.io/open-telemetry/opentelemetry-operator/autoinstrumentation-dotnet:1.16.0
 
