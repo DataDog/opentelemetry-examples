@@ -69,17 +69,17 @@ defaultCRConfig:
         metric_statements:
           - set(resource.attributes["k8s.cluster.name"], "${env:OTEL_K8S_CLUSTER_NAME}") 
             where 
-              (resource.attributes["k8s.cluster.name"] == null or resource.attributes["k8s.cluster.name"] == "")
+              (resource.attributes["k8s.cluster.name"] == nil or resource.attributes["k8s.cluster.name"] == "")
               and "${env:OTEL_K8S_CLUSTER_NAME}" != ""
         log_statements:
           - set(resource.attributes["k8s.cluster.name"], "${env:OTEL_K8S_CLUSTER_NAME}") 
             where 
-              (resource.attributes["k8s.cluster.name"] == null or resource.attributes["k8s.cluster.name"] == "")
+              (resource.attributes["k8s.cluster.name"] == nil or resource.attributes["k8s.cluster.name"] == "")
               and "${env:OTEL_K8S_CLUSTER_NAME}" != ""
         trace_statements:
           - set(resource.attributes["k8s.cluster.name"], "${env:OTEL_K8S_CLUSTER_NAME}") 
             where 
-              (resource.attributes["k8s.cluster.name"] == null or resource.attributes["k8s.cluster.name"] == "")
+              (resource.attributes["k8s.cluster.name"] == nil or resource.attributes["k8s.cluster.name"] == "")
               and "${env:OTEL_K8S_CLUSTER_NAME}" != ""
     exporters:
       datadog/exporter:
@@ -97,8 +97,8 @@ defaultCRConfig:
         deployment_type: gateway
     service:
       extensions: [health_check, datadog]
-      # Ship the collector's own metrics/logs through its OTLP receiver so
-      # they flow out via the normal pipelines (tagged like everything else).
+      # Loop collector metrics through the OTLP receiver for unified tagging.
+      # Logs are picked up by the daemon's filelog receiver — no loopback (avoids dup).
       telemetry:
         metrics:
           readers:
@@ -263,12 +263,12 @@ collectors:
             receivers: [otlp, prometheus/ksm, count/k8s_entities]
             processors:
               - filter/ksm
-              - resource_detection/env
-              - transform/insert_k8s_cluster_name
               - transform/ksm_to_dd
               - transform/rename_uid
               - groupbyattrs
               - k8s_attributes
+              - resource_detection/env
+              - transform/insert_k8s_cluster_name
               - cumulativetodelta
               - transform/sum_to_gauge
             exporters: [datadog/exporter]

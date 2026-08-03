@@ -96,7 +96,7 @@ echo "Installing OpenTelemetry Kube Stack Helm Chart..."
 helm repo add open-telemetry https://open-telemetry.github.io/opentelemetry-helm-charts
 helm repo update
 
-helm upgrade opentelemetry-stack \
+helm upgrade opentelemetry-kube-stack \
     open-telemetry/opentelemetry-kube-stack \
     --version 0.20.0 \
     --install \

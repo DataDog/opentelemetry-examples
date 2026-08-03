@@ -31,3 +31,4 @@ spec:
     addK8sUIDAttributes: true
     resourceAttributes:
       deployment.environment.name: production
+

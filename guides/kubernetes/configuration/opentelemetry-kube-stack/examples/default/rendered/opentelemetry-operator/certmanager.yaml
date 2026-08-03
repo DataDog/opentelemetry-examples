@@ -41,3 +41,4 @@ metadata:
   namespace: opentelemetry-operator-system
 spec:
   selfSigned: {}
+
