@@ -124,6 +124,9 @@ opentelemetry-collector:
       path: /
   
   alternateConfig:
+    # The EC2 and EKS resource detectors requires access to the IMDS endpoint from within a container,
+    # which requires setting the IMDS Token Hop Limit to 2 in either the node launch template or account settings.
+    
     receivers:
       # Receive telemetry from OpenTelemetry-instrumented applications
       otlp:
@@ -179,7 +182,7 @@ opentelemetry-collector:
     
     processors:
       # Detect host and cloud metadata for hostname resolution and tagging
-      resourcedetection:
+      resource_detection:
         detectors: [eks, ec2, env, system]
         timeout: 2s
         override: true # Disable if incoming attributes (especially host.name) are verified correct
@@ -327,14 +330,14 @@ opentelemetry-collector:
           receivers: [otlp]
           processors:
             - k8s_attributes
-            - resourcedetection
+            - resource_detection
           exporters: [datadog]
         
         metrics:
           receivers: [otlp, host_metrics, kubelet_stats]
           processors:
             - k8s_attributes
-            - resourcedetection
+            - resource_detection
           exporters: [routing/metrics]
         
         metrics/cumul_sum_to_gauge:
@@ -356,7 +359,7 @@ opentelemetry-collector:
           receivers: [otlp]
           processors:
             - k8s_attributes
-            - resourcedetection
+            - resource_detection
           exporters: [datadog/connector]
         
         traces/sample:

@@ -7,6 +7,8 @@
 detectors: [ec2, env{{$kubeadm}}{{$system}}]
 {{- else if eq .CloudEnvironment "eks" }}
 detectors: [eks, ec2, env{{$kubeadm}}{{$system}}]
+{{- else if eq .CloudEnvironment "eks-auto" }}
+detectors: [eks, env{{$kubeadm}}{{$system}}]
 {{- else if eq .CloudEnvironment "gce" "gke" "gke-autopilot" }}
 detectors: [gcp, env{{$kubeadm}}{{$system}}]
 {{- if eq .CloudEnvironment "gke" "gke-autopilot" }}
@@ -35,10 +37,19 @@ aks:
   resource_attributes:
     k8s.cluster.name: { enabled: true }
 {{- end}}
-{{- if eq .CloudEnvironment "eks"}}
+{{- if eq .CloudEnvironment "eks" "eks-auto"}}
 eks:
   resource_attributes:
     k8s.cluster.name: { enabled: true }
+  {{- if eq .CloudEnvironment "eks-auto"}}
+    host.id: { enabled: true } # Necessary for host name inference
+    cloud.account.id: { enabled: true }
+    cloud.availability_zone: { enabled: true }
+    cloud.region: { enabled: true }
+    host.image.id: { enabled: true }
+    host.type: { enabled: true }
+  node_from_env_var: K8S_NODE_NAME
+  {{- end}}
 ec2:
   tags: ['^kubernetes\.io/cluster/.*$']
 {{- end}}

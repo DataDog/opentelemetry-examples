@@ -62,7 +62,7 @@ receivers:
 
 processors:
   # Detect host and cloud metadata for hostname resolution and tagging
-  resourcedetection:
+  resource_detection:
     detectors: [gcp, env, system]
     # If using older unsupported versions of GKE, you may need to supply the node name as `host.name` in `OTEL_RESOURCE_ATTRIBUTES`
     timeout: 2s
@@ -261,14 +261,14 @@ service:
       receivers: [otlp]
       processors:
         - k8s_attributes
-        - resourcedetection
+        - resource_detection
       exporters: [otlp_http]
     
     metrics:
       receivers: [otlp, host_metrics, kubelet_stats]
       processors:
         - k8s_attributes
-        - resourcedetection
+        - resource_detection
         - cumulativetodelta
         - deltatorate
       exporters: [otlp_http]
@@ -277,7 +277,7 @@ service:
       receivers: [otlp]
       processors:
         - k8s_attributes
-        - resourcedetection
+        - resource_detection
       exporters: [forward/traces_sample, span_metrics]
     
     traces/sample:

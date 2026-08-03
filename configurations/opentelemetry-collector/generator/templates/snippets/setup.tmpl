@@ -14,6 +14,8 @@
 {{- $environment = "an EC2" }}
 {{- else if eq .CloudEnvironment "eks" -}}
 {{- $environment = "an EKS" }}
+{{- else if eq .CloudEnvironment "eks-auto" -}}
+{{- $environment = "an EKS Auto Mode" }}
 {{- else if eq .CloudEnvironment "gce" -}}
 {{- $environment = "a GCE" }}
 {{- else if eq .CloudEnvironment "gke" -}}
