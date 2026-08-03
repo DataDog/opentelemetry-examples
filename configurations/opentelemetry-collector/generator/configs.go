@@ -4,7 +4,7 @@ var otelcolVersion = "0.154.0"
 
 var hostEnvs = []string{"", "ec2", "gce", "azure"}
 
-var k8sDaemonsetEnvs = []string{"", "eks", "gke", "gke-autopilot", "aks", "aks-automatic"}
+var k8sDaemonsetEnvs = []string{"", "eks", "eks-auto", "gke", "gke-autopilot", "aks", "aks-automatic"}
 var k8sDeploymentEnvs = []string{"", "eks", "gke", "aks"}
 
 var configs = []config{

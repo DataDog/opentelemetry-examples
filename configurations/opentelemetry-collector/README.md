@@ -48,6 +48,7 @@ Files:
 - `daemonset-aks.yaml`: Kubernetes Daemonset in an AKS environment
 - `daemonset-aks-automatic.yaml`: Kubernetes Daemonset in an AKS Automatic environment
 - `daemonset-eks.yaml`: Kubernetes Daemonset in an EKS environment
+- `daemonset-eks-auto.yaml`: Kubernetes Daemonset in an EKS Auto Mode environment
 - `daemonset-gke.yaml`: Kubernetes Daemonset in a GKE environment
 - `daemonset-gke-autopilot.yaml`: Kubernetes Daemonset in a GKE Autopilot environment
 - `k8s-objects-datadog.yaml`: Kubernetes per-cluster Deployment (k8s_objects) in a non-cloud environment using the Datadog exporter
@@ -77,6 +78,7 @@ Files:
 - `helm-values/daemonset-aks.yaml`: Kubernetes Daemonset in an AKS environment
 - `helm-values/daemonset-aks-automatic.yaml`: Kubernetes Daemonset in an AKS Automatic environment
 - `helm-values/daemonset-eks.yaml`: Kubernetes Daemonset in an EKS environment
+- `helm-values/daemonset-eks-auto.yaml`: Kubernetes Daemonset in an EKS Auto Mode environment
 - `helm-values/daemonset-gke.yaml`: Kubernetes Daemonset in a GKE Standard environment
 - `helm-values/daemonset-gke-autopilot.yaml`: Kubernetes Daemonset in a GKE Autopilot environment
 - `helm-values/k8s-objects-datadog.yaml`: Kubernetes per-cluster Deployment (k8s_objects) in a non-cloud environment using the Datadog exporter

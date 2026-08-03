@@ -98,7 +98,7 @@ alternateConfig:
   
   processors:
     # Detect host and cloud metadata for hostname resolution and tagging
-    resourcedetection:
+    resource_detection:
       detectors: [aks, azure, env, system]
       timeout: 2s
       override: true # Disable if incoming attributes (especially host.name) are verified correct
@@ -297,14 +297,14 @@ alternateConfig:
         receivers: [otlp]
         processors:
           - k8s_attributes
-          - resourcedetection
+          - resource_detection
         exporters: [otlp_http]
       
       metrics:
         receivers: [otlp, kubelet_stats]
         processors:
           - k8s_attributes
-          - resourcedetection
+          - resource_detection
           - cumulativetodelta
           - deltatorate
         exporters: [otlp_http]
@@ -313,7 +313,7 @@ alternateConfig:
         receivers: [otlp]
         processors:
           - k8s_attributes
-          - resourcedetection
+          - resource_detection
         exporters: [forward/traces_sample, span_metrics]
       
       traces/sample:
