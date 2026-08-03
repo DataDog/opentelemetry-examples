@@ -104,4 +104,4 @@ helm upgrade opentelemetry-kube-stack \
     --set-string clusterName=$K8S_CLUSTER_NAME \
     --set-string defaultCRConfig.env[2].value=$K8S_CLUSTER_NAME \
     --set-string instrumentation.resource.resourceAttributes.deployment\\.environment\\.name="$DEPLOYMENT_ENVIRONMENT_NAME" \
-    -f values.yaml
+    -f "$SCRIPT_DIR/values.yaml"
