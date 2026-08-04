@@ -98,7 +98,7 @@ helm repo update
 
 helm upgrade opentelemetry-kube-stack \
     open-telemetry/opentelemetry-kube-stack \
-    --version 0.20.0 \
+    --version 0.20.1 \
     --install \
     --namespace opentelemetry-operator-system \
     --set-string clusterName=$K8S_CLUSTER_NAME \

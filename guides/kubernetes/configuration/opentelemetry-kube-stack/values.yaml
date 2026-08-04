@@ -107,13 +107,6 @@ defaultCRConfig:
                   otlp:
                     protocol: http/protobuf
                     endpoint: http://localhost:4318
-        logs:
-          processors:
-            - batch:
-                exporter:
-                  otlp:
-                    protocol: http/protobuf
-                    endpoint: http://localhost:4318
 
 collectors:
 
