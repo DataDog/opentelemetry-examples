@@ -42,4 +42,4 @@ generate-examples:
 			-e 's/\(tls\.key:\) [A-Za-z0-9+/=]\{44,\}/\1 AUTO_GENERATED/' \
 			-e 's/\(ca\.crt:\) [A-Za-z0-9+/=]\{44,\}/\1 AUTO_GENERATED/' \
 			\{\} + ; \
-	fi;
+	fi
