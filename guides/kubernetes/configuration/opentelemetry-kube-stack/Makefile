@@ -42,6 +42,4 @@ generate-examples:
 			-e 's/\(tls\.key:\) [A-Za-z0-9+/=]\{44,\}/\1 AUTO_GENERATED/' \
 			-e 's/\(ca\.crt:\) [A-Za-z0-9+/=]\{44,\}/\1 AUTO_GENERATED/' \
 			\{\} + ; \
-	fi; \
-	echo "Working around opentelemetry-kube-stack chart bug: env vars with value: \"\" are rendered as valueFrom: null"; \
-	find $${EXAMPLES_DIR} -name '*.yaml' -exec perl -0777 -pi -e 's/valueFrom:\n[ \t]*null\n/value: ""\n/g' {} +
+	fi;

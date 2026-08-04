@@ -1,0 +1,34 @@
+clusterName: ""
+defaultCRConfig:
+  env:
+    - name: DD_API_KEY
+      valueFrom:
+        secretKeyRef:
+          name: datadog-secret
+          key: api-key
+    - name: DD_SITE
+      value: datadoghq.eu
+    - name: OTEL_K8S_CLUSTER_NAME
+      value: ""
+  presets:
+    resourceDetection:
+      aks:
+        enabled: false
+      eks:
+        enabled: true
+      gcp:
+        enabled: false
+collectors:
+  daemon:
+    presets:
+    resourceDetection:
+      aks:
+        enabled: false
+      eks:
+        enabled: true
+      gcp:
+        enabled: false
+instrumentation:
+  resource:
+    resourceAttributes:
+      deployment.environment.name: "production"
