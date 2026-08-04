@@ -295,11 +295,11 @@ collectors:
         env:
           enabled: false
         eks:
-          enabled: true
+          enabled: false
         aks:
-          enabled: true
+          enabled: false
         gcp:
-          enabled: true
+          enabled: false
 
     config:
       processors:

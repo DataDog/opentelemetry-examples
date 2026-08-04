@@ -12,7 +12,8 @@ if [[ ! -f "$SCRIPT_DIR/.env" ]]; then
     read -p "Datadog Site (eg: 'datadoghq.eu'): " DD_SITE
     [[ -z "$DD_SITE" ]] && error "Datadog Site cannot be empty"
 
-    read -p "Datadog API Key (eg: '1234...'): " DD_API_KEY
+    read -r -s -p "Datadog API Key (eg: '1234...'): " DD_API_KEY
+    echo
     [[ -z "$DD_API_KEY" ]] && error "Datadog API Key cannot be empty"
 
     # Ask if user wants to save to .env file
@@ -23,6 +24,7 @@ if [[ ! -f "$SCRIPT_DIR/.env" ]]; then
             echo "export DD_SITE=\"${DD_SITE}\""
             echo "export DD_API_KEY=\"${DD_API_KEY}\""
         } >> "$SCRIPT_DIR/.env"
+        chmod 600 "$SCRIPT_DIR/.env"
         echo "$SCRIPT_DIR/.env file created successfully."
     fi
 fi
@@ -41,10 +43,14 @@ select KUBE_CLUSTER_TYPE in "Amazon Elastic Kubernetes Service (EKS)" "Google Ku
     echo "Invalid selection, please try again."
 done
 
+RESOURCE_DETECTION_AKS_ENABLED=false
+RESOURCE_DETECTION_EKS_ENABLED=false
+RESOURCE_DETECTION_GCP_ENABLED=false
+
 case "$KUBE_CLUSTER_TYPE" in
-    "Amazon Elastic Kubernetes Service (EKS)") K8S_MANAGED_SERVICE_DETECTOR="eks" ;;
-    "Google Kubernetes Engine (GKE)") K8S_MANAGED_SERVICE_DETECTOR="gcp" ;;
-    "Azure Kubernetes Service (AKS)") K8S_MANAGED_SERVICE_DETECTOR="aks" ;;
+    "Amazon Elastic Kubernetes Service (EKS)") K8S_MANAGED_SERVICE_DETECTOR="eks" ; RESOURCE_DETECTION_EKS_ENABLED=true ;;
+    "Google Kubernetes Engine (GKE)") K8S_MANAGED_SERVICE_DETECTOR="gcp" ; RESOURCE_DETECTION_GCP_ENABLED=true ;;
+    "Azure Kubernetes Service (AKS)") K8S_MANAGED_SERVICE_DETECTOR="aks" ; RESOURCE_DETECTION_AKS_ENABLED=true ;;
     *) K8S_MANAGED_SERVICE_DETECTOR="" ;;
 esac
 export K8S_MANAGED_SERVICE_DETECTOR
@@ -74,13 +80,13 @@ echo "Creating Kubernetes namespace..."
 
 kubectl create namespace opentelemetry-operator-system || echo "WARNING: Could not create namespace 'opentelemetry-operator-system' (may already exist or insufficient permissions). Continuing..."
 
-echo "Creating Datadog secret..."
+echo "Creating or updating Datadog secret..."
 
 kubectl create secret generic datadog-secret \
   --namespace opentelemetry-operator-system  \
   --from-literal="api-key=$DD_API_KEY" \
   --from-literal="dd-site=${DD_SITE:-datadoghq.com}" \
-  || echo "WARNING: Could not create secret 'datadog-secret' (may already exist or insufficient permissions). Continuing..."
+  --dry-run=client -o yaml | kubectl apply -f -
 
 echo "Installing cert-manager (if not already installed)..."
 
@@ -103,5 +109,11 @@ helm upgrade opentelemetry-kube-stack \
     --namespace opentelemetry-operator-system \
     --set-string clusterName=$K8S_CLUSTER_NAME \
     --set-string defaultCRConfig.env[2].value=$K8S_CLUSTER_NAME \
+    --set defaultCRConfig.presets.resourceDetection.aks.enabled=$RESOURCE_DETECTION_AKS_ENABLED \
+    --set defaultCRConfig.presets.resourceDetection.eks.enabled=$RESOURCE_DETECTION_EKS_ENABLED \
+    --set defaultCRConfig.presets.resourceDetection.gcp.enabled=$RESOURCE_DETECTION_GCP_ENABLED \
+    --set collectors.daemon.presets.resourceDetection.aks.enabled=$RESOURCE_DETECTION_AKS_ENABLED \
+    --set collectors.daemon.presets.resourceDetection.eks.enabled=$RESOURCE_DETECTION_EKS_ENABLED \
+    --set collectors.daemon.presets.resourceDetection.gcp.enabled=$RESOURCE_DETECTION_GCP_ENABLED \
     --set-string instrumentation.resource.resourceAttributes.deployment\\.environment\\.name="$DEPLOYMENT_ENVIRONMENT_NAME" \
     -f "$SCRIPT_DIR/values.yaml"
