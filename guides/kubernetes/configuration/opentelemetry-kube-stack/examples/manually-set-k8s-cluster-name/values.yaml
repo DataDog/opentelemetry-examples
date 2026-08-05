@@ -10,24 +10,6 @@ defaultCRConfig:
       value: datadoghq.eu
     - name: OTEL_K8S_CLUSTER_NAME
       value: "my_k8s_cluster"
-  presets:
-    resourceDetection:
-      aks:
-        enabled: false
-      eks:
-        enabled: false
-      gcp:
-        enabled: false
-collectors:
-  daemon:
-    presets:
-      resourceDetection:
-        aks:
-          enabled: false
-        eks:
-          enabled: false
-        gcp:
-          enabled: false
 instrumentation:
   resource:
     resourceAttributes:
