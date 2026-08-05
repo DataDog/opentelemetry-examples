@@ -61,7 +61,8 @@ spec:
           key: ${env:DD_API_KEY}
           site: ${env:DD_SITE:-datadoghq.com}
         deployment_type: gateway
-      health_check: {}
+      health_check:
+        endpoint: 0.0.0.0:13133
       k8s_leader_elector/k8s_cluster:
         auth_type: serviceAccount
         lease_name: k8s.cluster.receiver.opentelemetry.io
@@ -345,7 +346,6 @@ spec:
           - resource_detection/env
           - transform/insert_k8s_cluster_name
           receivers:
-          - otlp
           - k8s_objects
         metrics:
           exporters:
@@ -463,7 +463,8 @@ spec:
           key: ${env:DD_API_KEY}
           site: ${env:DD_SITE:-datadoghq.com}
         deployment_type: daemonset
-      health_check: {}
+      health_check:
+        endpoint: 0.0.0.0:13133
     processors:
       batch:
         send_batch_max_size: 1500
