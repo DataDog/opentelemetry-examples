@@ -21,13 +21,13 @@ defaultCRConfig:
 collectors:
   daemon:
     presets:
-    resourceDetection:
-      aks:
-        enabled: false
-      eks:
-        enabled: false
-      gcp:
-        enabled: false
+      resourceDetection:
+        aks:
+          enabled: false
+        eks:
+          enabled: false
+        gcp:
+          enabled: false
 instrumentation:
   resource:
     resourceAttributes:

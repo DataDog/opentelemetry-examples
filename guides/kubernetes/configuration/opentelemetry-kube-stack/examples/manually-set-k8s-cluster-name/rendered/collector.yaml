@@ -556,6 +556,112 @@ spec:
           where (resource.attributes["k8s.cluster.name"] == nil or resource.attributes["k8s.cluster.name"]
           == "") and "${env:OTEL_K8S_CLUSTER_NAME}" != ""
     receivers:
+      file_log:
+        exclude: []
+        include:
+        - /var/log/pods/*/*/*.log
+        include_file_name: false
+        include_file_path: true
+        operators:
+        - id: container-parser
+          max_log_size: 102400
+          type: container
+        retry_on_failure:
+          enabled: true
+        start_at: end
+      host_metrics:
+        collection_interval: 10s
+        root_path: /hostfs
+        scrapers:
+          cpu:
+            metrics:
+              system.cpu.logical.count:
+                enabled: true
+              system.cpu.utilization:
+                enabled: true
+          disk: {}
+          filesystem:
+            exclude_fs_types:
+              fs_types:
+              - autofs
+              - binfmt_misc
+              - bpf
+              - cgroup2
+              - configfs
+              - debugfs
+              - devpts
+              - devtmpfs
+              - fusectl
+              - hugetlbfs
+              - iso9660
+              - mqueue
+              - nsfs
+              - overlay
+              - proc
+              - procfs
+              - pstore
+              - rpc_pipefs
+              - securityfs
+              - selinuxfs
+              - squashfs
+              - sysfs
+              - tracefs
+              match_type: strict
+            exclude_mount_points:
+              match_type: regexp
+              mount_points:
+              - /dev/*
+              - /proc/*
+              - /sys/*
+              - /run/k3s/containerd/*
+              - /var/lib/docker/*
+              - /var/lib/kubelet/*
+              - /snap/*
+            metrics:
+              system.filesystem.utilization:
+                enabled: true
+          load: {}
+          memory:
+            metrics:
+              system.memory.limit:
+                enabled: true
+              system.memory.utilization:
+                enabled: true
+          network: {}
+          paging:
+            metrics:
+              system.paging.usage:
+                enabled: true
+          system:
+            metrics:
+              system.uptime:
+                enabled: true
+      kubelet_stats:
+        auth_type: serviceAccount
+        collection_interval: 15s
+        endpoint: https://${env:OTEL_K8S_NODE_IP}:10250
+        extra_metadata_labels:
+        - container.id
+        - k8s.volume.type
+        insecure_skip_verify: true
+        k8s_api_config:
+          auth_type: serviceAccount
+        metric_groups:
+        - node
+        - pod
+        - volume
+        - container
+        metrics:
+          container.cpu.usage:
+            enabled: true
+          k8s.node.cpu.usage:
+            enabled: true
+          k8s.node.uptime:
+            enabled: true
+          k8s.pod.cpu.usage:
+            enabled: true
+          k8s.pod.uptime:
+            enabled: true
       otlp:
         protocols:
           grpc:
@@ -576,6 +682,7 @@ spec:
           - transform/insert_k8s_cluster_name
           receivers:
           - otlp
+          - file_log
         metrics:
           exporters:
           - datadog/exporter
@@ -588,6 +695,8 @@ spec:
           receivers:
           - datadog/connector
           - otlp
+          - host_metrics
+          - kubelet_stats
         traces:
           exporters:
           - datadog/connector
@@ -622,6 +731,17 @@ spec:
       memory: 500Mi
   securityContext:
     {}
+  volumeMounts:
+  - name: varlogpods
+    mountPath: /var/log/pods
+    readOnly: true
+  - name: varlibdockercontainers
+    mountPath: /var/lib/docker/containers
+    readOnly: true
+  - name: hostfs
+    mountPath: /hostfs
+    readOnly: true
+    mountPropagation: HostToContainer
   env:
   - name: K8S_NODE_NAME 
     valueFrom:
@@ -662,4 +782,14 @@ spec:
       secretKeyRef:
         key: api-key
         name: datadog-secret
+  volumes:
+  - name: varlogpods
+    hostPath:
+      path: /var/log/pods
+  - name: varlibdockercontainers
+    hostPath:
+      path: /var/lib/docker/containers
+  - name: hostfs
+    hostPath:
+      path: /
 

@@ -7,9 +7,11 @@ defaultCRConfig:
 collectors:
   daemon:
     presets:
-    resourceDetection:
-      eks:
-        enabled: true
+      resourceDetection:
+        aks:
+          enabled: false
+        eks:
+          enabled: true
 instrumentation:
   resource:
     resourceAttributes:
