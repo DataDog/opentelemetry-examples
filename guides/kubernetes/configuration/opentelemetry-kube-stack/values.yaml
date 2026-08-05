@@ -89,7 +89,8 @@ defaultCRConfig:
         metrics:
           resource_attributes_as_tags: true
     extensions:
-      health_check: {}
+      health_check:
+        endpoint: 0.0.0.0:13133
       datadog:
         api:
           key: ${env:DD_API_KEY}
@@ -244,7 +245,7 @@ collectors:
       service:
         pipelines:
           logs:
-            receivers: [otlp, k8s_objects]
+            receivers: [k8s_objects]
             processors: [resource_detection/env, transform/insert_k8s_cluster_name]
             exporters: [datadog/exporter]
 
