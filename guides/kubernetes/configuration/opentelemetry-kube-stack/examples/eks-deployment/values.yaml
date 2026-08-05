@@ -8,8 +8,6 @@ collectors:
   daemon:
     presets:
       resourceDetection:
-        aks:
-          enabled: false
         eks:
           enabled: true
 instrumentation:
