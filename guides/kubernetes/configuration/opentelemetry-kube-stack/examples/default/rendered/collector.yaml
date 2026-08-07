@@ -51,8 +51,6 @@ spec:
         api:
           key: ${env:DD_API_KEY}
           site: ${env:DD_SITE:-datadoghq.com}
-        metrics:
-          resource_attributes_as_tags: true
         orchestrator_explorer:
           enabled: true
     extensions:
@@ -456,8 +454,6 @@ spec:
         api:
           key: ${env:DD_API_KEY}
           site: ${env:DD_SITE:-datadoghq.com}
-        metrics:
-          resource_attributes_as_tags: true
       debug: {}
     extensions:
       datadog:
