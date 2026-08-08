@@ -86,8 +86,6 @@ defaultCRConfig:
         api:
           key: ${env:DD_API_KEY}
           site: ${env:DD_SITE:-datadoghq.com}
-        metrics:
-          resource_attributes_as_tags: true
     extensions:
       health_check:
         endpoint: 0.0.0.0:13133
