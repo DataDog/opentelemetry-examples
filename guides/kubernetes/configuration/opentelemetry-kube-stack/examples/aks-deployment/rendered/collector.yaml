@@ -115,15 +115,14 @@ spec:
           - from: resource_attribute
             name: k8s.pod.uid
       resource_detection/env:
-        detectors:
-        - eks
-        - k8s_api
-        eks:
+        aks:
           resource_attributes:
             k8s.cluster.name:
               enabled: true
+        detectors:
+        - aks
+        - k8s_api
         override: false
-        timeout: 15s
       transform/insert_k8s_cluster_name:
         log_statements:
         - set(resource.attributes["k8s.cluster.name"], "${env:OTEL_K8S_CLUSTER_NAME}")
@@ -545,15 +544,14 @@ spec:
           from_attribute: k8s.node.name
           key: host.name
       resource_detection/env:
-        detectors:
-        - eks
-        - k8s_api
-        eks:
+        aks:
           resource_attributes:
             k8s.cluster.name:
               enabled: true
+        detectors:
+        - aks
+        - k8s_api
         override: false
-        timeout: 15s
       transform/insert_k8s_cluster_name:
         log_statements:
         - set(resource.attributes["k8s.cluster.name"], "${env:OTEL_K8S_CLUSTER_NAME}")

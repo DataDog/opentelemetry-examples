@@ -16,45 +16,29 @@ The `opentelemetry-kube-stack` chart installs the OpenTelemetry Operator and ren
 
 ## Quickstart
 
+Run the installer from this directory:
+
 ```sh
-# 1. Create the Datadog secret in a dedicated namespace
-export DD_API_KEY=<YOUR API KEY>
-export DD_SITE=datadoghq.com
-kubectl create namespace opentelemetry-operator-system
-kubectl create secret generic datadog-secret \
-  --namespace opentelemetry-operator-system \
-  --from-literal="api-key=$DD_API_KEY" \
-  --from-literal="dd-site=$DD_SITE"
-
-# 2. Install cert-manager (skip if already installed)
-helm repo add jetstack https://charts.jetstack.io
-helm repo update
-helm install cert-manager jetstack/cert-manager \
-  --namespace cert-manager --create-namespace \
-  --set crds.enabled=true
-
-# 3. Install the kube-stack chart with this values file
-helm repo add open-telemetry https://open-telemetry.github.io/opentelemetry-helm-charts
-helm repo update
-helm install opentelemetry-kube-stack open-telemetry/opentelemetry-kube-stack \
-  --namespace opentelemetry-operator-system \
-  -f values.yaml
+./install
 ```
+
+The installer prompts for your Datadog API key and site (the site defaults to `datadoghq.com`), Kubernetes platform, and deployment environment. For EKS, GKE, and AKS, it enables the matching resource-detection preset. For other platforms, it prompts for the Kubernetes cluster name.
+
+It then:
+
+- creates the `opentelemetry-operator-system` namespace and the `datadog-secret` secret;
+- installs cert-manager when needed; and
+- installs or upgrades the OpenTelemetry Kube Stack Helm chart.
+
+If you choose to save your credentials, the installer writes them to `.env` with permissions restricted to the file owner. Keep this file out of version control.
 
 ## Cluster name detection
 
-The `resourceDetection` preset (`eks`, `aks`, `gcp`) populates `k8s.cluster.name` on EKS/AKS/GKE. The `env` detector is off: it would stamp the collector pod's own identity on incoming resources.
+For EKS, AKS, and GKE, the installer enables the corresponding resource-detection preset in both collectors. The OpenTelemetry Collector then automatically populates `k8s.cluster.name`.
 
-For clouds not covered by the built-in detectors, add a `resource/cluster` processor at the start of each pipeline:
+For other Kubernetes platforms, the installer passes the supplied cluster name through `clusterName` and `defaultCRConfig.env[2].value`. The `transform/insert_k8s_cluster_name` processor adds it only when the resource does not already have a `k8s.cluster.name` attribute.
 
-```yaml
-processors:
-  resource/cluster:
-    attributes:
-      - key: k8s.cluster.name
-        value: my-cluster
-        action: insert
-```
+See `examples/` for rendered values and manifests for each deployment type.
 
 ## Resource allocation
 
@@ -64,7 +48,7 @@ Both collectors default to `500m` CPU / `1Gi` memory limits and `200m` CPU / `50
 
 Verified against:
 
-- `opentelemetry-kube-stack` chart `>= 0.20.0`
+- `opentelemetry-kube-stack` chart `>= 0.20.1`
 - Collector image `otel/opentelemetry-collector-contrib >= 0.154.0` (pinned in values.yaml under `opentelemetry-operator.manager.collectorImage`)
 
 [chart]: https://github.com/open-telemetry/opentelemetry-helm-charts/tree/main/charts/opentelemetry-kube-stack

@@ -1,0 +1,34 @@
+---
+# Source: opentelemetry-kube-stack/templates/instrumentation.yaml
+apiVersion: opentelemetry.io/v1alpha1
+kind: Instrumentation
+metadata:
+  name: opentelemetry-kube-stack
+  labels:
+    helm.sh/chart: opentelemetry-kube-stack-0.20.1
+    app.kubernetes.io/version: "0.154.0"
+    app.kubernetes.io/managed-by: Helm
+    release: "opentelemetry-kube-stack"    
+spec:
+  exporter:
+    endpoint: http://opentelemetry-kube-stack-daemon-collector.opentelemetry-operator-system.svc.cluster.local:4318
+  propagators:
+    - tracecontext
+    - baggage
+    - b3
+    - b3multi
+    - jaeger
+    - xray
+    - ottrace
+  sampler:
+    type: parentbased_always_on
+  env:
+    - name: OTEL_EXPORTER_OTLP_METRICS_TEMPORALITY_PREFERENCE
+      value: "delta"
+    - name: OTEL_SEMCONV_STABILITY_OPT_IN
+      value: "http,database,rpc,messaging"
+  resource:
+    addK8sUIDAttributes: true
+    resourceAttributes:
+      deployment.environment.name: production
+
