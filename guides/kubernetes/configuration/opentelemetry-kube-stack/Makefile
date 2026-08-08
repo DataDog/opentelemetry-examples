@@ -17,7 +17,7 @@ generate-examples:
 			helm template opentelemetry-kube-stack \
 				open-telemetry/opentelemetry-kube-stack  \
 				--namespace opentelemetry-operator-system \
-				--version "0.20.0" \
+				--version "0.20.1" \
 				--values ./values.yaml --values $${value} \
 				--output-dir "$${EXAMPLES_DIR}/$${example}/rendered"; \
 			mv $${EXAMPLES_DIR}/$${example}/rendered/opentelemetry-kube-stack/templates/* "$${EXAMPLES_DIR}/$${example}/rendered"; \

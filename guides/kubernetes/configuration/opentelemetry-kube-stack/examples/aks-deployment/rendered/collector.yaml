@@ -115,7 +115,12 @@ spec:
           - from: resource_attribute
             name: k8s.pod.uid
       resource_detection/env:
+        aks:
+          resource_attributes:
+            k8s.cluster.name:
+              enabled: true
         detectors:
+        - aks
         - k8s_api
         override: false
       transform/insert_k8s_cluster_name:
@@ -539,7 +544,12 @@ spec:
           from_attribute: k8s.node.name
           key: host.name
       resource_detection/env:
+        aks:
+          resource_attributes:
+            k8s.cluster.name:
+              enabled: true
         detectors:
+        - aks
         - k8s_api
         override: false
       transform/insert_k8s_cluster_name:

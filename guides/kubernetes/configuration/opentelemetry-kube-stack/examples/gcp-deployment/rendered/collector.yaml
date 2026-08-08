@@ -116,7 +116,12 @@ spec:
             name: k8s.pod.uid
       resource_detection/env:
         detectors:
+        - gcp
         - k8s_api
+        gcp:
+          resource_attributes:
+            k8s.cluster.name:
+              enabled: true
         override: false
       transform/insert_k8s_cluster_name:
         log_statements:
@@ -540,7 +545,12 @@ spec:
           key: host.name
       resource_detection/env:
         detectors:
+        - gcp
         - k8s_api
+        gcp:
+          resource_attributes:
+            k8s.cluster.name:
+              enabled: true
         override: false
       transform/insert_k8s_cluster_name:
         log_statements:
