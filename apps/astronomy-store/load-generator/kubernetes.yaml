@@ -1,0 +1,115 @@
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: astronomy-store
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: k6-load-generator-script
+  namespace: astronomy-store
+data:
+  load-test.js: |
+    import http from "k6/http";
+    import { check, sleep } from "k6";
+
+    const frontendUrl = __ENV.FRONTEND_URL || "http://frontend:8080";
+    const checkoutUrl = __ENV.CHECKOUT_URL || "http://checkout:8080";
+    const fraudDetectionUrl =
+      __ENV.FRAUD_DETECTION_URL || "http://fraud-detection:8080";
+
+    export const options = {
+      scenarios: {
+        astronomy_store: {
+          executor: "constant-vus",
+          vus: 5,
+          duration: "10m",
+          gracefulStop: "30s",
+        },
+      },
+      thresholds: {
+        http_req_failed: ["rate<0.01"],
+        http_req_duration: ["p(95)<1000"],
+      },
+    };
+
+    export default function () {
+      const userId = `k6-user-${__VU}-${__ITER}`;
+      const headers = { "content-type": "application/json" };
+
+      const products = http.get(`${frontendUrl}/api/products`);
+      check(products, {
+        "frontend products returned": (response) => response.status === 200,
+      });
+
+      const order = http.post(
+        `${checkoutUrl}/checkout/place-order`,
+        JSON.stringify({
+          user_id: userId,
+          user_currency: "USD",
+          address: {
+            street_address: "123 Astronomy Way",
+            city: "Paris",
+            state: "Ile-de-France",
+            country: "FR",
+            zip_code: "75001",
+          },
+          email: `${userId}@example.com`,
+          credit_card: {
+            credit_card_number: "4111111111111111",
+            credit_card_cvv: 123,
+            credit_card_expiration_year: 2030,
+            credit_card_expiration_month: 12,
+          },
+        }),
+        { headers },
+      );
+      check(order, {
+        "checkout order created": (response) => response.status === 201,
+      });
+
+      const fraudCheck = http.post(
+        `${fraudDetectionUrl}/fraud-detection/check-order`,
+        null,
+      );
+      check(fraudCheck, {
+        "fraud score returned": (response) => response.status === 200,
+      });
+
+      sleep(1);
+    }
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: k6-load-generator
+  namespace: astronomy-store
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: k6-load-generator
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: k6-load-generator
+    spec:
+      containers:
+        - name: k6
+          image: grafana/k6:0.57.0
+          args: ["run", "/scripts/load-test.js"]
+          env:
+            - name: FRONTEND_URL
+              value: http://frontend:8080
+            - name: CHECKOUT_URL
+              value: http://checkout:8080
+            - name: FRAUD_DETECTION_URL
+              value: http://fraud-detection:8080
+          volumeMounts:
+            - name: script
+              mountPath: /scripts
+              readOnly: true
+      volumes:
+        - name: script
+          configMap:
+            name: k6-load-generator-script

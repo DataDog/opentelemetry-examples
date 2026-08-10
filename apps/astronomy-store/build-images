@@ -1,0 +1,33 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+if [[ "${1:-}" == "--help" || "${1:-}" == "-h" ]]; then
+    cat <<'EOF'
+Build all Astronomy Store service images.
+
+Usage:
+  ./build-images
+  IMAGE_TAG=v1.2.3 ./build-images
+  IMAGE_PREFIX=ghcr.io/example/astronomy-store IMAGE_TAG=v1.2.3 ./build-images
+EOF
+    exit 0
+fi
+
+if [[ $# -gt 0 ]]; then
+    echo "Usage: IMAGE_PREFIX=<prefix> IMAGE_TAG=<tag> $0" >&2
+    exit 1
+fi
+
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+IMAGE_PREFIX="${IMAGE_PREFIX:-astronomy-store}"
+IMAGE_PREFIX="${IMAGE_PREFIX%/}"
+IMAGE_TAG="${IMAGE_TAG:-latest}"
+SERVICES=(checkout fraud-detection frontend product-catalog)
+
+for service in "${SERVICES[@]}"; do
+    image="${IMAGE_PREFIX}/${service}:${IMAGE_TAG}"
+    echo "Building ${image}..."
+    docker build --tag "${image}" "${SCRIPT_DIR}/${service}"
+done
+
+echo "Built ${#SERVICES[@]} images with tag ${IMAGE_TAG}."

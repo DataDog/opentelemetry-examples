@@ -1,0 +1,47 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+if [[ "${1:-}" == "--help" || "${1:-}" == "-h" ]]; then
+    cat <<'EOF'
+Deploy all Astronomy Store workloads to Kubernetes.
+
+Usage:
+  ./deploy-workloads
+  ROLLOUT_TIMEOUT=5m ./deploy-workloads
+EOF
+    exit 0
+fi
+
+if [[ $# -gt 0 ]]; then
+    echo "Usage: ROLLOUT_TIMEOUT=<duration> $0" >&2
+    exit 1
+fi
+
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+NAMESPACE="astronomy-store"
+ROLLOUT_TIMEOUT="${ROLLOUT_TIMEOUT:-3m}"
+SERVICE_MANIFESTS=(
+    product-catalog/kubernetes.yaml
+    fraud-detection/kubernetes.yaml
+    checkout/kubernetes.yaml
+    frontend/kubernetes.yaml
+)
+
+kubectl create namespace "${NAMESPACE}" --dry-run=client -o yaml | kubectl apply -f -
+
+for manifest in "${SERVICE_MANIFESTS[@]}"; do
+    kubectl apply -f "${SCRIPT_DIR}/${manifest}"
+done
+
+for deployment in product-catalog fraud-detection checkout frontend; do
+    kubectl rollout status "deployment/${deployment}" \
+        --namespace "${NAMESPACE}" \
+        --timeout="${ROLLOUT_TIMEOUT}"
+done
+
+kubectl apply -f "${SCRIPT_DIR}/load-generator/kubernetes.yaml"
+kubectl rollout status deployment/k6-load-generator \
+    --namespace "${NAMESPACE}" \
+    --timeout="${ROLLOUT_TIMEOUT}"
+
+echo "All Astronomy Store workloads are deployed to ${NAMESPACE}."
