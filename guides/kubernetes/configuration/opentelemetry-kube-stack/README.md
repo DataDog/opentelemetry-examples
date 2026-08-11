@@ -32,11 +32,84 @@ It then:
 
 If you choose to save your credentials, the installer writes them to `.env` with permissions restricted to the file owner. Keep this file out of version control.
 
+## Install with values files
+
+To perform the same installation without the interactive script, create a Kubernetes secret for the Datadog credentials,
+install cert-manager, then apply a platform-specific values overlay.
+
+Set the Datadog credentials:
+
+```sh
+export DD_API_KEY="<your-datadog-api-key>"
+export DD_SITE="datadoghq.com" # Use your Datadog site when different.
+```
+
+Create the namespace and secret consumed by the collectors:
+
+```sh
+kubectl create namespace opentelemetry-operator-system \
+  --dry-run=client -o yaml | kubectl apply -f -
+
+kubectl create secret generic datadog-secret \
+  --namespace opentelemetry-operator-system \
+  --from-literal="api-key=$DD_API_KEY" \
+  --from-literal="dd-site=$DD_SITE" \
+  --dry-run=client -o yaml | kubectl apply -f -
+```
+
+Install cert-manager:
+
+```sh
+helm repo add jetstack https://charts.jetstack.io
+helm repo update
+helm upgrade --install cert-manager jetstack/cert-manager \
+  --namespace cert-manager \
+  --create-namespace \
+  --set crds.enabled=true
+```
+
+Create `deployment/values.yaml` by copying the example for the cluster platform, then set its deployment environment.
+EKS, GKE, and AKS enable the appropriate resource detector and automatically determine `k8s.cluster.name`:
+
+```sh
+mkdir -p deployment
+
+# Choose one:
+cp examples/eks-deployment/values.yaml deployment/values.yaml
+cp examples/gcp-deployment/values.yaml deployment/values.yaml
+cp examples/aks-deployment/values.yaml deployment/values.yaml
+```
+
+For other Kubernetes platforms, start with the manual cluster-name example and replace `my_k8s_cluster`, and
+`production` with the cluster name, and deployment environment:
+
+```sh
+mkdir -p deployment
+cp examples/manually-set-k8s-cluster-name/values.yaml deployment/values.yaml
+```
+
+The selected file is an overlay for this directory's base `values.yaml`; add any deployment-specific configuration to
+`./deployment/values.yaml`. Install or upgrade the chart with both files:
+
+```sh
+helm repo add open-telemetry https://open-telemetry.github.io/opentelemetry-helm-charts
+helm repo update
+helm upgrade --install opentelemetry-kube-stack \
+  open-telemetry/opentelemetry-kube-stack \
+  --version 0.20.1 \
+  --namespace opentelemetry-operator-system \
+  --values ./values.yaml \
+  --values ./deployment/values.yaml
+```
+
 ## Cluster name detection
 
-For EKS, AKS, and GKE, the installer enables the corresponding resource-detection preset in both collectors. The OpenTelemetry Collector then automatically populates `k8s.cluster.name`.
+For EKS, AKS, and GKE, the installer enables the corresponding resource-detection preset in both collectors. The
+OpenTelemetry Collector then automatically populates `k8s.cluster.name`.
 
-For other Kubernetes platforms, the installer passes the supplied cluster name through `clusterName` and `defaultCRConfig.env[2].value`. The `transform/insert_k8s_cluster_name` processor adds it only when the resource does not already have a `k8s.cluster.name` attribute.
+For other Kubernetes platforms, the installer passes the supplied cluster name through `clusterName` and
+`defaultCRConfig.env[2].value`. The `transform/insert_k8s_cluster_name` processor adds it only when the resource does
+not already have a `k8s.cluster.name` attribute.
 
 See `examples/` for rendered values and manifests for each deployment type.
 
