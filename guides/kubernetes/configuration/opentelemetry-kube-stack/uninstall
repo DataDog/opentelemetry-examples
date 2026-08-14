@@ -1,6 +1,28 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
+cat <<'EOF'
+WARNING: This uninstall script is for development purposes only.
+
+It deletes:
+  - the cert-manager Helm release in the cert-manager namespace;
+  - cert-manager CRDs: issuers, clusterissuers, certificates,
+    certificaterequests, orders, and challenges;
+  - the opentelemetry-kube-stack Helm release in the
+    opentelemetry-operator-system namespace;
+  - the datadog-secret secret in the opentelemetry-operator-system namespace;
+  - OpenTelemetry CRDs: opentelemetrycollectors, instrumentations, and
+    opampbridges.
+
+Deleting CRDs also deletes all corresponding custom resources in the cluster.
+EOF
+
+read -r -p "Type 'yes' to continue with the uninstall: " confirmation
+if [[ "$confirmation" != "yes" ]]; then
+  echo "Uninstall cancelled."
+  exit 0
+fi
+
 helm uninstall cert-manager -n cert-manager \
    || echo "WARNING: Could not uninstall cert-manager. Continuing..."
 
