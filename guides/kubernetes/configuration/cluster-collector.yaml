@@ -49,7 +49,7 @@ config:
                   - kube-state-metrics.default.svc:8080
             metric_relabel_configs:
               - source_labels: [__name__]
-                regex: "kube_daemonset_.*|kube_deployment_.*|kube_job_.*|kube_namespace_created|kube_node_.*|kube_pod_.*|kube_replicaset_.*|kube_statefulset_.*|kube_service_spec_type"
+                regex: "kube_cronjob_.*|kube_daemonset_.*|kube_deployment_.*|kube_job_.*|kube_namespace_created|kube_node_.*|kube_pod_.*|kube_replicaset_.*|kube_statefulset_.*|kube_service_spec_type"
                 action: keep
 
   processors:
@@ -154,6 +154,9 @@ config:
         - convert_sum_to_gauge() where metric.name == "k8s.deployment.count"
         - convert_sum_to_gauge() where metric.name == "k8s.pod.count"
         - convert_sum_to_gauge() where metric.name == "k8s.namespace.count"
+        - convert_sum_to_gauge() where metric.name == "k8s.statefulset.count"
+        - convert_sum_to_gauge() where metric.name == "k8s.daemonset.count"
+        - convert_sum_to_gauge() where metric.name == "k8s.cronjob.count"
 
     # Drop metrics after count connector has used them
     filter/ksm:
@@ -161,6 +164,9 @@ config:
         metric:
           - metric.name == "kube_service_spec_type"
           - metric.name == "kube_namespace_created"
+          - metric.name == "kube_statefulset_created"
+          - metric.name == "kube_daemonset_created"
+
 
     # Detects k8s.cluster.name (gcp, eks, aks) and k8s.cluster.uid (k8s_api).
     # Adjust the k8s.cluster.name settings below for your cloud provider.
@@ -190,7 +196,7 @@ config:
     #       action: upsert
 
   connectors:
-    # The count connector helps us generate six custom metrics by counting the number
+    # The count connector helps us generate nine custom metrics by counting the number
     # of metric series. It generates the following metrics:
     # 1. k8s.service.count
     # 2. k8s.node.count
@@ -198,6 +204,9 @@ config:
     # 4. k8s.deployment.count
     # 5. k8s.pod.count
     # 6. k8s.namespace.count
+    # 7. k8s.statefulset.count
+    # 8. k8s.daemonset.count
+    # 9. k8s.cronjob.count
     count:
       datapoints:
         k8s.service.count:
@@ -216,6 +225,9 @@ config:
             - metric.name == "kube_node_info"
 
         k8s.job.count:
+          attributes:
+            - key: namespace
+              default_value: unspecified_namespace
           conditions:
             - metric.name == "kube_job_owner"
 
@@ -236,6 +248,27 @@ config:
         k8s.namespace.count:
           conditions:
             - metric.name == "kube_namespace_created"
+
+        k8s.statefulset.count:
+          attributes:
+            - key: namespace
+              default_value: unspecified_namespace
+          conditions:
+            - metric.name == "kube_statefulset_created"
+
+        k8s.daemonset.count:
+          attributes:
+            - key: namespace
+              default_value: unspecified_namespace
+          conditions:
+            - metric.name == "kube_daemonset_created"
+
+        k8s.cronjob.count:
+          attributes:
+            - key: namespace
+              default_value: unspecified_namespace
+          conditions:
+            - metric.name == "kube_cronjob_info"
 
   exporters:
     datadog/exporter:
