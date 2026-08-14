@@ -1,3 +1,5 @@
+#!/usr/bin/env bash
+set -euo pipefail
 
 helm uninstall cert-manager -n cert-manager \
    || echo "WARNING: Could not uninstall cert-manager. Continuing..."
