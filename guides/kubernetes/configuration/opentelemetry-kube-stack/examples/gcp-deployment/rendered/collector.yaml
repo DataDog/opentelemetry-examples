@@ -1,0 +1,809 @@
+---
+# Source: opentelemetry-kube-stack/templates/collector.yaml
+apiVersion: opentelemetry.io/v1beta1
+kind: OpenTelemetryCollector
+metadata:
+  name: opentelemetry-kube-stack-cluster
+  namespace: opentelemetry-operator-system
+  labels:
+    helm.sh/chart: opentelemetry-kube-stack-0.20.1
+    app.kubernetes.io/version: "0.154.0"
+    app.kubernetes.io/managed-by: Helm
+    release: "opentelemetry-kube-stack"        
+spec:
+  managementState: managed
+  mode: deployment
+  config:
+    connectors:
+      count/k8s_entities:
+        datapoints:
+          k8s.deployment.count:
+            attributes:
+            - default_value: unspecified_namespace
+              key: namespace
+            conditions:
+            - metric.name == "kube_deployment_created"
+          k8s.job.count:
+            conditions:
+            - metric.name == "kube_job_owner"
+          k8s.namespace.count:
+            conditions:
+            - metric.name == "kube_namespace_created"
+          k8s.node.count:
+            conditions:
+            - metric.name == "kube_node_info"
+          k8s.pod.count:
+            attributes:
+            - default_value: unspecified_namespace
+              key: namespace
+            conditions:
+            - metric.name == "kube_pod_info"
+          k8s.service.count:
+            attributes:
+            - default_value: unspecified_namespace
+              key: namespace
+            - default_value: unspecified_service_type
+              key: type
+            conditions:
+            - metric.name == "kube_service_spec_type"
+    exporters:
+      datadog/exporter:
+        api:
+          key: ${env:DD_API_KEY}
+          site: ${env:DD_SITE:-datadoghq.com}
+        orchestrator_explorer:
+          enabled: true
+    extensions:
+      datadog:
+        api:
+          key: ${env:DD_API_KEY}
+          site: ${env:DD_SITE:-datadoghq.com}
+        deployment_type: gateway
+      health_check:
+        endpoint: 0.0.0.0:13133
+      k8s_leader_elector/k8s_cluster:
+        auth_type: serviceAccount
+        lease_name: k8s.cluster.receiver.opentelemetry.io
+        lease_namespace: opentelemetry-operator-system
+    processors:
+      cumulativetodelta: {}
+      filter/ksm:
+        metrics:
+          metric:
+          - metric.name == "kube_service_spec_type"
+          - metric.name == "kube_namespace_created"
+      groupbyattrs:
+        keys:
+        - k8s.pod.uid
+      k8s_attributes:
+        extract:
+          labels:
+          - from: pod
+            key: app.kubernetes.io/instance
+            tag_name: k8s.app.instance
+          - from: pod
+            key: app.kubernetes.io/component
+            tag_name: k8s.app.component
+          metadata:
+          - k8s.namespace.name
+          - k8s.pod.name
+          - k8s.pod.uid
+          - k8s.node.name
+          - k8s.pod.start_time
+          - k8s.deployment.name
+          - k8s.replicaset.name
+          - k8s.replicaset.uid
+          - k8s.daemonset.name
+          - k8s.daemonset.uid
+          - k8s.job.name
+          - k8s.job.uid
+          - k8s.container.name
+          - k8s.cronjob.name
+          - k8s.statefulset.name
+          - k8s.statefulset.uid
+          - container.image.tag
+          - container.image.name
+          - k8s.cluster.uid
+          - service.namespace
+          - service.name
+          - service.version
+          - service.instance.id
+          otel_annotations: true
+        passthrough: false
+        pod_association:
+        - sources:
+          - from: resource_attribute
+            name: k8s.pod.uid
+      resource_detection/env:
+        detectors:
+        - gcp
+        - k8s_api
+        gcp:
+          resource_attributes:
+            k8s.cluster.name:
+              enabled: true
+        override: false
+      transform/insert_k8s_cluster_name:
+        log_statements:
+        - set(resource.attributes["k8s.cluster.name"], "${env:OTEL_K8S_CLUSTER_NAME}")
+          where (resource.attributes["k8s.cluster.name"] == nil or resource.attributes["k8s.cluster.name"]
+          == "") and "${env:OTEL_K8S_CLUSTER_NAME}" != ""
+        metric_statements:
+        - set(resource.attributes["k8s.cluster.name"], "${env:OTEL_K8S_CLUSTER_NAME}")
+          where (resource.attributes["k8s.cluster.name"] == nil or resource.attributes["k8s.cluster.name"]
+          == "") and "${env:OTEL_K8S_CLUSTER_NAME}" != ""
+        trace_statements:
+        - set(resource.attributes["k8s.cluster.name"], "${env:OTEL_K8S_CLUSTER_NAME}")
+          where (resource.attributes["k8s.cluster.name"] == nil or resource.attributes["k8s.cluster.name"]
+          == "") and "${env:OTEL_K8S_CLUSTER_NAME}" != ""
+      transform/ksm_to_dd:
+        metric_statements:
+        - context: datapoint
+          statements:
+          - set(attributes["kube_namespace"], attributes["namespace"])
+          - delete_key(attributes, "namespace")
+          - set(attributes["kube_deployment"], attributes["deployment"])
+          - delete_key(attributes, "deployment")
+          - set(attributes["pod_phase"], attributes["phase"])
+          - delete_key(attributes, "phase")
+          - set(attributes["kube_stateful_set"], attributes["statefulset"])
+          - delete_key(attributes, "statefulset")
+          - set(attributes["kube_daemon_set"], attributes["daemonset"])
+          - delete_key(attributes, "daemonset")
+          - set(attributes["kube_replica_set"], attributes["replicaset"])
+          - delete_key(attributes, "replicaset")
+          - set(attributes["kube_job"], attributes["job_name"])
+          - delete_key(attributes, "job_name")
+          - set(attributes["kube_service"], attributes["service"])
+          - delete_key(attributes, "service")
+      transform/rename_uid:
+        metric_statements:
+        - context: datapoint
+          statements:
+          - set(attributes["k8s.pod.uid"], attributes["uid"])
+          - delete_key(attributes, "uid")
+        - context: resource
+          statements:
+          - delete_key(attributes, "service.name")
+          - delete_key(attributes, "service.instance.id")
+      transform/sum_to_gauge:
+        metric_statements:
+        - convert_sum_to_gauge() where metric.name == "k8s.service.count"
+        - convert_sum_to_gauge() where metric.name == "k8s.node.count"
+        - convert_sum_to_gauge() where metric.name == "k8s.job.count"
+        - convert_sum_to_gauge() where metric.name == "k8s.deployment.count"
+        - convert_sum_to_gauge() where metric.name == "k8s.pod.count"
+        - convert_sum_to_gauge() where metric.name == "k8s.namespace.count"
+    receivers:
+      k8s_cluster:
+        allocatable_types_to_report:
+        - cpu
+        - memory
+        - storage
+        auth_type: serviceAccount
+        collection_interval: 10s
+        k8s_leader_elector: k8s_leader_elector/k8s_cluster
+        node_conditions_to_report:
+        - Ready
+        - MemoryPressure
+        - DiskPressure
+        - NetworkUnavailable
+      k8s_objects:
+        interval: 3m
+        objects:
+        - mode: pull
+          name: namespaces
+        - mode: watch
+          name: namespaces
+        - mode: pull
+          name: pods
+        - mode: watch
+          name: pods
+        - mode: pull
+          name: nodes
+        - mode: watch
+          name: nodes
+        - mode: pull
+          name: services
+        - mode: watch
+          name: services
+        - mode: pull
+          name: serviceaccounts
+        - mode: watch
+          name: serviceaccounts
+        - group: apps
+          mode: pull
+          name: deployments
+        - group: apps
+          mode: watch
+          name: deployments
+        - group: apps
+          mode: pull
+          name: replicasets
+        - group: apps
+          mode: watch
+          name: replicasets
+        - group: apps
+          mode: pull
+          name: daemonsets
+        - group: apps
+          mode: watch
+          name: daemonsets
+        - group: apps
+          mode: pull
+          name: statefulsets
+        - group: apps
+          mode: watch
+          name: statefulsets
+        - group: batch
+          mode: pull
+          name: jobs
+        - group: batch
+          mode: watch
+          name: jobs
+        - group: batch
+          mode: pull
+          name: cronjobs
+        - group: batch
+          mode: watch
+          name: cronjobs
+        - group: rbac.authorization.k8s.io
+          mode: pull
+          name: roles
+        - group: rbac.authorization.k8s.io
+          mode: watch
+          name: roles
+        - group: rbac.authorization.k8s.io
+          mode: pull
+          name: rolebindings
+        - group: rbac.authorization.k8s.io
+          mode: watch
+          name: rolebindings
+        - group: rbac.authorization.k8s.io
+          mode: pull
+          name: clusterroles
+        - group: rbac.authorization.k8s.io
+          mode: watch
+          name: clusterroles
+        - group: rbac.authorization.k8s.io
+          mode: pull
+          name: clusterrolebindings
+        - group: rbac.authorization.k8s.io
+          mode: watch
+          name: clusterrolebindings
+        - group: storage.k8s.io
+          mode: pull
+          name: storageclasses
+        - group: storage.k8s.io
+          mode: watch
+          name: storageclasses
+        - mode: pull
+          name: persistentvolumes
+        - mode: watch
+          name: persistentvolumes
+        - mode: pull
+          name: persistentvolumeclaims
+        - mode: watch
+          name: persistentvolumeclaims
+        - group: networking.k8s.io
+          mode: pull
+          name: ingresses
+        - group: networking.k8s.io
+          mode: watch
+          name: ingresses
+        - group: networking.k8s.io
+          mode: pull
+          name: networkpolicies
+        - group: networking.k8s.io
+          mode: watch
+          name: networkpolicies
+        - group: autoscaling
+          mode: pull
+          name: horizontalpodautoscalers
+        - group: autoscaling
+          mode: watch
+          name: horizontalpodautoscalers
+        - group: policy
+          mode: pull
+          name: poddisruptionbudgets
+        - group: policy
+          mode: watch
+          name: poddisruptionbudgets
+        - group: apiextensions.k8s.io
+          mode: pull
+          name: customresourcedefinitions
+        - group: apiextensions.k8s.io
+          mode: watch
+          name: customresourcedefinitions
+      otlp:
+        protocols:
+          grpc:
+            endpoint: 0.0.0.0:4317
+          http:
+            endpoint: 0.0.0.0:4318
+      prometheus/ksm:
+        config:
+          scrape_configs:
+          - job_name: kube-state-metrics
+            metric_relabel_configs:
+            - action: keep
+              regex: kube_daemonset_.*|kube_deployment_.*|kube_job_.*|kube_namespace_created|kube_node_.*|kube_pod_.*|kube_replicaset_.*|kube_statefulset_.*|kube_service_spec_type
+              source_labels:
+              - __name__
+            metrics_path: /metrics
+            scheme: http
+            static_configs:
+            - targets:
+              - kube-state-metrics:8080
+    service:
+      extensions:
+      - health_check
+      - datadog
+      - k8s_leader_elector/k8s_cluster
+      pipelines:
+        logs:
+          exporters:
+          - datadog/exporter
+          processors:
+          - k8s_attributes
+          - resource_detection/env
+          - transform/insert_k8s_cluster_name
+          receivers:
+          - k8s_objects
+        metrics:
+          exporters:
+          - datadog/exporter
+          processors:
+          - filter/ksm
+          - transform/ksm_to_dd
+          - transform/rename_uid
+          - groupbyattrs
+          - k8s_attributes
+          - resource_detection/env
+          - transform/insert_k8s_cluster_name
+          - cumulativetodelta
+          - transform/sum_to_gauge
+          receivers:
+          - otlp
+          - prometheus/ksm
+          - count/k8s_entities
+          - k8s_cluster
+        metrics/count:
+          exporters:
+          - count/k8s_entities
+          receivers:
+          - prometheus/ksm
+      telemetry:
+        metrics:
+          readers:
+          - periodic:
+              exporter:
+                otlp:
+                  endpoint: http://localhost:4318
+                  protocol: http/protobuf
+  replicas: 1
+  imagePullPolicy: IfNotPresent
+  upgradeStrategy: automatic
+  terminationGracePeriodSeconds: 30
+  resources:
+    limits:
+      cpu: 500m
+      memory: 1Gi
+    requests:
+      cpu: 200m
+      memory: 500Mi
+  securityContext:
+    {}
+  env:
+  - name: K8S_NODE_NAME 
+    valueFrom:
+      fieldRef:
+        fieldPath: spec.nodeName
+  - name: OTEL_K8S_NODE_NAME
+    valueFrom:
+      fieldRef:
+        fieldPath: spec.nodeName
+  - name: OTEL_K8S_NODE_IP
+    valueFrom:
+      fieldRef:
+        fieldPath: status.hostIP
+  - name: OTEL_K8S_NAMESPACE
+    valueFrom:
+      fieldRef:
+        apiVersion: v1
+        fieldPath: metadata.namespace
+  - name: OTEL_K8S_POD_NAME
+    valueFrom:
+      fieldRef:
+        apiVersion: v1
+        fieldPath: metadata.name
+  - name: OTEL_K8S_POD_IP
+    valueFrom:
+      fieldRef:
+        apiVersion: v1
+        fieldPath: status.podIP
+  - name: OTEL_RESOURCE_ATTRIBUTES
+    value: "k8s.pod.name=$(OTEL_K8S_POD_NAME),k8s.namespace.name=$(OTEL_K8S_NAMESPACE),k8s.node.name=$(OTEL_K8S_NODE_NAME),host.name=$(OTEL_K8S_NODE_NAME),k8s.node.ip=$(OTEL_K8S_NODE_IP),k8s.pod.ip=$(OTEL_K8S_POD_IP)"
+  
+  - name: OTEL_K8S_CLUSTER_NAME
+    value: ""
+  - name: DD_API_KEY
+    valueFrom:
+      secretKeyRef:
+        key: api-key
+        name: datadog-secret
+  - name: DD_SITE
+    valueFrom:
+      secretKeyRef:
+        key: dd-site
+        name: datadog-secret
+        optional: true
+---
+# Source: opentelemetry-kube-stack/templates/collector.yaml
+apiVersion: opentelemetry.io/v1beta1
+kind: OpenTelemetryCollector
+metadata:
+  name: opentelemetry-kube-stack-daemon
+  namespace: opentelemetry-operator-system
+  labels:
+    helm.sh/chart: opentelemetry-kube-stack-0.20.1
+    app.kubernetes.io/version: "0.154.0"
+    app.kubernetes.io/managed-by: Helm
+    release: "opentelemetry-kube-stack"        
+spec:
+  managementState: managed
+  mode: daemonset
+  config:
+    connectors:
+      datadog/connector: {}
+    exporters:
+      datadog/exporter:
+        api:
+          key: ${env:DD_API_KEY}
+          site: ${env:DD_SITE:-datadoghq.com}
+      debug: {}
+    extensions:
+      datadog:
+        api:
+          key: ${env:DD_API_KEY}
+          site: ${env:DD_SITE:-datadoghq.com}
+        deployment_type: daemonset
+      health_check:
+        endpoint: 0.0.0.0:13133
+    processors:
+      batch:
+        send_batch_max_size: 1500
+        send_batch_size: 1000
+        timeout: 1s
+      cumulativetodelta: {}
+      deltatorate:
+        metrics:
+        - k8s.pod.network.io
+        - k8s.pod.network.errors
+      k8s_attributes:
+        extract:
+          labels:
+          - from: pod
+            key: app.kubernetes.io/instance
+            tag_name: k8s.app.instance
+          - from: pod
+            key: app.kubernetes.io/component
+            tag_name: k8s.app.component
+          metadata:
+          - k8s.namespace.name
+          - k8s.pod.name
+          - k8s.pod.uid
+          - k8s.node.name
+          - k8s.pod.start_time
+          - k8s.deployment.name
+          - k8s.replicaset.name
+          - k8s.replicaset.uid
+          - k8s.daemonset.name
+          - k8s.daemonset.uid
+          - k8s.job.name
+          - k8s.job.uid
+          - k8s.container.name
+          - k8s.cronjob.name
+          - k8s.statefulset.name
+          - k8s.statefulset.uid
+          - container.image.tag
+          - container.image.name
+          - k8s.cluster.uid
+          - service.namespace
+          - service.name
+          - service.version
+          - service.instance.id
+          otel_annotations: true
+        filter:
+          node_from_env_var: OTEL_K8S_NODE_NAME
+        passthrough: false
+        pod_association:
+        - sources:
+          - from: resource_attribute
+            name: k8s.pod.uid
+        - sources:
+          - from: resource_attribute
+            name: k8s.pod.name
+          - from: resource_attribute
+            name: k8s.namespace.name
+          - from: resource_attribute
+            name: k8s.node.name
+        - sources:
+          - from: resource_attribute
+            name: k8s.pod.ip
+        - sources:
+          - from: resource_attribute
+            name: k8s.pod.name
+          - from: resource_attribute
+            name: k8s.namespace.name
+        - sources:
+          - from: connection
+      resource/hostname:
+        attributes:
+        - action: insert
+          from_attribute: k8s.node.name
+          key: host.name
+      resource_detection/env:
+        detectors:
+        - gcp
+        - k8s_api
+        gcp:
+          resource_attributes:
+            k8s.cluster.name:
+              enabled: true
+        override: false
+      transform/insert_k8s_cluster_name:
+        log_statements:
+        - set(resource.attributes["k8s.cluster.name"], "${env:OTEL_K8S_CLUSTER_NAME}")
+          where (resource.attributes["k8s.cluster.name"] == nil or resource.attributes["k8s.cluster.name"]
+          == "") and "${env:OTEL_K8S_CLUSTER_NAME}" != ""
+        metric_statements:
+        - set(resource.attributes["k8s.cluster.name"], "${env:OTEL_K8S_CLUSTER_NAME}")
+          where (resource.attributes["k8s.cluster.name"] == nil or resource.attributes["k8s.cluster.name"]
+          == "") and "${env:OTEL_K8S_CLUSTER_NAME}" != ""
+        trace_statements:
+        - set(resource.attributes["k8s.cluster.name"], "${env:OTEL_K8S_CLUSTER_NAME}")
+          where (resource.attributes["k8s.cluster.name"] == nil or resource.attributes["k8s.cluster.name"]
+          == "") and "${env:OTEL_K8S_CLUSTER_NAME}" != ""
+    receivers:
+      file_log:
+        exclude: []
+        include:
+        - /var/log/pods/*/*/*.log
+        include_file_name: false
+        include_file_path: true
+        operators:
+        - id: container-parser
+          max_log_size: 102400
+          type: container
+        retry_on_failure:
+          enabled: true
+        start_at: end
+      host_metrics:
+        collection_interval: 10s
+        root_path: /hostfs
+        scrapers:
+          cpu:
+            metrics:
+              system.cpu.logical.count:
+                enabled: true
+              system.cpu.utilization:
+                enabled: true
+          disk: {}
+          filesystem:
+            exclude_fs_types:
+              fs_types:
+              - autofs
+              - binfmt_misc
+              - bpf
+              - cgroup2
+              - configfs
+              - debugfs
+              - devpts
+              - devtmpfs
+              - fusectl
+              - hugetlbfs
+              - iso9660
+              - mqueue
+              - nsfs
+              - overlay
+              - proc
+              - procfs
+              - pstore
+              - rpc_pipefs
+              - securityfs
+              - selinuxfs
+              - squashfs
+              - sysfs
+              - tracefs
+              match_type: strict
+            exclude_mount_points:
+              match_type: regexp
+              mount_points:
+              - /dev/*
+              - /proc/*
+              - /sys/*
+              - /run/k3s/containerd/*
+              - /var/lib/docker/*
+              - /var/lib/kubelet/*
+              - /snap/*
+            metrics:
+              system.filesystem.utilization:
+                enabled: true
+          load: {}
+          memory:
+            metrics:
+              system.memory.limit:
+                enabled: true
+              system.memory.utilization:
+                enabled: true
+          network: {}
+          paging:
+            metrics:
+              system.paging.usage:
+                enabled: true
+          system:
+            metrics:
+              system.uptime:
+                enabled: true
+      kubelet_stats:
+        auth_type: serviceAccount
+        collection_interval: 15s
+        endpoint: https://${env:OTEL_K8S_NODE_IP}:10250
+        extra_metadata_labels:
+        - container.id
+        - k8s.volume.type
+        insecure_skip_verify: true
+        k8s_api_config:
+          auth_type: serviceAccount
+        metric_groups:
+        - node
+        - pod
+        - volume
+        - container
+        metrics:
+          container.cpu.usage:
+            enabled: true
+          k8s.node.cpu.usage:
+            enabled: true
+          k8s.node.uptime:
+            enabled: true
+          k8s.pod.cpu.usage:
+            enabled: true
+          k8s.pod.uptime:
+            enabled: true
+      otlp:
+        protocols:
+          grpc:
+            endpoint: 0.0.0.0:4317
+          http:
+            endpoint: 0.0.0.0:4318
+    service:
+      extensions:
+      - health_check
+      - datadog
+      pipelines:
+        logs:
+          exporters:
+          - datadog/exporter
+          processors:
+          - k8s_attributes
+          - resource_detection/env
+          - transform/insert_k8s_cluster_name
+          receivers:
+          - otlp
+          - file_log
+        metrics:
+          exporters:
+          - datadog/exporter
+          processors:
+          - k8s_attributes
+          - resource_detection/env
+          - transform/insert_k8s_cluster_name
+          - cumulativetodelta
+          - deltatorate
+          receivers:
+          - datadog/connector
+          - otlp
+          - host_metrics
+          - kubelet_stats
+        traces:
+          exporters:
+          - datadog/connector
+          processors:
+          - k8s_attributes
+          - resource_detection/env
+          - transform/insert_k8s_cluster_name
+          receivers:
+          - otlp
+        traces/sampling:
+          exporters:
+          - datadog/exporter
+          receivers:
+          - datadog/connector
+      telemetry:
+        metrics:
+          readers:
+          - periodic:
+              exporter:
+                otlp:
+                  endpoint: http://localhost:4318
+                  protocol: http/protobuf
+  imagePullPolicy: IfNotPresent
+  upgradeStrategy: automatic
+  terminationGracePeriodSeconds: 30
+  resources:
+    limits:
+      cpu: 500m
+      memory: 1Gi
+    requests:
+      cpu: 200m
+      memory: 500Mi
+  securityContext:
+    {}
+  volumeMounts:
+  - name: varlogpods
+    mountPath: /var/log/pods
+    readOnly: true
+  - name: varlibdockercontainers
+    mountPath: /var/lib/docker/containers
+    readOnly: true
+  - name: hostfs
+    mountPath: /hostfs
+    readOnly: true
+    mountPropagation: HostToContainer
+  env:
+  - name: K8S_NODE_NAME 
+    valueFrom:
+      fieldRef:
+        fieldPath: spec.nodeName
+  - name: OTEL_K8S_NODE_NAME
+    valueFrom:
+      fieldRef:
+        fieldPath: spec.nodeName
+  - name: OTEL_K8S_NODE_IP
+    valueFrom:
+      fieldRef:
+        fieldPath: status.hostIP
+  - name: OTEL_K8S_NAMESPACE
+    valueFrom:
+      fieldRef:
+        apiVersion: v1
+        fieldPath: metadata.namespace
+  - name: OTEL_K8S_POD_NAME
+    valueFrom:
+      fieldRef:
+        apiVersion: v1
+        fieldPath: metadata.name
+  - name: OTEL_K8S_POD_IP
+    valueFrom:
+      fieldRef:
+        apiVersion: v1
+        fieldPath: status.podIP
+  - name: OTEL_RESOURCE_ATTRIBUTES
+    value: "k8s.pod.name=$(OTEL_K8S_POD_NAME),k8s.namespace.name=$(OTEL_K8S_NAMESPACE),k8s.node.name=$(OTEL_K8S_NODE_NAME),host.name=$(OTEL_K8S_NODE_NAME),k8s.node.ip=$(OTEL_K8S_NODE_IP),k8s.pod.ip=$(OTEL_K8S_POD_IP)"
+  
+  - name: OTEL_K8S_CLUSTER_NAME
+    value: ""
+  - name: DD_API_KEY
+    valueFrom:
+      secretKeyRef:
+        key: api-key
+        name: datadog-secret
+  - name: DD_SITE
+    valueFrom:
+      secretKeyRef:
+        key: dd-site
+        name: datadog-secret
+        optional: true
+  volumes:
+  - name: varlogpods
+    hostPath:
+      path: /var/log/pods
+  - name: varlibdockercontainers
+    hostPath:
+      path: /var/lib/docker/containers
+  - name: hostfs
+    hostPath:
+      path: /
+

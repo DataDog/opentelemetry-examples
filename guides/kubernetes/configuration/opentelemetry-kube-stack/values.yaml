@@ -1,3 +1,4 @@
+clusterName: ""
 opentelemetry-operator:
   manager:
     collectorImage:
@@ -26,6 +27,8 @@ defaultCRConfig:
           name: datadog-secret
           key: dd-site
           optional: true
+    - name: OTEL_K8S_CLUSTER_NAME
+      value: ""
 
   # Starting-point resource allocation. Scale up for large clusters.
   resources:
@@ -42,11 +45,11 @@ defaultCRConfig:
       k8s_api:
         enabled: true
       eks:
-        enabled: true
+        enabled: false
       aks:
-        enabled: true
+        enabled: false
       gcp:
-        enabled: true
+        enabled: false
   config:
     receivers:
       otlp:
@@ -59,13 +62,33 @@ defaultCRConfig:
       cumulativetodelta: {}
       resource_detection/env:
         override: false
+      transform/insert_k8s_cluster_name:
+        # waiting for https://github.com/open-telemetry/opentelemetry-collector-contrib/pull/49970
+        # that will let us leverage the `k8s.cluster.name` defined as a collector env variable,
+        # use a dedicated processor to insert `k8s.cluster.name` in the resource attributes if not already set by the resource detection processor.
+        metric_statements:
+          - set(resource.attributes["k8s.cluster.name"], "${env:OTEL_K8S_CLUSTER_NAME}") 
+            where 
+              (resource.attributes["k8s.cluster.name"] == nil or resource.attributes["k8s.cluster.name"] == "")
+              and "${env:OTEL_K8S_CLUSTER_NAME}" != ""
+        log_statements:
+          - set(resource.attributes["k8s.cluster.name"], "${env:OTEL_K8S_CLUSTER_NAME}") 
+            where 
+              (resource.attributes["k8s.cluster.name"] == nil or resource.attributes["k8s.cluster.name"] == "")
+              and "${env:OTEL_K8S_CLUSTER_NAME}" != ""
+        trace_statements:
+          - set(resource.attributes["k8s.cluster.name"], "${env:OTEL_K8S_CLUSTER_NAME}") 
+            where 
+              (resource.attributes["k8s.cluster.name"] == nil or resource.attributes["k8s.cluster.name"] == "")
+              and "${env:OTEL_K8S_CLUSTER_NAME}" != ""
     exporters:
       datadog/exporter:
         api:
           key: ${env:DD_API_KEY}
           site: ${env:DD_SITE:-datadoghq.com}
     extensions:
-      health_check: {}
+      health_check:
+        endpoint: 0.0.0.0:13133
       datadog:
         api:
           key: ${env:DD_API_KEY}
@@ -221,7 +244,7 @@ collectors:
         pipelines:
           logs:
             receivers: [k8s_objects]
-            processors: [resource_detection/env]
+            processors: [resource_detection/env, transform/insert_k8s_cluster_name]
             exporters: [datadog/exporter]
 
           metrics/count:
@@ -237,6 +260,7 @@ collectors:
               - groupbyattrs
               - k8s_attributes
               - resource_detection/env
+              - transform/insert_k8s_cluster_name
               - cumulativetodelta
               - transform/sum_to_gauge
             exporters: [datadog/exporter]
@@ -270,11 +294,11 @@ collectors:
         env:
           enabled: false
         eks:
-          enabled: true
+          enabled: false
         aks:
-          enabled: true
+          enabled: false
         gcp:
-          enabled: true
+          enabled: false
 
     config:
       processors:
@@ -294,12 +318,12 @@ collectors:
         pipelines:
           logs:
             receivers: [otlp]
-            processors: [resource_detection/env, k8s_attributes]
+            processors: [resource_detection/env, transform/insert_k8s_cluster_name]
             exporters: [datadog/exporter]
 
           traces:
             receivers: [otlp]
-            processors: [resource_detection/env, k8s_attributes]
+            processors: [resource_detection/env, transform/insert_k8s_cluster_name]
             exporters: [datadog/connector]
 
           # Add sampling processors here if needed.
@@ -311,7 +335,7 @@ collectors:
             receivers: [datadog/connector, otlp]
             processors:
               - resource_detection/env
-              - k8s_attributes
+              - transform/insert_k8s_cluster_name
               - cumulativetodelta
               - deltatorate
             exporters: [datadog/exporter]
@@ -322,6 +346,9 @@ instrumentation:
       value: "http,database,rpc,messaging"
     - name: OTEL_EXPORTER_OTLP_METRICS_TEMPORALITY_PREFERENCE
       value: delta
+    # Node.js defaults to gRPC; use HTTP so every service exports to port 4318.
+    - name: OTEL_EXPORTER_OTLP_PROTOCOL
+      value: http/protobuf
   exporter:
     # Daemon collector Service DNS. Update the collector name and namespace
     # to match your install: http://<release>-daemon-collector.<namespace>.svc.cluster.local:4318
@@ -331,3 +358,14 @@ instrumentation:
       deployment.environment.name: production # overwrite as needed
   sampler:
     type: parentbased_always_on
+  # The opentelemetry-kube-stack Helm chart renders language sections even when empty, preventing the
+  # Operator from falling back to its default agent image and yielding invalid init containers.
+  # TODO: File an issue against the opentelemetry-kube-stack Helm chart for this behavior.
+  dotnet:
+    image: ghcr.io/open-telemetry/opentelemetry-operator/autoinstrumentation-dotnet:1.15.0
+  java:
+    image: ghcr.io/open-telemetry/opentelemetry-operator/autoinstrumentation-java:2.28.1
+  nodejs:
+    image: ghcr.io/open-telemetry/opentelemetry-operator/autoinstrumentation-nodejs:0.77.0
+  python:
+    image: ghcr.io/open-telemetry/opentelemetry-operator/autoinstrumentation-python:0.64b0
