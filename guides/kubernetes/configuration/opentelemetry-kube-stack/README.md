@@ -65,7 +65,9 @@ helm repo update
 helm upgrade --install cert-manager jetstack/cert-manager \
   --namespace cert-manager \
   --create-namespace \
-  --set crds.enabled=true
+  --set crds.enabled=true \
+  --wait \
+  --timeout 5m
 ```
 
 Create `deployment/values.yaml` by copying the example for the cluster platform, then set its deployment environment.
@@ -80,8 +82,8 @@ cp examples/gcp-deployment/values.yaml deployment/values.yaml
 cp examples/aks-deployment/values.yaml deployment/values.yaml
 ```
 
-For other Kubernetes platforms, start with the manual cluster-name example and replace `my_k8s_cluster`, and
-`production` with the cluster name, and deployment environment:
+For other Kubernetes platforms, start with the manual cluster-name example and replace `my_k8s_cluster` and `production`
+with the cluster name and deployment environment. `DD_SITE` continues to be sourced from `datadog-secret`.
 
 ```sh
 mkdir -p deployment
