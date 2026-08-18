@@ -47,7 +47,7 @@ spec:
         - name: manual-container-metrics-app
           securityContext:
             {}
-          image: "datadog/opentelemetry-examples:manual-container-metrics-app-v1.0.5"
+          image: "datadog/opentelemetry-examples:manual-container-metrics-app-v1.0.6"
           imagePullPolicy: IfNotPresent
           ports:
             - name: http
