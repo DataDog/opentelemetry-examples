@@ -8,18 +8,22 @@ Deploy all Astronomy Store workloads to Kubernetes.
 Usage:
   ./deploy-workloads
   ROLLOUT_TIMEOUT=5m ./deploy-workloads
+  IMAGE_PREFIX=ghcr.io/example/astronomy-store IMAGE_TAG=v1.2.3 ./deploy-workloads
 EOF
     exit 0
 fi
 
 if [[ $# -gt 0 ]]; then
-    echo "Usage: ROLLOUT_TIMEOUT=<duration> $0" >&2
+    echo "Usage: IMAGE_PREFIX=<prefix> IMAGE_TAG=<tag> ROLLOUT_TIMEOUT=<duration> $0" >&2
     exit 1
 fi
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 NAMESPACE="astronomy-store"
 ROLLOUT_TIMEOUT="${ROLLOUT_TIMEOUT:-3m}"
+IMAGE_PREFIX="${IMAGE_PREFIX:-astronomy-store}"
+IMAGE_PREFIX="${IMAGE_PREFIX%/}"
+IMAGE_TAG="${IMAGE_TAG:-latest}"
 SERVICE_MANIFESTS=(
     product-catalog/kubernetes.yaml
     fraud-detection/kubernetes.yaml
@@ -27,10 +31,37 @@ SERVICE_MANIFESTS=(
     frontend/kubernetes.yaml
 )
 
+OVERLAY_DIR="$(mktemp -d)"
+cleanup() {
+    rm -rf -- "${OVERLAY_DIR}"
+}
+trap cleanup EXIT
+
+apply_service_manifest() {
+    local manifest="$1"
+    local service="${manifest%/kubernetes.yaml}"
+    local service_overlay="${OVERLAY_DIR}/${service}"
+
+    mkdir -p "${service_overlay}"
+    cp "${SCRIPT_DIR}/${manifest}" "${service_overlay}/kubernetes.yaml"
+    cat > "${service_overlay}/kustomization.yaml" <<EOF
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+resources:
+  - kubernetes.yaml
+images:
+  - name: astronomy-store/${service}
+    newName: ${IMAGE_PREFIX}/${service}
+    newTag: ${IMAGE_TAG}
+EOF
+
+    kubectl apply -k "${service_overlay}"
+}
+
 kubectl create namespace "${NAMESPACE}" --dry-run=client -o yaml | kubectl apply -f -
 
 for manifest in "${SERVICE_MANIFESTS[@]}"; do
-    kubectl apply -f "${SCRIPT_DIR}/${manifest}"
+    apply_service_manifest "${manifest}"
 done
 
 for deployment in product-catalog fraud-detection checkout frontend; do
@@ -40,7 +71,7 @@ for deployment in product-catalog fraud-detection checkout frontend; do
 done
 
 kubectl apply -f "${SCRIPT_DIR}/load-generator/kubernetes.yaml"
-kubectl rollout status deployment/k6-load-generator \
+kubectl wait --for=jsonpath='{.status.active}'=1 job/k6-load-generator \
     --namespace "${NAMESPACE}" \
     --timeout="${ROLLOUT_TIMEOUT}"
 
