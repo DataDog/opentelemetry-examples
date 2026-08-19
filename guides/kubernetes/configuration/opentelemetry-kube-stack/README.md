@@ -215,7 +215,9 @@ Symptoms: applying/updating an `OpenTelemetryCollector` CR doesn't create or upd
   the operator manager's logs, which log the reconcile error.
 - Compare `controller_runtime_reconcile_total` against the number of CR create/update events you'd expect — an
   absence of reconciles for a changed CR suggests the watch/informer isn't picking up the change (e.g. label/field
-  selector mismatch, or the manager pod itself is down/crash-looping — check its readiness via `health_check`).
+  selector mismatch, or the manager pod itself is down/crash-looping — check its `Pod` readiness condition, or query
+  its `/readyz` (readiness) and `/healthz` (liveness) endpoints directly, both served on port `8081`
+  (`--health-probe-addr`, see the rendered manager `Deployment`'s probes).
 
 #### Scenario: the operator is saturated, causing delayed injection or collector reconciliation
 
