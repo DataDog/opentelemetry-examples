@@ -239,9 +239,12 @@ than the triggering pod/CR change — a sign the manager can't keep up with the 
 - Correlate with the manager pod's own CPU/memory usage (from `process_cpu_seconds_total`, `process_resident_memory_bytes`,
   or the pod's cgroup metrics) and with `controller_runtime_reconcile_time_seconds` to see whether reconciles
   themselves are getting slower (e.g. slow Kubernetes API server) versus just queueing longer (too much work, too few
-  workers). The fix is typically to raise the manager's CPU/memory requests/limits or its
-  `--max-concurrent-reconciles`, since (unlike the collectors) this chart deploys a single operator manager
-  replica (leader-elected, so extra replicas are standby only, not extra throughput).
+  workers). The fix depends on which side is saturated: reconcile/work-queue backlogs are addressed by raising the
+  manager's CPU/memory requests/limits or its `--max-concurrent-reconciles` — reconciliation is leader-elected, so
+  only the active leader processes the work queue and extra replicas don't add reconcile throughput. Delayed pod
+  admission (elevated webhook in-flight/latency) is different: the webhook server runs in every replica regardless
+  of leader status, so scaling `opentelemetry-operator.replicaCount` up (this chart defaults to a single replica)
+  does add webhook/admission throughput, in addition to raising CPU/memory.
 
 [controller-runtime]: https://github.com/kubernetes-sigs/controller-runtime
 
