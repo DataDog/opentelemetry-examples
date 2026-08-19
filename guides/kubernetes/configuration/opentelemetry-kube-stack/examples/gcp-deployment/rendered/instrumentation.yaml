@@ -33,12 +33,3 @@ spec:
     addK8sUIDAttributes: true
     resourceAttributes:
       deployment.environment.name: production
-  java:
-    image: ghcr.io/open-telemetry/opentelemetry-operator/autoinstrumentation-java:2.28.1
-  nodejs:
-    image: ghcr.io/open-telemetry/opentelemetry-operator/autoinstrumentation-nodejs:0.77.0
-  python:
-    image: ghcr.io/open-telemetry/opentelemetry-operator/autoinstrumentation-python:0.64b0
-  dotnet:
-    image: ghcr.io/open-telemetry/opentelemetry-operator/autoinstrumentation-dotnet:1.15.0
-
