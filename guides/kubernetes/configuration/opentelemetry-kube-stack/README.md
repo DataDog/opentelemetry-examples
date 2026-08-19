@@ -144,8 +144,8 @@ set any Kubebuilder/controller-runtime operator emits:
 - `controller_runtime_reconcile_total`, `controller_runtime_reconcile_errors_total`,
   `controller_runtime_reconcile_time_seconds` — reconcile loop counts, errors, and latency, per controller. A
   *reconciliation* is one run of a controller's control loop: whenever a watched resource (e.g. an
-  `OpenTelemetryCollector` or `Instrumentation` custom resource, or a `Pod` the operator injects into) is created,
-  updated, or deleted, the controller is asked to look at that object's current state and drive the cluster's actual
+  `OpenTelemetryCollector` or `Instrumentation` custom resource) is created, updated, or deleted, the controller is
+  asked to look at that object's current state and drive the cluster's actual
   state toward the desired state described in the resource spec — creating/updating the Deployment, ConfigMap,
   webhooks, etc. it owns. Reconciliations are also re-run periodically and after transient errors, so these metrics
   are the best signal for whether the operator is keeping up and succeeding.
