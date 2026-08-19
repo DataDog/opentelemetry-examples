@@ -336,6 +336,18 @@ spec:
             static_configs:
             - targets:
               - kube-state-metrics:8080
+      prometheus/otel_operator:
+        config:
+          scrape_configs:
+          - bearer_token_file: /var/run/secrets/kubernetes.io/serviceaccount/token
+            job_name: opentelemetry-operator
+            metrics_path: /metrics
+            scheme: https
+            static_configs:
+            - targets:
+              - opentelemetry-kube-stack-opentelemetry-operator:8443
+            tls_config:
+              insecure_skip_verify: true
     service:
       extensions:
       - health_check
@@ -374,6 +386,15 @@ spec:
           - count/k8s_entities
           receivers:
           - prometheus/ksm
+        metrics/otel_operator:
+          exporters:
+          - datadog/exporter
+          processors:
+          - resource_detection/env
+          - transform/insert_k8s_cluster_name
+          - cumulativetodelta
+          receivers:
+          - prometheus/otel_operator
       telemetry:
         metrics:
           readers:
