@@ -116,7 +116,7 @@ collectors:
                       - kube-state-metrics:8080
                 metric_relabel_configs:
                   - source_labels: [__name__]
-                    regex: "kube_daemonset_.*|kube_deployment_.*|kube_job_.*|kube_namespace_created|kube_node_.*|kube_pod_.*|kube_replicaset_.*|kube_statefulset_.*|kube_service_spec_type"
+                    regex: "kube_cronjob_.*|kube_daemonset_.*|kube_deployment_.*|kube_job_.*|kube_namespace_created|kube_node_.*|kube_pod_.*|kube_replicaset_.*|kube_statefulset_.*|kube_service_spec_type"
                     action: keep
 
       processors:
@@ -159,6 +159,8 @@ collectors:
                 - delete_key(attributes, "job_name")
                 - set(attributes["kube_service"], attributes["service"])
                 - delete_key(attributes, "service")
+                - set(attributes["kube_cronjob"], attributes["cronjob"])
+                - delete_key(attributes, "cronjob")
 
         # Pin pod_association to k8s.pod.uid so KSM metrics are associated
         # with their target pod (uid set by transform/rename_uid), not the
@@ -177,13 +179,9 @@ collectors:
             - convert_sum_to_gauge() where metric.name == "k8s.deployment.count"
             - convert_sum_to_gauge() where metric.name == "k8s.pod.count"
             - convert_sum_to_gauge() where metric.name == "k8s.namespace.count"
-
-        # Drop KSM series once the count connector has consumed them.
-        filter/ksm:
-          metrics:
-            metric:
-              - metric.name == "kube_service_spec_type"
-              - metric.name == "kube_namespace_created"
+            - convert_sum_to_gauge() where metric.name == "k8s.statefulset.count"
+            - convert_sum_to_gauge() where metric.name == "k8s.daemonset.count"
+            - convert_sum_to_gauge() where metric.name == "k8s.cronjob.count"
 
       connectors:
         count/k8s_entities:
@@ -211,6 +209,24 @@ collectors:
               conditions: [metric.name == "kube_pod_info"]
             k8s.namespace.count:
               conditions: [metric.name == "kube_namespace_created"]
+            k8s.statefulset.count:
+              attributes:
+                - key: namespace
+                  default_value: unspecified_namespace
+              conditions:
+                - metric.name == "kube_statefulset_created"
+            k8s.daemonset.count:
+              attributes:
+                - key: namespace
+                  default_value: unspecified_namespace
+              conditions:
+                - metric.name == "kube_daemonset_created"
+            k8s.cronjob.count:
+              attributes:
+                - key: namespace
+                  default_value: unspecified_namespace
+              conditions:
+                - metric.name == "kube_cronjob_info"
 
       exporters:
         datadog/exporter:
@@ -231,7 +247,6 @@ collectors:
           metrics:
             receivers: [otlp, prometheus/ksm, count/k8s_entities]
             processors:
-              - filter/ksm
               - transform/ksm_to_dd
               - transform/rename_uid
               - groupbyattrs
