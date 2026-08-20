@@ -167,10 +167,7 @@ set any Kubebuilder/controller-runtime operator emits:
   asynchronously afterwards.
 - Standard Go/process runtime metrics (`go_*`, `process_*`).
 
-Because the endpoint is protected by kube-rbac-proxy, scraping requires HTTPS and a bearer token; the receiver uses
-the collector pod's own ServiceAccount token
-(`/var/run/secrets/kubernetes.io/serviceaccount/token`), which the chart's `ClusterRole` already authorizes for the
-`/metrics` non-resource URL.
+The receiver uses the Collector pod's own ServiceAccount token to authenticate against the kube-rbac-proxy.
 
 ### Detecting instrumentation-injection and collector-creation problems
 
