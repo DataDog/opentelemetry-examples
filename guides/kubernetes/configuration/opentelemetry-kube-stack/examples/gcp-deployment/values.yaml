@@ -4,12 +4,6 @@ defaultCRConfig:
     resourceDetection:
       gcp:
         enabled: true
-collectors:
-  daemon:
-    presets:
-      resourceDetection:
-        gcp:
-          enabled: true
 instrumentation:
   resource:
     resourceAttributes:

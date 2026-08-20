@@ -4,12 +4,6 @@ defaultCRConfig:
     resourceDetection:
       aks:
         enabled: true
-collectors:
-  daemon:
-    presets:
-      resourceDetection:
-        aks:
-          enabled: true
 instrumentation:
   resource:
     resourceAttributes:

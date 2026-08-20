@@ -4,12 +4,6 @@ defaultCRConfig:
     resourceDetection:
       eks:
         enabled: true
-collectors:
-  daemon:
-    presets:
-      resourceDetection:
-        eks:
-          enabled: true
 instrumentation:
   resource:
     resourceAttributes:

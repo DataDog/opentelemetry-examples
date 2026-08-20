@@ -287,17 +287,11 @@ collectors:
         enabled: true
       hostMetrics:
         enabled: true
-      # Chart's daemon defaults enable env and disable aks/eks/gcp — flip both.
+      # Chart's daemon defaults enable env disable it.
       # env would stamp the collector pod's own identity (k8s.pod.name/namespace/ip,
       # node.name, host.name) on incoming telemetry.
       resourceDetection:
         env:
-          enabled: false
-        eks:
-          enabled: false
-        aks:
-          enabled: false
-        gcp:
           enabled: false
 
     config:
