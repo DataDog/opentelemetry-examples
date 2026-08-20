@@ -196,6 +196,9 @@ collectors:
             k8s.node.count:
               conditions: [metric.name == "kube_node_info"]
             k8s.job.count:
+              attributes:
+                - key: namespace
+                  default_value: unspecified_namespace
               conditions: [metric.name == "kube_job_owner"]
             k8s.deployment.count:
               attributes:
