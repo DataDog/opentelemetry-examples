@@ -136,10 +136,10 @@ Verified against:
 The `cluster` collector scrapes the operator manager's own Prometheus metrics via the `prometheus/otel_operator`
 receiver (`values.yaml`, `collectors.cluster.config.receivers`).
 
-Like any [controller-runtime][controller-runtime]-based operator, the manager exposes the standard controller-runtime
-metrics registry on its `--metrics-bind-address` (secured with `--metrics-secure`, port `8443` by default in this
-Helm chart, fronted by kube-rbac-proxy). These are generic reconciler metrics, not anything OTel-specific — the same
-set any Kubebuilder/controller-runtime operator emits:
+As of v0.154.0 of the OpenTelemetry Operator, like any [controller-runtime][controller-runtime]-based operator, the
+manager exposes the standard controller-runtime metrics registry on its `--metrics-bind-address` (secured with
+`--metrics-secure`, port `8443` by default in this Helm chart, fronted by kube-rbac-proxy). These are generic reconciler
+metrics, not anything OTel-specific — the same set any Kubebuilder/controller-runtime operator emits:
 
 - `controller_runtime_reconcile_total`, `controller_runtime_reconcile_errors_total`,
   `controller_runtime_reconcile_time_seconds` — reconcile loop counts, errors, and latency, per controller. A
@@ -168,80 +168,6 @@ set any Kubebuilder/controller-runtime operator emits:
 - Standard Go/process runtime metrics (`go_*`, `process_*`).
 
 The receiver uses the Collector pod's own ServiceAccount token to authenticate against the kube-rbac-proxy.
-
-### Detecting instrumentation-injection and collector-creation problems
-
-The operator drives two distinct workloads through two distinct code paths, and each fails and gets observed
-differently:
-
-- **Instrumentation injection** happens synchronously in the pod-mutating admission **webhook**: when a `Pod` is
-  created in a namespace/with annotations selected by an `Instrumentation` resource, the API server calls the
-  operator's webhook to inject the init container and env vars before the pod is persisted. There is no reconcile
-  loop or work queue involved.
-- **Collector creation/update** (and any other CR the operator owns, e.g. `Instrumentation` itself) happens
-  asynchronously through the **reconcile loop**: a change to an `OpenTelemetryCollector` CR enqueues a work item,
-  and a worker later reconciles it into a `Deployment`/`DaemonSet`/`StatefulSet`, `ConfigMap`, `Service`, RBAC, etc.
-
-#### Scenario: workloads aren't getting instrumentation injected
-
-Symptoms: a pod that should have an auto-instrumentation init container doesn't get one (no
-`opentelemetry-auto-instrumentation-*` init container, no `OTEL_*` env vars), even though its `Instrumentation`
-resource and pod annotations look correct.
-
-- Check `controller_runtime_webhook_requests_total` for the pod-mutating webhook path, split by response code.
-  `5xx`/rejected admissions there mean the webhook is erroring on incoming pods — check the operator manager logs for
-  the reason (e.g. malformed `Instrumentation` spec, unsupported language runtime, image pull/config issues baked
-  into the webhook logic).
-- If this metric shows **no requests at all** for pods you expect to be mutated, the API server likely isn't calling
-  the webhook: check the `MutatingWebhookConfiguration` (`failurePolicy`, `namespaceSelector`/`objectSelector`,
-  `caBundle`), and that the webhook `Service`/endpoint and its TLS certificate (issued via [cert-manager][cm] in this
-  chart) are healthy — an expired or mismatched cert makes the API server skip or fail the webhook call depending on
-  `failurePolicy` (`Ignore` silently skips injection; `Fail` blocks pod creation entirely).
-- `controller_runtime_webhook_latency_seconds` climbing indicates slow admission calls, which can cause pod creation
-  timeouts and, depending on `failurePolicy`, either dropped instrumentation (`Ignore`) or blocked deployments
-  (`Fail`).
-
-#### Scenario: `OpenTelemetryCollector` resources aren't producing running collectors
-
-Symptoms: applying/updating an `OpenTelemetryCollector` CR doesn't create or update the expected `Deployment`/
-`DaemonSet`/`StatefulSet` and its config, or changes take unexpectedly long to appear.
-
-- Check `controller_runtime_reconcile_errors_total` for the collector controller — a rising counter means
-  reconciliations are failing (e.g. RBAC denial creating owned objects, resource quota exceeded, invalid rendered
-  collector config). Cross-reference with `kubectl describe opentelemetrycollector <name>` (status/conditions) and
-  the operator manager's logs, which log the reconcile error.
-- Compare `controller_runtime_reconcile_total` against the number of CR create/update events you'd expect — an
-  absence of reconciles for a changed CR suggests the watch/informer isn't picking up the change (e.g. label/field
-  selector mismatch, or the manager pod itself is down/crash-looping — check its `Pod` readiness condition, or query
-  its `/readyz` (readiness) and `/healthz` (liveness) endpoints directly, both served on port `8081`
-  (`--health-probe-addr`, see the rendered manager `Deployment`'s probes).
-
-#### Scenario: the operator is saturated, causing delayed injection or collector reconciliation
-
-Symptoms: instrumentation injection and/or collector reconciliation still eventually succeed, but noticeably later
-than the triggering pod/CR change — a sign the manager can't keep up with the rate of incoming work.
-
-- `workqueue_depth` sustained above zero and trending up means reconciles are being enqueued faster than workers can
-  drain them.
-- `workqueue_queue_duration_seconds` rising is the direct measure of this delay — how long a reconcile waits in the
-  queue before a worker starts on it. This is the metric most directly tied to "why did my collector change take
-  minutes to apply."
-- `controller_runtime_active_workers` pegged at its configured max (`--max-concurrent-reconciles`, chart default
-  unless overridden) alongside a growing `workqueue_depth` confirms the worker pool, not something external, is the
-  bottleneck.
-- `controller_runtime_webhook_requests_in_flight` staying elevated, together with rising
-  `controller_runtime_webhook_latency_seconds`, indicates the same saturation is also slowing pod admission —
-  because the webhook and the reconcilers share the same manager process and CPU/memory allocation
-  (`opentelemetry-operator.manager` resources in `values.yaml`).
-- Correlate with the manager pod's own CPU/memory usage (from `process_cpu_seconds_total`, `process_resident_memory_bytes`,
-  or the pod's cgroup metrics) and with `controller_runtime_reconcile_time_seconds` to see whether reconciles
-  themselves are getting slower (e.g. slow Kubernetes API server) versus just queueing longer (too much work, too few
-  workers). The fix depends on which side is saturated: reconcile/work-queue backlogs are addressed by raising the
-  manager's CPU/memory requests/limits or its `--max-concurrent-reconciles` — reconciliation is leader-elected, so
-  only the active leader processes the work queue and extra replicas don't add reconcile throughput. Delayed pod
-  admission (elevated webhook in-flight/latency) is different: the webhook server runs in every replica regardless
-  of leader status, so scaling `opentelemetry-operator.replicaCount` up (this chart defaults to a single replica)
-  does add webhook/admission throughput, in addition to raising CPU/memory.
 
 [controller-runtime]: https://github.com/kubernetes-sigs/controller-runtime
 
