@@ -142,6 +142,19 @@ collectors:
                     regex: "kube_daemonset_.*|kube_deployment_.*|kube_job_.*|kube_namespace_created|kube_node_.*|kube_pod_.*|kube_replicaset_.*|kube_statefulset_.*|kube_service_spec_type"
                     action: keep
 
+        prometheus/otel_operator:
+          config:
+            scrape_configs:
+              - job_name: "opentelemetry-operator"
+                metrics_path: /metrics
+                scheme: https
+                tls_config:
+                  insecure_skip_verify: true
+                bearer_token_file: /var/run/secrets/kubernetes.io/serviceaccount/token
+                static_configs:
+                  - targets:
+                      - opentelemetry-kube-stack-opentelemetry-operator:8443
+
       processors:
         # Rename the prometheus `uid` label to k8s.pod.uid (OTel standard),
         # required for the groupbyattrs step below.
@@ -247,6 +260,14 @@ collectors:
             processors: [resource_detection/env, transform/insert_k8s_cluster_name]
             exporters: [datadog/exporter]
 
+          metrics/otel_operator:
+            receivers: [prometheus/otel_operator]
+            processors:
+              - resource_detection/env
+              - transform/insert_k8s_cluster_name
+              - cumulativetodelta
+            exporters: [datadog/exporter]
+
           metrics/count:
             receivers: [prometheus/ksm]
             exporters: [count/k8s_entities]
@@ -343,6 +364,15 @@ instrumentation:
     # Node.js defaults to gRPC; use HTTP so every service exports to port 4318.
     - name: OTEL_EXPORTER_OTLP_PROTOCOL
       value: http/protobuf
+    ## Enable the OTel Mode on DDOT SDKs
+    - name: "OTEL_TRACES_EXPORTER"
+      value: "otlp"
+    - name: "DD_TRACE_OTEL_ENABLED"
+      value: "true"
+    - name: "DD_LOGS_OTEL_ENABLED"
+      value: "true"
+    - name: "DD_METRICS_OTEL_ENABLED"
+      value: "true"
   exporter:
     # Daemon collector Service DNS. Update the collector name and namespace
     # to match your install: http://<release>-daemon-collector.<namespace>.svc.cluster.local:4318
@@ -358,8 +388,11 @@ instrumentation:
   dotnet:
     image: ghcr.io/open-telemetry/opentelemetry-operator/autoinstrumentation-dotnet:1.15.0
   java:
-    image: ghcr.io/open-telemetry/opentelemetry-operator/autoinstrumentation-java:2.28.1
+    # image: ghcr.io/open-telemetry/opentelemetry-operator/autoinstrumentation-java:2.28.1
+    image: ghcr.io/cyrille-leclerc/dd-autoinstrumentation-java:1.64.2
   nodejs:
-    image: ghcr.io/open-telemetry/opentelemetry-operator/autoinstrumentation-nodejs:0.77.0
+    # image: ghcr.io/open-telemetry/opentelemetry-operator/autoinstrumentation-nodejs:0.77.0
+    image: ghcr.io/cyrille-leclerc/dd-autoinstrumentation-nodejs:6.6.0
   python:
-    image: ghcr.io/open-telemetry/opentelemetry-operator/autoinstrumentation-python:0.64b0
+    # image: ghcr.io/open-telemetry/opentelemetry-operator/autoinstrumentation-python:0.64b0
+    image: ghcr.io/cyrille-leclerc/dd-autoinstrumentation-python:4.11.1
