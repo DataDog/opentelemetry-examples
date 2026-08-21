@@ -139,8 +139,8 @@ receiver (`values.yaml`, `collectors.cluster.config.receivers`).
 As of v0.154.0 of the OpenTelemetry Operator, like any [controller-runtime][controller-runtime]-based operator, the
 manager exposes the standard controller-runtime metrics registry (documented in the
 [Kubebuilder metrics reference][kubebuilder-metrics]) on its `--metrics-bind-address` (secured with
-`--metrics-secure`, port `8443` by default in this Helm chart, fronted by kube-rbac-proxy). These are generic reconciler
-metrics, not anything OTel-specific — the same set any Kubebuilder/controller-runtime operator emits:
+`--metrics-secure`, port `8443` by default in this Helm chart, fronted by [kube-rbac-proxy][kube-rbac-proxy]). These are
+generic reconciler metrics, not anything OTel-specific — the same set any Kubebuilder/controller-runtime operator emits:
 
 - `controller_runtime_reconcile_total`, `controller_runtime_reconcile_errors_total`,
   `controller_runtime_reconcile_time_seconds` — reconcile loop counts, errors, and latency, per controller. A
@@ -168,8 +168,17 @@ metrics, not anything OTel-specific — the same set any Kubebuilder/controller-
   asynchronously afterwards.
 - Standard Go/process runtime metrics (`go_*`, `process_*`).
 
-The receiver uses the Collector pod's own ServiceAccount token to authenticate against the kube-rbac-proxy.
+kube-rbac-proxy sits in front of the metrics endpoint and, for any HTTP client to be let through, requires an
+`Authorization: Bearer <token>` header over TLS — it forwards the token to the Kubernetes API server's
+TokenReview/SubjectAccessReview endpoints to authenticate the caller and authorize the request (see
+[kube-rbac-proxy's authentication/authorization docs][kube-rbac-proxy-auth]). The `prometheus/otel_operator` scrape
+config (`values.yaml`, `collectors.cluster.config.receivers`) satisfies this by setting `scheme: https`,
+`bearer_token_file: /var/run/secrets/kubernetes.io/serviceaccount/token` (the Collector pod's own ServiceAccount
+token, mounted automatically), and `tls_config.insecure_skip_verify: true` since kube-rbac-proxy's default
+self-signed serving certificate isn't in the scraper's trust store.
 
 [controller-runtime]: https://github.com/kubernetes-sigs/controller-runtime
 [kubebuilder-metrics]: https://book.kubebuilder.io/reference/metrics-reference
+[kube-rbac-proxy]: https://github.com/brancz/kube-rbac-proxy
+[kube-rbac-proxy-auth]: https://github.com/brancz/kube-rbac-proxy#authentication--authorization
 
