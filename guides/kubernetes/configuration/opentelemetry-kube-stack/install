@@ -105,7 +105,7 @@ helm repo update
 
 helm upgrade opentelemetry-kube-stack \
     open-telemetry/opentelemetry-kube-stack \
-    --version 0.20.1 \
+    --version 0.20.2 \
     --install \
     --namespace opentelemetry-operator-system \
     --set-string clusterName=$K8S_CLUSTER_NAME \
@@ -113,8 +113,5 @@ helm upgrade opentelemetry-kube-stack \
     --set defaultCRConfig.presets.resourceDetection.aks.enabled=$RESOURCE_DETECTION_AKS_ENABLED \
     --set defaultCRConfig.presets.resourceDetection.eks.enabled=$RESOURCE_DETECTION_EKS_ENABLED \
     --set defaultCRConfig.presets.resourceDetection.gcp.enabled=$RESOURCE_DETECTION_GCP_ENABLED \
-    --set collectors.daemon.presets.resourceDetection.aks.enabled=$RESOURCE_DETECTION_AKS_ENABLED \
-    --set collectors.daemon.presets.resourceDetection.eks.enabled=$RESOURCE_DETECTION_EKS_ENABLED \
-    --set collectors.daemon.presets.resourceDetection.gcp.enabled=$RESOURCE_DETECTION_GCP_ENABLED \
     --set-string instrumentation.resource.resourceAttributes.deployment\\.environment\\.name="$DEPLOYMENT_ENVIRONMENT_NAME" \
     -f "$SCRIPT_DIR/values.yaml"
