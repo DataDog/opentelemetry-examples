@@ -137,7 +137,8 @@ The `cluster` collector scrapes the operator manager's own Prometheus metrics vi
 receiver (`values.yaml`, `collectors.cluster.config.receivers`).
 
 As of v0.154.0 of the OpenTelemetry Operator, like any [controller-runtime][controller-runtime]-based operator, the
-manager exposes the standard controller-runtime metrics registry on its `--metrics-bind-address` (secured with
+manager exposes the standard controller-runtime metrics registry (documented in the
+[Kubebuilder metrics reference][kubebuilder-metrics]) on its `--metrics-bind-address` (secured with
 `--metrics-secure`, port `8443` by default in this Helm chart, fronted by kube-rbac-proxy). These are generic reconciler
 metrics, not anything OTel-specific — the same set any Kubebuilder/controller-runtime operator emits:
 
@@ -170,4 +171,5 @@ metrics, not anything OTel-specific — the same set any Kubebuilder/controller-
 The receiver uses the Collector pod's own ServiceAccount token to authenticate against the kube-rbac-proxy.
 
 [controller-runtime]: https://github.com/kubernetes-sigs/controller-runtime
+[kubebuilder-metrics]: https://book.kubebuilder.io/reference/metrics-reference
 
