@@ -373,6 +373,8 @@ instrumentation:
       value: "true"
     - name: "DD_METRICS_OTEL_ENABLED"
       value: "true"
+    # - name: "DD_OTEL_SDK_ENABLED" # candidate new env var to enable OTel mode on DDOT SDKs, but not yet supported by the DDOT SDKs
+    #  value: "true"
   exporter:
     # Daemon collector Service DNS. Update the collector name and namespace
     # to match your install: http://<release>-daemon-collector.<namespace>.svc.cluster.local:4318
