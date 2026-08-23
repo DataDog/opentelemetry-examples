@@ -364,6 +364,7 @@ instrumentation:
     # Node.js defaults to gRPC; use HTTP so every service exports to port 4318.
     - name: OTEL_EXPORTER_OTLP_PROTOCOL
       value: http/protobuf
+    ## DDOT SDKs SPECIFIC CONFIGURATION
     ## Enable the OTel Mode on DDOT SDKs
     - name: "OTEL_TRACES_EXPORTER"
       value: "otlp"
@@ -373,11 +374,13 @@ instrumentation:
       value: "true"
     - name: "DD_METRICS_OTEL_ENABLED"
       value: "true"
-    # - name: "DD_OTEL_SDK_ENABLED" # candidate new env var to enable OTel mode on DDOT SDKs, but not yet supported by the DDOT SDKs
+    # DD_OTEL_SDK_ENABLED: Candidate new env var to enable OTel mode on DDOT SDKs, replacing all the previous ones,
+    # but not yet supported by the DDOT SDKs
+    # - name: "DD_OTEL_SDK_ENABLED"
     #  value: "true"
   exporter:
     # Daemon collector Service DNS. Update the collector name and namespace
-    # to match your install: http://<release>-daemon-collector.<namespace>.svc.cluster.local:4318
+    # to match your install: http://<helm-release-name>-daemon-collector.<namespace>.svc.cluster.local:4318
     endpoint: http://opentelemetry-kube-stack-daemon-collector.opentelemetry-operator-system.svc.cluster.local:4318
   resource:
     resourceAttributes:
