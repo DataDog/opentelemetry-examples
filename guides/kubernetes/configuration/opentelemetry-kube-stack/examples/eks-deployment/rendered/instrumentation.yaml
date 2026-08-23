@@ -23,22 +23,31 @@ spec:
   sampler:
     type: parentbased_always_on
   env:
+    - name: DD_LOGS_OTEL_ENABLED
+      value: "true"
+    - name: DD_METRICS_OTEL_ENABLED
+      value: "true"
+    - name: DD_TRACE_OTEL_ENABLED
+      value: "true"
     - name: OTEL_EXPORTER_OTLP_METRICS_TEMPORALITY_PREFERENCE
       value: "delta"
     - name: OTEL_EXPORTER_OTLP_PROTOCOL
       value: "http/protobuf"
     - name: OTEL_SEMCONV_STABILITY_OPT_IN
       value: "http,database,rpc,messaging"
+    - name: OTEL_TRACES_EXPORTER
+      value: "otlp"
   resource:
     addK8sUIDAttributes: true
     resourceAttributes:
       deployment.environment.name: production
   java:
-    image: ghcr.io/open-telemetry/opentelemetry-operator/autoinstrumentation-java:2.28.1
+    image: ghcr.io/cyrille-leclerc/dd-autoinstrumentation-java:1.64.2
   nodejs:
-    image: ghcr.io/open-telemetry/opentelemetry-operator/autoinstrumentation-nodejs:0.77.0
+    image: ghcr.io/cyrille-leclerc/dd-autoinstrumentation-nodejs:6.6.0
   python:
-    image: ghcr.io/open-telemetry/opentelemetry-operator/autoinstrumentation-python:0.64b0
+    image: ghcr.io/cyrille-leclerc/dd-autoinstrumentation-python:4.11.1
+    volumeLimitSize: 500Mi
   dotnet:
     image: ghcr.io/open-telemetry/opentelemetry-operator/autoinstrumentation-dotnet:1.15.0
 
