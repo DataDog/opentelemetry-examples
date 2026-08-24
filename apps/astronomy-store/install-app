@@ -6,9 +6,9 @@ if [[ "${1:-}" == "--help" || "${1:-}" == "-h" ]]; then
 Deploy all Astronomy Store workloads to Kubernetes.
 
 Usage:
-  ./deploy-workloads
-  ROLLOUT_TIMEOUT=5m ./deploy-workloads
-  IMAGE_PREFIX=ghcr.io/example/astronomy-store IMAGE_TAG=v1.2.3 ./deploy-workloads
+  ./install-app
+  ROLLOUT_TIMEOUT=5m ./install-app
+  IMAGE_PREFIX=ghcr.io/example/astronomy-store IMAGE_TAG=v1.2.3 ./install-app
 EOF
     exit 0
 fi
