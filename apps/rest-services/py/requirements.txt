@@ -1,6 +1,6 @@
 backoff==2.2.1
 blinker==1.6.3
-certifi==2023.11.17
+certifi==2026.7.22
 charset-normalizer==3.3.0
 click==8.4.2
 Deprecated==1.2.14
