@@ -47,7 +47,7 @@ spec:
         - name: manual-container-metrics-app
           securityContext:
             {}
-          image: "datadog/opentelemetry-examples:manual-container-metrics-app-v1.0.5"
+          image: "datadog/opentelemetry-examples:manual-container-metrics-app-v1.0.6"
           imagePullPolicy: IfNotPresent
           ports:
             - name: http
@@ -66,10 +66,6 @@ spec:
               value: manual-container-metrics-app
             - name: OTEL_CONTAINER_NAME
               value: manual-container-metrics-app
-            - name: OTEL_K8S_CONTAINER_ID
-              valueFrom:
-                fieldRef:
-                  fieldPath: metadata.uid
             - name: OTEL_K8S_NAMESPACE
               valueFrom:
                 fieldRef:
@@ -80,6 +76,10 @@ spec:
                 fieldRef:
                   apiVersion: v1
                   fieldPath: spec.nodeName
+            - name: OTEL_K8S_POD_UID
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.uid
             - name: OTEL_K8S_POD_NAME
               valueFrom:
                 fieldRef:
@@ -100,12 +100,12 @@ spec:
                 service.name=$(OTEL_SERVICE_NAME),
                 k8s.namespace.name=$(OTEL_K8S_NAMESPACE),
                 k8s.node.name=$(OTEL_K8S_NODE_NAME),
+                k8s.pod.uid=$(OTEL_K8S_POD_UID),
                 k8s.pod.name=$(OTEL_K8S_POD_NAME),
                 k8s.container.name=manual-container-metrics-app,
                 host.name=$(OTEL_K8S_NODE_NAME),
                 deployment.environment=$(OTEL_K8S_NAMESPACE),
-                container.name=$(OTEL_CONTAINER_NAME),
-                container.id=$(OTEL_K8S_CONTAINER_ID)
+                container.name=$(OTEL_CONTAINER_NAME)
           resources:
             limits:
               cpu: 1
