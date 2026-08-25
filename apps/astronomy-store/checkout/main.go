@@ -109,7 +109,9 @@ func run() error {
 		return err
 	}
 	defer func() {
-		if err := loggerProvider.Shutdown(ctx); err != nil {
+		shutdownCtx, cancel := context.WithTimeout(context.Background(), shutdownTimeout)
+		defer cancel()
+		if err := loggerProvider.Shutdown(shutdownCtx); err != nil {
 			logger.Error("loggerProvider shutdown failed", zap.Error(err))
 		}
 	}()
@@ -122,7 +124,9 @@ func run() error {
 		return err
 	}
 	defer func() {
-		if err := tracerProvider.Shutdown(ctx); err != nil {
+		shutdownCtx, cancel := context.WithTimeout(context.Background(), shutdownTimeout)
+		defer cancel()
+		if err := tracerProvider.Shutdown(shutdownCtx); err != nil {
 			logger.Error("tracerProvider shutdown failed", zap.Error(err))
 		}
 	}()
@@ -130,7 +134,7 @@ func run() error {
 	cs := &checkoutServer{}
 
 	mux := http.NewServeMux()
-	mux.Handle("/checkout/place-order", otelhttp.NewHandler(http.HandlerFunc(cs.placeOrder), "PlaceOrder"))
+	mux.Handle("POST /checkout/place-order", otelhttp.NewHandler(http.HandlerFunc(cs.placeOrder), "PlaceOrder"))
 	mux.HandleFunc("/checkout/health", cs.health)
 
 	addr := ":" + getEnv("PORT", defaultPort)

@@ -82,6 +82,7 @@ func (cs *checkoutServer) placeOrder(w http.ResponseWriter, r *http.Request) {
 	logger.Info("PlaceOrder",
 		zap.String("user_id", req.UserID),
 		zap.String("user_currency", req.UserCurrency),
+		zap.Any("context", ctx),
 	)
 
 	orderID := uuid.NewString()
@@ -105,6 +106,7 @@ func (cs *checkoutServer) placeOrder(w http.ResponseWriter, r *http.Request) {
 	logger.Info("order placed",
 		zap.String("demo.order.id", orderID),
 		zap.String("demo.shipping.tracking.id", shippingTrackingID),
+		zap.Any("context", ctx),
 	)
 
 	w.Header().Set("Content-Type", "application/json")
