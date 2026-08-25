@@ -30,3 +30,6 @@ apps/rolldice-http-metrics/game_controller/bin/
 apps/rolldice-http-metrics/game_controller/gradle/wrapper/gradle-wrapper.jar
 apps/rolldice-http-metrics/game_controller/opentelemetry-javaagent.jar
 apps/rolldice-http-metrics/game_controller/dd-java-agent.jar
+
+# Compiled Go binary for the astronomy-store checkout service
+apps/astronomy-store/checkout/checkout
