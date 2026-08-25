@@ -415,7 +415,7 @@ instrumentation:
     image: ghcr.io/open-telemetry/opentelemetry-operator/autoinstrumentation-dotnet:1.15.0
   java:
     # image: ghcr.io/open-telemetry/opentelemetry-operator/autoinstrumentation-java:2.28.1
-    image: ghcr.io/cyrille-leclerc/dd-autoinstrumentation-java:1.64.2
+    image: registry.ddbuild.io/ssi/dd-lib-java-otel-init:glci132883750 # 1.66.0-SNAPSHOT~4dd238cc6c
   nodejs:
     # image: ghcr.io/open-telemetry/opentelemetry-operator/autoinstrumentation-nodejs:0.77.0
     image: ghcr.io/cyrille-leclerc/dd-autoinstrumentation-nodejs:6.6.0
