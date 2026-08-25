@@ -128,4 +128,4 @@ helm upgrade ddagent-kube-stack \
     --set-string datadog.clusterName=$K8S_CLUSTER_NAME \
 	--set-string datadog.apiKeyExistingSecret='datadog-secret' \
 	--set-string datadog.site=${DD_SITE:-datadoghq.com} \
-    -f "$SCRIPT_DIR/dd-operator-values.yaml"
+    -f "$SCRIPT_DIR/dd-agent-values.yaml"

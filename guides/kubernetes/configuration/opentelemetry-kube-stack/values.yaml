@@ -396,6 +396,9 @@ instrumentation:
     # but not yet supported by the DDOT SDKs
     # - name: "DD_OTEL_SDK_ENABLED"
     #  value: "true"
+    ## DDOT CONFIGURATION
+    - name: "DD_AGENT_HOST"
+      value: "ddagent-kube-stack-datadog.opentelemetry-operator-system.svc.cluster.local"
   exporter:
     # Daemon collector Service DNS. Update the collector name and namespace
     # to match your install: http://<helm-release-name>-daemon-collector.<namespace>.svc.cluster.local:4318
