@@ -1,17 +1,16 @@
-FROM gradle:8.14-jdk17 AS build
+FROM golang:1.25 AS build
 
 WORKDIR /src
-COPY build.gradle settings.gradle ./
-RUN gradle dependencies --no-daemon
+COPY go.mod go.sum ./
+RUN go mod download
 
-COPY src ./src
-RUN gradle bootJar --no-daemon
+COPY *.go ./
+RUN CGO_ENABLED=0 go build -o /checkout .
 
-FROM eclipse-temurin:17-jre
+FROM gcr.io/distroless/static-debian12
 
-WORKDIR /app
-COPY --from=build /src/build/libs/checkout-0.0.1-SNAPSHOT.jar app.jar
+COPY --from=build /checkout /checkout
 
 EXPOSE 8080
 
-ENTRYPOINT ["java", "-jar", "app.jar"]
+ENTRYPOINT ["/checkout"]

@@ -18,7 +18,9 @@ repositories {
 }
 
 dependencies {
+    implementation platform('io.opentelemetry:opentelemetry-bom:1.45.0')
     implementation 'org.springframework.boot:spring-boot-starter-web'
+    implementation 'io.opentelemetry:opentelemetry-api'
     testImplementation 'org.springframework.boot:spring-boot-starter-test'
 }
 

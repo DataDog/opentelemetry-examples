@@ -14,7 +14,6 @@ data:
     import { check, sleep } from "k6";
 
     const frontendUrl = __ENV.FRONTEND_URL || "http://frontend:8080";
-    const checkoutUrl = __ENV.CHECKOUT_URL || "http://checkout:8080";
     const fraudDetectionUrl =
       __ENV.FRAUD_DETECTION_URL || "http://fraud-detection:8080";
 
@@ -42,8 +41,15 @@ data:
         "frontend products returned": (response) => response.status === 200,
       });
 
+      const ads = http.get(
+        `${frontendUrl}/api/ads?context_keys=telescopes&context_keys=books`,
+      );
+      check(ads, {
+        "frontend ads returned": (response) => response.status === 200,
+      });
+
       const order = http.post(
-        `${checkoutUrl}/checkout/place-order`,
+        `${frontendUrl}/api/checkout`,
         JSON.stringify({
           user_id: userId,
           user_currency: "USD",
@@ -99,8 +105,6 @@ spec:
           env:
             - name: FRONTEND_URL
               value: http://frontend:8080
-            - name: CHECKOUT_URL
-              value: http://checkout:8080
             - name: FRAUD_DETECTION_URL
               value: http://fraud-detection:8080
           volumeMounts:

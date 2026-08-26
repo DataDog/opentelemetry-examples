@@ -6,46 +6,46 @@ metadata:
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: checkout
+  name: ad
   namespace: astronomy-store
 spec:
   replicas: 1
   selector:
     matchLabels:
-      app.kubernetes.io/name: checkout
+      app.kubernetes.io/name: ad
   template:
     metadata:
       annotations:
-        instrumentation.opentelemetry.io/inject-sdk: opentelemetry-operator-system/opentelemetry-kube-stack
-        resource.opentelemetry.io/service-name: checkout
+        instrumentation.opentelemetry.io/inject-java: opentelemetry-operator-system/opentelemetry-kube-stack
+        resource.opentelemetry.io/service-name: ad
         resource.opentelemetry.io/service-namespace: astronomy-store
       labels:
-        app.kubernetes.io/name: checkout
+        app.kubernetes.io/name: ad
     spec:
       containers:
-        - name: checkout
-          image: astronomy-store/checkout:latest
+        - name: ad
+          image: astronomy-store/ad:latest
           imagePullPolicy: IfNotPresent
           ports:
             - name: http
               containerPort: 8080
           readinessProbe:
             httpGet:
-              path: /checkout/health
+              path: /ad/health
               port: http
           livenessProbe:
             httpGet:
-              path: /checkout/health
+              path: /ad/health
               port: http
 ---
 apiVersion: v1
 kind: Service
 metadata:
-  name: checkout
+  name: ad
   namespace: astronomy-store
 spec:
   selector:
-    app.kubernetes.io/name: checkout
+    app.kubernetes.io/name: ad
   ports:
     - name: http
       port: 8080
