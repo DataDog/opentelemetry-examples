@@ -20,7 +20,7 @@ fi
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 NAMESPACE="astronomy-store"
 ROLLOUT_TIMEOUT="${ROLLOUT_TIMEOUT:-3m}"
-DEPLOYMENTS=(product-catalog fraud-detection checkout frontend)
+DEPLOYMENTS=(ad product-catalog fraud-detection checkout frontend)
 
 for deployment in "${DEPLOYMENTS[@]}"; do
     kubectl rollout restart "deployment/${deployment}" --namespace "${NAMESPACE}"
