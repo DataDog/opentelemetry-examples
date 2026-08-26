@@ -1,0 +1,41 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+if [[ "${1:-}" == "--help" || "${1:-}" == "-h" ]]; then
+    cat <<'EOF'
+Restart all Astronomy Store workloads on Kubernetes.
+
+Usage:
+  ./restart-app
+  ROLLOUT_TIMEOUT=5m ./restart-app
+EOF
+    exit 0
+fi
+
+if [[ $# -gt 0 ]]; then
+    echo "Usage: ROLLOUT_TIMEOUT=<duration> $0" >&2
+    exit 1
+fi
+
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+NAMESPACE="astronomy-store"
+ROLLOUT_TIMEOUT="${ROLLOUT_TIMEOUT:-3m}"
+DEPLOYMENTS=(product-catalog fraud-detection checkout frontend)
+
+for deployment in "${DEPLOYMENTS[@]}"; do
+    kubectl rollout restart "deployment/${deployment}" --namespace "${NAMESPACE}"
+done
+
+for deployment in "${DEPLOYMENTS[@]}"; do
+    kubectl rollout status "deployment/${deployment}" \
+        --namespace "${NAMESPACE}" \
+        --timeout="${ROLLOUT_TIMEOUT}"
+done
+
+kubectl delete job k6-load-generator --namespace "${NAMESPACE}" --ignore-not-found
+kubectl apply -f "${SCRIPT_DIR}/load-generator/kubernetes.yaml"
+kubectl wait --for=jsonpath='{.status.active}'=1 job/k6-load-generator \
+    --namespace "${NAMESPACE}" \
+    --timeout="${ROLLOUT_TIMEOUT}"
+
+echo "All Astronomy Store workloads have been restarted in ${NAMESPACE}."

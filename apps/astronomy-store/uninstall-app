@@ -1,0 +1,36 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+if [[ "${1:-}" == "--help" || "${1:-}" == "-h" ]]; then
+    cat <<'EOF'
+Remove all Astronomy Store workloads from Kubernetes.
+
+Usage:
+  ./uninstall-app
+EOF
+    exit 0
+fi
+
+if [[ $# -gt 0 ]]; then
+    echo "Usage: $0" >&2
+    exit 1
+fi
+
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+NAMESPACE="astronomy-store"
+SERVICE_MANIFESTS=(
+    load-generator/kubernetes.yaml
+    ad/kubernetes.yaml
+    product-catalog/kubernetes.yaml
+    fraud-detection/kubernetes.yaml
+    checkout/kubernetes.yaml
+    frontend/kubernetes.yaml
+)
+
+for manifest in "${SERVICE_MANIFESTS[@]}"; do
+    kubectl delete -f "${SCRIPT_DIR}/${manifest}" --namespace "${NAMESPACE}" --ignore-not-found
+done
+
+kubectl delete namespace "${NAMESPACE}" --ignore-not-found
+
+echo "All Astronomy Store workloads have been removed."
