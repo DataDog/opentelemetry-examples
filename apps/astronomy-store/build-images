@@ -22,7 +22,7 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 IMAGE_PREFIX="${IMAGE_PREFIX:-astronomy-store}"
 IMAGE_PREFIX="${IMAGE_PREFIX%/}"
 IMAGE_TAG="${IMAGE_TAG:-latest}"
-SERVICES=(checkout fraud-detection frontend product-catalog)
+SERVICES=(ad checkout fraud-detection frontend product-catalog)
 
 for service in "${SERVICES[@]}"; do
     image="${IMAGE_PREFIX}/${service}:${IMAGE_TAG}"
