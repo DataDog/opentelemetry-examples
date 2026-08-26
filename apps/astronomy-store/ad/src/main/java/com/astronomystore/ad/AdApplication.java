@@ -1,11 +1,11 @@
-package com.astronomystore.checkout;
+package com.astronomystore.ad;
 
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
 
 @SpringBootApplication
-public class CheckoutApplication {
+public class AdApplication {
     public static void main(String[] args) {
-        SpringApplication.run(CheckoutApplication.class, args);
+        SpringApplication.run(AdApplication.class, args);
     }
 }

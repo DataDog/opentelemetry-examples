@@ -6,9 +6,9 @@ if [[ "${1:-}" == "--help" || "${1:-}" == "-h" ]]; then
 Deploy all Astronomy Store workloads to Kubernetes.
 
 Usage:
-  ./deploy-workloads
-  ROLLOUT_TIMEOUT=5m ./deploy-workloads
-  IMAGE_PREFIX=ghcr.io/example/astronomy-store IMAGE_TAG=v1.2.3 ./deploy-workloads
+  ./install-app
+  ROLLOUT_TIMEOUT=5m ./install-app
+  IMAGE_PREFIX=ghcr.io/example/astronomy-store IMAGE_TAG=v1.2.3 ./install-app
 EOF
     exit 0
 fi
@@ -25,6 +25,7 @@ IMAGE_PREFIX="${IMAGE_PREFIX:-astronomy-store}"
 IMAGE_PREFIX="${IMAGE_PREFIX%/}"
 IMAGE_TAG="${IMAGE_TAG:-latest}"
 SERVICE_MANIFESTS=(
+    ad/kubernetes.yaml
     product-catalog/kubernetes.yaml
     fraud-detection/kubernetes.yaml
     checkout/kubernetes.yaml
@@ -64,7 +65,7 @@ for manifest in "${SERVICE_MANIFESTS[@]}"; do
     apply_service_manifest "${manifest}"
 done
 
-for deployment in product-catalog fraud-detection checkout frontend; do
+for deployment in ad product-catalog fraud-detection checkout frontend; do
     kubectl rollout status "deployment/${deployment}" \
         --namespace "${NAMESPACE}" \
         --timeout="${ROLLOUT_TIMEOUT}"

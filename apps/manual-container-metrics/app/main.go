@@ -3,19 +3,18 @@ package main
 import (
 	"context"
 	"encoding/json"
-	"go.uber.org/zap"
 	"io"
 	"net/http"
 	"os"
+
+	"go.uber.org/zap"
 
 	log "github.com/sirupsen/logrus"
 
 	"go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp"
 	"go.opentelemetry.io/otel"
-	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/exporters/otlp/otlpmetric/otlpmetricgrpc"
 	"go.opentelemetry.io/otel/exporters/otlp/otlptrace/otlptracegrpc"
-	metric2 "go.opentelemetry.io/otel/metric"
 	"go.opentelemetry.io/otel/propagation"
 	"go.opentelemetry.io/otel/sdk/metric"
 	"go.opentelemetry.io/otel/sdk/resource"
@@ -63,7 +62,7 @@ func main() {
 
 	ctx := context.Background()
 	// Create resource.
-	res, err := resource.New(ctx, resource.WithFromEnv())
+	res, err := resource.New(ctx, resource.WithFromEnv(), resource.WithContainer())
 	if err != nil {
 		log.Fatalf("failed to create resource: ", err)
 	}
@@ -93,18 +92,17 @@ func main() {
 	containerNetSent, err := meter.Float64UpDownCounter("container.net.sent")
 	containerNetRcvd, err := meter.Float64UpDownCounter("container.net.rcvd")
 
-	attr := metric2.WithAttributes(attribute.String("container.name", os.Getenv("OTEL_CONTAINER_NAME")), attribute.String("container.id", os.Getenv("OTEL_K8S_CONTAINER_ID")))
-	containerCpuUsage.Add(ctx, 1, attr)
-	containerCpuLimit.Add(ctx, 1, attr)
-	containerCpuUser.Add(ctx, 1, attr)
-	containerCpuSystem.Add(ctx, 1, attr)
-	containerMemoryRss.Add(ctx, 1, attr)
-	containerMemoryUsage.Add(ctx, 1, attr)
-	containerMemoryLimit.Add(ctx, 1, attr)
-	containerIoRead.Add(ctx, 1, attr)
-	containerIoWrite.Add(ctx, 1, attr)
-	containerNetSent.Add(ctx, 1, attr)
-	containerNetRcvd.Add(ctx, 1, attr)
+	containerCpuUsage.Add(ctx, 1)
+	containerCpuLimit.Add(ctx, 1)
+	containerCpuUser.Add(ctx, 1)
+	containerCpuSystem.Add(ctx, 1)
+	containerMemoryRss.Add(ctx, 1)
+	containerMemoryUsage.Add(ctx, 1)
+	containerMemoryLimit.Add(ctx, 1)
+	containerIoRead.Add(ctx, 1)
+	containerIoWrite.Add(ctx, 1)
+	containerNetSent.Add(ctx, 1)
+	containerNetRcvd.Add(ctx, 1)
 
 	// Start HTTP server
 	mux := SetupHandlers()
@@ -126,9 +124,9 @@ func SetupHandlers() *http.ServeMux {
 func ReadinessHandler(w http.ResponseWriter, r *http.Request) {
 	span := trace.SpanFromContext(r.Context())
 	log.WithFields(log.Fields{
-		"dd.trace_id": span.SpanContext().TraceID().String(),
-		"dd.span_id":  span.SpanContext().SpanID().String(),
-		"service":     os.Getenv("OTEL_SERVICE_NAME"),
+		"trace_id": span.SpanContext().TraceID().String(),
+		"span_id":  span.SpanContext().SpanID().String(),
+		"service":  os.Getenv("OTEL_SERVICE_NAME"),
 	}).Info("Work is being done in readiness handler")
 	io.WriteString(w, "Log has been injected with trace_id and span_id!\n")
 
@@ -144,9 +142,9 @@ func ReadinessHandler(w http.ResponseWriter, r *http.Request) {
 func LivenessHandler(w http.ResponseWriter, r *http.Request) {
 	span := trace.SpanFromContext(r.Context())
 	log.WithFields(log.Fields{
-		"dd.trace_id": span.SpanContext().TraceID().String(),
-		"dd.span_id":  span.SpanContext().SpanID().String(),
-		"service":     os.Getenv("OTEL_SERVICE_NAME"),
+		"trace_id": span.SpanContext().TraceID().String(),
+		"span_id":  span.SpanContext().SpanID().String(),
+		"service":  os.Getenv("OTEL_SERVICE_NAME"),
 	}).Info("Work is being done in liveness handler")
 	io.WriteString(w, "Log has been injected with trace_id and span_id!\n")
 

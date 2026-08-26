@@ -32,6 +32,10 @@ spec:
           env:
             - name: PRODUCT_CATALOG_URL
               value: http://product-catalog:8080
+            - name: AD_URL
+              value: http://ad:8080
+            - name: CHECKOUT_URL
+              value: http://checkout:8080
           readinessProbe:
             httpGet:
               path: /api/products
