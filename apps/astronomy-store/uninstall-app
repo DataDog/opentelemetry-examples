@@ -20,10 +20,11 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 NAMESPACE="astronomy-store"
 SERVICE_MANIFESTS=(
     load-generator/kubernetes.yaml
-    frontend/kubernetes.yaml
-    checkout/kubernetes.yaml
-    fraud-detection/kubernetes.yaml
+    ad/kubernetes.yaml
     product-catalog/kubernetes.yaml
+    fraud-detection/kubernetes.yaml
+    checkout/kubernetes.yaml
+    frontend/kubernetes.yaml
 )
 
 for manifest in "${SERVICE_MANIFESTS[@]}"; do
