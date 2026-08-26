@@ -142,6 +142,19 @@ collectors:
                     regex: "kube_cronjob_.*|kube_daemonset_.*|kube_deployment_.*|kube_job_.*|kube_namespace_created|kube_node_.*|kube_pod_.*|kube_replicaset_.*|kube_statefulset_.*|kube_service_spec_type"
                     action: keep
 
+        prometheus/otel_operator:
+          config:
+            scrape_configs:
+              - job_name: "opentelemetry-operator"
+                metrics_path: /metrics
+                scheme: https
+                tls_config:
+                  insecure_skip_verify: true
+                bearer_token_file: /var/run/secrets/kubernetes.io/serviceaccount/token
+                static_configs:
+                  - targets:
+                      - opentelemetry-kube-stack-opentelemetry-operator:8443
+
       processors:
         # Rename the prometheus `uid` label to k8s.pod.uid (OTel standard),
         # required for the groupbyattrs step below.
@@ -264,6 +277,14 @@ collectors:
           logs:
             receivers: [k8s_objects]
             processors: [resource_detection/env, transform/insert_k8s_cluster_name]
+            exporters: [datadog/exporter]
+
+          metrics/otel_operator:
+            receivers: [prometheus/otel_operator]
+            processors:
+              - resource_detection/env
+              - transform/insert_k8s_cluster_name
+              - cumulativetodelta
             exporters: [datadog/exporter]
 
           metrics/count:
