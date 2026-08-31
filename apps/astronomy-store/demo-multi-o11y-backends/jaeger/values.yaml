@@ -1,0 +1,51 @@
+# Values for the official jaegertracing/jaeger Helm chart
+# (https://github.com/jaegertracing/helm-charts), deploying a single Jaeger v2
+# all-in-one binary with in-memory storage. Traces are lost on pod restart —
+# development/demo use only.
+
+jaeger:
+  replicas: 1
+  # Service already exposes otlp-grpc (4317), otlp-http (4318), http-query (16686),
+  # and grpc-query (16685) by default.
+
+# Full override of the Jaeger v2 config (otherwise the chart assumes Elasticsearch).
+# See https://github.com/jaegertracing/jaeger/tree/main/cmd/jaeger for config examples.
+userconfig:
+  extensions:
+    # Backs the chart's default liveness/readiness probes (http://:13133/status).
+    healthcheckv2:
+      use_v2: true
+      http:
+        endpoint: 0.0.0.0:13133
+    jaeger_storage:
+      backends:
+        memstore:
+          memory:
+            max_traces: 100000
+    jaeger_query:
+      storage:
+        traces: memstore
+      http:
+        endpoint: 0.0.0.0:16686
+      grpc:
+        endpoint: 0.0.0.0:16685
+
+  receivers:
+    otlp:
+      protocols:
+        grpc:
+          endpoint: 0.0.0.0:4317
+        http:
+          endpoint: 0.0.0.0:4318
+
+  exporters:
+    jaeger_storage_exporter:
+      trace_storage: memstore
+
+  service:
+    extensions: [healthcheckv2, jaeger_storage, jaeger_query]
+    pipelines:
+      traces:
+        receivers: [otlp]
+        processors: []
+        exporters: [jaeger_storage_exporter]

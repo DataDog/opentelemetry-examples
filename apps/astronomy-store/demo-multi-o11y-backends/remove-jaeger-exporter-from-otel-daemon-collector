@@ -1,0 +1,80 @@
+#!/usr/bin/env python3
+"""
+Remove the OTLP exporter to Jaeger from the OpenTelemetryCollector CR
+"opentelemetry-kube-stack-daemon" and unwire it from any pipeline that
+references it.
+
+Usage:
+  ./remove-jaeger-exporter-from-otel-daemon-collector
+"""
+import json
+import subprocess
+import sys
+
+NAMESPACE = "opentelemetry-operator-system"
+NAME = "opentelemetry-kube-stack-daemon"
+
+
+def kubectl(*args):
+    result = subprocess.run(
+        ["kubectl", *args],
+        capture_output=True,
+        text=True,
+    )
+    if result.returncode != 0:
+        sys.exit(f"kubectl {' '.join(args)} failed:\n{result.stderr}")
+    return result.stdout
+
+
+def main():
+    raw = kubectl(
+        "get", "opentelemetrycollector", NAME, "-n", NAMESPACE, "-o", "json"
+    )
+    resource = json.loads(raw)
+    config = resource["spec"]["config"]
+
+    exporters = config.get("exporters", {})
+    jaeger_exporter_names = [
+        name
+        for name, value in exporters.items()
+        if "jaeger" in name.lower() or "jaeger" in json.dumps(value).lower()
+    ]
+
+    if not jaeger_exporter_names:
+        print("No exporter to Jaeger found. Nothing to do.")
+        return
+
+    patch = {"spec": {"config": {}}}
+
+    pipelines = config.get("service", {}).get("pipelines", {})
+    pipeline_patches = {}
+    for pipeline_name, pipeline in pipelines.items():
+        pipeline_exporters = pipeline.get("exporters", [])
+        remaining = [e for e in pipeline_exporters if e not in jaeger_exporter_names]
+        if remaining != pipeline_exporters:
+            pipeline_patches[pipeline_name] = {"exporters": remaining}
+            print(f"Removing {jaeger_exporter_names} from the '{pipeline_name}' pipeline exporters: {remaining}")
+
+    if pipeline_patches:
+        patch["spec"]["config"]["service"] = {"pipelines": pipeline_patches}
+
+    patch["spec"]["config"]["exporters"] = {name: None for name in jaeger_exporter_names}
+    for name in jaeger_exporter_names:
+        print(f"Removing exporter '{name}'")
+
+    kubectl(
+        "patch",
+        "opentelemetrycollector",
+        NAME,
+        "-n",
+        NAMESPACE,
+        "--type",
+        "merge",
+        "-p",
+        json.dumps(patch),
+    )
+    print(f"Patched opentelemetrycollector/{NAME} in namespace {NAMESPACE}.")
+
+
+if __name__ == "__main__":
+    main()

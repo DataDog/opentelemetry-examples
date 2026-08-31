@@ -1,0 +1,94 @@
+#!/usr/bin/env python3
+"""
+Add an OTLP exporter to Jaeger to the OpenTelemetryCollector CR
+"opentelemetry-kube-stack-daemon" and wire it into the traces pipeline.
+
+Usage:
+  ./add-jaeger-exporter-to-otel-daemon-collector
+"""
+import json
+import subprocess
+import sys
+
+NAMESPACE = "opentelemetry-operator-system"
+NAME = "opentelemetry-kube-stack-daemon"
+JAEGER_EXPORTER_NAME = "otlp/jaeger"
+JAEGER_EXPORTER_CONFIG = {
+    "endpoint": "jaeger.jaeger.svc.cluster.local:4317",
+    "tls": {"insecure": True},
+}
+
+
+def kubectl(*args, input_json=None):
+    result = subprocess.run(
+        ["kubectl", *args],
+        input=json.dumps(input_json) if input_json is not None else None,
+        capture_output=True,
+        text=True,
+    )
+    if result.returncode != 0:
+        sys.exit(f"kubectl {' '.join(args)} failed:\n{result.stderr}")
+    return result.stdout
+
+
+def main():
+    raw = kubectl(
+        "get", "opentelemetrycollector", NAME, "-n", NAMESPACE, "-o", "json"
+    )
+    resource = json.loads(raw)
+    config = resource["spec"]["config"]
+
+    exporters = config.get("exporters", {})
+    jaeger_exporter_name = next(
+        (
+            name
+            for name, value in exporters.items()
+            if "jaeger" in name.lower()
+            or "jaeger" in json.dumps(value).lower()
+        ),
+        None,
+    )
+
+    patch = {"spec": {"config": {}}}
+
+    if jaeger_exporter_name is None:
+        jaeger_exporter_name = JAEGER_EXPORTER_NAME
+        patch["spec"]["config"]["exporters"] = {
+            jaeger_exporter_name: JAEGER_EXPORTER_CONFIG
+        }
+        print(f"Adding exporter '{jaeger_exporter_name}' -> {JAEGER_EXPORTER_CONFIG['endpoint']}")
+    else:
+        print(f"Exporter to Jaeger already defined: '{jaeger_exporter_name}'. Reusing it.")
+
+    traces_pipeline = config.get("service", {}).get("pipelines", {}).get("traces", {})
+    traces_exporters = traces_pipeline.get("exporters", [])
+
+    if jaeger_exporter_name in traces_exporters:
+        print(f"Traces pipeline already exports to '{jaeger_exporter_name}'.")
+    else:
+        new_traces_exporters = traces_exporters + [jaeger_exporter_name]
+        patch["spec"]["config"]["service"] = {
+            "pipelines": {"traces": {"exporters": new_traces_exporters}}
+        }
+        print(f"Adding '{jaeger_exporter_name}' to the traces pipeline exporters: {new_traces_exporters}")
+
+    if not patch["spec"]["config"]:
+        print("Nothing to do.")
+        return
+
+    kubectl(
+        "patch",
+        "opentelemetrycollector",
+        NAME,
+        "-n",
+        NAMESPACE,
+        "--type",
+        "merge",
+        "-p",
+        json.dumps(patch),
+    )
+    print(f"Patched opentelemetrycollector/{NAME} in namespace {NAMESPACE}.")
+
+
+if __name__ == "__main__":
+    main()

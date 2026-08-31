@@ -1,0 +1,19 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+cat <<'EOF'
+WARNING: This uninstall script is for development purposes only.
+
+It deletes the "jaeger" Helm release from the "jaeger" namespace.
+All in-memory trace data is lost. The "jaeger" namespace itself is
+left in place in case other resources depend on it.
+EOF
+
+read -r -p "Type 'yes' to continue with the uninstall: " confirmation
+if [[ "$confirmation" != "yes" ]]; then
+  echo "Uninstall cancelled."
+  exit 0
+fi
+
+helm uninstall jaeger --namespace jaeger \
+  || echo "WARNING: Could not uninstall the jaeger Helm release. Continuing..."

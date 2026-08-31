@@ -392,6 +392,8 @@ instrumentation:
       value: "true"
     - name: "DD_METRICS_OTEL_ENABLED"
       value: "true"
+    - name: "DD_TRACE_OTEL_SEMANTICS_ENABLED"
+      value: "true"
     # DD_OTEL_SDK_ENABLED: Candidate new env var to enable OTel mode on DDOT SDKs, replacing all the previous ones,
     # but not yet supported by the DDOT SDKs
     # - name: "DD_OTEL_SDK_ENABLED"
@@ -425,4 +427,10 @@ instrumentation:
     # The auto-instrumentation init container bundles ddtrace native builds for every supported
     # Python version (3.9-3.14) x libc (glibc/musl) x arch (x86_64/aarch64), ~330MB total, which
     # exceeds the Operator's 200Mi default EmptyDir limit and gets the pod evicted.
+    #
+    # The Operator warns that this field ("volumeSizeLimit" in the warning is the Go field name;
+    # "volumeLimitSize" here is its JSON/YAML tag) is deprecated in favor of `volume.size`, but as
+    # of Operator 0.154.0 / chart 0.20.6 that replacement field doesn't exist in the CRD schema
+    # yet, so this is the only working way to raise the volume limit. Safe to ignore until the
+    # Operator ships `spec.python.volume.size`.
     volumeLimitSize: 500Mi
