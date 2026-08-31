@@ -391,14 +391,3 @@ instrumentation:
       deployment.environment.name: production # overwrite as needed
   sampler:
     type: parentbased_always_on
-  # The opentelemetry-kube-stack Helm chart renders language sections even when empty, preventing the
-  # Operator from falling back to its default agent image and yielding invalid init containers.
-  # TODO: File an issue against the opentelemetry-kube-stack Helm chart for this behavior.
-  dotnet:
-    image: ghcr.io/open-telemetry/opentelemetry-operator/autoinstrumentation-dotnet:1.15.0
-  java:
-    image: ghcr.io/open-telemetry/opentelemetry-operator/autoinstrumentation-java:2.28.1
-  nodejs:
-    image: ghcr.io/open-telemetry/opentelemetry-operator/autoinstrumentation-nodejs:0.77.0
-  python:
-    image: ghcr.io/open-telemetry/opentelemetry-operator/autoinstrumentation-python:0.64b0
