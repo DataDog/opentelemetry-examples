@@ -1,0 +1,54 @@
+# Sample application that emits OTLP traces to the OTel agent DaemonSet.
+# The agent runs on every node and is reached via the node's host IP.
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: trace-generator
+  namespace: otel-multi-pipeline-demo
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: trace-generator
+  template:
+    metadata:
+      labels:
+        app: trace-generator
+    spec:
+      containers:
+      - name: trace-generator
+        image: trace-generator:latest
+        imagePullPolicy: Never
+        ports:
+        - containerPort: 8080
+        env:
+        # Resolve the node IP so the app sends OTLP to the DaemonSet agent on this node
+        - name: HOST_IP
+          valueFrom:
+            fieldRef:
+              fieldPath: status.hostIP
+        - name: OTEL_EXPORTER_OTLP_ENDPOINT
+          value: "$(HOST_IP):4317"
+        - name: OTEL_SERVICE_NAME
+          value: "trace-generator"
+        resources:
+          limits:
+            cpu: 100m
+            memory: 64Mi
+          requests:
+            cpu: 50m
+            memory: 32Mi
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: trace-generator
+  namespace: otel-multi-pipeline-demo
+spec:
+  selector:
+    app: trace-generator
+  ports:
+  - name: http
+    protocol: TCP
+    port: 8080
+  type: ClusterIP
