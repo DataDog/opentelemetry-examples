@@ -21,7 +21,7 @@ message Ad {
 `context_keys` is optional. For each key, `AdController#getAds` runs a SQL query against the `astronomy-db` PostgreSQL database, matching the key against the comma-separated `categories` column of the `catalog.products` table:
 
 ```sql
-SELECT id, name FROM catalog.products WHERE string_to_array(categories, ',') @> ARRAY[?]
+SELECT id, name FROM catalog.products WHERE ? = ANY(string_to_array(categories, ','))
 ```
 
 The seed data in `astronomy-db`'s `init.sql` covers the `telescopes`, `binoculars`, `books`, and `planetariums` categories. Unrecognized keys, missing keys, or a database with no matching products fall back to a default set of ads. The service returns a JSON array of `Ad` objects:

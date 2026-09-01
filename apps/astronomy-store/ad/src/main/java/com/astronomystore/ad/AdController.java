@@ -26,7 +26,7 @@ public class AdController {
     // The context keys recognized here (telescopes, binoculars, books, planetariums) are matched against the
     // comma-separated "categories" column of astronomy-db's catalog.products table.
     private static final String ADS_BY_CATEGORY_SQL =
-            "SELECT id, name FROM catalog.products WHERE string_to_array(categories, ',') @> ARRAY[?]";
+            "SELECT id, name FROM catalog.products WHERE ? = ANY(string_to_array(categories, ','))";
 
     private final JdbcTemplate jdbcTemplate;
 
