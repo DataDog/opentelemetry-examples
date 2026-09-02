@@ -134,13 +134,13 @@ alternateConfig:
       symbol_uploader:
         enabled: true
         symbol_endpoints:
-          - site: ${env:DD_SITE}
+          - site: ${env:DD_SITE:-datadoghq.com}
             api_key: ${env:DD_API_KEY}
 
   exporters:
     # Export profiles and metrics to Datadog through OTLP HTTP.
     otlp_http:
-      endpoint: https://otlp.${env:DD_SITE}
+      endpoint: https://otlp.${env:DD_SITE:-datadoghq.com}
       headers:
         dd-api-key: ${env:DD_API_KEY}
         dd-otel-metric-config: '{"resource_attributes_as_tags": true}'
