@@ -19,15 +19,76 @@ data:
     -- Create application database
     CREATE DATABASE astronomy_db OWNER astronomy_user;
 
-    -- Create monitoring user with pg_monitor role (visibility on all databases and schemas)
+    -- Datadog Database Monitoring: create monitoring user with pg_monitor role
+    -- (visibility on all databases and schemas) and INHERIT so it picks up
+    -- schema-level grants made below.
     CREATE USER monitoring_user WITH PASSWORD 'monitoring_password';
+    ALTER ROLE monitoring_user INHERIT;
     GRANT pg_monitor TO monitoring_user;
+
+    -- Datadog Database Monitoring: schema + explain_statement function used
+    -- by the Agent to collect explain plans, created in the default database.
+    CREATE SCHEMA datadog;
+    GRANT USAGE ON SCHEMA datadog TO monitoring_user;
+    GRANT USAGE ON SCHEMA public TO monitoring_user;
+
+    CREATE OR REPLACE FUNCTION datadog.explain_statement(
+       l_query TEXT,
+       OUT explain JSON
+    )
+    RETURNS SETOF JSON AS
+    $$
+    DECLARE
+    curs REFCURSOR;
+    plan JSON;
+
+    BEGIN
+       SET TRANSACTION READ ONLY;
+
+       OPEN curs FOR EXECUTE pg_catalog.concat('EXPLAIN (FORMAT JSON) ', l_query);
+       FETCH curs INTO plan;
+       CLOSE curs;
+       RETURN QUERY SELECT plan;
+    END;
+    $$
+    LANGUAGE 'plpgsql'
+    RETURNS NULL ON NULL INPUT
+    SECURITY DEFINER;
 
     -- Switch to the application database
     \connect astronomy_db
 
     -- Enable pg_stat_statements in the application database
     CREATE EXTENSION IF NOT EXISTS pg_stat_statements;
+
+    -- Datadog Database Monitoring: repeat the schema + explain_statement setup
+    -- in the application database (required in every database to be monitored).
+    CREATE SCHEMA datadog;
+    GRANT USAGE ON SCHEMA datadog TO monitoring_user;
+    GRANT USAGE ON SCHEMA public TO monitoring_user;
+
+    CREATE OR REPLACE FUNCTION datadog.explain_statement(
+       l_query TEXT,
+       OUT explain JSON
+    )
+    RETURNS SETOF JSON AS
+    $$
+    DECLARE
+    curs REFCURSOR;
+    plan JSON;
+
+    BEGIN
+       SET TRANSACTION READ ONLY;
+
+       OPEN curs FOR EXECUTE pg_catalog.concat('EXPLAIN (FORMAT JSON) ', l_query);
+       FETCH curs INTO plan;
+       CLOSE curs;
+       RETURN QUERY SELECT plan;
+    END;
+    $$
+    LANGUAGE 'plpgsql'
+    RETURNS NULL ON NULL INPUT
+    SECURITY DEFINER;
 
     -- Checkout Service: create a schema
     CREATE SCHEMA accounting;
@@ -66,6 +127,12 @@ data:
     -- Checkout Service: grant permission to schema
     GRANT SELECT, INSERT, UPDATE ON ALL TABLES IN SCHEMA accounting TO astronomy_user;
 
+    -- Datadog Database Monitoring: the postgres integration prepares and plans
+    -- application queries as monitoring_user to collect explain plans, which
+    -- requires real SELECT privileges (pg_monitor alone isn't enough).
+    GRANT USAGE ON SCHEMA accounting TO monitoring_user;
+    GRANT SELECT ON ALL TABLES IN SCHEMA accounting TO monitoring_user;
+
     -- Product Catalog Service: create a schema
     CREATE SCHEMA catalog;
     GRANT USAGE ON SCHEMA catalog TO astronomy_user;
@@ -84,6 +151,10 @@ data:
 
     -- Product Catalog Service: grant permission to schema
     GRANT SELECT ON ALL TABLES IN SCHEMA catalog TO astronomy_user;
+
+    -- Datadog Database Monitoring: same reasoning as the accounting schema above.
+    GRANT USAGE ON SCHEMA catalog TO monitoring_user;
+    GRANT SELECT ON ALL TABLES IN SCHEMA catalog TO monitoring_user;
 
     -- Product Catalog Service: add product data
     -- The "categories" column is a comma-separated list; the Ad Service matches its context_keys against it.
@@ -115,6 +186,24 @@ spec:
     metadata:
       labels:
         app.kubernetes.io/name: astronomy-db
+      annotations:
+        # Datadog Database Monitoring: autodiscover the postgres check on this pod.
+        # See https://docs.datadoghq.com/database_monitoring/setup_postgres/selfhosted/?tab=postgres15
+        ad.datadoghq.com/astronomy-db.checks: |
+          {
+            "postgres": {
+              "init_config": {},
+              "instances": [
+                {
+                  "dbm": true,
+                  "host": "%%host%%",
+                  "port": 5432,
+                  "username": "monitoring_user",
+                  "password": "monitoring_password"
+                }
+              ]
+            }
+          }
     spec:
       containers:
         - name: astronomy-db
@@ -125,6 +214,14 @@ spec:
             - postgres
             - -c
             - shared_preload_libraries=pg_stat_statements
+            - -c
+            - track_activity_query_size=4096
+            - -c
+            - pg_stat_statements.track=ALL
+            - -c
+            - pg_stat_statements.max=10000
+            - -c
+            - track_io_timing=on
           env:
             - name: POSTGRES_PASSWORD
               value: changeit
