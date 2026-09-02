@@ -25,6 +25,7 @@ SERVICE_MANIFESTS=(
     fraud-detection/kubernetes.yaml
     checkout/kubernetes.yaml
     frontend/kubernetes.yaml
+    astronomy-db/kubernetes.yaml
 )
 
 for manifest in "${SERVICE_MANIFESTS[@]}"; do

@@ -25,6 +25,7 @@ IMAGE_PREFIX="${IMAGE_PREFIX:-astronomy-store}"
 IMAGE_PREFIX="${IMAGE_PREFIX%/}"
 IMAGE_TAG="${IMAGE_TAG:-latest}"
 SERVICE_MANIFESTS=(
+    astronomy-db/kubernetes.yaml
     ad/kubernetes.yaml
     product-catalog/kubernetes.yaml
     fraud-detection/kubernetes.yaml
@@ -65,7 +66,7 @@ for manifest in "${SERVICE_MANIFESTS[@]}"; do
     apply_service_manifest "${manifest}"
 done
 
-for deployment in ad product-catalog fraud-detection checkout frontend; do
+for deployment in astronomy-db ad product-catalog fraud-detection checkout frontend; do
     kubectl rollout status "deployment/${deployment}" \
         --namespace "${NAMESPACE}" \
         --timeout="${ROLLOUT_TIMEOUT}"
