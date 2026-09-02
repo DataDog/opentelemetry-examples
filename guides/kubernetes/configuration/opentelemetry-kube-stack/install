@@ -70,6 +70,22 @@ export K8S_CLUSTER_NAME
 read -p "Deployment Environment Name like 'production', 'staging'... (default: 'production'): " DEPLOYMENT_ENVIRONMENT_NAME
 export DEPLOYMENT_ENVIRONMENT_NAME=${DEPLOYMENT_ENVIRONMENT_NAME:-production}
 
+# The eBPF host profiler needs Linux nodes with kernel >= 5.10 and runs one
+# collector per node with eBPF capabilities. Off by default: it is a security
+# decision, not a configuration detail.
+read -p "Enable the eBPF host profiler? (requires Linux nodes, kernel >= 5.10) (y/N): " ENABLE_HOST_PROFILER
+export ENABLE_HOST_PROFILER=${ENABLE_HOST_PROFILER:-N}
+
+HOST_PROFILER_NETWORK_POLICY_ARGS=()
+if [[ "$ENABLE_HOST_PROFILER" == "y" || "$ENABLE_HOST_PROFILER" == "Y" ]]; then
+    # Egress policy for the profiler, only useful on default-deny clusters
+    # whose CNI enforces NetworkPolicy.
+    read -p "Egress NetworkPolicy? (n)one / (s)tandard / (c)ilium (default: none): " HOST_PROFILER_NETWORK_POLICY
+    case "${HOST_PROFILER_NETWORK_POLICY:-n}" in
+        s*) HOST_PROFILER_NETWORK_POLICY_ARGS=(-f "$SCRIPT_DIR/host-profiler-network-policy.yaml") ;;
+        c*) HOST_PROFILER_NETWORK_POLICY_ARGS=(-f "$SCRIPT_DIR/host-profiler-cilium-network-policy.yaml") ;;
+    esac
+fi
 echo ""
 
 #### BEGINNING OF INSTALLATION SCRIPT
@@ -117,6 +133,20 @@ helm upgrade opentelemetry-kube-stack \
     --set defaultCRConfig.presets.resourceDetection.gcp.enabled=$RESOURCE_DETECTION_GCP_ENABLED \
     --set-string instrumentation.resource.resourceAttributes.deployment\\.environment\\.name="$DEPLOYMENT_ENVIRONMENT_NAME" \
     -f "$SCRIPT_DIR/values.yaml"
+
+if [[ "$ENABLE_HOST_PROFILER" == "y" || "$ENABLE_HOST_PROFILER" == "Y" ]]; then
+    echo "Installing the host profiler as a dedicated opentelemetry-collector release..."
+
+    # Dedicated opentelemetry-collector release; kube-stack has no profiling
+    # preset yet. See host-profiler-values.yaml.
+    helm upgrade host-profiler \
+        open-telemetry/opentelemetry-collector \
+        --version 0.172.0 \
+        --install \
+        --namespace opentelemetry-operator-system \
+        -f "$SCRIPT_DIR/host-profiler-values.yaml" \
+        "${HOST_PROFILER_NETWORK_POLICY_ARGS[@]}"
+fi
 
 echo "Installing Datadog Agent"
 
