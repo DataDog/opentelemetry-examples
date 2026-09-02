@@ -1,0 +1,190 @@
+# Values for a dedicated opentelemetry-collector release that runs the Datadog
+# host profiler (ddot-ebpf): continuous eBPF profiling of every process on
+# every node, exported to Datadog.
+#
+# Mirror of the official deployment reference in datadog-agent
+# (cmd/host-profiler/deploy/standalone/helm/, chart >= 0.153.0):
+#   collector-values.yaml        (deployment: image, RBAC, securityContext,
+#                                seccomp installer, volumes, presets, resources)
+#   collector-config-values.yaml (collector configuration)
+# merged into a single values file, with guide-specific adaptations marked
+# GUIDE ADAPTATION inline. The chart's `profiling` preset (PR #2126 + #2287)
+# provides the profiling receiver and profiles pipeline, the tracefs volume
+# and hostPID; the hardened securityContext below replaces the preset's
+# automatic one (setting any securityContext key disables it).
+# opentelemetry-kube-stack does not ship these presets yet; once it does
+# (plus a per-collector defaultCRConfig opt-out), this release can be folded
+# into the main kube-stack values file.
+#
+# Optional egress policy: host-profiler-network-policy.yaml (mirror of the
+# upstream network-policy-values.yaml) for clusters enforcing NetworkPolicy.
+#
+# REFERENCES
+# - Deployment reference (datadog-agent):
+#   cmd/host-profiler/deploy/standalone/helm/ — see
+#   https://github.com/DataDog/datadog-agent/tree/main/
+#   cmd/host-profiler/deploy/standalone/helm
+# - Helm profiling preset:
+#   https://github.com/open-telemetry/opentelemetry-helm-charts/pull/2126
+#   https://github.com/open-telemetry/opentelemetry-helm-charts/pull/2287
+
+# Names used by the OpenTelemetry Collector Helm chart for generated resources.
+nameOverride: host-profiler-collector
+fullnameOverride: host-profiler-collector
+
+# Recommended: run as a DaemonSet to collect profiles from every supported node
+# and provide a cluster-wide view.
+mode: daemonset
+
+# Host Profiler image.
+image:
+  repository: datadog/ddot-ebpf-dev
+  tag: nightly-main-ac681530
+
+extraEnvs:
+  - name: DD_API_KEY
+    valueFrom:
+      secretKeyRef:
+        name: datadog-secret
+        key: api-key
+  - name: DD_SITE # e.g. datadoghq.com, us3.datadoghq.com, datadoghq.eu. Defaults to datadoghq.com.
+    valueFrom:
+      secretKeyRef:
+        name: datadog-secret
+        key: dd-site
+        optional: true
+
+# Enable the chart integrations the Host Profiler relies on. The profiling
+# preset configures host-level profiling settings such as hostPID and the
+# profile receiver wiring; kubernetesAttributes adds Kubernetes metadata.
+presets:
+  profiling:
+    enabled: true
+  kubernetesAttributes:
+    enabled: true
+    extractAllPodLabels: true
+
+# Required for node and kubelet metadata used during host/profile enrichment.
+clusterRole:
+  rules:
+    - apiGroups: [""]
+      resources: ["nodes", "nodes/proxy", "nodes/spec"]
+      verbs: ["get", "list"]
+
+# Required Linux capabilities for host-wide eBPF profiling.
+# The container is not privileged and drops all default capabilities.
+securityContext:
+  privileged: false
+  readOnlyRootFilesystem: true
+  allowPrivilegeEscalation: false
+  # Keep AppArmor unconfined so it does not block cross-process access.
+  appArmorProfile:
+    type: Unconfined
+  # Use spc_t, or an equivalent type, here and in the init container.
+  seLinuxOptions:
+    type: spc_t
+  capabilities:
+    add:
+      - BPF
+      - PERFMON
+      - SYS_PTRACE
+      - SYS_RESOURCE
+      - DAC_READ_SEARCH
+      - SYSLOG
+      - CHECKPOINT_RESTORE
+      - IPC_LOCK
+    drop:
+      - ALL
+  seccompProfile:
+    type: Localhost
+    localhostProfile: host-profiler.json
+
+# Install the seccomp profile from the Host Profiler image onto each node.
+# The main container references this profile through securityContext.seccompProfile.
+initContainers:
+  - name: seccomp-installer
+    image: "{{ .Values.image.repository }}:{{ .Values.image.tag }}"
+    command:
+      - cp
+      - /etc/dd-host-profiler/seccomp.json
+      - /host/var/lib/kubelet/seccomp/host-profiler.json
+    securityContext:
+      allowPrivilegeEscalation: false
+      readOnlyRootFilesystem: true
+      appArmorProfile:
+        type: Unconfined
+      seLinuxOptions:
+        type: spc_t
+      capabilities:
+        drop:
+          - ALL
+    volumeMounts:
+      - name: host-seccomp
+        mountPath: /host/var/lib/kubelet/seccomp
+
+# Resource defaults for the Host Profiler container. Explicit zero requests avoid
+# reserving CPU or memory on every node, while limits cap runaway usage. Set
+# nonzero requests if your cluster policy requires them or you want reserved capacity.
+# Increase the memory limit if the Host Profiler uploads debug symbols for large binaries.
+resources:
+  requests:
+    cpu: "0"
+    memory: "0"
+  limits:
+    cpu: "500m"
+    memory: "1Gi"
+
+extraVolumeMounts:
+  # /tmp is required because the container uses a read-only root filesystem.
+  - name: tmpdir
+    mountPath: /tmp
+
+extraVolumes:
+  - name: tmpdir
+    emptyDir: {}
+  # Host path where kubelet reads Localhost seccomp profiles.
+  - name: host-seccomp
+    hostPath:
+      path: /var/lib/kubelet/seccomp
+      type: DirectoryOrCreate
+
+alternateConfig:
+  extensions:
+    # Health endpoint for the Collector pod.
+    health_check:
+      endpoint: ${env:MY_POD_IP}:13133
+
+  receivers:
+    # OTLP receiver for Collector self-telemetry metrics forwarded to Datadog.
+    otlp:
+      protocols:
+        grpc: {}
+        http: {}
+    profiling:
+      symbol_uploader:
+        enabled: true
+        symbol_endpoints:
+          - site: ${env:DD_SITE}
+            api_key: ${env:DD_API_KEY}
+
+  exporters:
+    # Export profiles and metrics to Datadog through OTLP HTTP.
+    otlp_http:
+      endpoint: https://otlp.${env:DD_SITE}
+      headers:
+        dd-api-key: ${env:DD_API_KEY}
+        dd-otel-metric-config: '{"resource_attributes_as_tags": true}'
+
+  service:
+    extensions: [health_check]
+    pipelines:
+      # The Helm chart's kubernetesAttributes preset adds the k8sattributes
+      # processor to the rendered metrics pipeline.
+      metrics:
+        receivers: [otlp]
+        exporters: [otlp_http]
+      # The Helm chart's profiling and kubernetesAttributes presets add the
+      # profiling receiver and k8sattributes processor to the rendered profiles
+      # pipeline.
+      profiles:
+        exporters: [otlp_http]

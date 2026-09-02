@@ -70,6 +70,33 @@ export K8S_CLUSTER_NAME
 read -p "Deployment Environment Name like 'production', 'staging'... (default: 'production'): " DEPLOYMENT_ENVIRONMENT_NAME
 export DEPLOYMENT_ENVIRONMENT_NAME=${DEPLOYMENT_ENVIRONMENT_NAME:-production}
 
+# The eBPF host profiler needs Linux nodes with kernel >= 5.10 and runs one
+# collector per node with eBPF capabilities. Off by default: it is a security
+# decision, not a configuration detail.
+read -p "Enable the eBPF host profiler? (requires Linux nodes, kernel >= 5.10) (y/N): " ENABLE_HOST_PROFILER
+export ENABLE_HOST_PROFILER=${ENABLE_HOST_PROFILER:-N}
+
+# MUST be an empty ARRAY, not an empty string: "${ARR[@]}" on a scalar
+# injects one empty argument into the helm command.
+HOST_PROFILER_NETWORK_POLICY_ARGS=()
+if [[ "$ENABLE_HOST_PROFILER" == "y" || "$ENABLE_HOST_PROFILER" == "Y" ]]; then
+    # An egress NetworkPolicy only takes effect on clusters whose CNI enforces
+    # NetworkPolicy resources (Cilium, Calico...) AND that default-deny egress.
+    # Standard: port-based allow-list (any CNI enforcing NetworkPolicy).
+    # Cilium: FQDN-scoped allow-list (Datadog intake only) — Cilium clusters.
+    echo "Egress NetworkPolicy for the host profiler (requires a CNI that enforces NetworkPolicy):"
+    PS3="Select the egress policy (enter a number): "
+    select HOST_PROFILER_NETWORK_POLICY in "None (cluster does not enforce NetworkPolicy)" "Standard (NetworkPolicy, any enforcing CNI)" "Cilium (FQDN-scoped egress)"; do
+        [[ -n "$HOST_PROFILER_NETWORK_POLICY" ]] && break
+        echo "Invalid selection, please try again."
+    done
+    case "$HOST_PROFILER_NETWORK_POLICY" in
+        "Standard (NetworkPolicy, any enforcing CNI)")
+            HOST_PROFILER_NETWORK_POLICY_ARGS=(-f "$SCRIPT_DIR/host-profiler-network-policy.yaml") ;;
+        "Cilium (FQDN-scoped egress)")
+            HOST_PROFILER_NETWORK_POLICY_ARGS=(-f "$SCRIPT_DIR/host-profiler-cilium-network-policy.yaml") ;;
+    esac
+fi
 echo ""
 
 #### BEGINNING OF INSTALLATION SCRIPT
@@ -117,6 +144,21 @@ helm upgrade opentelemetry-kube-stack \
     --set defaultCRConfig.presets.resourceDetection.gcp.enabled=$RESOURCE_DETECTION_GCP_ENABLED \
     --set-string instrumentation.resource.resourceAttributes.deployment\\.environment\\.name="$DEPLOYMENT_ENVIRONMENT_NAME" \
     -f "$SCRIPT_DIR/values.yaml"
+
+if [[ "$ENABLE_HOST_PROFILER" == "y" || "$ENABLE_HOST_PROFILER" == "Y" ]]; then
+    echo "Installing the host profiler as a dedicated opentelemetry-collector release..."
+
+    # Dedicated opentelemetry-collector release: its `profiling` preset
+    # (PRs #2126/#2287) provides the eBPF plumbing that opentelemetry-kube-stack
+    # does not ship yet. See host-profiler-values.yaml.
+    helm upgrade host-profiler \
+        open-telemetry/opentelemetry-collector \
+        --version 0.172.0 \
+        --install \
+        --namespace opentelemetry-operator-system \
+        -f "$SCRIPT_DIR/host-profiler-values.yaml" \
+        "${HOST_PROFILER_NETWORK_POLICY_ARGS[@]}"
+fi
 
 echo "Installing Datadog Agent"
 
