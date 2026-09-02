@@ -101,7 +101,7 @@ config:
               - role: node
                 selectors:
                   - role: node
-                    field: metadata.name=${K8S_NODE_NAME}
+                    field: metadata.name=${env:K8S_NODE_NAME}
             relabel_configs:
               - action: replace
                 replacement: kubelet
