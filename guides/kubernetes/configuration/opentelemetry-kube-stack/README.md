@@ -1,6 +1,6 @@
 # kube-stack values.yaml
 
-Reference `values.yaml` for the [opentelemetry-kube-stack][chart] Helm chart, configured to send Kubernetes telemetry to Datadog. 
+Reference `values.yaml` for the [opentelemetry-kube-stack][chart] Helm chart, configured to send Kubernetes telemetry to Datadog.
 
 ## What this deploys
 
@@ -9,10 +9,13 @@ The `opentelemetry-kube-stack` chart installs the OpenTelemetry Operator and ren
 - **`cluster`** — a single-replica Deployment responsible for cluster-scope telemetry: scraping kube-state-metrics and watching Kubernetes objects.
 - **`daemon`** — a DaemonSet running on every node, responsible for node-scope telemetry (host and kubelet metrics) and for terminating the OTLP endpoint that application workloads send traces, logs, and metrics to.
 
+Optionally, a dedicated [opentelemetry-collector][chart] Helm release installs the **host profiler** — a DaemonSet running the OpenTelemetry eBPF profiler on every node and exporting continuous profiles to Datadog. See [Host profiler (optional)](#host-profiler-optional).
+
 ## Prerequisites
 
 - A Kubernetes secret named `datadog-secret` with keys `api-key` (required) and `dd-site` (optional; defaults to `datadoghq.com`).
 - [cert-manager][cm] installed in the cluster, for the operator's admission webhook.
+- Linux nodes with kernel >= 5.10, only for the optional host profiler.
 
 ## Quickstart
 
@@ -22,13 +25,14 @@ Run the installer from this directory:
 ./install
 ```
 
-The installer prompts for your Datadog API key and site (the site defaults to `datadoghq.com`), Kubernetes platform, and deployment environment. For EKS, GKE, and AKS, it enables the matching resource-detection preset. For other platforms, it prompts for the Kubernetes cluster name.
+The installer prompts for your Datadog API key and site (the site defaults to `datadoghq.com`), Kubernetes platform, deployment environment, and whether to enable the eBPF host profiler. For EKS, GKE, and AKS, it enables the matching resource-detection preset. For other platforms, it prompts for the Kubernetes cluster name.
 
 It then:
 
 - creates the `opentelemetry-operator-system` namespace and the `datadog-secret` secret;
 - installs cert-manager when needed; and
-- installs or upgrades the OpenTelemetry Kube Stack Helm chart.
+- installs or upgrades the OpenTelemetry Kube Stack Helm chart;
+- when the host profiler is enabled, installs or upgrades the `host-profiler` Helm release (see below).
 
 If you choose to save your credentials, the installer writes them to `.env` with permissions restricted to the file owner. Keep this file out of version control.
 
@@ -104,6 +108,31 @@ helm upgrade --install opentelemetry-kube-stack \
   --values ./deployment/values.yaml
 ```
 
+Optionally, install the host profiler release (or answer `y` to the installer's prompt instead):
+
+```sh
+helm upgrade --install host-profiler \
+  open-telemetry/opentelemetry-collector \
+  --version 0.172.0 \
+  --namespace opentelemetry-operator-system \
+  -f ./host-profiler-values.yaml
+```
+
+On clusters enforcing NetworkPolicy, add one of:
+
+```sh
+  -f ./host-profiler-network-policy.yaml          # any enforcing CNI
+  -f ./host-profiler-cilium-network-policy.yaml   # Cilium, FQDN-scoped egress
+```
+
+## Host profiler (optional)
+
+The host profiler runs the [Datadog host profiler][dd-host-profiler] (Datadog's own distribution of the [OpenTelemetry eBPF profiler][ebpf-profiler], to which it actively contributes) as a collector DaemonSet on every node and exports profiles to Datadog's OTLP intake.
+
+Enable it by answering `y` to the installer's prompt, or install manually following the [manual installation steps][dd-host-profiler-install]. Unlike the other collectors, its pods need more privileges, which is why it is opt-in.
+
+It runs as a dedicated `opentelemetry-collector` release for now: `opentelemetry-kube-stack` does not ship the `profiling` preset or the unprivileged security context yet, and the release will be folded into the main kube-stack values once it does.
+
 ## Cluster name detection
 
 For EKS, AKS, and GKE, the installer enables the corresponding resource-detection preset in both collectors. The
@@ -125,6 +154,7 @@ Verified against:
 
 - `opentelemetry-kube-stack` chart `>= 0.20.2`
 - Collector image `otel/opentelemetry-collector-contrib >= 0.154.0` (pinned in values.yaml under `opentelemetry-operator.manager.collectorImage`)
+- `opentelemetry-collector` chart `>= 0.153.0` for the host profiler release (`profiling` preset);
 
 [chart]: https://github.com/open-telemetry/opentelemetry-helm-charts/tree/main/charts/opentelemetry-kube-stack
 [cm]: https://cert-manager.io/docs/installation/
@@ -178,7 +208,10 @@ token, mounted automatically), and `tls_config.insecure_skip_verify: true` since
 self-signed serving certificate isn't in the scraper's trust store.
 
 [controller-runtime]: https://github.com/kubernetes-sigs/controller-runtime
+[ebpf-profiler]: https://github.com/open-telemetry/opentelemetry-ebpf-profiler
+[dd-host-profiler]: https://github.com/DataDog/datadog-agent/tree/main/cmd/host-profiler
+[dd-host-profiler-install]: #install-with-values-files
+
 [kubebuilder-metrics]: https://book.kubebuilder.io/reference/metrics-reference
 [kube-rbac-proxy]: https://github.com/brancz/kube-rbac-proxy
 [kube-rbac-proxy-auth]: https://github.com/brancz/kube-rbac-proxy#authentication--authorization
-

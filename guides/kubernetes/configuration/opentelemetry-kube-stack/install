@@ -78,17 +78,12 @@ export ENABLE_HOST_PROFILER=${ENABLE_HOST_PROFILER:-N}
 
 HOST_PROFILER_NETWORK_POLICY_ARGS=()
 if [[ "$ENABLE_HOST_PROFILER" == "y" || "$ENABLE_HOST_PROFILER" == "Y" ]]; then
-    echo "Egress NetworkPolicy for the host profiler (requires a CNI that enforces NetworkPolicy):"
-    PS3="Select the egress policy (enter a number): "
-    select HOST_PROFILER_NETWORK_POLICY in "None (cluster does not enforce NetworkPolicy)" "Standard (NetworkPolicy, any enforcing CNI)" "Cilium (FQDN-scoped egress)"; do
-        [[ -n "$HOST_PROFILER_NETWORK_POLICY" ]] && break
-        echo "Invalid selection, please try again."
-    done
-    case "$HOST_PROFILER_NETWORK_POLICY" in
-        "Standard (NetworkPolicy, any enforcing CNI)")
-            HOST_PROFILER_NETWORK_POLICY_ARGS=(-f "$SCRIPT_DIR/host-profiler-network-policy.yaml") ;;
-        "Cilium (FQDN-scoped egress)")
-            HOST_PROFILER_NETWORK_POLICY_ARGS=(-f "$SCRIPT_DIR/host-profiler-cilium-network-policy.yaml") ;;
+    # Egress policy for the profiler, only useful on default-deny clusters
+    # whose CNI enforces NetworkPolicy.
+    read -p "Egress NetworkPolicy? (n)one / (s)tandard / (c)ilium (default: none): " HOST_PROFILER_NETWORK_POLICY
+    case "${HOST_PROFILER_NETWORK_POLICY:-n}" in
+        s*) HOST_PROFILER_NETWORK_POLICY_ARGS=(-f "$SCRIPT_DIR/host-profiler-network-policy.yaml") ;;
+        c*) HOST_PROFILER_NETWORK_POLICY_ARGS=(-f "$SCRIPT_DIR/host-profiler-cilium-network-policy.yaml") ;;
     esac
 fi
 echo ""
@@ -142,9 +137,8 @@ helm upgrade opentelemetry-kube-stack \
 if [[ "$ENABLE_HOST_PROFILER" == "y" || "$ENABLE_HOST_PROFILER" == "Y" ]]; then
     echo "Installing the host profiler as a dedicated opentelemetry-collector release..."
 
-    # Dedicated opentelemetry-collector release: its `profiling` preset
-    # (PRs #2126/#2287) provides the eBPF plumbing that opentelemetry-kube-stack
-    # does not ship yet. See host-profiler-values.yaml.
+    # Dedicated opentelemetry-collector release; kube-stack has no profiling
+    # preset yet. See host-profiler-values.yaml.
     helm upgrade host-profiler \
         open-telemetry/opentelemetry-collector \
         --version 0.172.0 \
