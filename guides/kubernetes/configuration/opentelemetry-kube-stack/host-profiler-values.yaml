@@ -1,33 +1,3 @@
-# Values for a dedicated opentelemetry-collector release that runs the Datadog
-# host profiler (ddot-ebpf): continuous eBPF profiling of every process on
-# every node, exported to Datadog.
-#
-# Mirror of the official deployment reference in datadog-agent
-# (cmd/host-profiler/deploy/standalone/helm/, chart >= 0.153.0):
-#   collector-values.yaml        (deployment: image, RBAC, securityContext,
-#                                seccomp installer, volumes, presets, resources)
-#   collector-config-values.yaml (collector configuration)
-# merged into a single values file, with guide-specific adaptations marked
-# GUIDE ADAPTATION inline. The chart's `profiling` preset (PR #2126 + #2287)
-# provides the profiling receiver and profiles pipeline, the tracefs volume
-# and hostPID; the hardened securityContext below replaces the preset's
-# automatic one (setting any securityContext key disables it).
-# opentelemetry-kube-stack does not ship these presets yet; once it does
-# (plus a per-collector defaultCRConfig opt-out), this release can be folded
-# into the main kube-stack values file.
-#
-# Optional egress policy: host-profiler-network-policy.yaml (mirror of the
-# upstream network-policy-values.yaml) for clusters enforcing NetworkPolicy.
-#
-# REFERENCES
-# - Deployment reference (datadog-agent):
-#   cmd/host-profiler/deploy/standalone/helm/ — see
-#   https://github.com/DataDog/datadog-agent/tree/main/
-#   cmd/host-profiler/deploy/standalone/helm
-# - Helm profiling preset:
-#   https://github.com/open-telemetry/opentelemetry-helm-charts/pull/2126
-#   https://github.com/open-telemetry/opentelemetry-helm-charts/pull/2287
-
 # Names used by the OpenTelemetry Collector Helm chart for generated resources.
 nameOverride: host-profiler-collector
 fullnameOverride: host-profiler-collector
