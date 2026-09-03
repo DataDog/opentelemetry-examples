@@ -137,7 +137,7 @@ config:
                 action: drop
               # Ignore the non-container metrics (from the cgroup or sandbox)
               - source_labels: [container]
-                regex: ""
+                regex: ^(POD)?$
                 action: drop
 
   processors:
