@@ -25,6 +25,8 @@ spec:
   env:
     - name: DD_AGENT_HOST
       value: "ddagent-kube-stack-datadog.opentelemetry-operator-system.svc.cluster.local"
+    - name: DD_ENV
+      value: ""
     - name: DD_LOGS_OTEL_ENABLED
       value: "true"
     - name: DD_METRICS_OTEL_ENABLED
