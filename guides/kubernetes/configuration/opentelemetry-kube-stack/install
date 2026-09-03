@@ -142,7 +142,7 @@ helm upgrade opentelemetry-kube-stack \
     --set defaultCRConfig.presets.resourceDetection.eks.enabled=$RESOURCE_DETECTION_EKS_ENABLED \
     --set defaultCRConfig.presets.resourceDetection.gcp.enabled=$RESOURCE_DETECTION_GCP_ENABLED \
     --set-string instrumentation.resource.resourceAttributes.deployment\\.environment="$DEPLOYMENT_ENVIRONMENT_NAME" \
-    --set-string instrumentation.env[3].value="$DEPLOYMENT_ENVIRONMENT_NAME" \
+    --set-string instrumentation.env[0].value="$DEPLOYMENT_ENVIRONMENT_NAME" \
     -f "$SCRIPT_DIR/values.yaml" \
     "${OVERLAY_VALUES_ARGS[@]}"
 
