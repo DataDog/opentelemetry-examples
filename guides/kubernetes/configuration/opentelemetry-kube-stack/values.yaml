@@ -413,7 +413,8 @@ instrumentation:
     endpoint: http://opentelemetry-kube-stack-daemon-collector.opentelemetry-operator-system.svc.cluster.local:4318
   resource:
     resourceAttributes:
-      deployment.environment.name: production # overwrite as needed
+      # FIXME use deployment.environment.name, it's a workaround for https://github.com/DataDog/dd-trace-java/pull/12324
+      deployment.environment: production # overwrite as needed
   sampler:
     type: parentbased_always_on
   # The opentelemetry-kube-stack Helm chart renders language sections even when empty, preventing the
