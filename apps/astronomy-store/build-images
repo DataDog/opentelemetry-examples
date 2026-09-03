@@ -24,10 +24,22 @@ IMAGE_PREFIX="${IMAGE_PREFIX%/}"
 IMAGE_TAG="${IMAGE_TAG:-latest}"
 SERVICES=(ad checkout fraud-detection frontend product-catalog)
 
+# Git metadata baked into each image as build args, then surfaced as OTel vcs.* / Datadog DD_GIT_*
+# env vars inside the Dockerfiles. See the "VCS" ARG/ENV block near the end of each Dockerfile.
+VCS_REPOSITORY_URL_FULL="$(git -C "${SCRIPT_DIR}" config --get remote.origin.url)"
+VCS_REF_HEAD_NAME="$(git -C "${SCRIPT_DIR}" rev-parse --abbrev-ref HEAD)"
+VCS_REF_TYPE="branch"
+VCS_REF_HEAD_REVISION="$(git -C "${SCRIPT_DIR}" rev-parse HEAD)"
+
 for service in "${SERVICES[@]}"; do
     image="${IMAGE_PREFIX}/${service}:${IMAGE_TAG}"
     echo "Building ${image}..."
-    docker build --tag "${image}" "${SCRIPT_DIR}/${service}"
+    docker build \
+        --build-arg VCS_REPOSITORY_URL_FULL="${VCS_REPOSITORY_URL_FULL}" \
+        --build-arg VCS_REF_HEAD_NAME="${VCS_REF_HEAD_NAME}" \
+        --build-arg VCS_REF_TYPE="${VCS_REF_TYPE}" \
+        --build-arg VCS_REF_HEAD_REVISION="${VCS_REF_HEAD_REVISION}" \
+        --tag "${image}" "${SCRIPT_DIR}/${service}"
 done
 
 echo "Built ${#SERVICES[@]} images with tag ${IMAGE_TAG}."
