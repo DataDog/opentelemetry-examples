@@ -42,7 +42,7 @@ spec:
             - --enable-leader-election
             - --health-probe-addr=:8081
             - --webhook-port=9443
-            - --collector-image=datadog/ddot-collector:7.82.3
+            - --collector-image=otel/opentelemetry-collector-contrib:0.154.0
           command:
             - /manager
           env:

@@ -131,12 +131,7 @@ spec:
           - from: resource_attribute
             name: k8s.pod.uid
       resource_detection/env:
-        aks:
-          resource_attributes:
-            k8s.cluster.name:
-              enabled: true
         detectors:
-        - aks
         - k8s_api
         override: false
       transform/insert_k8s_cluster_name:
@@ -507,6 +502,10 @@ spec:
           key: ${env:DD_API_KEY}
           site: ${env:DD_SITE:-datadoghq.com}
       debug: {}
+      otlp/jaeger:
+        endpoint: jaeger.jaeger.svc.cluster.local:4317
+        tls:
+          insecure: true
     extensions:
       datadog:
         api:
@@ -589,12 +588,7 @@ spec:
           from_attribute: k8s.node.name
           key: host.name
       resource_detection/env:
-        aks:
-          resource_attributes:
-            k8s.cluster.name:
-              enabled: true
         detectors:
-        - aks
         - k8s_api
         override: false
       transform/insert_k8s_cluster_name:
@@ -755,6 +749,7 @@ spec:
         traces:
           exporters:
           - datadog/connector
+          - otlp/jaeger
           processors:
           - k8s_attributes
           - resource_detection/env
