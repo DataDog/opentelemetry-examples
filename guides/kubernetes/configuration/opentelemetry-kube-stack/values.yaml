@@ -407,6 +407,12 @@ instrumentation:
     ## DDOT CONFIGURATION
     - name: "DD_AGENT_HOST"
       value: "ddagent-kube-stack-datadog.opentelemetry-operator-system.svc.cluster.local"
+    # TEMPORARY, remove when the host profiler image embeds process context
+    # propagation. Until then: the eBPF host profiler
+    # extracts DD_ENV from each instrumented process (receiver default) and
+    # Datadog maps it to the env tag, keeping the APM -> Profiler navigation working.
+    - name: DD_ENV
+      value: ""
   exporter:
     # Daemon collector Service DNS. Update the collector name and namespace
     # to match your install: http://<helm-release-name>-daemon-collector.<namespace>.svc.cluster.local:4318
