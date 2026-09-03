@@ -22,8 +22,8 @@ data:
         astronomy_store: {
           executor: "constant-vus",
           vus: 5,
-          duration: "10m",
-          gracefulStop: "30s",
+          duration: "24h",
+          gracefulStop: "1m",
         },
       },
       thresholds: {
