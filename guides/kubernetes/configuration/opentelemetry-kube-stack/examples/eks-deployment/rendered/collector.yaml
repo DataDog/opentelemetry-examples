@@ -424,7 +424,6 @@ spec:
                   endpoint: http://localhost:4318
                   protocol: http/protobuf
   replicas: 1
-  image: "otel/opentelemetry-collector-contrib:0.154.0"
   imagePullPolicy: IfNotPresent
   upgradeStrategy: automatic
   terminationGracePeriodSeconds: 30

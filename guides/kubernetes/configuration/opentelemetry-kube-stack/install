@@ -3,6 +3,15 @@ set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
+# Optional extra/overlay values.yaml (e.g. examples/export-to-datadog-and-jaeger/values.yaml)
+# merged on top of the base values.yaml.
+OVERLAY_VALUES_FILE="${1:-}"
+OVERLAY_VALUES_ARGS=()
+if [[ -n "$OVERLAY_VALUES_FILE" ]]; then
+    [[ -f "$OVERLAY_VALUES_FILE" ]] || { echo "Overlay values file not found: $OVERLAY_VALUES_FILE" >&2; exit 1; }
+    OVERLAY_VALUES_ARGS=(-f "$OVERLAY_VALUES_FILE")
+fi
+
 # Load environment variables from .env file if it exists
 [[ -f "$SCRIPT_DIR/.env" ]] && source "$SCRIPT_DIR/.env"
 
@@ -133,6 +142,7 @@ helm upgrade opentelemetry-kube-stack \
     --set defaultCRConfig.presets.resourceDetection.eks.enabled=$RESOURCE_DETECTION_EKS_ENABLED \
     --set defaultCRConfig.presets.resourceDetection.gcp.enabled=$RESOURCE_DETECTION_GCP_ENABLED \
     --set-string instrumentation.resource.resourceAttributes.deployment\\.environment="$DEPLOYMENT_ENVIRONMENT_NAME" \
+    --set-string instrumentation.env[3].value="$DEPLOYMENT_ENVIRONMENT_NAME" \
     -f "$SCRIPT_DIR/values.yaml"
 
 if [[ "$ENABLE_HOST_PROFILER" == "y" || "$ENABLE_HOST_PROFILER" == "Y" ]]; then
