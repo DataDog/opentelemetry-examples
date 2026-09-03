@@ -8,7 +8,7 @@ WORKDIR /game_controller
 COPY . ./game_controller
 COPY package*.json ./game_controller/
 
-WORKDIR /game_controller
+WORKDIR /game_controller/game_controller
 
 # Install the project dependencies
 RUN npm install
@@ -20,4 +20,4 @@ ENV logs_exporter=otlp
 EXPOSE 5002
 
 # Define the command to run the app
-CMD [ "node", "game_controller/controller.js" ]
+CMD [ "node", "controller.js" ]
