@@ -23,11 +23,19 @@ spec:
   sampler:
     type: parentbased_always_on
   env:
+    - name: DD_AGENT_HOST
+      value: "ddagent-kube-stack-datadog.opentelemetry-operator-system.svc.cluster.local"
+    - name: DD_DBM_PROPAGATION_MODE
+      value: "full"
+    - name: DD_DBM_TRACE_PREPARED_STATEMENTS
+      value: "true"
     - name: DD_LOGS_OTEL_ENABLED
       value: "true"
     - name: DD_METRICS_OTEL_ENABLED
       value: "true"
     - name: DD_TRACE_OTEL_ENABLED
+      value: "true"
+    - name: DD_TRACE_OTEL_SEMANTICS_ENABLED
       value: "true"
     - name: OTEL_EXPORTER_OTLP_METRICS_TEMPORALITY_PREFERENCE
       value: "delta"
@@ -40,9 +48,10 @@ spec:
   resource:
     addK8sUIDAttributes: true
     resourceAttributes:
+      deployment.environment: production
       deployment.environment.name: production
   java:
-    image: ghcr.io/cyrille-leclerc/dd-autoinstrumentation-java:1.64.2
+    image: registry.ddbuild.io/ssi/dd-otel-autoinstrumentation-java:glci133182091
   nodejs:
     image: ghcr.io/cyrille-leclerc/dd-autoinstrumentation-nodejs:6.6.0
   python:
