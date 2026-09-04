@@ -427,7 +427,20 @@ instrumentation:
   # Operator from falling back to its default agent image and yielding invalid init containers.
   # TODO: File an issue against the opentelemetry-kube-stack Helm chart for this behavior.
   dotnet:
-    image: ghcr.io/open-telemetry/opentelemetry-operator/autoinstrumentation-dotnet:1.15.0
+    image: ghcr.io/zacharycmontoya/dd-autoinstrumentation-dotnet:3.52.0
+    # Unlike the other languages, .NET needs more setup to instrument an application:
+    # - The CORECLR_PROFILER_PATH env variable must be set (matching other languages)
+    # - The .NET Tracer's DD_DOTNET_TRACER_HOME env variable must be set
+    # - The CORECLR_PROFILER env variable must the CLSID of the CLR profiler that is initialized,
+    # and currently the opentelemetry-operator sets it to OpenTelemetry's CLSID {918728DD-259F-4A6A-AC2B-B85E1B658318},
+    # whereas the Datadog's CLSID is {846F5F1C-F9AE-4B07-969E-05C26BC060D8}
+    env:
+      - name: CORECLR_PROFILER
+        value: "{846F5F1C-F9AE-4B07-969E-05C26BC060D8}"
+      - name: CORECLR_PROFILER_PATH
+        value: /otel-auto-instrumentation-dotnet/linux/Datadog.Tracer.Native.so
+      - name: DD_DOTNET_TRACER_HOME
+        value: /otel-auto-instrumentation-dotnet
   java:
     # image: ghcr.io/open-telemetry/opentelemetry-operator/autoinstrumentation-java:2.28.1
     image: registry.ddbuild.io/ssi/dd-otel-autoinstrumentation-java:glci133182091 # 1.66.0-SNAPSHOT~3ee7b79b7a
