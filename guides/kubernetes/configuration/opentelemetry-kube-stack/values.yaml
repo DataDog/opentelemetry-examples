@@ -31,7 +31,7 @@ defaultCRConfig:
           optional: true
     - name: OTEL_K8S_CLUSTER_NAME
       value: ""
-    - name: DD_HOSTNAME # required on K3S with datadog/ddot-collector:7.82.3 to prevent "Error: unable to reliably determine the host name."
+    - name: DD_HOSTNAME # FIXME required on K3S with datadog/ddot-collector:7.82.3 to prevent "Error: unable to reliably determine the host name."
       valueFrom:
         fieldRef:
           fieldPath: spec.nodeName
