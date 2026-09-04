@@ -413,6 +413,11 @@ instrumentation:
     ## DDOT CONFIGURATION
     - name: "DD_AGENT_HOST"
       value: "ddagent-kube-stack-datadog.opentelemetry-operator-system.svc.cluster.local"
+    # DBM SUPPORT
+    - name: "DD_DBM_PROPAGATION_MODE"
+      value: "full"
+    - name: "DD_DBM_TRACE_PREPARED_STATEMENTS"
+      value: "true"
   exporter:
     # Daemon collector Service DNS. Update the collector name and namespace
     # to match your install: http://<helm-release-name>-daemon-collector.<namespace>.svc.cluster.local:4318
