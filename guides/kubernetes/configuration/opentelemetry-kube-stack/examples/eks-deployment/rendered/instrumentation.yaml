@@ -25,6 +25,10 @@ spec:
   env:
     - name: DD_AGENT_HOST
       value: "ddagent-kube-stack-datadog.opentelemetry-operator-system.svc.cluster.local"
+    - name: DD_DBM_PROPAGATION_MODE
+      value: "full"
+    - name: DD_DBM_TRACE_PREPARED_STATEMENTS
+      value: "true"
     - name: DD_ENV
       value: ""
     - name: DD_LOGS_OTEL_ENABLED
@@ -56,5 +60,12 @@ spec:
     image: ghcr.io/cyrille-leclerc/dd-autoinstrumentation-python:4.11.1
     volumeLimitSize: 500Mi
   dotnet:
-    image: ghcr.io/open-telemetry/opentelemetry-operator/autoinstrumentation-dotnet:1.15.0
+    env:
+    - name: CORECLR_PROFILER
+      value: '{846F5F1C-F9AE-4B07-969E-05C26BC060D8}'
+    - name: CORECLR_PROFILER_PATH
+      value: /otel-auto-instrumentation-dotnet/linux/Datadog.Tracer.Native.so
+    - name: DD_DOTNET_TRACER_HOME
+      value: /otel-auto-instrumentation-dotnet
+    image: ghcr.io/zacharycmontoya/dd-autoinstrumentation-dotnet:3.52.0
 
