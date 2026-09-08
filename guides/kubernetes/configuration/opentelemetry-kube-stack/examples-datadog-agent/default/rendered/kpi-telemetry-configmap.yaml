@@ -1,0 +1,18 @@
+---
+# Source: datadog/templates/kpi-telemetry-configmap.yaml
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: ddagent-kube-stack-datadog-kpi-telemetry-configmap
+  namespace: opentelemetry-operator-system
+  labels:
+    helm.sh/chart: 'datadog-3.240.0'
+    app.kubernetes.io/name: "ddagent-kube-stack-datadog"
+    app.kubernetes.io/instance: "ddagent-kube-stack"
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/version: "7"
+data:
+  install_type: k8s_manual
+  install_id: "7b557032-f3ac-4c08-8b42-a78d367a29c5"
+  install_time: "1788888984"
+

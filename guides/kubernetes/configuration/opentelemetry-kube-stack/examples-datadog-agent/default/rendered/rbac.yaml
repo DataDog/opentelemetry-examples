@@ -1,0 +1,156 @@
+---
+# Source: datadog/templates/rbac.yaml
+apiVersion: v1
+kind: ServiceAccount
+automountServiceAccountToken: true
+metadata:
+  name: ddagent-kube-stack-datadog
+  namespace: opentelemetry-operator-system
+  labels:
+    helm.sh/chart: 'datadog-3.240.0'
+    app.kubernetes.io/name: "ddagent-kube-stack-datadog"
+    app.kubernetes.io/instance: "ddagent-kube-stack"
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/version: "7" # end range $role := .Values.datadog.secretBackend.roles
+---
+# Source: datadog/templates/rbac.yaml
+apiVersion: "rbac.authorization.k8s.io/v1"
+kind: ClusterRole
+metadata:
+  name: ddagent-kube-stack-datadog
+  labels:
+    helm.sh/chart: 'datadog-3.240.0'
+    app.kubernetes.io/name: "ddagent-kube-stack-datadog"
+    app.kubernetes.io/instance: "ddagent-kube-stack"
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/version: "7"
+rules:
+- apiGroups:
+  - ""
+  resources:
+  - services
+  - events
+  - endpoints
+  - pods
+  - nodes
+  - namespaces
+  - componentstatuses
+  verbs:
+  - get
+  - list
+  - watch
+- apiGroups:
+  - "discovery.k8s.io"
+  resources:
+    - endpointslices
+  verbs:
+    - get
+    - list
+    - watch
+- apiGroups: ["quota.openshift.io"]
+  resources:
+  - clusterresourcequotas
+  verbs:
+  - get
+  - list
+- apiGroups:
+  - ""
+  resources:
+  - configmaps
+  resourceNames:
+  - ddagent-kube-stack-datadog-leader-election  # Leader election token
+  - datadog-leader-election  # Kept for backward compatibility with agent <7.37.0
+  verbs:
+  - get
+  - update
+- apiGroups:  # To create the leader election token
+  - ""
+  resources:
+  - configmaps
+  verbs:
+  - create
+- apiGroups:
+  - "coordination.k8s.io"
+  resources:
+  - leases
+  resourceNames:
+  - ddagent-kube-stack-datadog-leader-election  # Leader election token
+  verbs:
+  - get
+  - update
+- apiGroups:  # To create the leader election token
+  - "coordination.k8s.io"
+  resources:
+  - leases
+  verbs:
+  - create
+- nonResourceURLs:
+  - "/version"
+  - "/healthz"
+  verbs:
+  - get
+- nonResourceURLs:
+  - "/metrics"
+  - "/metrics/slis"
+  verbs:
+  - get
+- apiGroups:  # Kubelet connectivity
+  - ""
+  resources:
+  - nodes/metrics
+  - nodes/spec
+  
+  - nodes/proxy
+  
+  - nodes/stats
+  verbs:
+  - get
+- apiGroups:  # leader election check
+  - ""
+  resources:
+  - endpoints
+  verbs:
+  - get
+- apiGroups:
+  - "security.openshift.io"
+  resources:
+  - securitycontextconstraints
+  verbs:
+  - use
+  resourceNames:
+  - ddagent-kube-stack-datadog
+  - hostaccess
+  - privileged
+- apiGroups:  # leader election check
+  - "coordination.k8s.io"
+  resources:
+  - leases
+  verbs:
+  - get
+- apiGroups:  # EKS kube_scheduler and kube_controller_manager control plane metrics
+  - "metrics.eks.amazonaws.com"
+  resources:
+  - kcm/metrics
+  - ksh/metrics
+  verbs:
+  - get
+---
+# Source: datadog/templates/rbac.yaml
+apiVersion: "rbac.authorization.k8s.io/v1"
+kind: ClusterRoleBinding
+metadata:
+  name: ddagent-kube-stack-datadog
+  labels:
+    helm.sh/chart: 'datadog-3.240.0'
+    app.kubernetes.io/name: "ddagent-kube-stack-datadog"
+    app.kubernetes.io/instance: "ddagent-kube-stack"
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/version: "7"
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: ddagent-kube-stack-datadog
+subjects:
+  - kind: ServiceAccount
+    name: ddagent-kube-stack-datadog
+    namespace: opentelemetry-operator-system

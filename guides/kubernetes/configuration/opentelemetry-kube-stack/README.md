@@ -142,7 +142,11 @@ For other Kubernetes platforms, the installer passes the supplied cluster name t
 `defaultCRConfig.env[2].value`. The `transform/insert_k8s_cluster_name` processor adds it only when the resource does
 not already have a `k8s.cluster.name` attribute.
 
-See `examples/` for rendered values and manifests for each deployment type.
+See `examples/` for rendered values and manifests for each deployment type. Regenerate them with `make generate-otel-kube-stack-examples`.
+
+The Datadog Agent installed in step 3 (`ddagent-kube-stack`, `datadog/datadog` chart) has its own base values file, `dd-agent-values.yaml`, and its own examples directory, `examples-datadog-agent/`, following the same pattern — `examples-datadog-agent/default/` mimics the `--set-string` overrides the installer applies on top of `dd-agent-values.yaml`. Regenerate its rendered manifests with `make generate-datadog-agent-examples`.
+
+Run `make generate-examples` to regenerate both at once.
 
 ## Resource allocation
 
