@@ -78,14 +78,12 @@ generate-datadog-agent-examples:
 			rm -rf $${EXAMPLES_DIR}/$${example}/rendered/datadog; \
 		done; \
 	done; \
-	echo "Normalizing auto-generated certificate values"; \
+	echo "Normalizing auto-generated values"; \
 	if [ "$$(uname)" = "Darwin" ]; then \
-		find $${EXAMPLES_DIR} -name '*.yaml' -print0 | xargs -0 sed -i '' -e 's/\(caBundle:\) [A-Za-z0-9+/=]\{44,\}/\1 AUTO_GENERATED/' -e 's/\(tls\.crt:\) [A-Za-z0-9+/=]\{44,\}/\1 AUTO_GENERATED/' -e 's/\(tls\.key:\) [A-Za-z0-9+/=]\{44,\}/\1 AUTO_GENERATED/' -e 's/\(ca\.crt:\) [A-Za-z0-9+/=]\{44,\}/\1 AUTO_GENERATED/'; \
+		find $${EXAMPLES_DIR} -name '*.yaml' -print0 | xargs -0 sed -i '' -e 's/\(install_id:\) .*/\1 "AUTO_GENERATED"/' -e 's/\(install_time:\) .*/\1 "AUTO_GENERATED"/'; \
 	else \
 		find $${EXAMPLES_DIR} -name '*.yaml' -exec sed -i'' \
-			-e 's/\(caBundle:\) [A-Za-z0-9+/=]\{44,\}/\1 AUTO_GENERATED/' \
-			-e 's/\(tls\.crt:\) [A-Za-z0-9+/=]\{44,\}/\1 AUTO_GENERATED/' \
-			-e 's/\(tls\.key:\) [A-Za-z0-9+/=]\{44,\}/\1 AUTO_GENERATED/' \
-			-e 's/\(ca\.crt:\) [A-Za-z0-9+/=]\{44,\}/\1 AUTO_GENERATED/' \
+			-e 's/\(install_id:\) .*/\1 "AUTO_GENERATED"/' \
+			-e 's/\(install_time:\) .*/\1 "AUTO_GENERATED"/' \
 			\{\} + ; \
 	fi

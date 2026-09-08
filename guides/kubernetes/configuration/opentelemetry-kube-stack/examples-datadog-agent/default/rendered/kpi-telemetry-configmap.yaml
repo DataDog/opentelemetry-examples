@@ -13,6 +13,6 @@ metadata:
     app.kubernetes.io/version: "7"
 data:
   install_type: k8s_manual
-  install_id: "7b557032-f3ac-4c08-8b42-a78d367a29c5"
-  install_time: "1788888984"
+  install_id: "AUTO_GENERATED"
+  install_time: "AUTO_GENERATED"
 
