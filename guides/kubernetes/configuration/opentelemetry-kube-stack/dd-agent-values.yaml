@@ -30,6 +30,8 @@ datadog:
       value: 'false'
     - name: DD_DISCOVERY_ENABLED
       value: 'false'
+    - name: DD_APM_DEBUGGER_LOGS_ENABLED_OVERRIDE
+      value: 'true'
 # Could be enabled to get the admission controller.
 # else DD_AGENT_HOST or unix socket mount must be configured on app pods manually
 clusterAgent:

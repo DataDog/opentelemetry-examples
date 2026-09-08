@@ -92,6 +92,8 @@ spec:
             value: "false"
           - name: DD_DISCOVERY_ENABLED
             value: "false"
+          - name: DD_APM_DEBUGGER_LOGS_ENABLED_OVERRIDE
+            value: "true"
           - name: DD_OTLP_CONFIG_LOGS_ENABLED
             value: "false"
           
@@ -291,6 +293,8 @@ spec:
             value: "false"
           - name: DD_DISCOVERY_ENABLED
             value: "false"
+          - name: DD_APM_DEBUGGER_LOGS_ENABLED_OVERRIDE
+            value: "true"
           - name: DD_OTLP_CONFIG_LOGS_ENABLED
             value: "false"
           
@@ -436,6 +440,8 @@ spec:
             value: "false"
           - name: DD_DISCOVERY_ENABLED
             value: "false"
+          - name: DD_APM_DEBUGGER_LOGS_ENABLED_OVERRIDE
+            value: "true"
           - name: DD_OTLP_CONFIG_LOGS_ENABLED
             value: "false"
           
