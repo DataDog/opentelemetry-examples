@@ -629,6 +629,10 @@ spec:
           - delete_key(attributes, "name")
           - delete_key(attributes, "image")
           - delete_key(attributes, "id")
+        - context: resource
+          statements:
+          - delete_key(attributes, "service.name")
+          - delete_key(attributes, "service.instance.id")
       transform/insert_k8s_cluster_name:
         log_statements:
         - set(resource.attributes["k8s.cluster.name"], "${env:OTEL_K8S_CLUSTER_NAME}")

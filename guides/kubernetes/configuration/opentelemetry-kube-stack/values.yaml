@@ -425,6 +425,13 @@ collectors:
                 - delete_key(attributes, "name")
                 - delete_key(attributes, "image")
                 - delete_key(attributes, "id")
+            # Prometheus receiver sets these on the resource from the scrape job/instance;
+            # k8s_attributes cannot overwrite them, so drop them to let the workload's
+            # resource.opentelemetry.io/service.* annotations win.
+            - context: resource
+              statements:
+                - delete_key(attributes, "service.name")
+                - delete_key(attributes, "service.instance.id")
 
         # Ref: https://github.com/open-telemetry/opentelemetry-collector-contrib/tree/821a9d9c2c1623c4a0ceba5d47b57c48879c3f84/processor/groupbyattrsprocessor
         # Prometheus metrics are flat, so we need to extract the resource from the datapoint labels
