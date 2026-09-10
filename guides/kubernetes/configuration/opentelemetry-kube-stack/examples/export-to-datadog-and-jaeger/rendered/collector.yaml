@@ -524,6 +524,22 @@ spec:
         metrics:
         - k8s.pod.network.io
         - k8s.pod.network.errors
+      deltatorate/cadvisor:
+        metrics:
+        - container_cpu_usage_seconds_total
+        - container_cpu_cfs_periods_total
+        - container_cpu_cfs_throttled_periods_total
+        - container_cpu_cfs_throttled_seconds_total
+        - container_cpu_system_seconds_total
+        - container_cpu_user_seconds_total
+        - container_fs_reads_bytes_total
+        - container_fs_writes_bytes_total
+      groupbyattrs:
+        keys:
+        - k8s.pod.name
+        - k8s.namespace.name
+        - k8s.container.name
+        - container.id
       k8s_attributes:
         extract:
           labels:
@@ -591,6 +607,30 @@ spec:
         detectors:
         - k8s_api
         override: false
+      transform/cadvisor_labels:
+        metric_statements:
+        - context: datapoint
+          statements:
+          - set(attributes["k8s.pod.name"], attributes["pod"]) where attributes["pod"]
+            != nil
+          - set(attributes["k8s.namespace.name"], attributes["namespace"]) where attributes["namespace"]
+            != nil
+          - set(attributes["k8s.container.name"], attributes["container"]) where attributes["container"]
+            != nil
+          - set(attributes["container.id"], attributes["name"]) where attributes["container"]
+            != nil
+          - set(attributes["container.image.name"], attributes["image"]) where attributes["container"]
+            != nil
+          - delete_key(attributes, "pod")
+          - delete_key(attributes, "namespace")
+          - delete_key(attributes, "container")
+          - delete_key(attributes, "name")
+          - delete_key(attributes, "image")
+          - delete_key(attributes, "id")
+        - context: resource
+          statements:
+          - delete_key(attributes, "service.name")
+          - delete_key(attributes, "service.instance.id")
       transform/insert_k8s_cluster_name:
         log_statements:
         - set(resource.attributes["k8s.cluster.name"], "${env:OTEL_K8S_CLUSTER_NAME}")
@@ -717,6 +757,68 @@ spec:
             endpoint: 0.0.0.0:4317
           http:
             endpoint: 0.0.0.0:4318
+      prometheus/cadvisor:
+        config:
+          scrape_configs:
+          - authorization:
+              credentials_file: /var/run/secrets/kubernetes.io/serviceaccount/token
+              type: Bearer
+            honor_labels: true
+            honor_timestamps: true
+            job_name: kubelet-cadvisor
+            kubernetes_sd_configs:
+            - role: node
+              selectors:
+              - field: metadata.name=${env:K8S_NODE_NAME}
+                role: node
+            metric_relabel_configs:
+            - action: drop
+              regex: container_cpu_(load_average_10s)
+              source_labels:
+              - __name__
+            - action: drop
+              regex: container_fs_(io_current|reads_merged_total|sector_reads_total|sector_writes_total|writes_merged_total)
+              source_labels:
+              - __name__
+            - action: drop
+              regex: container_memory_(mapped_file|swap)
+              source_labels:
+              - __name__
+            - action: drop
+              regex: container_(file_descriptors|tasks_state|threads_max)
+              source_labels:
+              - __name__
+            - action: drop
+              regex: container_spec_(cpu_period|cpu_quota|cpu_shares|memory_reservation_limit_bytes|memory_swap_limit_bytes)
+              source_labels:
+              - __name__
+            - action: drop
+              regex: container_network_.*
+              source_labels:
+              - __name__
+            - action: drop
+              regex: .+;
+              source_labels:
+              - id
+              - pod
+            - action: drop
+              regex: ^(POD)?$
+              source_labels:
+              - container
+            metrics_path: /metrics/cadvisor
+            relabel_configs:
+            - action: replace
+              replacement: kubelet
+              target_label: job
+            - action: replace
+              source_labels:
+              - __meta_kubernetes_node_name
+              target_label: node
+            scheme: https
+            scrape_interval: 15s
+            scrape_timeout: 10s
+            tls_config:
+              insecure_skip_verify: true
     service:
       extensions:
       - health_check
@@ -746,6 +848,19 @@ spec:
           - otlp
           - host_metrics
           - kubelet_stats
+        metrics/cadvisor:
+          exporters:
+          - datadog/exporter
+          processors:
+          - resource_detection/env
+          - transform/insert_k8s_cluster_name
+          - transform/cadvisor_labels
+          - groupbyattrs
+          - k8s_attributes
+          - cumulativetodelta
+          - deltatorate/cadvisor
+          receivers:
+          - prometheus/cadvisor
         traces:
           exporters:
           - datadog/connector

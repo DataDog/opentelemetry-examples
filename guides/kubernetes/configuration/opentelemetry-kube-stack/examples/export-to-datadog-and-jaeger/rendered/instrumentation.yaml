@@ -52,7 +52,7 @@ spec:
     resourceAttributes:
       deployment.environment: production
   java:
-    image: registry.ddbuild.io/ssi/dd-otel-autoinstrumentation-java:glci133182091
+    image: registry.ddbuild.io/ssi/dd-otel-autoinstrumentation-java:glci135938671
   nodejs:
     image: ghcr.io/cyrille-leclerc/dd-autoinstrumentation-nodejs:6.6.0
   python:
