@@ -88,15 +88,10 @@ kubectl create secret generic datadog-secret \
   --from-literal="dd-site=${DD_SITE:-datadoghq.com}" \
   --dry-run=client -o yaml | kubectl apply -f -
 
-echo "Configuring and updating Helm"
-
-helm repo add open-telemetry https://open-telemetry.github.io/opentelemetry-helm-charts
-helm repo add jetstack       https://charts.jetstack.io
-helm repo add datadog        https://helm.datadoghq.com
-helm repo update
-
 echo "Installing cert-manager (if not already installed)..."
 
+helm repo add jetstack https://charts.jetstack.io
+helm repo update
 helm install cert-manager jetstack/cert-manager \
   --namespace cert-manager --create-namespace \
   --set crds.enabled=true  \
@@ -104,6 +99,9 @@ helm install cert-manager jetstack/cert-manager \
   || echo "WARNING: Could not install cert-manager (may already exist or insufficient permissions). Continuing..."
 
 echo "Installing OpenTelemetry Kube Stack Helm Chart..."
+
+helm repo add open-telemetry https://open-telemetry.github.io/opentelemetry-helm-charts
+helm repo update
 
 helm upgrade opentelemetry-kube-stack \
     open-telemetry/opentelemetry-kube-stack \
@@ -117,15 +115,3 @@ helm upgrade opentelemetry-kube-stack \
     --set defaultCRConfig.presets.resourceDetection.gcp.enabled=$RESOURCE_DETECTION_GCP_ENABLED \
     --set-string instrumentation.resource.resourceAttributes.deployment\\.environment\\.name="$DEPLOYMENT_ENVIRONMENT_NAME" \
     -f "$SCRIPT_DIR/values.yaml"
-
-echo "Installing Datadog Agent"
-
-helm upgrade ddagent-kube-stack \
-    datadog/datadog \
-    --version 3.240.0 \
-    --install \
-    --namespace opentelemetry-operator-system \
-    --set-string datadog.clusterName=$K8S_CLUSTER_NAME \
-	--set-string datadog.apiKeyExistingSecret='datadog-secret' \
-	--set-string datadog.site=${DD_SITE:-datadoghq.com} \
-    -f "$SCRIPT_DIR/dd-agent-values.yaml"
