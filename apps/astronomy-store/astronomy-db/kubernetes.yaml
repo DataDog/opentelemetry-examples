@@ -199,7 +199,18 @@ spec:
                   "host": "%%host%%",
                   "port": 5432,
                   "username": "monitoring_user",
-                  "password": "monitoring_password"
+                  "password": "monitoring_password",
+                  "database_autodiscovery": {
+                    "enabled": true,
+                    "include": [
+                      "astronomy_db"
+                    ]
+                  },
+                  "reported_hostname": "astronomy-db",
+                  "tags": [
+                    "service:astronomy-db",
+                    "env:production"
+                  ]
                 }
               ]
             }
