@@ -2,6 +2,7 @@ clusterName: ""
 
 resourceAttributes:
   deployment.environment.name: production # overwrite as needed
+  deployment.environment: production # FIXME only use deployment.environment.name, it's a workaround for https://github.com/DataDog/dd-trace-java/pull/12324
 
 opentelemetry-operator:
   manager:
@@ -515,10 +516,6 @@ instrumentation:
     # Daemon collector Service DNS. Update the collector name and namespace
     # to match your install: http://<helm-release-name>-daemon-collector.<namespace>.svc.cluster.local:4318
     endpoint: http://opentelemetry-kube-stack-daemon-collector.opentelemetry-operator-system.svc.cluster.local:4318
-  resource:
-    resourceAttributes:
-      # FIXME use deployment.environment.name, it's a workaround for https://github.com/DataDog/dd-trace-java/pull/12324
-      deployment.environment: production # overwrite as needed
   sampler:
     type: parentbased_always_on
   # The opentelemetry-kube-stack Helm chart renders language sections even when empty, preventing the
