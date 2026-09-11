@@ -133,6 +133,9 @@ spec:
       resource/global:
         attributes:
         - action: upsert
+          key: deployment.environment
+          value: production
+        - action: upsert
           key: deployment.environment.name
           value: production
       resource_detection/env:
@@ -588,6 +591,9 @@ spec:
           - from: connection
       resource/global:
         attributes:
+        - action: upsert
+          key: deployment.environment
+          value: production
         - action: upsert
           key: deployment.environment.name
           value: production
