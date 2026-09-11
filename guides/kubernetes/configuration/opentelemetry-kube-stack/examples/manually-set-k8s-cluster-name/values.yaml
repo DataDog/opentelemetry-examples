@@ -1,20 +1,3 @@
-clusterName: "my_k8s_cluster"
-defaultCRConfig:
-  env:
-    - name: DD_API_KEY
-      valueFrom:
-        secretKeyRef:
-          name: datadog-secret
-          key: api-key
-    - name: DD_SITE
-      valueFrom:
-        secretKeyRef:
-          name: datadog-secret
-          key: dd-site
-          optional: true
-    - name: OTEL_K8S_CLUSTER_NAME
-      value: "my_k8s_cluster"
-instrumentation:
-  resource:
-    resourceAttributes:
-      deployment.environment.name: "production"
+resourceAttributes:
+  k8s.cluster.name: "my_k8s_cluster"
+  deployment.environment.name: "production"

@@ -98,7 +98,7 @@ helm repo add open-telemetry https://open-telemetry.github.io/opentelemetry-helm
 helm repo update
 helm upgrade --install opentelemetry-kube-stack \
   open-telemetry/opentelemetry-kube-stack \
-  --version 0.20.2 \
+  --version 0.20.8 \
   --namespace opentelemetry-operator-system \
   --values ./values.yaml \
   --values ./deployment/values.yaml
@@ -109,9 +109,8 @@ helm upgrade --install opentelemetry-kube-stack \
 For EKS, AKS, and GKE, the installer enables the corresponding resource-detection preset in both collectors. The
 OpenTelemetry Collector then automatically populates `k8s.cluster.name`.
 
-For other Kubernetes platforms, the installer passes the supplied cluster name through `clusterName` and
-`defaultCRConfig.env[2].value`. The `transform/insert_k8s_cluster_name` processor adds it only when the resource does
-not already have a `k8s.cluster.name` attribute.
+ For other Kubernetes platforms, the
+installer sets `resourceAttributes.k8s.cluster.name` to the supplied cluster name.
 
 See `examples/` for rendered values and manifests for each deployment type.
 
@@ -123,7 +122,7 @@ Both collectors default to `500m` CPU / `1Gi` memory limits and `200m` CPU / `50
 
 Verified against:
 
-- `opentelemetry-kube-stack` chart `>= 0.20.2`
+- `opentelemetry-kube-stack` chart `>= 0.20.8`
 - Collector image `otel/opentelemetry-collector-contrib >= 0.154.0` (pinned in values.yaml under `opentelemetry-operator.manager.collectorImage`)
 
 [chart]: https://github.com/open-telemetry/opentelemetry-helm-charts/tree/main/charts/opentelemetry-kube-stack

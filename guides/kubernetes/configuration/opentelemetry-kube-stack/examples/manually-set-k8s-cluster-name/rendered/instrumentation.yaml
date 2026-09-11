@@ -5,7 +5,7 @@ kind: Instrumentation
 metadata:
   name: opentelemetry-kube-stack
   labels:
-    helm.sh/chart: opentelemetry-kube-stack-0.20.2
+    helm.sh/chart: opentelemetry-kube-stack-0.20.8
     app.kubernetes.io/version: "0.154.0"
     app.kubernetes.io/managed-by: Helm
     release: "opentelemetry-kube-stack"    
@@ -33,6 +33,7 @@ spec:
     addK8sUIDAttributes: true
     resourceAttributes:
       deployment.environment.name: production
+      k8s.cluster.name: my_k8s_cluster
   java:
     image: ghcr.io/open-telemetry/opentelemetry-operator/autoinstrumentation-java:2.28.1
   nodejs:
@@ -41,4 +42,3 @@ spec:
     image: ghcr.io/open-telemetry/opentelemetry-operator/autoinstrumentation-python:0.64b0
   dotnet:
     image: ghcr.io/open-telemetry/opentelemetry-operator/autoinstrumentation-dotnet:1.15.0
-

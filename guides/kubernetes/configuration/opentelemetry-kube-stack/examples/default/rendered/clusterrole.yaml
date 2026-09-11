@@ -187,4 +187,3 @@ subjects:
   # quirk of the Operator
   name: "opentelemetry-kube-stack-daemon-collector"
   namespace: opentelemetry-operator-system
-

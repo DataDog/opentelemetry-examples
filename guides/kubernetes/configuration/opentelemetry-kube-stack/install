@@ -103,15 +103,21 @@ echo "Installing OpenTelemetry Kube Stack Helm Chart..."
 helm repo add open-telemetry https://open-telemetry.github.io/opentelemetry-helm-charts
 helm repo update
 
+HELM_SET_ARGS=(
+    --set-string "resourceAttributes.deployment\.environment\.name=$DEPLOYMENT_ENVIRONMENT_NAME"
+    --set defaultCRConfig.presets.resourceDetection.aks.enabled=$RESOURCE_DETECTION_AKS_ENABLED
+    --set defaultCRConfig.presets.resourceDetection.eks.enabled=$RESOURCE_DETECTION_EKS_ENABLED
+    --set defaultCRConfig.presets.resourceDetection.gcp.enabled=$RESOURCE_DETECTION_GCP_ENABLED
+)
+
+if [[ -n "$K8S_CLUSTER_NAME" ]]; then
+    HELM_SET_ARGS+=(--set-string "resourceAttributes.k8s\.cluster\.name=$K8S_CLUSTER_NAME")
+fi
+
 helm upgrade opentelemetry-kube-stack \
     open-telemetry/opentelemetry-kube-stack \
-    --version 0.20.2 \
+    --version 0.20.8 \
     --install \
     --namespace opentelemetry-operator-system \
-    --set-string clusterName=$K8S_CLUSTER_NAME \
-    --set-string defaultCRConfig.env[2].value=$K8S_CLUSTER_NAME \
-    --set defaultCRConfig.presets.resourceDetection.aks.enabled=$RESOURCE_DETECTION_AKS_ENABLED \
-    --set defaultCRConfig.presets.resourceDetection.eks.enabled=$RESOURCE_DETECTION_EKS_ENABLED \
-    --set defaultCRConfig.presets.resourceDetection.gcp.enabled=$RESOURCE_DETECTION_GCP_ENABLED \
-    --set-string instrumentation.resource.resourceAttributes.deployment\\.environment\\.name="$DEPLOYMENT_ENVIRONMENT_NAME" \
+    "${HELM_SET_ARGS[@]}" \
     -f "$SCRIPT_DIR/values.yaml"
