@@ -5,7 +5,7 @@ kind: Instrumentation
 metadata:
   name: opentelemetry-kube-stack
   labels:
-    helm.sh/chart: opentelemetry-kube-stack-0.20.2
+    helm.sh/chart: opentelemetry-kube-stack-0.20.8
     app.kubernetes.io/version: "0.154.0"
     app.kubernetes.io/managed-by: Helm
     release: "opentelemetry-kube-stack"    
@@ -52,6 +52,7 @@ spec:
     resourceAttributes:
       deployment.environment: production
       deployment.environment.name: production
+      k8s.cluster.name: my_k8s_cluster
   java:
     image: registry.ddbuild.io/ssi/dd-otel-autoinstrumentation-java:glci135938671
   nodejs:

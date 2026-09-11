@@ -131,18 +131,25 @@ helm install cert-manager jetstack/cert-manager \
 echo "Installing OpenTelemetry Kube Stack Helm Chart..."
 
 # FIXME use deployment.environment.name, it's a workaround for https://github.com/DataDog/dd-trace-java/pull/12324
+HELM_SET_ARGS=(
+    --set-string "resourceAttributes.deployment\.environment\.name=$DEPLOYMENT_ENVIRONMENT_NAME"
+    --set-string "instrumentation.resource.resourceAttributes.deployment\.environment=$DEPLOYMENT_ENVIRONMENT_NAME"
+    --set defaultCRConfig.presets.resourceDetection.aks.enabled=$RESOURCE_DETECTION_AKS_ENABLED
+    --set defaultCRConfig.presets.resourceDetection.eks.enabled=$RESOURCE_DETECTION_EKS_ENABLED
+    --set defaultCRConfig.presets.resourceDetection.gcp.enabled=$RESOURCE_DETECTION_GCP_ENABLED
+    --set-string instrumentation.env[0].value="$DEPLOYMENT_ENVIRONMENT_NAME"
+)
+
+if [[ -n "$K8S_CLUSTER_NAME" ]]; then
+    HELM_SET_ARGS+=(--set-string "resourceAttributes.k8s\.cluster\.name=$K8S_CLUSTER_NAME")
+fi
+
 helm upgrade opentelemetry-kube-stack \
     open-telemetry/opentelemetry-kube-stack \
-    --version 0.20.2 \
+    --version 0.20.8 \
     --install \
     --namespace opentelemetry-operator-system \
-    --set-string clusterName=$K8S_CLUSTER_NAME \
-    --set-string defaultCRConfig.env[2].value=$K8S_CLUSTER_NAME \
-    --set defaultCRConfig.presets.resourceDetection.aks.enabled=$RESOURCE_DETECTION_AKS_ENABLED \
-    --set defaultCRConfig.presets.resourceDetection.eks.enabled=$RESOURCE_DETECTION_EKS_ENABLED \
-    --set defaultCRConfig.presets.resourceDetection.gcp.enabled=$RESOURCE_DETECTION_GCP_ENABLED \
-    --set-string instrumentation.resource.resourceAttributes.deployment\\.environment="$DEPLOYMENT_ENVIRONMENT_NAME" \
-    --set-string instrumentation.env[0].value="$DEPLOYMENT_ENVIRONMENT_NAME" \
+    "${HELM_SET_ARGS[@]}" \
     -f "$SCRIPT_DIR/values.yaml" \
     "${OVERLAY_VALUES_ARGS[@]}"
 
@@ -171,3 +178,7 @@ helm upgrade ddagent-kube-stack \
 	--set-string datadog.apiKeyExistingSecret='datadog-secret' \
 	--set-string datadog.site=${DD_SITE:-datadoghq.com} \
     -f "$SCRIPT_DIR/dd-agent-values.yaml"
+=======
+    "${HELM_SET_ARGS[@]}" \
+    -f "$SCRIPT_DIR/values.yaml"
+>>>>>>> 67db02f (CAP-3929 Use chart's top-level resourceAttributes)
