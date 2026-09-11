@@ -12,6 +12,8 @@ It deletes:
     opentelemetry-operator-system namespace;
   - the host-profiler Helm release in the
     opentelemetry-operator-system namespace (if installed);
+  - the ddagent-kube-stack Helm release in the
+    opentelemetry-operator-system namespace;
   - the datadog-secret secret in the opentelemetry-operator-system namespace;
   - OpenTelemetry CRDs: opentelemetrycollectors, instrumentations, and
     opampbridges.
@@ -43,7 +45,11 @@ helm uninstall host-profiler \
 
 helm uninstall opentelemetry-kube-stack \
   --namespace opentelemetry-operator-system  \
-  || echo "WARNING: Could not uninstall opentelemetry-stack. Continuing..."
+  || echo "WARNING: Could not uninstall opentelemetry-kube-stack. Continuing..."
+
+helm uninstall ddagent-kube-stack \
+  --namespace opentelemetry-operator-system  \
+  || echo "WARNING: Could not uninstall ddagent-kube-stack. Continuing..."
 
 echo "Removing Datadog endpoint configuration..."
 kubectl delete secrets --namespace opentelemetry-operator-system  --ignore-not-found=true datadog-secret
