@@ -16,5 +16,13 @@
     "@opentelemetry/exporter-trace-otlp-http": "^0.221.0",
     "@opentelemetry/sdk-node": "^0.221.0",
     "express": "^4.22.2"
+  },
+  "overrides": {
+    "express": {
+      "qs": "^6.16.0",
+      "body-parser": {
+        "qs": "^6.16.0"
+      }
+    }
   }
 }
