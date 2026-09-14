@@ -6,7 +6,7 @@ metadata:
   name: opentelemetry-kube-stack-cluster
   namespace: opentelemetry-operator-system
   labels:
-    helm.sh/chart: opentelemetry-kube-stack-0.20.2
+    helm.sh/chart: opentelemetry-kube-stack-0.20.8
     app.kubernetes.io/version: "0.154.0"
     app.kubernetes.io/managed-by: Helm
     release: "opentelemetry-kube-stack"        
@@ -130,6 +130,11 @@ spec:
         - sources:
           - from: resource_attribute
             name: k8s.pod.uid
+      resource/global:
+        attributes:
+        - action: upsert
+          key: deployment.environment.name
+          value: production
       resource_detection/env:
         aks:
           resource_attributes:
@@ -139,19 +144,6 @@ spec:
         - aks
         - k8s_api
         override: false
-      transform/insert_k8s_cluster_name:
-        log_statements:
-        - set(resource.attributes["k8s.cluster.name"], "${env:OTEL_K8S_CLUSTER_NAME}")
-          where (resource.attributes["k8s.cluster.name"] == nil or resource.attributes["k8s.cluster.name"]
-          == "") and "${env:OTEL_K8S_CLUSTER_NAME}" != ""
-        metric_statements:
-        - set(resource.attributes["k8s.cluster.name"], "${env:OTEL_K8S_CLUSTER_NAME}")
-          where (resource.attributes["k8s.cluster.name"] == nil or resource.attributes["k8s.cluster.name"]
-          == "") and "${env:OTEL_K8S_CLUSTER_NAME}" != ""
-        trace_statements:
-        - set(resource.attributes["k8s.cluster.name"], "${env:OTEL_K8S_CLUSTER_NAME}")
-          where (resource.attributes["k8s.cluster.name"] == nil or resource.attributes["k8s.cluster.name"]
-          == "") and "${env:OTEL_K8S_CLUSTER_NAME}" != ""
       transform/ksm_to_dd:
         metric_statements:
         - context: datapoint
@@ -380,7 +372,7 @@ spec:
           processors:
           - k8s_attributes
           - resource_detection/env
-          - transform/insert_k8s_cluster_name
+          - resource/global
           receivers:
           - k8s_objects
         metrics:
@@ -392,9 +384,9 @@ spec:
           - groupbyattrs
           - k8s_attributes
           - resource_detection/env
-          - transform/insert_k8s_cluster_name
           - cumulativetodelta
           - transform/sum_to_gauge
+          - resource/global
           receivers:
           - otlp
           - prometheus/ksm
@@ -403,6 +395,8 @@ spec:
         metrics/count:
           exporters:
           - count/k8s_entities
+          processors:
+          - resource/global
           receivers:
           - prometheus/ksm
         metrics/otel_operator:
@@ -410,8 +404,8 @@ spec:
           - datadog/exporter
           processors:
           - resource_detection/env
-          - transform/insert_k8s_cluster_name
           - cumulativetodelta
+          - resource/global
           receivers:
           - prometheus/otel_operator
       telemetry:
@@ -466,8 +460,6 @@ spec:
   - name: OTEL_RESOURCE_ATTRIBUTES
     value: "k8s.pod.name=$(OTEL_K8S_POD_NAME),k8s.namespace.name=$(OTEL_K8S_NAMESPACE),k8s.node.name=$(OTEL_K8S_NODE_NAME),host.name=$(OTEL_K8S_NODE_NAME),k8s.node.ip=$(OTEL_K8S_NODE_IP),k8s.pod.ip=$(OTEL_K8S_POD_IP)"
   
-  - name: OTEL_K8S_CLUSTER_NAME
-    value: ""
   - name: DD_API_KEY
     valueFrom:
       secretKeyRef:
@@ -487,7 +479,7 @@ metadata:
   name: opentelemetry-kube-stack-daemon
   namespace: opentelemetry-operator-system
   labels:
-    helm.sh/chart: opentelemetry-kube-stack-0.20.2
+    helm.sh/chart: opentelemetry-kube-stack-0.20.8
     app.kubernetes.io/version: "0.154.0"
     app.kubernetes.io/managed-by: Helm
     release: "opentelemetry-kube-stack"        
@@ -595,6 +587,11 @@ spec:
             name: k8s.namespace.name
         - sources:
           - from: connection
+      resource/global:
+        attributes:
+        - action: upsert
+          key: deployment.environment.name
+          value: production
       resource/hostname:
         attributes:
         - action: insert
@@ -633,19 +630,6 @@ spec:
           statements:
           - delete_key(attributes, "service.name")
           - delete_key(attributes, "service.instance.id")
-      transform/insert_k8s_cluster_name:
-        log_statements:
-        - set(resource.attributes["k8s.cluster.name"], "${env:OTEL_K8S_CLUSTER_NAME}")
-          where (resource.attributes["k8s.cluster.name"] == nil or resource.attributes["k8s.cluster.name"]
-          == "") and "${env:OTEL_K8S_CLUSTER_NAME}" != ""
-        metric_statements:
-        - set(resource.attributes["k8s.cluster.name"], "${env:OTEL_K8S_CLUSTER_NAME}")
-          where (resource.attributes["k8s.cluster.name"] == nil or resource.attributes["k8s.cluster.name"]
-          == "") and "${env:OTEL_K8S_CLUSTER_NAME}" != ""
-        trace_statements:
-        - set(resource.attributes["k8s.cluster.name"], "${env:OTEL_K8S_CLUSTER_NAME}")
-          where (resource.attributes["k8s.cluster.name"] == nil or resource.attributes["k8s.cluster.name"]
-          == "") and "${env:OTEL_K8S_CLUSTER_NAME}" != ""
     receivers:
       file_log:
         exclude: []
@@ -832,7 +816,7 @@ spec:
           processors:
           - k8s_attributes
           - resource_detection/env
-          - transform/insert_k8s_cluster_name
+          - resource/global
           receivers:
           - otlp
           - file_log
@@ -842,9 +826,9 @@ spec:
           processors:
           - k8s_attributes
           - resource_detection/env
-          - transform/insert_k8s_cluster_name
           - cumulativetodelta
           - deltatorate
+          - resource/global
           receivers:
           - datadog/connector
           - otlp
@@ -855,12 +839,12 @@ spec:
           - datadog/exporter
           processors:
           - resource_detection/env
-          - transform/insert_k8s_cluster_name
           - transform/cadvisor_labels
           - groupbyattrs
           - k8s_attributes
           - cumulativetodelta
           - deltatorate/cadvisor
+          - resource/global
           receivers:
           - prometheus/cadvisor
         traces:
@@ -869,12 +853,14 @@ spec:
           processors:
           - k8s_attributes
           - resource_detection/env
-          - transform/insert_k8s_cluster_name
+          - resource/global
           receivers:
           - otlp
         traces/sampling:
           exporters:
           - datadog/exporter
+          processors:
+          - resource/global
           receivers:
           - datadog/connector
       telemetry:
@@ -939,8 +925,6 @@ spec:
   - name: OTEL_RESOURCE_ATTRIBUTES
     value: "k8s.pod.name=$(OTEL_K8S_POD_NAME),k8s.namespace.name=$(OTEL_K8S_NAMESPACE),k8s.node.name=$(OTEL_K8S_NODE_NAME),host.name=$(OTEL_K8S_NODE_NAME),k8s.node.ip=$(OTEL_K8S_NODE_IP),k8s.pod.ip=$(OTEL_K8S_POD_IP)"
   
-  - name: OTEL_K8S_CLUSTER_NAME
-    value: ""
   - name: DD_API_KEY
     valueFrom:
       secretKeyRef:
@@ -962,4 +946,3 @@ spec:
   - name: hostfs
     hostPath:
       path: /
-

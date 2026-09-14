@@ -416,5 +416,3 @@ rules:
       - /metrics
     verbs:
       - get
-
-
