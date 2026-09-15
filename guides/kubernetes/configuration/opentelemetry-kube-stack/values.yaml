@@ -145,7 +145,13 @@ collectors:
           metric_statements:
             - context: datapoint
               statements:
-                - set(attributes["k8s.pod.uid"], attributes["uid"])
+                # kube-state-metrics sets `uid` to the UID of whichever object
+                # the series describes, not always a Pod: kube_service_spec_type,
+                # for example, carries the Service UID. Only promote `uid` on the
+                # kube_pod_* series, otherwise non-Pod UIDs are published as
+                # k8s.pod.uid and the k8s_attributes pod_association below can
+                # never resolve them.
+                - set(attributes["k8s.pod.uid"], attributes["uid"]) where IsMatch(metric.name, "^kube_pod_")
                 - delete_key(attributes, "uid")
             # Prometheus receiver sets these on the resource incorrectly;
             # k8s_attributes cannot overwrite them (override: false), so drop first.
@@ -189,6 +195,24 @@ collectors:
             - sources:
                 - from: resource_attribute
                   name: k8s.pod.uid
+
+        # Drops scrape/connector internals before the exporter. Nothing in
+        # Datadog consumes these series, but each one is billed as a custom
+        # metric. The conditions are scoped by instrumentation scope so that
+        # application metrics arriving over OTLP are never matched by name.
+        filter/drop_internal_metrics:
+          error_mode: ignore
+          metrics:
+            metric:
+              # The prometheus receiver synthesises these per scrape. They are
+              # not produced by the target, so metric_relabel_configs cannot drop
+              # them. `up` is deliberately kept: it is the scrape-health signal
+              # used to verify kube-state-metrics ingestion (see the guide's
+              # troubleshooting section).
+              - 'instrumentation_scope.name == "github.com/open-telemetry/opentelemetry-collector-contrib/receiver/prometheusreceiver" and IsMatch(name, "^scrape_")'
+              # The count connector always emits its built-in metric.count
+              # alongside the k8s.*.count series configured under `connectors`.
+              - 'instrumentation_scope.name == "github.com/open-telemetry/opentelemetry-collector-contrib/connector/countconnector" and name == "metric.count"'
 
         transform/sum_to_gauge:
           metric_statements:
@@ -265,6 +289,7 @@ collectors:
           metrics/otel_operator:
             receivers: [prometheus/otel_operator]
             processors:
+              - filter/drop_internal_metrics
               - resource_detection/env
               - cumulativetodelta
             exporters: [datadog/exporter]
@@ -276,6 +301,7 @@ collectors:
           metrics:
             receivers: [otlp, prometheus/ksm, count/k8s_entities]
             processors:
+              - filter/drop_internal_metrics
               - transform/ksm_to_dd
               - transform/rename_uid
               - groupbyattrs
