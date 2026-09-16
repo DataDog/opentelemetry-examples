@@ -98,6 +98,7 @@ defaultCRConfig:
                     endpoint: http://localhost:4318
 
 collectors:
+
   cluster:
     enabled: true
     suffix: cluster
