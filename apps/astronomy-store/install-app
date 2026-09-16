@@ -73,7 +73,7 @@ for deployment in astronomy-db ad product-catalog fraud-detection checkout front
 done
 
 kubectl apply -f "${SCRIPT_DIR}/load-generator/kubernetes.yaml"
-kubectl wait --for=jsonpath='{.status.active}'=1 job/k6-load-generator \
+kubectl rollout status deployment/k6-load-generator \
     --namespace "${NAMESPACE}" \
     --timeout="${ROLLOUT_TIMEOUT}"
 
