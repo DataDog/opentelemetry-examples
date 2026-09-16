@@ -57,6 +57,7 @@ spec:
     runAsGroup: 65532
     runAsNonRoot: true
     runAsUser: 65532
+
 ---
 # Source: opentelemetry-kube-stack/charts/opentelemetry-operator/templates/tests/test-service-connection.yaml
 apiVersion: v1
@@ -116,3 +117,4 @@ spec:
     runAsGroup: 65532
     runAsNonRoot: true
     runAsUser: 65532
+

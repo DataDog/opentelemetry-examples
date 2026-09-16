@@ -24,6 +24,7 @@ spec:
   subject:
     organizationalUnits:
       - opentelemetry-kube-stack-opentelemetry-operator
+
 ---
 # Source: opentelemetry-kube-stack/charts/opentelemetry-operator/templates/certmanager.yaml
 apiVersion: cert-manager.io/v1
@@ -41,3 +42,4 @@ metadata:
   namespace: opentelemetry-operator-system
 spec:
   selfSigned: {}
+

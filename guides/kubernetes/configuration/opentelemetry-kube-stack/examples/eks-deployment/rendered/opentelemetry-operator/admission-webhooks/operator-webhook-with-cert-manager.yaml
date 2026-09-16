@@ -83,6 +83,7 @@ webhooks:
         scope: Namespaced
     sideEffects: None
     timeoutSeconds: 10
+
 ---
 # Source: opentelemetry-kube-stack/charts/opentelemetry-operator/templates/admission-webhooks/operator-webhook-with-cert-manager.yaml
 apiVersion: admissionregistration.k8s.io/v1
@@ -190,3 +191,4 @@ webhooks:
         scope: Namespaced
     sideEffects: None
     timeoutSeconds: 10
+

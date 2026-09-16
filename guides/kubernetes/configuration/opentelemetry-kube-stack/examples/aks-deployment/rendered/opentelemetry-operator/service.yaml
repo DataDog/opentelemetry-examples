@@ -22,6 +22,7 @@ spec:
   selector:
       app.kubernetes.io/name: opentelemetry-operator
       app.kubernetes.io/component: controller-manager
+
 ---
 # Source: opentelemetry-kube-stack/charts/opentelemetry-operator/templates/service.yaml
 apiVersion: v1
@@ -45,3 +46,4 @@ spec:
   selector:
       app.kubernetes.io/name: opentelemetry-operator
       app.kubernetes.io/component: controller-manager
+

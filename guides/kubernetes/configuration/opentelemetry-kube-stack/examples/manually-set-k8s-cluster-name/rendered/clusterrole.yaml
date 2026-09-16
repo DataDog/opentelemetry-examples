@@ -157,6 +157,8 @@ rules:
 - apiGroups: ["apiextensions.k8s.io"]
   resources: ["customresourcedefinitions"]
   verbs: ["get", "list", "watch"]
+
+
 ---
 # Source: opentelemetry-kube-stack/templates/clusterrole.yaml
 apiVersion: rbac.authorization.k8s.io/v1
@@ -172,6 +174,7 @@ subjects:
   # quirk of the Operator
   name: "opentelemetry-kube-stack-cluster-collector"
   namespace: opentelemetry-operator-system
+
 ---
 # Source: opentelemetry-kube-stack/templates/clusterrole.yaml
 apiVersion: rbac.authorization.k8s.io/v1
@@ -187,3 +190,4 @@ subjects:
   # quirk of the Operator
   name: "opentelemetry-kube-stack-daemon-collector"
   namespace: opentelemetry-operator-system
+
