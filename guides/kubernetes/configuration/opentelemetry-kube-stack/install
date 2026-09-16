@@ -137,6 +137,13 @@ helm install cert-manager jetstack/cert-manager \
 
 echo "Installing OpenTelemetry Kube Stack Helm Chart..."
 
+# Migrate away from the legacy standalone host-profiler Helm release (the
+# pre-0.21.0 guide installed the profiler from the opentelemetry-collector
+# chart). The profiler now runs as a collector inside the kube-stack chart.
+helm status host-profiler --namespace opentelemetry-operator-system >/dev/null 2>&1 \
+  && helm uninstall host-profiler --namespace opentelemetry-operator-system \
+  || echo "WARNING: No legacy host-profiler Helm release found. Continuing..."
+
 # FIXME use deployment.environment.name, it's a workaround for https://github.com/DataDog/dd-trace-java/pull/12324
 HELM_SET_ARGS=(
     --set-string "resourceAttributes.deployment\.environment=$DEPLOYMENT_ENVIRONMENT_NAME"

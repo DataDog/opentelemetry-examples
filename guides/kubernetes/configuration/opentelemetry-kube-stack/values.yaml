@@ -497,7 +497,8 @@ collectors:
     # Host Profiler main image. Update the tag when using a newer preview build.
     image:
       repository: datadog/ddot-ebpf-dev
-      tag: mlevesque-prof-15962-read-otel-resource-attributes
+      # nightly of datadog-agent main, built 2026-09-16 03:14 UTC
+      tag: nightly-main-c83d6890
 
     env:
       - name: DD_API_KEY
