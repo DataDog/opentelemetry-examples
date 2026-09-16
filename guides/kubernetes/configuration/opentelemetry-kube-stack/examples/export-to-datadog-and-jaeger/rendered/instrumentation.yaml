@@ -4,8 +4,9 @@ apiVersion: opentelemetry.io/v1alpha1
 kind: Instrumentation
 metadata:
   name: opentelemetry-kube-stack
+  namespace: opentelemetry-operator-system
   labels:
-    helm.sh/chart: opentelemetry-kube-stack-0.20.8
+    helm.sh/chart: opentelemetry-kube-stack-0.21.0
     app.kubernetes.io/version: "0.154.0"
     app.kubernetes.io/managed-by: Helm
     release: "opentelemetry-kube-stack"    
@@ -29,8 +30,6 @@ spec:
       value: "full"
     - name: DD_DBM_TRACE_PREPARED_STATEMENTS
       value: "true"
-    - name: DD_ENV
-      value: ""
     - name: DD_LOGS_OTEL_ENABLED
       value: "true"
     - name: DD_METRICS_OTEL_ENABLED
@@ -51,21 +50,12 @@ spec:
     addK8sUIDAttributes: true
     resourceAttributes:
       deployment.environment: production
-      deployment.environment.name: production
   java:
-    image: registry.ddbuild.io/ssi/dd-otel-autoinstrumentation-java:glci135938671
+    image: registry.ddbuild.io/ssi/dd-otel-autoinstrumentation-java:glci133182091
   nodejs:
     image: ghcr.io/cyrille-leclerc/dd-autoinstrumentation-nodejs:6.6.0
   python:
     image: ghcr.io/cyrille-leclerc/dd-autoinstrumentation-python:4.11.1
     volumeLimitSize: 500Mi
   dotnet:
-    env:
-    - name: CORECLR_PROFILER
-      value: '{846F5F1C-F9AE-4B07-969E-05C26BC060D8}'
-    - name: CORECLR_PROFILER_PATH
-      value: /otel-auto-instrumentation-dotnet/linux/Datadog.Tracer.Native.so
-    - name: DD_DOTNET_TRACER_HOME
-      value: /otel-auto-instrumentation-dotnet
-    image: ghcr.io/zacharycmontoya/dd-autoinstrumentation-dotnet:3.52.0
-
+    image: ghcr.io/open-telemetry/opentelemetry-operator/autoinstrumentation-dotnet:1.15.0

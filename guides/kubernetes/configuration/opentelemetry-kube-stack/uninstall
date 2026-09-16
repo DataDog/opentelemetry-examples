@@ -10,7 +10,7 @@ It deletes:
     certificaterequests, orders, and challenges;
   - the opentelemetry-kube-stack Helm release in the
     opentelemetry-operator-system namespace;
-  - the host-profiler Helm release in the
+  - the host-profiler egress NetworkPolicy and CiliumNetworkPolicy in the
     opentelemetry-operator-system namespace (if installed);
   - the ddagent-kube-stack Helm release in the
     opentelemetry-operator-system namespace;
@@ -39,9 +39,16 @@ kubectl delete crd \
   challenges.acme.cert-manager.io \
 || echo "WARNING: Could not uninstall cert-manager CRDs. Continuing..."
 
-helm uninstall host-profiler \
-  --namespace opentelemetry-operator-system  \
-  || echo "WARNING: Could not uninstall host-profiler. Continuing..."
+kubectl delete networkpolicy \
+  --namespace opentelemetry-operator-system \
+  --ignore-not-found=true \
+  opentelemetry-kube-stack-host-profiler-egress \
+  || echo "WARNING: Could not delete the host-profiler NetworkPolicy. Continuing..."
+kubectl delete ciliumnetworkpolicy \
+  --namespace opentelemetry-operator-system \
+  --ignore-not-found=true \
+  opentelemetry-kube-stack-host-profiler-egress \
+  || echo "WARNING: CiliumNetworkPolicy CRD not installed. Continuing..."
 
 helm uninstall opentelemetry-kube-stack \
   --namespace opentelemetry-operator-system  \

@@ -11,6 +11,9 @@ if [[ -n "$OVERLAY_VALUES_FILE" ]]; then
     [[ -f "$OVERLAY_VALUES_FILE" ]] || { echo "Overlay values file not found: $OVERLAY_VALUES_FILE" >&2; exit 1; }
     OVERLAY_VALUES_ARGS=(-f "$OVERLAY_VALUES_FILE")
 fi
+# NOTE: the arrays above are expanded at the helm call site with the
+# ${arr[@]+"${arr[@]}"} pattern: an empty array expanded with "${arr[@]}"
+# is an unbound-variable error on Bash < 4.4 (macOS ships 3.2).
 
 # Load environment variables from .env file if it exists
 [[ -f "$SCRIPT_DIR/.env" ]] && source "$SCRIPT_DIR/.env"
@@ -18,8 +21,8 @@ fi
 if [[ ! -f "$SCRIPT_DIR/.env" ]]; then
     echo ".env file not found in folder $SCRIPT_DIR . Entering interactive setup..."
 
-    read -p "Datadog Site (eg: 'datadoghq.eu'): " DD_SITE
-    [[ -z "$DD_SITE" ]] && error "Datadog Site cannot be empty"
+    read -p "Datadog Site (eg: 'datadoghq.eu', empty defaults to 'datadoghq.com'): " DD_SITE
+    DD_SITE=${DD_SITE:-datadoghq.com}
 
     read -r -s -p "Datadog API Key (eg: '1234...'): " DD_API_KEY
     echo
@@ -37,6 +40,10 @@ if [[ ! -f "$SCRIPT_DIR/.env" ]]; then
         echo "$SCRIPT_DIR/.env file created successfully."
     fi
 fi
+
+# Host-profiler egress NetworkPolicy manifest selected at the prompt below;
+# empty unless the user opts in.
+HOST_PROFILER_NETWORK_POLICY_FILE=""
 
 # Verify all required credentials are set
 [[ -z "${DD_API_KEY:-}" ]] && error "DD_API_KEY is not set"
@@ -85,15 +92,15 @@ export DEPLOYMENT_ENVIRONMENT_NAME=${DEPLOYMENT_ENVIRONMENT_NAME:-production}
 read -p "Enable the eBPF host profiler? (requires Linux nodes, kernel >= 5.10) (y/N): " ENABLE_HOST_PROFILER
 export ENABLE_HOST_PROFILER=${ENABLE_HOST_PROFILER:-N}
 
-HOST_PROFILER_NETWORK_POLICY_ARGS=()
 if [[ "$ENABLE_HOST_PROFILER" == "y" || "$ENABLE_HOST_PROFILER" == "Y" ]]; then
     # Egress policy for the profiler, only useful on default-deny clusters
     # whose CNI enforces NetworkPolicy.
     read -p "Egress NetworkPolicy? (n)one / (s)tandard / (c)ilium (default: none): " HOST_PROFILER_NETWORK_POLICY
     case "${HOST_PROFILER_NETWORK_POLICY:-n}" in
-        s*) HOST_PROFILER_NETWORK_POLICY_ARGS=(-f "$SCRIPT_DIR/host-profiler-network-policy.yaml") ;;
-        c*) HOST_PROFILER_NETWORK_POLICY_ARGS=(-f "$SCRIPT_DIR/host-profiler-cilium-network-policy.yaml") ;;
+        s*) HOST_PROFILER_NETWORK_POLICY_FILE="$SCRIPT_DIR/host-profiler-network-policy.yaml" ;;
+        c*) HOST_PROFILER_NETWORK_POLICY_FILE="$SCRIPT_DIR/host-profiler-cilium-network-policy.yaml" ;;
     esac
+    HOST_PROFILER_ENABLED_ARGS=(--set collectors.host-profiler.enabled=true)
 fi
 echo ""
 
@@ -145,25 +152,17 @@ fi
 
 helm upgrade opentelemetry-kube-stack \
     open-telemetry/opentelemetry-kube-stack \
-    --version 0.20.8 \
+    --version 0.21.0 \
     --install \
     --namespace opentelemetry-operator-system \
     "${HELM_SET_ARGS[@]}" \
     -f "$SCRIPT_DIR/values.yaml" \
-    "${OVERLAY_VALUES_ARGS[@]}"
+    ${HOST_PROFILER_ENABLED_ARGS[@]+"${HOST_PROFILER_ENABLED_ARGS[@]}"} \
+    ${OVERLAY_VALUES_ARGS[@]+"${OVERLAY_VALUES_ARGS[@]}"}
 
-if [[ "$ENABLE_HOST_PROFILER" == "y" || "$ENABLE_HOST_PROFILER" == "Y" ]]; then
-    echo "Installing the host profiler as a dedicated opentelemetry-collector release..."
-
-    # Dedicated opentelemetry-collector release; kube-stack has no profiling
-    # preset yet. See host-profiler-values.yaml.
-    helm upgrade host-profiler \
-        open-telemetry/opentelemetry-collector \
-        --version 0.172.0 \
-        --install \
-        --namespace opentelemetry-operator-system \
-        -f "$SCRIPT_DIR/host-profiler-values.yaml" \
-        "${HOST_PROFILER_NETWORK_POLICY_ARGS[@]}"
+if [[ -n "$HOST_PROFILER_NETWORK_POLICY_FILE" ]]; then
+    echo "Applying the host-profiler egress NetworkPolicy..."
+    kubectl apply -f "$HOST_PROFILER_NETWORK_POLICY_FILE"
 fi
 
 echo "Installing Datadog Agent"
