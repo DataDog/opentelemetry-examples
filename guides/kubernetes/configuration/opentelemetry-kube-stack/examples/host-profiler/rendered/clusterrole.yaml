@@ -51,6 +51,15 @@ rules:
   verbs: ["get", "list", "watch"]
 - nonResourceURLs: ["/metrics", "/metrics/cadvisor"]
   verbs: ["get"]
+- apiGroups:
+  - ""
+  resources:
+  - nodes
+  - nodes/proxy
+  - nodes/spec
+  verbs:
+  - get
+  - list
 
 - verbs:
   - get

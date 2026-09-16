@@ -483,24 +483,22 @@ collectors:
     # and provide a cluster-wide view.
     mode: daemonset
 
-    # The ddot-ebpf image is a dedicated distribution: its binary does not
-    # include the shared defaultCRConfig components (datadog exporter and
-    # extension, transform, resource_detection, cumulativetodelta, otlp
-    # receiver...). Isolation keeps the shared config, presets, and
-    # targetAllocator from being merged into this collector. Only the
-    # structural defaults (resources, RBAC bindings...) and the presets and
-    # config explicitly declared below apply. NOTE: a collector-local env
-    # list REPLACES the inherited defaultCRConfig.env list (no list merge),
-    # so the Datadog credentials are redeclared below.
+    # The ddot-ebpf image is a dedicated distribution: its binary may not
+    # include the shared defaultCRConfig components. Isolation keeps the shared
+    # config, presets, and targetAllocator from being merged into this collector.
     inheritDefaultCRConfig: false
 
-    # Host Profiler main image. Update the tag when using a newer preview build.
+    # Host Profiler preview image. Update the tag when using a newer preview build.
     image:
       repository: datadog/ddot-ebpf-dev
-      # nightly of datadog-agent main, built 2026-09-16 03:14 UTC
+      # temporary while the preview v2 is not yet published
       tag: nightly-main-c83d6890
 
     env:
+      - name: MY_POD_IP
+        valueFrom:
+          fieldRef:
+            fieldPath: status.podIP
       - name: DD_API_KEY
         valueFrom:
           secretKeyRef:
@@ -512,15 +510,6 @@ collectors:
             name: datadog-secret
             key: dd-site
             optional: true
-      - name: MY_POD_IP
-        valueFrom:
-          fieldRef:
-            fieldPath: status.podIP
-      - name: K8S_NODE_IP
-        valueFrom:
-          fieldRef:
-            fieldPath: status.hostIP
-
     # Enable the chart integrations the Host Profiler relies on. The profiling
     # preset configures host-level profiling settings such as hostPID and the
     # profile receiver wiring; kubernetesAttributes adds Kubernetes metadata.
@@ -610,7 +599,6 @@ collectors:
 
     config:
       extensions:
-        # Health endpoint for the collector pod.
         health_check:
           endpoint: ${env:MY_POD_IP}:13133
 
@@ -649,6 +637,13 @@ collectors:
           # pipeline.
           profiles:
             exporters: [otlp_http]
+
+# Required for node and kubelet metadata used during host/profile enrichment.
+clusterRole:
+  rules:
+    - apiGroups: [""]
+      resources: ["nodes", "nodes/proxy", "nodes/spec"]
+      verbs: ["get", "list"]
 
 instrumentation:
   enabled: true
