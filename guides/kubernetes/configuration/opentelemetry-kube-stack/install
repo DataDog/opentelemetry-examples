@@ -11,9 +11,6 @@ if [[ -n "$OVERLAY_VALUES_FILE" ]]; then
     [[ -f "$OVERLAY_VALUES_FILE" ]] || { echo "Overlay values file not found: $OVERLAY_VALUES_FILE" >&2; exit 1; }
     OVERLAY_VALUES_ARGS=(-f "$OVERLAY_VALUES_FILE")
 fi
-# NOTE: the arrays above are expanded at the helm call site with the
-# ${arr[@]+"${arr[@]}"} pattern: an empty array expanded with "${arr[@]}"
-# is an unbound-variable error on Bash < 4.4 (macOS ships 3.2).
 
 # Load environment variables from .env file if it exists
 [[ -f "$SCRIPT_DIR/.env" ]] && source "$SCRIPT_DIR/.env"
@@ -21,8 +18,8 @@ fi
 if [[ ! -f "$SCRIPT_DIR/.env" ]]; then
     echo ".env file not found in folder $SCRIPT_DIR . Entering interactive setup..."
 
-    read -p "Datadog Site (eg: 'datadoghq.eu', empty defaults to 'datadoghq.com'): " DD_SITE
-    DD_SITE=${DD_SITE:-datadoghq.com}
+    read -p "Datadog Site (eg: 'datadoghq.eu'): " DD_SITE
+    [[ -z "$DD_SITE" ]] && error "Datadog Site cannot be empty"
 
     read -r -s -p "Datadog API Key (eg: '1234...'): " DD_API_KEY
     echo
@@ -40,10 +37,6 @@ if [[ ! -f "$SCRIPT_DIR/.env" ]]; then
         echo "$SCRIPT_DIR/.env file created successfully."
     fi
 fi
-
-# Host-profiler egress NetworkPolicy manifest selected at the prompt below;
-# empty unless the user opts in.
-HOST_PROFILER_NETWORK_POLICY_FILE=""
 
 # Verify all required credentials are set
 [[ -z "${DD_API_KEY:-}" ]] && error "DD_API_KEY is not set"
@@ -91,6 +84,7 @@ export DEPLOYMENT_ENVIRONMENT_NAME=${DEPLOYMENT_ENVIRONMENT_NAME:-production}
 # decision, not a configuration detail.
 read -p "Enable the eBPF host profiler? (requires Linux nodes, kernel >= 5.10) (y/N): " ENABLE_HOST_PROFILER
 export ENABLE_HOST_PROFILER=${ENABLE_HOST_PROFILER:-N}
+HOST_PROFILER_NETWORK_POLICY_FILE=""
 
 if [[ "$ENABLE_HOST_PROFILER" == "y" || "$ENABLE_HOST_PROFILER" == "Y" ]]; then
     # Egress policy for the profiler, only useful on default-deny clusters

@@ -1,17 +1,14 @@
-# Optional egress NetworkPolicy for the host-profiler collector DaemonSet.
-# The chart leaves network policy enforcement to the cluster; apply this
-# manifest on default-deny clusters whose CNI enforces NetworkPolicy:
-#   kubectl apply -f host-profiler-network-policy.yaml
+# Optional egress NetworkPolicy for the host-profiler collector.
 #
 # Mirror of datadog-agent
 # cmd/host-profiler/deploy/standalone/helm/network-policy-values.yaml.
 #
-# The selector matches the pods of the `host-profiler` collector created by
-# the opentelemetry-kube-stack release. The OpenTelemetry Operator labels
-# collector pods app.kubernetes.io/name: <CR-name>-collector.
+# Requires a cluster networking layer that enforces Kubernetes NetworkPolicy.
+# If your cluster does not enforce NetworkPolicy resources, this manifest is
+# accepted but does not restrict egress.
 #
-# This NetworkPolicy allows DNS, Datadog intake egress, and kubelet API
-# access required by the host profiler.
+# This NetworkPolicy allows DNS, Datadog intake egress, and kubelet API access
+# required by the Host Profiler.
 apiVersion: networking.k8s.io/v1
 kind: NetworkPolicy
 metadata:

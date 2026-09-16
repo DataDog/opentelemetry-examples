@@ -98,7 +98,6 @@ defaultCRConfig:
                     endpoint: http://localhost:4318
 
 collectors:
-
   cluster:
     enabled: true
     suffix: cluster
@@ -472,11 +471,8 @@ collectors:
               - cumulativetodelta
               - deltatorate/cadvisor
             exporters: [datadog/exporter]
-  # Opt-in eBPF host profiler: a DaemonSet running Datadog's distribution of
-  # the OpenTelemetry eBPF profiler (ddot-ebpf) on every node, exporting
-  # continuous profiles to Datadog's OTLP intake.
-  # Prerequisites: Linux nodes with kernel >= 5.10, Kubernetes >= 1.30 for
-  # the container-level appArmorProfile field (see securityContext below).
+  # Datadog's distribution of the OpenTelemetry eBPF profiler
+  # see https://github.com/DataDog/datadog-agent/blob/main/cmd/host-profiler/deploy/README.md
   host-profiler:
     enabled: false
     suffix: host-profiler

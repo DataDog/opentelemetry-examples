@@ -1,14 +1,11 @@
-# Optional egress policy for the host-profiler collector DaemonSet on Cilium
-# clusters. Use this instead of host-profiler-network-policy.yaml when you
-# want FQDN-scoped Datadog intake egress:
-#   kubectl apply -f host-profiler-cilium-network-policy.yaml
+# Optional egress policy for the host-profiler collector on Cilium clusters.
 #
 # Mirror of datadog-agent
 # cmd/host-profiler/deploy/standalone/helm/cilium-network-policy-values.yaml.
 #
-# The selector matches the pods of the `host-profiler` collector created by
-# the opentelemetry-kube-stack release. The OpenTelemetry Operator labels
-# collector pods app.kubernetes.io/name: <CR-name>-collector.
+# Custom Kubernetes resources rendered by the Helm chart.
+# Requires Cilium. Use this instead of host-profiler-network-policy.yaml when you
+# want FQDN-scoped Datadog intake egress.
 apiVersion: cilium.io/v2
 kind: CiliumNetworkPolicy
 metadata:
