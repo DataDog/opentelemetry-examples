@@ -40,7 +40,7 @@ jobs:
 
       - name: Fail if rendered examples are out of date
         run: |
-          if ! git diff --exit-code -- examples/; then
+          if [ -n "$(git status --porcelain -- examples/)" ]; then
             echo "::error::examples/*/rendered is out of date. Run make generate-examples locally with Helm ${HELM_VERSION}."
             exit 1
           fi
