@@ -495,10 +495,6 @@ collectors:
       tag: nightly-main-c83d6890
 
     env:
-      - name: MY_POD_IP
-        valueFrom:
-          fieldRef:
-            fieldPath: status.podIP
       - name: DD_API_KEY
         valueFrom:
           secretKeyRef:
@@ -510,6 +506,11 @@ collectors:
             name: datadog-secret
             key: dd-site
             optional: true
+      - name: MY_POD_IP
+        valueFrom:
+          fieldRef:
+            fieldPath: status.podIP
+
     # Enable the chart integrations the Host Profiler relies on. The profiling
     # preset configures host-level profiling settings such as hostPID and the
     # profile receiver wiring; kubernetesAttributes adds Kubernetes metadata.
