@@ -5,10 +5,12 @@ on:
     branches: [ "main" ]
     paths:
       - "guides/kubernetes/configuration/opentelemetry-kube-stack/**"
+      - ".github/workflows/kube-stack-examples.yml"
   push:
     branches: [ "main" ]
     paths:
       - "guides/kubernetes/configuration/opentelemetry-kube-stack/**"
+      - ".github/workflows/kube-stack-examples.yml"
 
 jobs:
   check-rendered-examples:
@@ -24,8 +26,8 @@ jobs:
 
       - name: Install pinned Helm version
         run: |
-          curl -sLO "https://get.helm.sh/helm-${HELM_VERSION}-linux-amd64.tar.gz"
-          curl -sLO "https://get.helm.sh/helm-${HELM_VERSION}-linux-amd64.tar.gz.sha256sum"
+          curl -fsLO "https://get.helm.sh/helm-${HELM_VERSION}-linux-amd64.tar.gz"
+          curl -fsLO "https://get.helm.sh/helm-${HELM_VERSION}-linux-amd64.tar.gz.sha256sum"
           sha256sum -c "helm-${HELM_VERSION}-linux-amd64.tar.gz.sha256sum"
           tar xzf "helm-${HELM_VERSION}-linux-amd64.tar.gz"
           echo "$PWD/linux-amd64" >> "$GITHUB_PATH"
