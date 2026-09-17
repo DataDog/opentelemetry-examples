@@ -4,6 +4,7 @@ chart_name = opentelemetry-kube-stack
 .PHONY: generate-examples
 generate-examples:
 	@echo "Generating all examples into their rendered/ subdirectory"
+	@# Use Helm 4.2+ since rendering changes across versions.
 	@mkdir -p $(TMP_DIRECTORY)
 	@# Iterate over all example directories
 	@echo "Current folder: $$(pwd)"; \

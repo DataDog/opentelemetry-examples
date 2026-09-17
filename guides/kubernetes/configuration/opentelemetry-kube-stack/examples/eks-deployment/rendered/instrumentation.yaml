@@ -41,3 +41,4 @@ spec:
     image: ghcr.io/open-telemetry/opentelemetry-operator/autoinstrumentation-python:0.64b0
   dotnet:
     image: ghcr.io/open-telemetry/opentelemetry-operator/autoinstrumentation-dotnet:1.15.0
+

@@ -1,0 +1,48 @@
+name: opentelemetry-kube-stack rendered examples
+
+on:
+  pull_request:
+    branches: [ "main" ]
+    paths:
+      - "guides/kubernetes/configuration/opentelemetry-kube-stack/**"
+      - ".github/workflows/kube-stack-examples.yml"
+  push:
+    branches: [ "main" ]
+    paths:
+      - "guides/kubernetes/configuration/opentelemetry-kube-stack/**"
+      - ".github/workflows/kube-stack-examples.yml"
+
+jobs:
+  check-rendered-examples:
+    runs-on: ubuntu-latest
+    env:
+      HELM_VERSION: v4.3.0
+    defaults:
+      run:
+        working-directory: guides/kubernetes/configuration/opentelemetry-kube-stack
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+
+      - name: Install pinned Helm version
+        run: |
+          curl -fsLO "https://get.helm.sh/helm-${HELM_VERSION}-linux-amd64.tar.gz"
+          curl -fsLO "https://get.helm.sh/helm-${HELM_VERSION}-linux-amd64.tar.gz.sha256sum"
+          sha256sum -c "helm-${HELM_VERSION}-linux-amd64.tar.gz.sha256sum"
+          tar xzf "helm-${HELM_VERSION}-linux-amd64.tar.gz"
+          echo "$PWD/linux-amd64" >> "$GITHUB_PATH"
+
+      - name: Add open-telemetry Helm repo
+        run: |
+          helm repo add open-telemetry https://open-telemetry.github.io/opentelemetry-helm-charts
+          helm repo update open-telemetry
+
+      - name: Regenerate examples
+        run: make generate-examples
+
+      - name: Fail if rendered examples are out of date
+        run: |
+          if [ -n "$(git status --porcelain -- examples/)" ]; then
+            echo "::error::examples/*/rendered is out of date. Run make generate-examples locally with Helm ${HELM_VERSION}."
+            exit 1
+          fi
