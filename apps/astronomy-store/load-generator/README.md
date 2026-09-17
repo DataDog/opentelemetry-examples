@@ -1,6 +1,6 @@
 # Load Generator
 
-This k6 Deployment runs five virtual users for ten minutes. Each iteration calls:
+This k6 Deployment runs a load test on a loop. Each iteration calls:
 
 - `GET /api/products` on `frontend`;
 - `GET /api/ads` on `frontend`;
