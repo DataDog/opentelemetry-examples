@@ -23,7 +23,7 @@ This Go service accepts a checkout request at `POST /checkout/place-order`, mirr
 }
 ```
 
-The service returns `201 Created` with a JSON body mirroring `PlaceOrderResponse.order` (`order_id`, `shipping_tracking_id`, `shipping_cost`, `shipping_address`). This demo does not run separate cart/shipping/payment services, so checkout charges a flat shipping rate and does not call out to any downstream service. Build and deploy it with:
+The service returns `201 Created` with a JSON body mirroring `PlaceOrderResponse.order` (`order_id`, `shipping_tracking_id`, `shipping_cost`, `shipping_address`). It also publishes the order as JSON to Kafka's `orders` topic, including the request trace context in Kafka headers. This demo does not run separate cart/shipping/payment services, so checkout charges a flat shipping rate and does not call HTTP services downstream. Build and deploy it with:
 
 ```sh
 docker build -t astronomy-store/checkout:latest .

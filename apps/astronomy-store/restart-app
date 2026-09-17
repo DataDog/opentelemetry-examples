@@ -19,7 +19,7 @@ fi
 
 NAMESPACE="astronomy-store"
 ROLLOUT_TIMEOUT="${ROLLOUT_TIMEOUT:-3m}"
-DEPLOYMENTS=(ad product-catalog fraud-detection checkout frontend k6-load-generator)
+DEPLOYMENTS=(kafka ad product-catalog fraud-detection checkout frontend k6-load-generator)
 
 for deployment in "${DEPLOYMENTS[@]}"; do
     kubectl rollout restart "deployment/${deployment}" --namespace "${NAMESPACE}"

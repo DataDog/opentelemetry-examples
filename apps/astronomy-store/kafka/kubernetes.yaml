@@ -1,0 +1,109 @@
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: astronomy-store
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: kafka
+  namespace: astronomy-store
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: kafka
+  template:
+    metadata:
+      annotations:
+        ad.datadoghq.com/kafka.checks: |
+          {
+            "kafka": {
+              "init_config": {
+                "is_jmx": true,
+                "collect_default_metrics": true
+              },
+              "instances": [
+                {
+                  "host": "%%host%%",
+                  "port": "9999"
+                }
+              ]
+            }
+          }
+      labels:
+        app.kubernetes.io/name: kafka
+    spec:
+      containers:
+        - name: kafka
+          image: apache/kafka:4.1.1
+          imagePullPolicy: IfNotPresent
+          env:
+            - name: POD_IP
+              valueFrom:
+                fieldRef:
+                  fieldPath: status.podIP
+            - name: KAFKA_NODE_ID
+              value: "1"
+            - name: KAFKA_PROCESS_ROLES
+              value: broker,controller
+            - name: KAFKA_ADVERTISED_LISTENERS
+              value: PLAINTEXT://kafka:9092
+            - name: KAFKA_LISTENERS
+              value: PLAINTEXT://:9092,CONTROLLER://:9093
+            - name: KAFKA_LISTENER_SECURITY_PROTOCOL_MAP
+              value: PLAINTEXT:PLAINTEXT,CONTROLLER:PLAINTEXT
+            - name: KAFKA_CONTROLLER_LISTENER_NAMES
+              value: CONTROLLER
+            - name: KAFKA_CONTROLLER_QUORUM_VOTERS
+              value: 1@localhost:9093
+            - name: KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR
+              value: "1"
+            - name: KAFKA_TRANSACTION_STATE_LOG_REPLICATION_FACTOR
+              value: "1"
+            - name: KAFKA_TRANSACTION_STATE_LOG_MIN_ISR
+              value: "1"
+            - name: KAFKA_SHARE_COORDINATOR_STATE_TOPIC_REPLICATION_FACTOR
+              value: "1"
+            - name: KAFKA_HEAP_OPTS
+              value: "-Xmx400M -Xms400M"
+            - name: KAFKA_JMX_OPTS
+              value: >-
+                -Dcom.sun.management.jmxremote
+                -Dcom.sun.management.jmxremote.authenticate=false
+                -Dcom.sun.management.jmxremote.ssl=false
+                -Dcom.sun.management.jmxremote.local.only=false
+                -Dcom.sun.management.jmxremote.port=9999
+                -Dcom.sun.management.jmxremote.rmi.port=9999
+                -Djava.rmi.server.hostname=$(POD_IP)
+          ports:
+            - name: plaintext
+              containerPort: 9092
+            - name: jmx
+              containerPort: 9999
+          readinessProbe:
+            tcpSocket:
+              port: plaintext
+          livenessProbe:
+            tcpSocket:
+              port: plaintext
+          resources:
+            limits:
+              memory: 700Mi
+          securityContext:
+            runAsUser: 1000
+            runAsGroup: 1000
+            runAsNonRoot: true
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: kafka
+  namespace: astronomy-store
+spec:
+  selector:
+    app.kubernetes.io/name: kafka
+  ports:
+    - name: plaintext
+      port: 9092
+      targetPort: plaintext

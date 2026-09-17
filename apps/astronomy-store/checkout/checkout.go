@@ -1,10 +1,15 @@
 package main
 
 import (
+	"context"
 	"encoding/json"
+	"fmt"
 	"net/http"
 
+	"github.com/IBM/sarama"
+	"github.com/dnwe/otelsarama"
 	"github.com/google/uuid"
+	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/trace"
 	"go.uber.org/zap"
@@ -61,7 +66,15 @@ type PlaceOrderResponse struct {
 	Order OrderResult `json:"order"`
 }
 
-type checkoutServer struct{}
+type kafkaProducer interface {
+	SendMessage(message *sarama.ProducerMessage) (partition int32, offset int64, err error)
+	Close() error
+}
+
+type checkoutServer struct {
+	kafkaProducer kafkaProducer
+	kafkaTopic    string
+}
 
 func (cs *checkoutServer) placeOrder(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
@@ -109,6 +122,13 @@ func (cs *checkoutServer) placeOrder(w http.ResponseWriter, r *http.Request) {
 		zap.Any("context", ctx),
 	)
 
+	if err := cs.publishOrder(ctx, result); err != nil {
+		logger.Error("failed to publish order to Kafka",
+			zap.String("demo.order.id", orderID),
+			zap.Error(err),
+		)
+	}
+
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusCreated)
 	if err := json.NewEncoder(w).Encode(PlaceOrderResponse{Order: result}); err != nil {
@@ -118,4 +138,37 @@ func (cs *checkoutServer) placeOrder(w http.ResponseWriter, r *http.Request) {
 
 func (cs *checkoutServer) health(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusOK)
+}
+
+func newKafkaProducer(broker string) (sarama.SyncProducer, error) {
+	config := sarama.NewConfig()
+	config.Version = sarama.V3_0_0_0
+	config.Producer.RequiredAcks = sarama.WaitForAll
+	config.Producer.Return.Successes = true
+
+	producer, err := sarama.NewSyncProducer([]string{broker}, config)
+	if err != nil {
+		return nil, fmt.Errorf("create Kafka producer: %w", err)
+	}
+	return otelsarama.WrapSyncProducer(config, producer), nil
+}
+
+func (cs *checkoutServer) publishOrder(ctx context.Context, order OrderResult) error {
+	payload, err := json.Marshal(order)
+	if err != nil {
+		return fmt.Errorf("marshal order: %w", err)
+	}
+
+	message := &sarama.ProducerMessage{
+		Topic: cs.kafkaTopic,
+		Key:   sarama.StringEncoder(order.OrderID),
+		Value: sarama.ByteEncoder(payload),
+	}
+	otel.GetTextMapPropagator().Inject(ctx, otelsarama.NewProducerMessageCarrier(message))
+
+	_, _, err = cs.kafkaProducer.SendMessage(message)
+	if err != nil {
+		return fmt.Errorf("send Kafka message: %w", err)
+	}
+	return nil
 }

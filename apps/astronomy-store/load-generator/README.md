@@ -5,9 +5,11 @@ hours, after which the Deployment starts a replacement Pod so load generation
 continues indefinitely. Each iteration calls:
 
 - `GET /api/products` on `frontend`;
-- `GET /api/ads` on `frontend`;
-- `POST /api/checkout` on `frontend`, which proxies to `POST /checkout/place-order` on `checkout`; and
-- `POST /fraud-detection/check-order` on `fraud-detection`.
+- `GET /api/ads` on `frontend`; and
+- `POST /api/checkout` on `frontend`, which proxies to `POST /checkout/place-order` on `checkout`.
+
+`checkout` publishes each placed order to the `orders` Kafka topic, which `fraud-detection` consumes
+asynchronously — it is not called directly by the load generator.
 
 Deploy it after the application services:
 
@@ -15,4 +17,4 @@ Deploy it after the application services:
 kubectl apply -f kubernetes.yaml
 ```
 
-Set `FRONTEND_URL` or `FRAUD_DETECTION_URL` in the Deployment to target different service endpoints.
+Set `FRONTEND_URL` in the Deployment to target a different frontend endpoint.

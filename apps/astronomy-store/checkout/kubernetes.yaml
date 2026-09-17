@@ -26,6 +26,11 @@ spec:
         - name: checkout
           image: astronomy-store/checkout:latest
           imagePullPolicy: IfNotPresent
+          env:
+            - name: KAFKA_ADDR
+              value: kafka:9092
+            - name: KAFKA_TOPIC
+              value: orders
           ports:
             - name: http
               containerPort: 8080

@@ -131,7 +131,20 @@ func run() error {
 		}
 	}()
 
-	cs := &checkoutServer{}
+	kafkaProducer, err := newKafkaProducer(getEnv("KAFKA_ADDR", "kafka:9092"))
+	if err != nil {
+		return err
+	}
+	defer func() {
+		if err := kafkaProducer.Close(); err != nil {
+			logger.Error("Kafka producer shutdown failed", zap.Error(err))
+		}
+	}()
+
+	cs := &checkoutServer{
+		kafkaProducer: kafkaProducer,
+		kafkaTopic:    getEnv("KAFKA_TOPIC", "orders"),
+	}
 
 	mux := http.NewServeMux()
 	mux.Handle("POST /checkout/place-order", otelhttp.NewHandler(http.HandlerFunc(cs.placeOrder), "PlaceOrder"))
