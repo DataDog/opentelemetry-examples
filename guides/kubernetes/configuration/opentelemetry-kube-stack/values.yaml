@@ -7,7 +7,7 @@ opentelemetry-operator:
   manager:
     collectorImage:
       repository: otel/opentelemetry-collector-contrib
-      tag: "0.154.0"
+      tag: "0.161.0"
 
 kubeStateMetrics:
   enabled: true
@@ -61,7 +61,7 @@ defaultCRConfig:
           http:
             endpoint: 0.0.0.0:4318
     processors:
-      cumulativetodelta: {}
+      cumulative_to_delta: {}
       resource_detection/env:
         override: false
     exporters:
@@ -266,7 +266,7 @@ collectors:
             receivers: [prometheus/otel_operator]
             processors:
               - resource_detection/env
-              - cumulativetodelta
+              - cumulative_to_delta
             exporters: [datadog/exporter]
 
           metrics/count:
@@ -281,7 +281,7 @@ collectors:
               - groupbyattrs
               - k8s_attributes
               - resource_detection/env
-              - cumulativetodelta
+              - cumulative_to_delta
               - transform/sum_to_gauge
             exporters: [datadog/exporter]
 
@@ -375,12 +375,12 @@ collectors:
                     action: drop
 
       processors:
-        deltatorate:
+        delta_to_rate:
           metrics:
             - k8s.pod.network.io
             - k8s.pod.network.errors
 
-        deltatorate/cadvisor:
+        delta_to_rate/cadvisor:
           metrics:
             - container_cpu_usage_seconds_total
             - container_cpu_cfs_periods_total
@@ -451,8 +451,8 @@ collectors:
             receivers: [datadog/connector, otlp]
             processors:
               - resource_detection/env
-              - cumulativetodelta
-              - deltatorate
+              - cumulative_to_delta
+              - delta_to_rate
             exporters: [datadog/exporter]
 
           metrics/cadvisor:
@@ -463,8 +463,8 @@ collectors:
                 transform/cadvisor_labels,
                 groupbyattrs,
                 k8s_attributes,
-                cumulativetodelta,
-                deltatorate/cadvisor,
+                cumulative_to_delta,
+                delta_to_rate/cadvisor,
               ]
             exporters: [datadog/exporter]
 instrumentation:
