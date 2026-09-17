@@ -1,5 +1,10 @@
-# Overlay: also export the daemon collector's traces to a Jaeger instance
-# reachable at jaeger.jaeger.svc.cluster.local:4317, in addition to Datadog.
+# Overlay: also export a copy of the daemon collector's traces to a Jaeger
+# instance reachable at jaeger.jaeger.svc.cluster.local:4317, in addition to
+# Datadog. Adds a separate `traces/jaeger` pipeline fed by the same `otlp`
+# receiver rather than editing the `traces` pipeline's exporters, since that
+# pipeline's exporters are exporter-mode-specific (datadog/connector for DDOT,
+# forward+span_metrics for OTLP/HTTP) — this way the overlay works with either
+# base values file.
 #
 # Usage: ./install examples/export-to-datadog-and-jaeger/values.yaml
 collectors:
@@ -13,5 +18,7 @@ collectors:
 
       service:
         pipelines:
-          traces:
-            exporters: [datadog/connector, otlp/jaeger]
+          traces/jaeger:
+            receivers: [otlp]
+            processors: [resource_detection/env]
+            exporters: [otlp/jaeger]

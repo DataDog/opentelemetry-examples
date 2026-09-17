@@ -855,9 +855,16 @@ spec:
         traces:
           exporters:
           - datadog/connector
-          - otlp/jaeger
           processors:
           - k8s_attributes
+          - resource_detection/env
+          - resource/global
+          receivers:
+          - otlp
+        traces/jaeger:
+          exporters:
+          - otlp/jaeger
+          processors:
           - resource_detection/env
           - resource/global
           receivers:
