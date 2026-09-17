@@ -1,6 +1,6 @@
-# kube-stack values.yaml
+# kube-stack values
 
-Reference `values.yaml` for the [opentelemetry-kube-stack][chart] Helm chart, configured to send Kubernetes telemetry to Datadog.
+Reference values for the [opentelemetry-kube-stack][chart] Helm chart, configured to send Kubernetes telemetry to Datadog. Split across `values-common.yaml` (shared) and per-exporter-mode fragments — see [Exporter modes](#exporter-modes).
 
 ## What this deploys
 
@@ -25,7 +25,15 @@ Run the installer from this directory:
 ./install
 ```
 
-The installer prompts for your Datadog API key and site (the site defaults to `datadoghq.com`), Kubernetes platform, deployment environment, and whether to enable the eBPF host profiler. For EKS, GKE, and AKS, it enables the matching resource-detection preset. For other platforms, it prompts for the Kubernetes cluster name.
+The installer prompts for your Datadog API key and site (the site defaults to `datadoghq.com`), Kubernetes platform, deployment environment, collector export mode, and whether to enable the eBPF host profiler. For EKS, GKE, and AKS, it enables the matching resource-detection preset. For other platforms, it prompts for the Kubernetes cluster name.
+
+The export mode prompt picks which base values file to install with — see [Exporter modes](#exporter-modes):
+
+- **DDOT** — native Datadog exporter/connector, full feature parity (`values-ddot.yaml`).
+- **OTLP/HTTP** — vendor-neutral protocol to Datadog's OTLP intake (`values-otlp-http.yaml`).
+- **Other** — provide the path to your own base values file.
+
+You can also pass an optional overlay values file as the first argument (e.g. `./install examples/export-to-datadog-and-jaeger/values.yaml`), merged on top of the chosen base.
 
 It then:
 
@@ -94,8 +102,9 @@ mkdir -p deployment
 cp examples/manually-set-k8s-cluster-name/values.yaml deployment/values.yaml
 ```
 
-The selected file is an overlay for this directory's base `values.yaml`; add any deployment-specific configuration to
-`./deployment/values.yaml`. Install or upgrade the chart with both files:
+The selected file is an overlay for this directory's base values file; add any deployment-specific configuration to
+`./deployment/values.yaml`. Choose a base values file — `values-ddot.yaml` or `values-otlp-http.yaml` (see
+[Exporter modes](#exporter-modes)) — and install or upgrade the chart with both files:
 
 ```sh
 helm repo add open-telemetry https://open-telemetry.github.io/opentelemetry-helm-charts
@@ -104,7 +113,7 @@ helm upgrade --install opentelemetry-kube-stack \
   open-telemetry/opentelemetry-kube-stack \
   --version 0.20.8 \
   --namespace opentelemetry-operator-system \
-  --values ./values.yaml \
+  --values ./values-ddot.yaml \
   --values ./deployment/values.yaml
 ```
 
@@ -125,6 +134,29 @@ On clusters enforcing NetworkPolicy, add one of:
   -f ./host-profiler-cilium-network-policy.yaml   # Cilium, FQDN-scoped egress
 ```
 
+## Exporter modes
+
+The collectors can ship telemetry to Datadog two ways:
+
+- **DDOT** (`values-ddot.yaml`) — the native `datadog/exporter`/`datadog/connector`, with full feature parity
+  (orchestrator explorer, APM stats) and DDOT-flavored auto-instrumentation SDK images.
+- **OTLP/HTTP** (`values-otlp-http.yaml`) — the vendor-neutral `otlp_http` exporter to Datadog's OTLP intake, with a
+  `span_metrics` connector standing in for APM stats, and upstream OpenTelemetry auto-instrumentation SDK images.
+
+Everything the two modes share (receivers, processors, presets, `instrumentation.exporter`/`sampler`, resource
+allocation) lives in `values-common.yaml`. Everything that differs (exporters, connectors, the affected pipeline
+wiring, `collectorImage`, and the auto-instrumentation SDK images/env vars) lives in
+`values-modes/ddot.fragment.yaml` and `values-modes/otlp-http.fragment.yaml`.
+
+`values-ddot.yaml` and `values-otlp-http.yaml` are **generated** — don't edit them directly. To change shared
+behavior, edit `values-common.yaml`; to change mode-specific behavior, edit the matching fragment; then regenerate:
+
+```sh
+make generate-base-values
+```
+
+`make generate-examples` (see below) runs this automatically before rendering examples.
+
 ## Host profiler (optional)
 
 The host profiler runs the [Datadog host profiler][dd-host-profiler] (Datadog's own distribution of the [OpenTelemetry eBPF profiler][ebpf-profiler], to which it actively contributes) as a collector DaemonSet on every node and exports profiles to Datadog's OTLP intake.
@@ -141,7 +173,8 @@ OpenTelemetry Collector then automatically populates `k8s.cluster.name`.
  For other Kubernetes platforms, the
 installer sets `resourceAttributes.k8s.cluster.name` to the supplied cluster name.
 
-See `examples/` for rendered values and manifests for each deployment type. Regenerate them with `make generate-otel-kube-stack-examples`.
+See `examples/` for rendered values and manifests for each deployment type — each example is rendered once per
+exporter mode, into `rendered-ddot/` and `rendered-otlp-http/`. Regenerate them with `make generate-otel-kube-stack-examples`.
 
 The Datadog Agent installed in step 3 (`ddagent-kube-stack`, `datadog/datadog` chart) has its own base values file, `dd-agent-values.yaml`, and its own examples directory, `examples-datadog-agent/`, following the same pattern — `examples-datadog-agent/default/` mimics the `--set-string` overrides the installer applies on top of `dd-agent-values.yaml`. Regenerate its rendered manifests with `make generate-datadog-agent-examples`.
 
@@ -156,7 +189,7 @@ Both collectors default to `500m` CPU / `1Gi` memory limits and `200m` CPU / `50
 Verified against:
 
 - `opentelemetry-kube-stack` chart `>= 0.20.8`
-- Collector image `otel/opentelemetry-collector-contrib >= 0.154.0` (pinned in values.yaml under `opentelemetry-operator.manager.collectorImage`)
+- Collector image `otel/opentelemetry-collector-contrib >= 0.154.0` (pinned in each `values-modes/*.fragment.yaml` under `opentelemetry-operator.manager.collectorImage`)
 - `opentelemetry-collector` chart `>= 0.153.0` for the host profiler release (`profiling` preset);
 
 [chart]: https://github.com/open-telemetry/opentelemetry-helm-charts/tree/main/charts/opentelemetry-kube-stack
@@ -167,7 +200,7 @@ Verified against:
 ### OpenTelemetry Operator Internal Metrics
 
 The `cluster` collector scrapes the operator manager's own Prometheus metrics via the `prometheus/otel_operator`
-receiver (`values.yaml`, `collectors.cluster.config.receivers`).
+receiver (`values-common.yaml`, `collectors.cluster.config.receivers`).
 
 As of v0.154.0 of the OpenTelemetry Operator, like any [controller-runtime][controller-runtime]-based operator, the
 manager exposes the standard controller-runtime metrics registry (documented in the
@@ -205,7 +238,7 @@ kube-rbac-proxy sits in front of the metrics endpoint and, for any HTTP client t
 `Authorization: Bearer <token>` header over TLS — it forwards the token to the Kubernetes API server's
 TokenReview/SubjectAccessReview endpoints to authenticate the caller and authorize the request (see
 [kube-rbac-proxy's authentication/authorization docs][kube-rbac-proxy-auth]). The `prometheus/otel_operator` scrape
-config (`values.yaml`, `collectors.cluster.config.receivers`) satisfies this by setting `scheme: https`,
+config (`values-common.yaml`, `collectors.cluster.config.receivers`) satisfies this by setting `scheme: https`,
 `bearer_token_file: /var/run/secrets/kubernetes.io/serviceaccount/token` (the Collector pod's own ServiceAccount
 token, mounted automatically), and `tls_config.insecure_skip_verify: true` since kube-rbac-proxy's default
 self-signed serving certificate isn't in the scraper's trust store.

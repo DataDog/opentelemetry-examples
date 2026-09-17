@@ -17,6 +17,7 @@ jobs:
     runs-on: ubuntu-latest
     env:
       HELM_VERSION: v4.3.0
+      YQ_VERSION: v4.49.2
     defaults:
       run:
         working-directory: guides/kubernetes/configuration/opentelemetry-kube-stack
@@ -32,17 +33,24 @@ jobs:
           tar xzf "helm-${HELM_VERSION}-linux-amd64.tar.gz"
           echo "$PWD/linux-amd64" >> "$GITHUB_PATH"
 
-      - name: Add open-telemetry Helm repo
+      - name: Install pinned yq version
+        run: |
+          sudo curl -fsL "https://github.com/mikefarah/yq/releases/download/${YQ_VERSION}/yq_linux_amd64" -o /usr/local/bin/yq
+          sudo chmod +x /usr/local/bin/yq
+
+      - name: Add Helm repos
         run: |
           helm repo add open-telemetry https://open-telemetry.github.io/opentelemetry-helm-charts
-          helm repo update open-telemetry
+          helm repo add datadog https://helm.datadoghq.com
+          helm repo update
 
       - name: Regenerate examples
         run: make generate-examples
 
-      - name: Fail if rendered examples are out of date
+      - name: Fail if generated values files or rendered examples are out of date
         run: |
-          if [ -n "$(git status --porcelain -- examples/)" ]; then
-            echo "::error::examples/*/rendered is out of date. Run make generate-examples locally with Helm ${HELM_VERSION}."
+          if [ -n "$(git status --porcelain -- .)" ]; then
+            echo "::error::values-ddot.yaml, values-otlp-http.yaml, examples/*/rendered-* or examples-datadog-agent/*/rendered is out of date. Run make generate-examples locally with Helm ${HELM_VERSION} and yq ${YQ_VERSION}."
+            git status -- .
             exit 1
           fi

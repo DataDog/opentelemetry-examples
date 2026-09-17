@@ -4,7 +4,8 @@ set -euo pipefail
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
 # Optional extra/overlay values.yaml (e.g. examples/export-to-datadog-and-jaeger/values.yaml)
-# merged on top of the base values.yaml.
+# merged on top of the chosen exporter-mode base values file (see the export
+# mode prompt below).
 OVERLAY_VALUES_FILE="${1:-}"
 OVERLAY_VALUES_ARGS=()
 if [[ -n "$OVERLAY_VALUES_FILE" ]]; then
@@ -79,6 +80,30 @@ export K8S_CLUSTER_NAME
 read -p "Deployment Environment Name like 'production', 'staging'... (default: 'production'): " DEPLOYMENT_ENVIRONMENT_NAME
 export DEPLOYMENT_ENVIRONMENT_NAME=${DEPLOYMENT_ENVIRONMENT_NAME:-production}
 
+echo ""
+echo "Collector Export Mode:"
+PS3="Select how the collector should export telemetry to Datadog (enter a number): "
+select EXPORT_MODE in \
+    "DDOT (native Datadog exporter, full feature parity)" \
+    "OTLP/HTTP (vendor-neutral protocol)" \
+    "Other (provide a base values file path)"; do
+    [[ -n "$EXPORT_MODE" ]] && break
+    echo "Invalid selection, please try again."
+done
+
+case "$EXPORT_MODE" in
+    "DDOT (native Datadog exporter, full feature parity)")
+        BASE_VALUES_FILE="$SCRIPT_DIR/values-ddot.yaml"
+        ;;
+    "OTLP/HTTP (vendor-neutral protocol)")
+        BASE_VALUES_FILE="$SCRIPT_DIR/values-otlp-http.yaml"
+        ;;
+    "Other (provide a base values file path)")
+        read -p "Path to a base values.yaml file: " BASE_VALUES_FILE
+        [[ -f "$BASE_VALUES_FILE" ]] || { echo "Base values file not found: $BASE_VALUES_FILE" >&2; exit 1; }
+        ;;
+esac
+
 # The eBPF host profiler needs Linux nodes with kernel >= 5.10 and runs one
 # collector per node with eBPF capabilities. Off by default: it is a security
 # decision, not a configuration detail.
@@ -149,7 +174,7 @@ helm upgrade opentelemetry-kube-stack \
     --install \
     --namespace opentelemetry-operator-system \
     "${HELM_SET_ARGS[@]}" \
-    -f "$SCRIPT_DIR/values.yaml" \
+    -f "$BASE_VALUES_FILE" \
     "${OVERLAY_VALUES_ARGS[@]}"
 
 if [[ "$ENABLE_HOST_PROFILER" == "y" || "$ENABLE_HOST_PROFILER" == "Y" ]]; then

@@ -134,6 +134,7 @@ rules:
   - ksh/metrics
   verbs:
   - get
+
 ---
 # Source: datadog/templates/rbac.yaml
 apiVersion: "rbac.authorization.k8s.io/v1"
@@ -154,3 +155,4 @@ subjects:
   - kind: ServiceAccount
     name: ddagent-kube-stack-datadog
     namespace: opentelemetry-operator-system
+

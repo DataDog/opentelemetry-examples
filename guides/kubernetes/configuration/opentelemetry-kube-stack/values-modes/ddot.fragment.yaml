@@ -1,0 +1,152 @@
+# Exporter-mode fragment: DDOT (native Datadog exporter/connector, full
+# feature parity) + DDOT-flavored auto-instrumentation SDKs. Merged onto
+# ../values-common.yaml by `make generate-base-values` to produce
+# ../values-ddot.yaml.
+
+opentelemetry-operator:
+  manager:
+    collectorImage:
+      repository: otel/opentelemetry-collector-contrib
+      tag: "0.154.0"
+      # repository: datadog/ddot-collector
+      # tag: 7.82.3
+
+resourceAttributes:
+  deployment.environment: production # FIXME only use deployment.environment.name, it's a workaround for https://github.com/DataDog/dd-trace-java/pull/12324
+
+defaultCRConfig:
+  env:
+    - name: DD_API_KEY
+      valueFrom:
+        secretKeyRef:
+          name: datadog-secret
+          key: api-key
+    - name: DD_SITE  # e.g. datadoghq.com, us3.datadoghq.com, datadoghq.eu. Defaults to datadoghq.com.
+      valueFrom:
+        secretKeyRef:
+          name: datadog-secret
+          key: dd-site
+          optional: true
+    - name: DD_HOSTNAME # FIXME required on K3S with datadog/ddot-collector:7.82.3 to prevent "Error: unable to reliably determine the host name."
+      valueFrom:
+        fieldRef:
+          fieldPath: spec.nodeName
+  config:
+    exporters:
+      datadog/exporter:
+        api:
+          key: ${env:DD_API_KEY}
+          site: ${env:DD_SITE:-datadoghq.com}
+
+collectors:
+  cluster:
+    config:
+      exporters:
+        datadog/exporter:
+          orchestrator_explorer:
+            enabled: true
+      service:
+        pipelines:
+          logs:
+            exporters: [datadog/exporter]
+          metrics/otel_operator:
+            exporters: [datadog/exporter]
+          metrics:
+            exporters: [datadog/exporter]
+
+  daemon:
+    config:
+      connectors:
+        datadog/connector: {}
+      service:
+        pipelines:
+          logs:
+            exporters: [datadog/exporter]
+          traces:
+            exporters: [datadog/connector]
+          # Add sampling processors here if needed.
+          traces/sampling:
+            receivers: [datadog/connector]
+            exporters: [datadog/exporter]
+          metrics:
+            receivers: [datadog/connector, otlp]
+            exporters: [datadog/exporter]
+          metrics/cadvisor:
+            exporters: [datadog/exporter]
+
+instrumentation:
+  env:
+    # FIXME remove when the host profiler image embeds process context
+    # propagation. Until then: the eBPF host profiler
+    # extracts DD_ENV from each instrumented process (receiver default) and
+    # Datadog maps it to the `env` tag, keeping the APM -> Profiler navigation working.
+    - name: DD_ENV
+      value: ""
+    - name: OTEL_SEMCONV_STABILITY_OPT_IN
+      value: "http,database,rpc,messaging"
+    - name: OTEL_EXPORTER_OTLP_METRICS_TEMPORALITY_PREFERENCE
+      value: delta
+    # Node.js defaults to gRPC; use HTTP so every service exports to port 4318.
+    - name: OTEL_EXPORTER_OTLP_PROTOCOL
+      value: http/protobuf
+    ## DDOT SDKs SPECIFIC CONFIGURATION
+    ## Enable the OTel Mode on DDOT SDKs
+    - name: "OTEL_TRACES_EXPORTER"
+      value: "otlp"
+    - name: "DD_TRACE_OTEL_ENABLED"
+      value: "true"
+    - name: "DD_LOGS_OTEL_ENABLED"
+      value: "true"
+    - name: "DD_METRICS_OTEL_ENABLED"
+      value: "true"
+    - name: "DD_TRACE_OTEL_SEMANTICS_ENABLED"
+      value: "true"
+    # DD_OTEL_SDK_ENABLED: Candidate new env var to enable OTel mode on DDOT SDKs, replacing all the previous ones,
+    # but not yet supported by the DDOT SDKs
+    # - name: "DD_OTEL_SDK_ENABLED"
+    #  value: "true"
+    ## DDOT CONFIGURATION
+    - name: "DD_AGENT_HOST"
+      value: "ddagent-kube-stack-datadog.opentelemetry-operator-system.svc.cluster.local"
+    # DBM SUPPORT
+    - name: "DD_DBM_PROPAGATION_MODE"
+      value: "full"
+    - name: "DD_DBM_TRACE_PREPARED_STATEMENTS"
+      value: "true"
+  # The opentelemetry-kube-stack Helm chart renders language sections even when empty, preventing the
+  # Operator from falling back to its default agent image and yielding invalid init containers.
+  # TODO: File an issue against the opentelemetry-kube-stack Helm chart for this behavior.
+  dotnet:
+    image: ghcr.io/zacharycmontoya/dd-autoinstrumentation-dotnet:3.52.0
+    # Unlike the other languages, .NET needs more setup to instrument an application:
+    # - The CORECLR_PROFILER_PATH env variable must be set (matching other languages)
+    # - The .NET Tracer's DD_DOTNET_TRACER_HOME env variable must be set
+    # - The CORECLR_PROFILER env variable must the CLSID of the CLR profiler that is initialized,
+    # and currently the opentelemetry-operator sets it to OpenTelemetry's CLSID {918728DD-259F-4A6A-AC2B-B85E1B658318},
+    # whereas the Datadog's CLSID is {846F5F1C-F9AE-4B07-969E-05C26BC060D8}
+    env:
+      - name: CORECLR_PROFILER
+        value: "{846F5F1C-F9AE-4B07-969E-05C26BC060D8}"
+      - name: CORECLR_PROFILER_PATH
+        value: /otel-auto-instrumentation-dotnet/linux/Datadog.Tracer.Native.so
+      - name: DD_DOTNET_TRACER_HOME
+        value: /otel-auto-instrumentation-dotnet
+  java:
+    # image: ghcr.io/open-telemetry/opentelemetry-operator/autoinstrumentation-java:2.28.1
+    image: registry.ddbuild.io/ssi/dd-otel-autoinstrumentation-java:glci135938671 # ?
+  nodejs:
+    # image: ghcr.io/open-telemetry/opentelemetry-operator/autoinstrumentation-nodejs:0.77.0
+    image: ghcr.io/cyrille-leclerc/dd-autoinstrumentation-nodejs:6.6.0
+  python:
+    # image: ghcr.io/open-telemetry/opentelemetry-operator/autoinstrumentation-python:0.64b0
+    image: ghcr.io/cyrille-leclerc/dd-autoinstrumentation-python:4.11.1
+    # The auto-instrumentation init container bundles ddtrace native builds for every supported
+    # Python version (3.9-3.14) x libc (glibc/musl) x arch (x86_64/aarch64), ~330MB total, which
+    # exceeds the Operator's 200Mi default EmptyDir limit and gets the pod evicted.
+    #
+    # The Operator warns that this field ("volumeSizeLimit" in the warning is the Go field name;
+    # "volumeLimitSize" here is its JSON/YAML tag) is deprecated in favor of `volume.size`, but as
+    # of Operator 0.154.0 / chart 0.20.6 that replacement field doesn't exist in the CRD schema
+    # yet, so this is the only working way to raise the volume limit. Safe to ignore until the
+    # Operator ships `spec.python.volume.size`.
+    volumeLimitSize: 500Mi
