@@ -68,20 +68,12 @@ spec:
             conditions:
             - metric.name == "kube_statefulset_created"
     exporters:
-      otlp_http:
-        compression: zstd
-        compression_params:
-          level: 3
-        endpoint: https://otlp.${env:DD_SITE:-datadoghq.com}
-        headers:
-          dd-api-key: ${env:DD_API_KEY}
-          dd-otel-metric-config: '{ "resource_attributes_as_tags": true, "instrumentation_scope_metadata_as_tags":
-            true }'
-        sending_queue:
-          batch:
-            max_size: 4194304
-            min_size: 2097152
-            sizer: bytes
+      datadog/exporter:
+        api:
+          key: ${env:DD_API_KEY}
+          site: ${env:DD_SITE:-datadoghq.com}
+        orchestrator_explorer:
+          enabled: true
     extensions:
       datadog:
         api:
@@ -140,6 +132,9 @@ spec:
             name: k8s.pod.uid
       resource/global:
         attributes:
+        - action: upsert
+          key: deployment.environment
+          value: production
         - action: upsert
           key: deployment.environment.name
           value: production
@@ -374,7 +369,7 @@ spec:
       pipelines:
         logs:
           exporters:
-          - otlp_http
+          - datadog/exporter
           processors:
           - k8s_attributes
           - resource_detection/env
@@ -383,7 +378,7 @@ spec:
           - k8s_objects
         metrics:
           exporters:
-          - otlp_http
+          - datadog/exporter
           processors:
           - transform/ksm_to_dd
           - transform/rename_uid
@@ -407,7 +402,7 @@ spec:
           - prometheus/ksm
         metrics/otel_operator:
           exporters:
-          - otlp_http
+          - datadog/exporter
           processors:
           - resource_detection/env
           - cumulativetodelta
@@ -471,13 +466,16 @@ spec:
       secretKeyRef:
         key: api-key
         name: datadog-secret
+  - name: DD_HOSTNAME
+    valueFrom:
+      fieldRef:
+        fieldPath: spec.nodeName
   - name: DD_SITE
     valueFrom:
       secretKeyRef:
         key: dd-site
         name: datadog-secret
         optional: true
-
 ---
 # Source: opentelemetry-kube-stack/templates/collector.yaml
 apiVersion: opentelemetry.io/v1beta1
@@ -495,67 +493,13 @@ spec:
   mode: daemonset
   config:
     connectors:
-      forward: {}
-      span_metrics:
-        add_resource_attributes: true
-        aggregation_temporality: AGGREGATION_TEMPORALITY_DELTA
-        dimensions:
-        - name: deployment.environment.name
-        - name: service.version
-        - name: http.response.status_code
-        - name: container.id
-        - name: aws.ecs.launchtype
-        - name: aws.ecs.task.arn
-        - name: cloud.provider
-        - name: cloud.account.id
-        - name: host.id
-        - name: host.name
-        - name: k8s.node.name
-        - name: k8s.cluster.name
-        - name: azure.resourcegroup.name
-        - name: aws.s3.bucket
-        - name: db.namespace
-        - name: messaging.destination.name
-        - name: messaging.system
-        - name: server.address
-        - name: operation.name
-        - name: http.request.method
-        - name: http.method
-        - name: db.system
-        - name: messaging.operation
-        - name: rpc.system
-        - name: rpc.service
-        - name: faas.invoked_provider
-        - name: faas.invoked_name
-        - name: faas.trigger
-        - name: graphql.operation.type
-        - name: network.protocol.name
-        - name: resource.name
-        - name: http.route
-        - name: messaging.destination
-        - name: rpc.method
-        - name: graphql.operation.name
-        - name: db.statement
-        - name: db.query.text
-        histogram:
-          exponential: {}
-          unit: s
+      datadog/connector: {}
     exporters:
+      datadog/exporter:
+        api:
+          key: ${env:DD_API_KEY}
+          site: ${env:DD_SITE:-datadoghq.com}
       debug: {}
-      otlp_http:
-        compression: zstd
-        compression_params:
-          level: 3
-        endpoint: https://otlp.${env:DD_SITE:-datadoghq.com}
-        headers:
-          dd-api-key: ${env:DD_API_KEY}
-          dd-otel-metric-config: '{ "resource_attributes_as_tags": true, "instrumentation_scope_metadata_as_tags":
-            true }'
-        sending_queue:
-          batch:
-            max_size: 4194304
-            min_size: 2097152
-            sizer: bytes
     extensions:
       datadog:
         api:
@@ -650,6 +594,9 @@ spec:
           - from: connection
       resource/global:
         attributes:
+        - action: upsert
+          key: deployment.environment
+          value: production
         - action: upsert
           key: deployment.environment.name
           value: production
@@ -871,7 +818,7 @@ spec:
       pipelines:
         logs:
           exporters:
-          - otlp_http
+          - datadog/exporter
           processors:
           - k8s_attributes
           - resource_detection/env
@@ -881,7 +828,7 @@ spec:
           - file_log
         metrics:
           exporters:
-          - otlp_http
+          - datadog/exporter
           processors:
           - k8s_attributes
           - resource_detection/env
@@ -889,12 +836,13 @@ spec:
           - deltatorate
           - resource/global
           receivers:
+          - datadog/connector
           - otlp
           - host_metrics
           - kubelet_stats
         metrics/cadvisor:
           exporters:
-          - otlp_http
+          - datadog/exporter
           processors:
           - resource_detection/env
           - transform/cadvisor_labels
@@ -905,17 +853,9 @@ spec:
           - resource/global
           receivers:
           - prometheus/cadvisor
-        metrics/span_metrics:
-          exporters:
-          - otlp_http
-          processors:
-          - resource/global
-          receivers:
-          - span_metrics
         traces:
           exporters:
-          - forward
-          - span_metrics
+          - datadog/connector
           processors:
           - k8s_attributes
           - resource_detection/env
@@ -924,11 +864,11 @@ spec:
           - otlp
         traces/sampling:
           exporters:
-          - otlp_http
+          - datadog/exporter
           processors:
           - resource/global
           receivers:
-          - forward
+          - datadog/connector
       telemetry:
         metrics:
           readers:
@@ -996,6 +936,10 @@ spec:
       secretKeyRef:
         key: api-key
         name: datadog-secret
+  - name: DD_HOSTNAME
+    valueFrom:
+      fieldRef:
+        fieldPath: spec.nodeName
   - name: DD_SITE
     valueFrom:
       secretKeyRef:

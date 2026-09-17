@@ -1,0 +1,6 @@
+# Mimics the --set-string overrides applied by the install script (L165-173)
+# on top of dd-agent-values.yaml.
+datadog:
+  clusterName: my_k8s_cluster
+  apiKeyExistingSecret: datadog-secret
+  site: datadoghq.com
