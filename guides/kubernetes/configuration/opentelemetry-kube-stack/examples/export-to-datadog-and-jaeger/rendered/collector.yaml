@@ -955,4 +955,3 @@ spec:
   - name: hostfs
     hostPath:
       path: /
-

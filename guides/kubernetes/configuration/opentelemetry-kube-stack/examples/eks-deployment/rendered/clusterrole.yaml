@@ -51,15 +51,6 @@ rules:
   verbs: ["get", "list", "watch"]
 - nonResourceURLs: ["/metrics", "/metrics/cadvisor"]
   verbs: ["get"]
-- apiGroups:
-  - ""
-  resources:
-  - nodes
-  - nodes/proxy
-  - nodes/spec
-  verbs:
-  - get
-  - list
 
 - verbs:
   - get
@@ -196,4 +187,3 @@ subjects:
   # quirk of the Operator
   name: "opentelemetry-kube-stack-daemon-collector"
   namespace: opentelemetry-operator-system
-

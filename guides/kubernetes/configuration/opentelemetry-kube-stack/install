@@ -94,7 +94,10 @@ if [[ "$ENABLE_HOST_PROFILER" == "y" || "$ENABLE_HOST_PROFILER" == "Y" ]]; then
         s*) HOST_PROFILER_NETWORK_POLICY_FILE="$SCRIPT_DIR/host-profiler-network-policy.yaml" ;;
         c*) HOST_PROFILER_NETWORK_POLICY_FILE="$SCRIPT_DIR/host-profiler-cilium-network-policy.yaml" ;;
     esac
-    HOST_PROFILER_ENABLED_ARGS=(--set collectors.host-profiler.enabled=true)
+    HOST_PROFILER_ENABLED_ARGS=(
+        --set collectors.host-profiler.enabled=true
+        -f "$SCRIPT_DIR/host-profiler-rbac-values.yaml"
+    )
 fi
 echo ""
 
@@ -131,12 +134,13 @@ helm install cert-manager jetstack/cert-manager \
 
 echo "Installing OpenTelemetry Kube Stack Helm Chart..."
 
-# Migrate away from the legacy standalone host-profiler Helm release (the
-# pre-0.21.0 guide installed the profiler from the opentelemetry-collector
-# chart). The profiler now runs as a collector inside the kube-stack chart.
+# Uninstall the legacy standalone host-profiler release first: two eBPF
+# profilers must not run concurrently on the same node. If the upgrade below
+# fails, re-run this script to get profiling back.
 helm status host-profiler --namespace opentelemetry-operator-system >/dev/null 2>&1 \
   && helm uninstall host-profiler --namespace opentelemetry-operator-system \
   || echo "WARNING: No legacy host-profiler Helm release found. Continuing..."
+
 
 # FIXME use deployment.environment.name, it's a workaround for https://github.com/DataDog/dd-trace-java/pull/12324
 HELM_SET_ARGS=(
@@ -161,9 +165,25 @@ helm upgrade opentelemetry-kube-stack \
     ${HOST_PROFILER_ENABLED_ARGS[@]+"${HOST_PROFILER_ENABLED_ARGS[@]}"} \
     ${OVERLAY_VALUES_ARGS[@]+"${OVERLAY_VALUES_ARGS[@]}"}
 
+# The standard and Cilium policies select the same pods and Kubernetes
+# NetworkPolicies are additive: remove both NetworkPolicy before applying
+# the selected one (or none), so a policy from a previous run cannot widen
+# the requested egress.
+kubectl delete networkpolicy \
+  --namespace opentelemetry-operator-system \
+  --ignore-not-found=true \
+  opentelemetry-kube-stack-host-profiler-egress \
+  || echo "WARNING: Could not delete the host-profiler NetworkPolicy. Continuing..."
+kubectl delete ciliumnetworkpolicy \
+  --namespace opentelemetry-operator-system \
+  --ignore-not-found=true \
+  opentelemetry-kube-stack-host-profiler-egress \
+  || echo "WARNING: CiliumNetworkPolicy CRD not installed. Continuing..."
+
 if [[ -n "$HOST_PROFILER_NETWORK_POLICY_FILE" ]]; then
     echo "Applying the host-profiler egress NetworkPolicy..."
-    kubectl apply -f "$HOST_PROFILER_NETWORK_POLICY_FILE"
+    kubectl apply -f "$HOST_PROFILER_NETWORK_POLICY_FILE" \
+      || echo "WARNING: Could not apply the host-profiler egress NetworkPolicy (is Cilium installed if you chose the Cilium policy?). Continuing..."
 fi
 
 echo "Installing Datadog Agent"

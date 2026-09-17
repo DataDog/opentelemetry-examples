@@ -476,6 +476,9 @@ collectors:
   host-profiler:
     enabled: false
     suffix: host-profiler
+    # The host-profiler is only supported on Linux nodes
+    nodeSelector:
+      kubernetes.io/os: linux
     # Recommended: run as a DaemonSet to collect profiles from every supported node
     # and provide a cluster-wide view.
     mode: daemonset
@@ -507,6 +510,10 @@ collectors:
         valueFrom:
           fieldRef:
             fieldPath: status.podIP
+      - name: K8S_NODE_IP
+        valueFrom:
+          fieldRef:
+            fieldPath: status.hostIP
 
     # Enable the chart integrations the Host Profiler relies on. The profiling
     # preset configures host-level profiling settings such as hostPID and the
@@ -598,7 +605,7 @@ collectors:
     config:
       extensions:
         health_check:
-          endpoint: ${env:MY_POD_IP}:13133
+          endpoint: "[${env:MY_POD_IP}]:13133"
 
       receivers:
         # OTLP receiver for collector self-telemetry metrics forwarded to Datadog.
@@ -635,13 +642,6 @@ collectors:
           # pipeline.
           profiles:
             exporters: [otlp_http]
-
-# Required for node and kubelet metadata used during host/profile enrichment.
-clusterRole:
-  rules:
-    - apiGroups: [""]
-      resources: ["nodes", "nodes/proxy", "nodes/spec"]
-      verbs: ["get", "list"]
 
 instrumentation:
   enabled: true

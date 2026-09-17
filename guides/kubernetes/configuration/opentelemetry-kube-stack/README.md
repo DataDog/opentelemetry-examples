@@ -15,7 +15,9 @@ Optionally, the release installs the **host profiler** collector - a DaemonSet r
 
 - A Kubernetes secret named `datadog-secret` with keys `api-key` (required) and `dd-site` (optional; defaults to `datadoghq.com`).
 - [cert-manager][cm] installed in the cluster, for the operator's admission webhook.
-- Linux nodes with kernel >= 5.10, only for the optional host profiler.
+- Linux nodes with kernel >= 5.10, only for the optional host profiler. Enabling the
+  host-profiler collector also requires Kubernetes >= 1.30: its `securityContext`
+  uses the container-level `appArmorProfile` field, introduced in 1.30.
 
 ## Quickstart
 
@@ -117,6 +119,7 @@ helm upgrade --install opentelemetry-kube-stack \
   --namespace opentelemetry-operator-system \
   --set collectors.host-profiler.enabled=true \
   --values ./values.yaml \
+  --values ./host-profiler-rbac-values.yaml \
   --values ./deployment/values.yaml
 ```
 
