@@ -1,0 +1,23 @@
+---
+# Source: datadog/templates/install_info-configmap.yaml
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: ddagent-kube-stack-datadog-installinfo
+  namespace: opentelemetry-operator-system
+  labels:
+    helm.sh/chart: 'datadog-3.240.0'
+    app.kubernetes.io/name: "ddagent-kube-stack-datadog"
+    app.kubernetes.io/instance: "ddagent-kube-stack"
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/version: "7"
+  annotations:
+    checksum/install_info: 01380af922de74289c160086a612a14af98e5a00ae30d3419e8f088c406a4b60
+data:
+  install_info: |
+    ---
+    install_method:
+      tool: helm
+      tool_version: Helm
+      installer_version: datadog-3.240.0
+

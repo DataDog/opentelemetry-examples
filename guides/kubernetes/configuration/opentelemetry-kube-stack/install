@@ -3,6 +3,15 @@ set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
+# Optional extra/overlay values.yaml (e.g. examples/export-to-datadog-and-jaeger/values.yaml)
+# merged on top of the base values.yaml.
+OVERLAY_VALUES_FILE="${1:-}"
+OVERLAY_VALUES_ARGS=()
+if [[ -n "$OVERLAY_VALUES_FILE" ]]; then
+    [[ -f "$OVERLAY_VALUES_FILE" ]] || { echo "Overlay values file not found: $OVERLAY_VALUES_FILE" >&2; exit 1; }
+    OVERLAY_VALUES_ARGS=(-f "$OVERLAY_VALUES_FILE")
+fi
+
 # Load environment variables from .env file if it exists
 [[ -f "$SCRIPT_DIR/.env" ]] && source "$SCRIPT_DIR/.env"
 
@@ -70,6 +79,22 @@ export K8S_CLUSTER_NAME
 read -p "Deployment Environment Name like 'production', 'staging'... (default: 'production'): " DEPLOYMENT_ENVIRONMENT_NAME
 export DEPLOYMENT_ENVIRONMENT_NAME=${DEPLOYMENT_ENVIRONMENT_NAME:-production}
 
+# The eBPF host profiler needs Linux nodes with kernel >= 5.10 and runs one
+# collector per node with eBPF capabilities. Off by default: it is a security
+# decision, not a configuration detail.
+read -p "Enable the eBPF host profiler? (requires Linux nodes, kernel >= 5.10) (y/N): " ENABLE_HOST_PROFILER
+export ENABLE_HOST_PROFILER=${ENABLE_HOST_PROFILER:-N}
+
+HOST_PROFILER_NETWORK_POLICY_ARGS=()
+if [[ "$ENABLE_HOST_PROFILER" == "y" || "$ENABLE_HOST_PROFILER" == "Y" ]]; then
+    # Egress policy for the profiler, only useful on default-deny clusters
+    # whose CNI enforces NetworkPolicy.
+    read -p "Egress NetworkPolicy? (n)one / (s)tandard / (c)ilium (default: none): " HOST_PROFILER_NETWORK_POLICY
+    case "${HOST_PROFILER_NETWORK_POLICY:-n}" in
+        s*) HOST_PROFILER_NETWORK_POLICY_ARGS=(-f "$SCRIPT_DIR/host-profiler-network-policy.yaml") ;;
+        c*) HOST_PROFILER_NETWORK_POLICY_ARGS=(-f "$SCRIPT_DIR/host-profiler-cilium-network-policy.yaml") ;;
+    esac
+fi
 echo ""
 
 #### BEGINNING OF INSTALLATION SCRIPT
@@ -88,10 +113,15 @@ kubectl create secret generic datadog-secret \
   --from-literal="dd-site=${DD_SITE:-datadoghq.com}" \
   --dry-run=client -o yaml | kubectl apply -f -
 
+echo "Configuring and updating Helm"
+
+helm repo add open-telemetry https://open-telemetry.github.io/opentelemetry-helm-charts
+helm repo add jetstack       https://charts.jetstack.io
+helm repo add datadog        https://helm.datadoghq.com
+helm repo update
+
 echo "Installing cert-manager (if not already installed)..."
 
-helm repo add jetstack https://charts.jetstack.io
-helm repo update
 helm install cert-manager jetstack/cert-manager \
   --namespace cert-manager --create-namespace \
   --set crds.enabled=true  \
@@ -100,10 +130,9 @@ helm install cert-manager jetstack/cert-manager \
 
 echo "Installing OpenTelemetry Kube Stack Helm Chart..."
 
-helm repo add open-telemetry https://open-telemetry.github.io/opentelemetry-helm-charts
-helm repo update
-
+# FIXME use deployment.environment.name, it's a workaround for https://github.com/DataDog/dd-trace-java/pull/12324
 HELM_SET_ARGS=(
+    --set-string "resourceAttributes.deployment\.environment=$DEPLOYMENT_ENVIRONMENT_NAME"
     --set-string "resourceAttributes.deployment\.environment\.name=$DEPLOYMENT_ENVIRONMENT_NAME"
     --set defaultCRConfig.presets.resourceDetection.aks.enabled=$RESOURCE_DETECTION_AKS_ENABLED
     --set defaultCRConfig.presets.resourceDetection.eks.enabled=$RESOURCE_DETECTION_EKS_ENABLED
@@ -120,4 +149,32 @@ helm upgrade opentelemetry-kube-stack \
     --install \
     --namespace opentelemetry-operator-system \
     "${HELM_SET_ARGS[@]}" \
-    -f "$SCRIPT_DIR/values.yaml"
+    -f "$SCRIPT_DIR/values.yaml" \
+    "${OVERLAY_VALUES_ARGS[@]}"
+
+if [[ "$ENABLE_HOST_PROFILER" == "y" || "$ENABLE_HOST_PROFILER" == "Y" ]]; then
+    echo "Installing the host profiler as a dedicated opentelemetry-collector release..."
+
+    # Dedicated opentelemetry-collector release; kube-stack has no profiling
+    # preset yet. See host-profiler-values.yaml.
+    helm upgrade host-profiler \
+        open-telemetry/opentelemetry-collector \
+        --version 0.172.0 \
+        --install \
+        --namespace opentelemetry-operator-system \
+        -f "$SCRIPT_DIR/host-profiler-values.yaml" \
+        "${HOST_PROFILER_NETWORK_POLICY_ARGS[@]}"
+fi
+
+echo "Installing Datadog Agent"
+
+helm upgrade ddagent-kube-stack \
+    datadog/datadog \
+    --version 3.240.0 \
+    --install \
+    --namespace opentelemetry-operator-system \
+    --set-string datadog.clusterName=$K8S_CLUSTER_NAME \
+    --set-string datadog.apiKeyExistingSecret='datadog-secret' \
+    --set-string datadog.site=${DD_SITE:-datadoghq.com} \
+    "${HELM_SET_ARGS[@]}" \
+    -f "$SCRIPT_DIR/dd-agent-values.yaml"

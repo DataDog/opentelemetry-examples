@@ -1,0 +1,17 @@
+# Overlay: also export the daemon collector's traces to a Jaeger instance
+# reachable at jaeger.jaeger.svc.cluster.local:4317, in addition to Datadog.
+#
+# Usage: ./install examples/export-to-datadog-and-jaeger/values.yaml
+collectors:
+  daemon:
+    config:
+      exporters:
+        otlp/jaeger:
+          endpoint: jaeger.jaeger.svc.cluster.local:4317
+          tls:
+            insecure: true
+
+      service:
+        pipelines:
+          traces:
+            exporters: [datadog/connector, otlp/jaeger]

@@ -140,12 +140,7 @@ spec:
           value: production
       resource_detection/env:
         detectors:
-        - gcp
         - k8s_api
-        gcp:
-          resource_attributes:
-            k8s.cluster.name:
-              enabled: true
         override: false
       transform/ksm_to_dd:
         metric_statements:
@@ -502,6 +497,10 @@ spec:
           key: ${env:DD_API_KEY}
           site: ${env:DD_SITE:-datadoghq.com}
       debug: {}
+      otlp/jaeger:
+        endpoint: jaeger.jaeger.svc.cluster.local:4317
+        tls:
+          insecure: true
     extensions:
       datadog:
         api:
@@ -609,12 +608,7 @@ spec:
           key: host.name
       resource_detection/env:
         detectors:
-        - gcp
         - k8s_api
-        gcp:
-          resource_attributes:
-            k8s.cluster.name:
-              enabled: true
         override: false
       transform/cadvisor_labels:
         metric_statements:
@@ -860,6 +854,7 @@ spec:
         traces:
           exporters:
           - datadog/connector
+          - otlp/jaeger
           processors:
           - k8s_attributes
           - resource_detection/env

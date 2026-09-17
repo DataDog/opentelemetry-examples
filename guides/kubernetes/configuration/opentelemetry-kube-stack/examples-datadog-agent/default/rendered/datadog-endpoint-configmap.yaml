@@ -1,0 +1,18 @@
+---
+# Source: datadog/templates/datadog-endpoint-configmap.yaml
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: ddagent-kube-stack-endpoint-config
+  namespace: opentelemetry-operator-system
+  labels:
+    helm.sh/chart: 'datadog-3.240.0'
+    app.kubernetes.io/name: "ddagent-kube-stack-datadog"
+    app.kubernetes.io/instance: "ddagent-kube-stack"
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/version: "7"
+    datadoghq.com/component: endpoint-config
+data:
+  api-key-secret-name: "datadog-secret"
+  dd-site: "datadoghq.com"
+
