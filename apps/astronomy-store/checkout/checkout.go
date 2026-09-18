@@ -4,15 +4,13 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"log/slog"
 	"net/http"
 
-	"github.com/IBM/sarama"
-	"github.com/dnwe/otelsarama"
 	"github.com/google/uuid"
-	"go.opentelemetry.io/otel"
+	"github.com/segmentio/kafka-go"
 	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/trace"
-	"go.uber.org/zap"
 )
 
 // defaultShippingCostUnits/Nanos is a stand-in shipping quote of 8.99: this demo
@@ -67,7 +65,7 @@ type PlaceOrderResponse struct {
 }
 
 type kafkaProducer interface {
-	SendMessage(message *sarama.ProducerMessage) (partition int32, offset int64, err error)
+	WriteMessages(ctx context.Context, messages ...kafka.Message) error
 	Close() error
 }
 
@@ -92,10 +90,9 @@ func (cs *checkoutServer) placeOrder(w http.ResponseWriter, r *http.Request) {
 		attribute.String("user.email", req.Email),
 		attribute.Int("demo.payment.card_cvv", int(req.CreditCard.CreditCardCvv)),
 	)
-	logger.Info("PlaceOrder",
-		zap.String("user_id", req.UserID),
-		zap.String("user_currency", req.UserCurrency),
-		zap.Any("context", ctx),
+	logger.InfoContext(ctx, "PlaceOrder",
+		slog.String("user.id", req.UserID),
+		slog.String("user.currency", req.UserCurrency),
 	)
 
 	orderID := uuid.NewString()
@@ -116,23 +113,22 @@ func (cs *checkoutServer) placeOrder(w http.ResponseWriter, r *http.Request) {
 		attribute.String("demo.order.id", orderID),
 		attribute.String("demo.shipping.tracking.id", shippingTrackingID),
 	)
-	logger.Info("order placed",
-		zap.String("demo.order.id", orderID),
-		zap.String("demo.shipping.tracking.id", shippingTrackingID),
-		zap.Any("context", ctx),
+	logger.InfoContext(ctx, "order placed",
+		slog.String("demo.order.id", orderID),
+		slog.String("demo.shipping.tracking.id", shippingTrackingID),
 	)
 
 	if err := cs.publishOrder(ctx, result); err != nil {
-		logger.Error("failed to publish order to Kafka",
-			zap.String("demo.order.id", orderID),
-			zap.Error(err),
+		logger.ErrorContext(ctx, "failed to publish order to Kafka",
+			slog.String("demo.order.id", orderID),
+			slog.Any("error", err),
 		)
 	}
 
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusCreated)
 	if err := json.NewEncoder(w).Encode(PlaceOrderResponse{Order: result}); err != nil {
-		logger.Error("failed to encode response", zap.Error(err))
+		logger.ErrorContext(ctx, "failed to encode response", slog.Any("error", err))
 	}
 }
 
@@ -140,17 +136,14 @@ func (cs *checkoutServer) health(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusOK)
 }
 
-func newKafkaProducer(broker string) (sarama.SyncProducer, error) {
-	config := sarama.NewConfig()
-	config.Version = sarama.V3_0_0_0
-	config.Producer.RequiredAcks = sarama.WaitForAll
-	config.Producer.Return.Successes = true
-
-	producer, err := sarama.NewSyncProducer([]string{broker}, config)
-	if err != nil {
-		return nil, fmt.Errorf("create Kafka producer: %w", err)
+func newKafkaProducer(broker, topic string) *kafka.Writer {
+	return &kafka.Writer{
+		Addr:                   kafka.TCP(broker),
+		Topic:                  topic,
+		RequiredAcks:           kafka.RequireAll,
+		Balancer:               &kafka.LeastBytes{},
+		AllowAutoTopicCreation: true,
 	}
-	return otelsarama.WrapSyncProducer(config, producer), nil
 }
 
 func (cs *checkoutServer) publishOrder(ctx context.Context, order OrderResult) error {
@@ -159,14 +152,12 @@ func (cs *checkoutServer) publishOrder(ctx context.Context, order OrderResult) e
 		return fmt.Errorf("marshal order: %w", err)
 	}
 
-	message := &sarama.ProducerMessage{
-		Topic: cs.kafkaTopic,
-		Key:   sarama.StringEncoder(order.OrderID),
-		Value: sarama.ByteEncoder(payload),
+	message := kafka.Message{
+		Key:   []byte(order.OrderID),
+		Value: payload,
 	}
-	otel.GetTextMapPropagator().Inject(ctx, otelsarama.NewProducerMessageCarrier(message))
 
-	_, _, err = cs.kafkaProducer.SendMessage(message)
+	err = cs.kafkaProducer.WriteMessages(ctx, message)
 	if err != nil {
 		return fmt.Errorf("send Kafka message: %w", err)
 	}

@@ -2,39 +2,43 @@ package main
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
+	"io"
+	"log/slog"
 	"net/http"
 	"net/http/httptest"
 	"testing"
 
-	"github.com/IBM/sarama"
-	"go.opentelemetry.io/otel"
-	"go.opentelemetry.io/otel/propagation"
-	"go.opentelemetry.io/otel/trace"
-	"go.uber.org/zap"
+	"github.com/segmentio/kafka-go"
 )
 
 type recordingKafkaProducer struct {
-	message *sarama.ProducerMessage
+	message kafka.Message
 }
 
-func (p *recordingKafkaProducer) SendMessage(message *sarama.ProducerMessage) (int32, int64, error) {
-	p.message = message
-	return 0, 1, nil
+func (p *recordingKafkaProducer) WriteMessages(_ context.Context, messages ...kafka.Message) error {
+	if len(messages) > 0 {
+		p.message = messages[0]
+	}
+	return nil
 }
 
 func (p *recordingKafkaProducer) Close() error {
 	return nil
 }
 
-func TestPlaceOrderPublishesOrderToKafka(t *testing.T) {
-	logger = zap.NewNop()
-	previousPropagator := otel.GetTextMapPropagator()
-	otel.SetTextMapPropagator(propagation.TraceContext{})
-	t.Cleanup(func() {
-		otel.SetTextMapPropagator(previousPropagator)
-	})
+func TestNewKafkaProducerAllowsTopicCreation(t *testing.T) {
+	producer := newKafkaProducer("kafka:9092", "orders")
+	defer producer.Close()
 
+	if !producer.AllowAutoTopicCreation {
+		t.Error("AllowAutoTopicCreation = false, want true")
+	}
+}
+
+func TestPlaceOrderPublishesOrderToKafka(t *testing.T) {
+	logger = slog.New(slog.NewTextHandler(io.Discard, nil))
 	producer := &recordingKafkaProducer{}
 	server := checkoutServer{
 		kafkaProducer: producer,
@@ -52,11 +56,6 @@ func TestPlaceOrderPublishesOrderToKafka(t *testing.T) {
 			"credit_card_expiration_month":12
 		}
 	}`))
-	request = request.WithContext(trace.ContextWithSpanContext(request.Context(), trace.NewSpanContext(trace.SpanContextConfig{
-		TraceID:    trace.TraceID{1},
-		SpanID:     trace.SpanID{1},
-		TraceFlags: trace.FlagsSampled,
-	})))
 	response := httptest.NewRecorder()
 
 	server.placeOrder(response, request)
@@ -64,19 +63,15 @@ func TestPlaceOrderPublishesOrderToKafka(t *testing.T) {
 	if response.Code != http.StatusCreated {
 		t.Fatalf("status = %d, want %d", response.Code, http.StatusCreated)
 	}
-	if producer.message == nil {
+	if producer.message.Topic != "" {
+		t.Errorf("message topic = %q, want empty because the writer supplies it", producer.message.Topic)
+	}
+	if producer.message.Key == nil {
 		t.Fatal("expected an order to be published")
 	}
-	if producer.message.Topic != "orders" {
-		t.Errorf("topic = %q, want %q", producer.message.Topic, "orders")
-	}
 
-	payload, err := producer.message.Value.Encode()
-	if err != nil {
-		t.Fatalf("encode Kafka message: %v", err)
-	}
 	var order OrderResult
-	if err := json.Unmarshal(payload, &order); err != nil {
+	if err := json.Unmarshal(producer.message.Value, &order); err != nil {
 		t.Fatalf("unmarshal Kafka message: %v", err)
 	}
 	if order.OrderID == "" {
@@ -85,11 +80,4 @@ func TestPlaceOrderPublishesOrderToKafka(t *testing.T) {
 	if order.ShippingTrackingID == "" {
 		t.Error("published order is missing shipping_tracking_id")
 	}
-
-	for _, header := range producer.message.Headers {
-		if string(header.Key) == "traceparent" {
-			return
-		}
-	}
-	t.Error("published order is missing traceparent header")
 }

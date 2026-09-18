@@ -33,3 +33,4 @@ apps/rolldice-http-metrics/game_controller/dd-java-agent.jar
 
 # Compiled Go binary for the astronomy-store checkout service
 apps/astronomy-store/checkout/checkout
+/apps/astronomy-store/checkout/.otelc-build/

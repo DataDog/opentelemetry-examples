@@ -5,7 +5,8 @@ COPY go.mod go.sum ./
 RUN go mod download
 
 COPY *.go ./
-RUN CGO_ENABLED=0 go build -o /checkout .
+RUN go install go.opentelemetry.io/otelc/tool/cmd/otelc@v1.1.0
+RUN CGO_ENABLED=0 otelc go build -o /checkout .
 
 FROM gcr.io/distroless/static-debian12
 
