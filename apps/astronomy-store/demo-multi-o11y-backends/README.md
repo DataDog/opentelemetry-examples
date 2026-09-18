@@ -1,0 +1,1 @@
+Demo DDOT SDKs's compliance to OpenTelemetry semantic conventions sending traces to Jaeger in addition to Datadog.
