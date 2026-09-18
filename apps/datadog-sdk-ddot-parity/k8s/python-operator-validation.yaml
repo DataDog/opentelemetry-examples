@@ -1,0 +1,300 @@
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: otel-python-validation
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: postgres-init
+  namespace: otel-python-validation
+data:
+  init.sql: |
+    CREATE EXTENSION IF NOT EXISTS pg_stat_statements;
+    CREATE TABLE IF NOT EXISTS orders (
+      id BIGSERIAL PRIMARY KEY,
+      customer_id INTEGER NOT NULL,
+      status TEXT NOT NULL,
+      total_cents INTEGER NOT NULL,
+      created_at TIMESTAMPTZ NOT NULL DEFAULT now()
+    );
+    INSERT INTO orders (customer_id, status, total_cents)
+    SELECT (value % 100),
+           (ARRAY['pending', 'paid', 'shipped', 'cancelled'])[(value % 4) + 1],
+           100 + (value % 10000)
+    FROM generate_series(1, 25000) AS value;
+    CREATE INDEX IF NOT EXISTS orders_customer_id_idx ON orders(customer_id);
+    CREATE USER datadog WITH PASSWORD 'datadog-readonly';
+    GRANT pg_monitor TO datadog;
+    GRANT CONNECT ON DATABASE validation TO datadog;
+    GRANT USAGE ON SCHEMA public TO datadog;
+    GRANT SELECT ON ALL TABLES IN SCHEMA public TO datadog;
+    ALTER DEFAULT PRIVILEGES IN SCHEMA public GRANT SELECT ON TABLES TO datadog;
+    CREATE SCHEMA datadog;
+    GRANT USAGE ON SCHEMA datadog TO datadog;
+    CREATE OR REPLACE FUNCTION datadog.explain_statement(
+      l_query TEXT,
+      OUT explain JSON
+    )
+    RETURNS SETOF JSON AS
+    $$
+    DECLARE
+      curs REFCURSOR;
+      plan JSON;
+    BEGIN
+      SET TRANSACTION READ ONLY;
+      OPEN curs FOR EXECUTE pg_catalog.concat('EXPLAIN (FORMAT JSON) ', l_query);
+      FETCH curs INTO plan;
+      CLOSE curs;
+      RETURN QUERY SELECT plan;
+    END;
+    $$
+    LANGUAGE 'plpgsql'
+    RETURNS NULL ON NULL INPUT
+    SECURITY DEFINER;
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: postgres
+  namespace: otel-python-validation
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: postgres
+  template:
+    metadata:
+      labels:
+        app: postgres
+    spec:
+      containers:
+        - name: postgres
+          image: postgres:16.4-alpine
+          args:
+            - -c
+            - shared_preload_libraries=pg_stat_statements
+            - -c
+            - track_activity_query_size=4096
+            - -c
+            - track_io_timing=on
+          env:
+            - name: POSTGRES_DB
+              value: validation
+            - name: POSTGRES_USER
+              value: validation
+            - name: POSTGRES_PASSWORD
+              value: validation
+          ports:
+            - name: postgres
+              containerPort: 5432
+          readinessProbe:
+            exec:
+              command: ["pg_isready", "-U", "validation", "-d", "validation"]
+            initialDelaySeconds: 5
+            periodSeconds: 3
+          volumeMounts:
+            - name: init
+              mountPath: /docker-entrypoint-initdb.d
+      volumes:
+        - name: init
+          configMap:
+            name: postgres-init
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: postgres
+  namespace: otel-python-validation
+spec:
+  selector:
+    app: postgres
+  ports:
+    - name: postgres
+      port: 5432
+      targetPort: postgres
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: datadog-postgres-check
+  namespace: otel-python-validation
+data:
+  postgres.yaml: |
+    init_config:
+    instances:
+      - dbm: true
+        host: postgres
+        port: 5432
+        username: datadog
+        password: datadog-readonly
+        dbname: validation
+        reported_hostname: otel-python-postgres
+        tags:
+          - env:validation
+          - service:otel-python-ddot-parity
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: datadog-agent
+  namespace: otel-python-validation
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: datadog-agent
+  template:
+    metadata:
+      labels:
+        app: datadog-agent
+    spec:
+      containers:
+        - name: agent
+          image: gcr.io/datadoghq/agent:7.83.1
+          env:
+            - name: DD_API_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: datadog-secret
+                  key: api-key
+            - name: DD_SITE
+              valueFrom:
+                secretKeyRef:
+                  name: datadog-secret
+                  key: site
+            - name: DD_HOSTNAME
+              value: otel-python-agent
+            - name: DD_APM_ENABLED
+              value: "true"
+            - name: DD_APM_NON_LOCAL_TRAFFIC
+              value: "true"
+            - name: DD_DOGSTATSD_NON_LOCAL_TRAFFIC
+              value: "true"
+            - name: DD_DOGSTATSD_METRICS_STATS_ENABLE
+              value: "true"
+            - name: DD_REMOTE_CONFIGURATION_ENABLED
+              value: "true"
+            - name: DD_LOGS_ENABLED
+              value: "true"
+            - name: DD_PROCESS_AGENT_ENABLED
+              value: "false"
+            - name: DD_CONTAINER_EXCLUDE
+              value: "name:.*"
+          ports:
+            - name: trace
+              containerPort: 8126
+            - name: dogstatsd
+              containerPort: 8125
+              protocol: UDP
+          volumeMounts:
+            - name: postgres-check
+              mountPath: /etc/datadog-agent/conf.d/postgres.d
+      volumes:
+        - name: postgres-check
+          configMap:
+            name: datadog-postgres-check
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: datadog-agent
+  namespace: otel-python-validation
+spec:
+  selector:
+    app: datadog-agent
+  ports:
+    - name: trace
+      port: 8126
+      targetPort: trace
+    - name: dogstatsd
+      port: 8125
+      targetPort: dogstatsd
+      protocol: UDP
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: python-validation
+  namespace: otel-python-validation
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: python-validation
+  template:
+    metadata:
+      labels:
+        app: python-validation
+    spec:
+      containers:
+        - name: app
+          image: otel-python-validation:4.15.0
+          imagePullPolicy: IfNotPresent
+          env:
+            - name: DD_SERVICE
+              value: otel-python-ddot-parity
+            - name: DD_ENV
+              value: validation
+            - name: DD_VERSION
+              value: ddot-parity-v1
+            - name: DD_TRACE_OTEL_ENABLED
+              value: "true"
+            - name: DD_TRACE_OTEL_SEMANTICS_ENABLED
+              value: "true"
+            - name: OTEL_TRACES_EXPORTER
+              value: otlp
+            - name: OTEL_EXPORTER_OTLP_TRACES_ENDPOINT
+              value: http://ddot-collector:4318/v1/traces
+            - name: OTEL_EXPORTER_OTLP_TRACES_PROTOCOL
+              value: http/protobuf
+            - name: DD_AGENT_HOST
+              value: datadog-agent
+            - name: DD_TRACE_AGENT_PORT
+              value: "8126"
+            - name: DD_DOGSTATSD_PORT
+              value: "8125"
+            - name: DD_PROFILING_ENABLED
+              value: "true"
+            - name: DD_PROFILING_TIMELINE_ENABLED
+              value: "true"
+            - name: DD_DYNAMIC_INSTRUMENTATION_ENABLED
+              value: "true"
+            - name: DD_DYNAMIC_INSTRUMENTATION_PROBE_FILE
+              value: /app/probes.json
+            - name: DD_CODE_ORIGIN_FOR_SPANS_ENABLED
+              value: "true"
+            - name: DD_DBM_PROPAGATION_MODE
+              value: full
+            - name: POSTGRES_HOST
+              value: postgres
+            - name: POSTGRES_DB_PORT
+              value: "5432"
+            - name: POSTGRES_DB
+              value: validation
+            - name: POSTGRES_USER
+              value: validation
+            - name: POSTGRES_PASSWORD
+              value: validation
+          ports:
+            - name: http
+              containerPort: 5000
+          readinessProbe:
+            httpGet:
+              path: /health
+              port: http
+            initialDelaySeconds: 5
+            periodSeconds: 3
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: python-validation
+  namespace: otel-python-validation
+spec:
+  selector:
+    app: python-validation
+  ports:
+    - name: http
+      port: 5000
+      targetPort: http

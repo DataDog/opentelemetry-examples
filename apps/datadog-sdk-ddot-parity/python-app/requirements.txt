@@ -1,0 +1,6 @@
+ddtrace==4.15.0
+flask==3.1.0
+opentelemetry-api==1.30.0
+opentelemetry-sdk==1.30.0
+opentelemetry-exporter-otlp==1.30.0
+psycopg[binary]==3.2.10

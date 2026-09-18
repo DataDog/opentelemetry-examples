@@ -1,0 +1,70 @@
+apiVersion: opentelemetry.io/v1beta1
+kind: OpenTelemetryCollector
+metadata:
+  name: ddot
+  namespace: otel-python-validation
+spec:
+  mode: deployment
+  command: ["otel-agent", "run"]
+  env:
+    - name: DD_API_KEY
+      valueFrom:
+        secretKeyRef:
+          name: datadog-secret
+          key: api-key
+    - name: DD_SITE
+      valueFrom:
+        secretKeyRef:
+          name: datadog-secret
+          key: site
+    - name: DD_OTELCOLLECTOR_CONVERTER_FEATURES
+      value: datadog,pprof,zpages,prometheus,infraattributes
+    - name: DD_OTEL_STANDALONE
+      value: "true"
+    - name: DD_OTELCOLLECTOR_ENABLED
+      value: "true"
+    - name: K8S_CLUSTER_NAME
+      value: otel-python-validation
+    - name: DD_HOSTNAME
+      value: otel-python-ddot
+  config:
+    receivers:
+      otlp:
+        protocols:
+          grpc:
+            endpoint: 0.0.0.0:4317
+          http:
+            endpoint: 0.0.0.0:4318
+    processors:
+      batch:
+        timeout: 5s
+      resource:
+        attributes:
+          - key: k8s.cluster.name
+            action: upsert
+            value: otel-python-validation
+    exporters:
+      datadog:
+        api:
+          key: ${env:DD_API_KEY}
+          site: ${env:DD_SITE}
+        sending_queue:
+          batch:
+            flush_timeout: 5s
+    service:
+      telemetry:
+        resource:
+          k8s.cluster.name: ${env:K8S_CLUSTER_NAME}
+      pipelines:
+        traces:
+          receivers: [otlp]
+          processors: [resource, batch]
+          exporters: [datadog]
+        metrics:
+          receivers: [otlp]
+          processors: [resource, batch]
+          exporters: [datadog]
+        logs:
+          receivers: [otlp]
+          processors: [resource, batch]
+          exporters: [datadog]

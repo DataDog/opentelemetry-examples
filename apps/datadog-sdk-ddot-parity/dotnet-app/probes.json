@@ -1,0 +1,65 @@
+[
+  {
+    "id": "ddot-parity-dotnet-metric-probe",
+    "version": 1,
+    "type": "METRIC_PROBE",
+    "language": "dotnet",
+    "where": { "typeName": "ProbeTargets", "methodName": "DynamicProbeTarget" },
+    "tags": ["env:validation", "version:dd-trace-dotnet-3.53.0"],
+    "metricName": "ddot_parity_otel_dotnet_calls",
+    "kind": "COUNT",
+    "value": { "dsl": "value", "json": { "ref": "value" } },
+    "when": { "dsl": "value >= 10", "json": { "ge": [{ "ref": "value" }, 10] } },
+    "evaluateAt": "ENTRY"
+  },
+  {
+    "id": "ddot-parity-dotnet-span-probe",
+    "version": 1,
+    "type": "SPAN_PROBE",
+    "language": "dotnet",
+    "where": { "typeName": "ProbeTargets", "methodName": "DynamicProbeTarget" },
+    "tags": ["env:validation", "version:dd-trace-dotnet-3.53.0"]
+  },
+  {
+    "id": "ddot-parity-dotnet-span-tag-probe",
+    "version": 1,
+    "type": "SPAN_DECORATION_PROBE",
+    "language": "dotnet",
+    "where": { "typeName": "ProbeTargets", "methodName": "DynamicProbeTarget" },
+    "tags": ["env:validation", "version:dd-trace-dotnet-3.53.0"],
+    "evaluateAt": "EXIT",
+    "targetSpan": "ROOT",
+    "decorations": [
+      {
+        "tags": [
+          {
+            "name": "validation.dynamic.result",
+            "value": {
+              "template": "{@return}",
+              "segments": [{ "dsl": "@return", "json": { "ref": "@return" } }]
+            }
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "id": "ddot-parity-dotnet-log-probe",
+    "version": 1,
+    "type": "LOG_PROBE",
+    "language": "dotnet",
+    "where": { "typeName": "ProbeTargets", "methodName": "DynamicProbeTarget" },
+    "tags": ["env:validation", "version:dd-trace-dotnet-3.53.0"],
+    "evaluateAt": "EXIT",
+    "template": "DDOT parity .NET validation value={value} result={@return}",
+    "segments": [
+      { "str": "DDOT parity .NET validation value=" },
+      { "dsl": "value", "json": { "ref": "value" } },
+      { "str": " result=" },
+      { "dsl": "@return", "json": { "ref": "@return" } }
+    ],
+    "captureSnapshot": true,
+    "capture": { "maxReferenceDepth": 3, "maxCollectionSize": 20, "maxLength": 255 },
+    "sampling": { "snapshotsPerSecond": 10 }
+  }
+]

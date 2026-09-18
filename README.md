@@ -23,6 +23,7 @@ The repository includes example applications and configurations for Datadog user
 | [Kubernetes (Datadog Operator and Helm) with Express][15] | An Express sample app configured with Kubernetes  | Kubernetes |
 | [Flask and Express Trace Context][17] | An Express controller server calling two Flask servers | Standalone Host/Docker |
 | [Kafka Producer, Consumer and Broker][18] | A kafka java consumer, java producer and broker | Kafka metrics, Tracing, Logs |
+| [Datadog SDK DDOT Parity][19] | Five SDK apps with repeatable DDOT and Datadog native trace-export setups | APM, profiling, Dynamic Instrumentation, DBM correlation |
 
 [1]: https://opentelemetry.io/
 [2]: ./apps/game-of-life/
@@ -42,3 +43,4 @@ The repository includes example applications and configurations for Datadog user
 [16]: ./apps/kubernetes-express-otel/
 [17]: ./apps/rolldice-game/
 [18]: ./apps/kafka-metrics/
+[19]: ./apps/datadog-sdk-ddot-parity/

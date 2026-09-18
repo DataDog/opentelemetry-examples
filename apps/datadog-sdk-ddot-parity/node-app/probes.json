@@ -1,0 +1,19 @@
+[
+  {
+    "id": "ddot-parity-node-log-probe",
+    "version": 1,
+    "type": "LOG_PROBE",
+    "language": "javascript",
+    "where": {"sourceFile": "probe-target.js", "lines": ["6"]},
+    "tags": ["env:validation", "version:dd-trace-6.16.0-run1"],
+    "template": "DDOT parity Node validation value={value}",
+    "segments": [
+      {"str": "DDOT parity Node validation value="},
+      {"dsl": "value", "json": {"ref": "value"}}
+    ],
+    "when": {"dsl": "value >= 10", "json": {"ge": [{"ref": "value"}, 10]}},
+    "captureSnapshot": true,
+    "capture": {"maxReferenceDepth": 3, "maxCollectionSize": 20, "maxLength": 255},
+    "sampling": {"snapshotsPerSecond": 10}
+  }
+]

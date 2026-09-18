@@ -1,0 +1,73 @@
+[
+  {
+    "id": "ddot-parity-java-metric-probe",
+    "version": 1,
+    "type": "METRIC_PROBE",
+    "language": "java",
+    "where": {"typeName": "ProbeTargets", "methodName": "metricProbeTarget", "signature": "int (int)"},
+    "tags": ["env:validation", "version:dd-trace-java-1.66.0-run1"],
+    "metricName": "ddot_parity_otel_java_calls",
+    "kind": "COUNT",
+    "value": {"dsl": "value", "json": {"ref": "value"}},
+    "evaluateAt": "ENTRY"
+  },
+  {
+    "id": "ddot-parity-java-conditional-log-probe",
+    "version": 1,
+    "type": "LOG_PROBE",
+    "language": "java",
+    "where": {"typeName": "ProbeTargets", "methodName": "conditionalMetricProbeTarget", "signature": "int (int)"},
+    "tags": ["env:validation", "version:dd-trace-java-1.66.0-run1"],
+    "when": {"dsl": "value >= 10", "json": {"ge": [{"ref": "value"}, 10]}},
+    "evaluateAt": "EXIT",
+    "template": "DDOT parity Java conditional value={value} result={@return}",
+    "segments": [
+      {"str": "DDOT parity Java conditional value="},
+      {"dsl": "value", "json": {"ref": "value"}},
+      {"str": " result="},
+      {"dsl": "@return", "json": {"ref": "@return"}}
+    ],
+    "captureSnapshot": true,
+    "capture": {"maxReferenceDepth": 3, "maxCollectionSize": 20, "maxLength": 255},
+    "sampling": {"snapshotsPerSecond": 10}
+  },
+  {
+    "id": "ddot-parity-java-span-probe",
+    "version": 1,
+    "type": "SPAN_PROBE",
+    "language": "java",
+    "where": {"typeName": "ProbeTargets", "methodName": "spanProbeTarget", "signature": "int (int)"},
+    "tags": ["env:validation", "version:dd-trace-java-1.66.0-run1"],
+    "evaluateAt": "EXIT"
+  },
+  {
+    "id": "ddot-parity-java-span-tag-probe",
+    "version": 1,
+    "type": "SPAN_DECORATION_PROBE",
+    "language": "java",
+    "where": {"typeName": "ProbeTargets", "methodName": "spanTagProbeTarget", "signature": "int (int)"},
+    "tags": ["env:validation", "version:dd-trace-java-1.66.0-run1"],
+    "evaluateAt": "EXIT",
+    "targetSpan": "ROOT",
+    "decorations": [{"tags": [{"name": "validation.dynamic.result", "value": {"template": "{@return}", "segments": [{"dsl": "@return", "json": {"ref": "@return"}}]}}]}]
+  },
+  {
+    "id": "ddot-parity-java-log-probe",
+    "version": 1,
+    "type": "LOG_PROBE",
+    "language": "java",
+    "where": {"typeName": "ProbeTargets", "methodName": "logProbeTarget", "signature": "int (int)"},
+    "tags": ["env:validation", "version:dd-trace-java-1.66.0-run1"],
+    "evaluateAt": "EXIT",
+    "template": "DDOT parity Java validation value={value} result={@return}",
+    "segments": [
+      {"str": "DDOT parity Java validation value="},
+      {"dsl": "value", "json": {"ref": "value"}},
+      {"str": " result="},
+      {"dsl": "@return", "json": {"ref": "@return"}}
+    ],
+    "captureSnapshot": true,
+    "capture": {"maxReferenceDepth": 3, "maxCollectionSize": 20, "maxLength": 255},
+    "sampling": {"snapshotsPerSecond": 10}
+  }
+]

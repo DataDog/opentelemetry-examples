@@ -1,0 +1,142 @@
+[
+  {
+    "id": "ddot-parity-python-log-probe",
+    "version": 2,
+    "type": "LOG_PROBE",
+    "language": "python",
+    "where": {"type": "probe_targets", "method": "log_probe_target"},
+    "tags": ["env:validation", "suite:ddot-parity"],
+    "evaluateAt": "EXIT",
+    "template": "DDOT parity log value={value} result={@return}",
+    "segments": [
+      {"str": "DDOT parity log value="},
+      {"dsl": "value", "json": {"ref": "value"}},
+      {"str": " result="},
+      {"dsl": "@return", "json": {"ref": "@return"}}
+    ],
+    "captureSnapshot": false
+  },
+  {
+    "id": "ddot-parity-python-snapshot-line-probe",
+    "version": 2,
+    "type": "LOG_PROBE",
+    "language": "python",
+    "where": {"sourceFile": "probe_targets.py", "lines": [11]},
+    "tags": ["env:validation", "suite:ddot-parity"],
+    "template": "DDOT parity snapshot line value={value}",
+    "segments": [
+      {"str": "DDOT parity snapshot line value="},
+      {"dsl": "value", "json": {"ref": "value"}}
+    ],
+    "captureSnapshot": true,
+    "capture": {"maxReferenceDepth": 3, "maxCollectionSize": 20, "maxLength": 255}
+  },
+  {
+    "id": "ddot-parity-python-snapshot-method-probe",
+    "version": 2,
+    "type": "LOG_PROBE",
+    "language": "python",
+    "where": {"type": "probe_targets", "method": "snapshot_method_target"},
+    "tags": ["env:validation", "suite:ddot-parity"],
+    "evaluateAt": "EXIT",
+    "template": "DDOT parity snapshot method value={value} result={@return}",
+    "segments": [
+      {"str": "DDOT parity snapshot method value="},
+      {"dsl": "value", "json": {"ref": "value"}},
+      {"str": " result="},
+      {"dsl": "@return", "json": {"ref": "@return"}}
+    ],
+    "captureSnapshot": true,
+    "capture": {"maxReferenceDepth": 3, "maxCollectionSize": 20, "maxLength": 255}
+  },
+  {
+    "id": "ddot-parity-python-metric-count-probe",
+    "version": 2,
+    "type": "METRIC_PROBE",
+    "language": "python",
+    "where": {"type": "probe_targets", "method": "metric_count_target"},
+    "tags": ["env:validation", "suite:ddot-parity"],
+    "metricName": "ddot_parity.python.metric_count",
+    "kind": "COUNT",
+    "evaluateAt": "ENTRY"
+  },
+  {
+    "id": "ddot-parity-python-metric-gauge-probe",
+    "version": 2,
+    "type": "METRIC_PROBE",
+    "language": "python",
+    "where": {"type": "probe_targets", "method": "metric_gauge_target"},
+    "tags": ["env:validation", "suite:ddot-parity"],
+    "metricName": "ddot_parity.python.metric_gauge",
+    "kind": "GAUGE",
+    "value": {"dsl": "value", "json": {"ref": "value"}},
+    "evaluateAt": "ENTRY"
+  },
+  {
+    "id": "ddot-parity-python-metric-histogram-probe",
+    "version": 2,
+    "type": "METRIC_PROBE",
+    "language": "python",
+    "where": {"type": "probe_targets", "method": "metric_histogram_target"},
+    "tags": ["env:validation", "suite:ddot-parity"],
+    "metricName": "ddot_parity.python.metric_histogram",
+    "kind": "HISTOGRAM",
+    "value": {"dsl": "value", "json": {"ref": "value"}},
+    "evaluateAt": "ENTRY"
+  },
+  {
+    "id": "ddot-parity-python-metric-distribution-probe",
+    "version": 2,
+    "type": "METRIC_PROBE",
+    "language": "python",
+    "where": {"type": "probe_targets", "method": "metric_distribution_target"},
+    "tags": ["env:validation", "suite:ddot-parity"],
+    "metricName": "ddot_parity.python.metric_distribution",
+    "kind": "DISTRIBUTION",
+    "value": {"dsl": "value", "json": {"ref": "value"}},
+    "evaluateAt": "ENTRY"
+  },
+  {
+    "id": "ddot-parity-python-conditional-probe",
+    "version": 2,
+    "type": "METRIC_PROBE",
+    "language": "python",
+    "where": {"type": "probe_targets", "method": "dynamic_probe_target"},
+    "tags": ["env:validation", "suite:ddot-parity"],
+    "metricName": "ddot_parity.python.conditional_count",
+    "kind": "COUNT",
+    "when": {"dsl": "value >= 10", "json": {"ge": [{"ref": "value"}, 10]}},
+    "evaluateAt": "ENTRY"
+  },
+  {
+    "id": "ddot-parity-python-span-probe",
+    "version": 2,
+    "type": "SPAN_PROBE",
+    "language": "python",
+    "where": {"type": "probe_targets", "method": "span_probe_target"},
+    "tags": ["env:validation", "suite:ddot-parity"]
+  },
+  {
+    "id": "ddot-parity-python-span-decoration-probe",
+    "version": 2,
+    "type": "SPAN_DECORATION_PROBE",
+    "language": "python",
+    "where": {"type": "probe_targets", "method": "span_decoration_target"},
+    "tags": ["env:validation", "suite:ddot-parity"],
+    "evaluateAt": "EXIT",
+    "targetSpan": "ACTIVE",
+    "decorations": [
+      {
+        "tags": [
+          {
+            "name": "validation.ddot_parity.result",
+            "value": {
+              "template": "{@return}",
+              "segments": [{"dsl": "@return", "json": {"ref": "@return"}}]
+            }
+          }
+        ]
+      }
+    ]
+  }
+]
