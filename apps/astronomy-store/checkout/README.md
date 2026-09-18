@@ -38,14 +38,19 @@ docker build -t astronomy-store/checkout:latest .
 kubectl apply -f kubernetes.yaml
 ```
 
-The image is built with [`otelc`](https://github.com/open-telemetry/opentelemetry-go-compile-instrumentation) v1.1.0,
-which injects the OpenTelemetry SDK and instrumentation during compilation. The service uses only libraries supported by
-`otelc`: standard-library `net/http` for server spans, `log/slog` for log records, and [
+The image is built with [Datadog Orchestrion](https://github.com/DataDog/orchestrion) v1.13.1, which injects
+`dd-trace-go/v2` instrumentation during compilation via `orchestrion go build` in place of `go build`. The service uses
+only libraries supported by Orchestrion: standard-library `net/http` for server spans, `log/slog` for log records, and [
 `kafka-go`](https://github.com/segmentio/kafka-go) for Kafka producer spans and trace-context propagation. The service
 still adds its domain-specific attributes to the active HTTP span, but does not create SDK providers or instrumentation
 wrappers itself.
 
 The Deployment's `instrumentation.opentelemetry.io/inject-sdk` annotation supplies the standard `OTEL_*` exporter and
-resource environment variables consumed by the SDK that `otelc` adds to the binary. The annotation identifies the
-`Instrumentation` resource as `opentelemetry-operator-system/opentelemetry-kube-stack`; a bare `"true"` would require a
-default `Instrumentation` resource in the `astronomy-store` namespace.
+resource environment variables consumed by `dd-trace-go` running in its OpenTelemetry-compatible ("DDOT") mode. The
+annotation identifies the `Instrumentation` resource as `opentelemetry-operator-system/opentelemetry-kube-stack`; a bare
+`"true"` would require a default `Instrumentation` resource in the `astronomy-store` namespace.
+
+An alternate [`Dockerfile.upstream-otel`](Dockerfile.upstream-otel) builds the same code with the upstream [
+`otelc`](https://github.com/open-telemetry/opentelemetry-go-compile-instrumentation) v1.1.0 compiler instead of Datadog
+Orchestrion, instrumenting via the OpenTelemetry Go SDK rather than `dd-trace-go/v2`. `./build-images` publishes it
+under the same image name with a `-upstream-otel` tag suffix (e.g. `astronomy-store/checkout:latest-upstream-otel`).

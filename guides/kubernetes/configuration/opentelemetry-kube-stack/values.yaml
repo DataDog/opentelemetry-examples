@@ -517,6 +517,9 @@ instrumentation:
       value: "true"
     - name: "DD_TRACE_REMOVE_INTEGRATION_SERVICE_NAMES_ENABLED"
       value: "true"
+    ## WORKAROUND: DDOT SDK GO LANG ignores OTEL_EXPORTER_OTLP_ENDPOINT, it's a bug
+    - name: "OTEL_EXPORTER_OTLP_TRACES_ENDPOINT"
+      value: "http://opentelemetry-kube-stack-daemon-collector.opentelemetry-operator-system.svc.cluster.local:4318/v1/traces"
   exporter:
     # Daemon collector Service DNS. Update the collector name and namespace
     # to match your install: http://<helm-release-name>-daemon-collector.<namespace>.svc.cluster.local:4318

@@ -4,8 +4,21 @@ set -euo pipefail
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
 # Optional extra/overlay values.yaml (e.g. examples/export-to-datadog-and-jaeger/values.yaml)
-# merged on top of the base values.yaml.
-OVERLAY_VALUES_FILE="${1:-}"
+# merged on top of the base values.yaml, and an optional "--force-conflicts" flag, in any order.
+OVERLAY_VALUES_FILE=""
+FORCE_CONFLICTS_ARGS=()
+for arg in "$@"; do
+    if [[ "$arg" == "--force-conflicts" ]]; then
+        # The OpenTelemetry Operator's own controller (field manager "manager") takes ownership
+        # of some Instrumentation CR fields (e.g. .spec.env) when it defaults/mutates them, which
+        # then conflicts with Helm's server-side apply on later upgrades that change those fields:
+        # "UPGRADE FAILED: conflict occurred while applying object ...: conflict with "manager" ...".
+        # Pass --force-conflicts to have Helm's server-side apply take ownership back.
+        FORCE_CONFLICTS_ARGS=(--force-conflicts)
+    else
+        OVERLAY_VALUES_FILE="$arg"
+    fi
+done
 OVERLAY_VALUES_ARGS=()
 if [[ -n "$OVERLAY_VALUES_FILE" ]]; then
     [[ -f "$OVERLAY_VALUES_FILE" ]] || { echo "Overlay values file not found: $OVERLAY_VALUES_FILE" >&2; exit 1; }
@@ -148,6 +161,7 @@ helm upgrade opentelemetry-kube-stack \
     --version 0.20.8 \
     --install \
     --namespace opentelemetry-operator-system \
+    "${FORCE_CONFLICTS_ARGS[@]}" \
     "${HELM_SET_ARGS[@]}" \
     -f "$SCRIPT_DIR/values.yaml" \
     "${OVERLAY_VALUES_ARGS[@]}"
