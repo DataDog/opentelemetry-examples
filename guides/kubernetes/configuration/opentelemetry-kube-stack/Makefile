@@ -8,6 +8,10 @@ CI_SCRIPTS := $(REPO_ROOT)/.github/workflows/scripts
 validate:
 	@DUMMY_ENV_FILE=$(CI_SCRIPTS)/dummy-credentials.env $(CI_SCRIPTS)/validate-opentelemetry-kube-stack.sh
 
+.PHONY: validate-otel-kube-stack-examples
+validate-otel-kube-stack-examples:
+	@./validate-collector-pipelines.sh examples/*/rendered*/collector.yaml
+
 .PHONY: generate-examples
 generate-examples:
 	@echo "Generating all examples into their rendered/ subdirectory"

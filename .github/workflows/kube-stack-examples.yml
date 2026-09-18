@@ -42,6 +42,9 @@ jobs:
       - name: Regenerate examples
         run: make generate-examples
 
+      - name: Validate collector pipeline references
+        run: make validate-otel-kube-stack-examples
+
       - name: Fail if rendered examples are out of date
         run: |
           if [ -n "$(git status --porcelain -- examples/)" ]; then

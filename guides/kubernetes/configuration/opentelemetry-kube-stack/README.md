@@ -112,7 +112,7 @@ OpenTelemetry Collector then automatically populates `k8s.cluster.name`.
  For other Kubernetes platforms, the
 installer sets `resourceAttributes.k8s.cluster.name` to the supplied cluster name.
 
-See `examples/` for rendered values and manifests for each deployment type.
+See `examples/` for rendered values and manifests for each deployment type. Run `make validate-otel-kube-stack-examples` to check that every rendered example's pipelines only reference defined receivers, processors, exporters, and extensions.
 
 ## Resource allocation
 
