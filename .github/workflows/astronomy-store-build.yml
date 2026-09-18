@@ -1,0 +1,26 @@
+name: astronomy-store image build
+
+on:
+  pull_request:
+    branches: [ "main" ]
+    paths:
+      - "apps/astronomy-store/**"
+      - ".github/workflows/astronomy-store-build.yml"
+  push:
+    branches: [ "main" ]
+    paths:
+      - "apps/astronomy-store/**"
+      - ".github/workflows/astronomy-store-build.yml"
+
+jobs:
+  build-images:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: apps/astronomy-store
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+
+      - name: Build all service images
+        run: ./build-images
