@@ -18,8 +18,6 @@ ARG VCS_REF_HEAD_NAME
 ARG VCS_REF_TYPE
 ARG VCS_REF_HEAD_REVISION
 
-ENV OTEL_RESOURCE_ATTRIBUTES="vcs.repository.url=${VCS_REPOSITORY_URL_FULL},vcs.branch=${VCS_REF_HEAD_NAME},vcs.commit.sha=${VCS_REF_HEAD_REVISION}"
-
 ## --- BEGIN Datadog Git/VCS env vars (DD_GIT_*) ---
 ## Comment out or delete this block if you don't want Datadog-native Source Code Integration tagging.
 ENV DD_GIT_REPOSITORY_URL=${VCS_REPOSITORY_URL_FULL}
