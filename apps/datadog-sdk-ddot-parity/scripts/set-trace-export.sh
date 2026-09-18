@@ -20,13 +20,18 @@ if [[ "$mode" == native ]]; then
     OTEL_EXPORTER_OTLP_TRACES_ENDPOINT- \
     OTEL_EXPORTER_OTLP_PROTOCOL- \
     OTEL_EXPORTER_OTLP_TRACES_PROTOCOL-
+  if [[ "$language" == python ]]; then
+    kubectl -n "$namespace" set env deployment/"$deployment" \
+      DD_TRACE_AGENT_PROTOCOL_VERSION=v0.4
+  fi
 elif [[ "$mode" == ddot ]]; then
   endpoint=http://ddot-collector:4318
   trace_endpoint="$endpoint/v1/traces"
   kubectl -n "$namespace" set env deployment/"$deployment" \
     OTEL_TRACES_EXPORTER=otlp \
     OTEL_EXPORTER_OTLP_TRACES_ENDPOINT="$trace_endpoint" \
-    OTEL_EXPORTER_OTLP_TRACES_PROTOCOL="$protocol"
+    OTEL_EXPORTER_OTLP_TRACES_PROTOCOL="$protocol" \
+    DD_TRACE_AGENT_PROTOCOL_VERSION-
   if [[ "$language" == dotnet || "$language" == java || "$language" == node ]]; then
     kubectl -n "$namespace" set env deployment/"$deployment" \
       OTEL_EXPORTER_OTLP_ENDPOINT="$endpoint"

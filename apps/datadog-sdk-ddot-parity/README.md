@@ -64,6 +64,9 @@ Msgpack traces to the Agent. Restore standalone DDOT export with:
 scripts/set-trace-export.sh python ddot
 ```
 
+The Python app supplies an OTLP default in code, so its native switch also sets
+`DD_TRACE_AGENT_PROTOCOL_VERSION=v0.4`. Restoring DDOT removes that override.
+
 Use unique time windows and keep the service, environment, version, test data,
 and workload volume equal across the two runs.
 
