@@ -1,6 +1,13 @@
 TMP_DIRECTORY = ./tmp
 chart_name = opentelemetry-kube-stack
 
+REPO_ROOT := $(shell git rev-parse --show-toplevel)
+CI_SCRIPTS := $(REPO_ROOT)/.github/workflows/scripts
+
+.PHONY: validate
+validate:
+	@DUMMY_ENV_FILE=$(CI_SCRIPTS)/dummy-credentials.env $(CI_SCRIPTS)/validate-opentelemetry-kube-stack.sh
+
 .PHONY: generate-examples
 generate-examples:
 	@echo "Generating all examples into their rendered/ subdirectory"
