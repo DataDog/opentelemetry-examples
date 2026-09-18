@@ -17,10 +17,9 @@ if [[ $# -gt 0 ]]; then
     exit 1
 fi
 
-SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 NAMESPACE="astronomy-store"
 ROLLOUT_TIMEOUT="${ROLLOUT_TIMEOUT:-3m}"
-DEPLOYMENTS=(product-catalog fraud-detection checkout frontend)
+DEPLOYMENTS=(ad product-catalog fraud-detection checkout frontend k6-load-generator)
 
 for deployment in "${DEPLOYMENTS[@]}"; do
     kubectl rollout restart "deployment/${deployment}" --namespace "${NAMESPACE}"
@@ -31,11 +30,5 @@ for deployment in "${DEPLOYMENTS[@]}"; do
         --namespace "${NAMESPACE}" \
         --timeout="${ROLLOUT_TIMEOUT}"
 done
-
-kubectl delete job k6-load-generator --namespace "${NAMESPACE}" --ignore-not-found
-kubectl apply -f "${SCRIPT_DIR}/load-generator/kubernetes.yaml"
-kubectl wait --for=jsonpath='{.status.active}'=1 job/k6-load-generator \
-    --namespace "${NAMESPACE}" \
-    --timeout="${ROLLOUT_TIMEOUT}"
 
 echo "All Astronomy Store workloads have been restarted in ${NAMESPACE}."
