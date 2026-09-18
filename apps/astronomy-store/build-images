@@ -42,4 +42,16 @@ for service in "${SERVICES[@]}"; do
         --tag "${image}" "${SCRIPT_DIR}/${service}"
 done
 
-echo "Built ${#SERVICES[@]} images with tag ${IMAGE_TAG}."
+# checkout also has an alternate build using the upstream OTel otelc compiler instead of Datadog
+# Orchestrion, published under the same image name with a "-upstream-otel" tag suffix.
+upstream_otel_image="${IMAGE_PREFIX}/checkout:${IMAGE_TAG}-upstream-otel"
+echo "Building ${upstream_otel_image}..."
+docker build \
+    --build-arg VCS_REPOSITORY_URL_FULL="${VCS_REPOSITORY_URL_FULL}" \
+    --build-arg VCS_REF_HEAD_NAME="${VCS_REF_HEAD_NAME}" \
+    --build-arg VCS_REF_TYPE="${VCS_REF_TYPE}" \
+    --build-arg VCS_REF_HEAD_REVISION="${VCS_REF_HEAD_REVISION}" \
+    --file "${SCRIPT_DIR}/checkout/Dockerfile.upstream-otel" \
+    --tag "${upstream_otel_image}" "${SCRIPT_DIR}/checkout"
+
+echo "Built ${#SERVICES[@]} images with tag ${IMAGE_TAG}, plus ${upstream_otel_image}."

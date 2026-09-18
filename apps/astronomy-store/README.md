@@ -5,6 +5,9 @@ Intended to be used with the `guides/kubernetes/configuration/opentelemetry-kube
 This demo app is called `astronomy-store` instead of `astronomy-shop` to avoid confusion with the `astronomy-shop` demo
 app that is part of the OpenTelemetry Demo while being similar.
 
+The demo includes a single-node Kafka broker available to its workloads at
+`kafka:9092`.
+
 ## Git/VCS metadata
 
 Each service's `Dockerfile` accepts `VCS_REPOSITORY_URL_FULL`, `VCS_REF_HEAD_NAME`, `VCS_REF_TYPE`, and
