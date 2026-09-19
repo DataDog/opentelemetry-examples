@@ -4,8 +4,9 @@ apiVersion: opentelemetry.io/v1alpha1
 kind: Instrumentation
 metadata:
   name: opentelemetry-kube-stack
+  namespace: opentelemetry-operator-system
   labels:
-    helm.sh/chart: opentelemetry-kube-stack-0.20.8
+    helm.sh/chart: opentelemetry-kube-stack-0.21.0
     app.kubernetes.io/version: "0.154.0"
     app.kubernetes.io/managed-by: Helm
     release: "opentelemetry-kube-stack"    
@@ -29,8 +30,6 @@ spec:
       value: "full"
     - name: DD_DBM_TRACE_PREPARED_STATEMENTS
       value: "true"
-    - name: DD_ENV
-      value: ""
     - name: DD_LOGS_OTEL_ENABLED
       value: "true"
     - name: DD_METRICS_OTEL_ENABLED
@@ -68,4 +67,3 @@ spec:
     - name: DD_DOTNET_TRACER_HOME
       value: /otel-auto-instrumentation-dotnet
     image: ghcr.io/zacharycmontoya/dd-autoinstrumentation-dotnet:3.52.0
-

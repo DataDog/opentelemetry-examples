@@ -20,4 +20,3 @@ data:
       tool: helm
       tool_version: Helm
       installer_version: datadog-3.240.0
-
