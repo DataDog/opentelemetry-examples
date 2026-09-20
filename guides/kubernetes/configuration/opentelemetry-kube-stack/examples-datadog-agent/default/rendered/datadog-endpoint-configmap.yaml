@@ -15,3 +15,4 @@ metadata:
 data:
   api-key-secret-name: "datadog-secret"
   dd-site: "datadoghq.com"
+

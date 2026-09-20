@@ -68,3 +68,4 @@ spec:
     - name: DD_DOTNET_TRACER_HOME
       value: /otel-auto-instrumentation-dotnet
     image: ghcr.io/zacharycmontoya/dd-autoinstrumentation-dotnet:3.52.0
+

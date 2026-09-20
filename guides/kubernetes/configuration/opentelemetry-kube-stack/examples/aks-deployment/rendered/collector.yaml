@@ -81,7 +81,7 @@ spec:
           site: ${env:DD_SITE:-datadoghq.com}
         deployment_type: gateway
       health_check:
-        endpoint: 0.0.0.0:13133
+        endpoint: '[${env:OTEL_K8S_POD_IP}]:13133'
       k8s_leader_elector/k8s_cluster:
         auth_type: serviceAccount
         lease_name: k8s.cluster.receiver.opentelemetry.io
@@ -509,7 +509,7 @@ spec:
           site: ${env:DD_SITE:-datadoghq.com}
         deployment_type: daemonset
       health_check:
-        endpoint: 0.0.0.0:13133
+        endpoint: '[${env:OTEL_K8S_POD_IP}]:13133'
     processors:
       batch:
         send_batch_max_size: 1500
@@ -960,3 +960,4 @@ spec:
   - name: hostfs
     hostPath:
       path: /
+

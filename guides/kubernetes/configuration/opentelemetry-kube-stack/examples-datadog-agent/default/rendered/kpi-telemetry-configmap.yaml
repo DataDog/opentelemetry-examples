@@ -15,3 +15,4 @@ data:
   install_type: k8s_manual
   install_id: "AUTO_GENERATED"
   install_time: "AUTO_GENERATED"
+
