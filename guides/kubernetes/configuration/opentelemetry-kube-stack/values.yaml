@@ -506,6 +506,8 @@ collectors:
             name: datadog-secret
             key: dd-site
             optional: true
+      ## Needed because ddhostnameprocessor requires K8S_NODE_IP and does not support OTEL_K8S_NODE_IP
+      ## warn    ddhostnameprocessor/factory.go:57    Could not resolve host for standalone mode. Is K8S_NODE_IP env var set?    {"resource": {"service.instance.id": "5612e11a-59a8-437d-bc82-94ffe927c638", "service.name": "host-profiler", "service.version": "7.85.0-nightly-git.299.c83d689"}, "otelcol.component.id": "ddhostname/dd-autoconfigured", "otelcol.component.kind": "processor", "otelcol.pipeline.id": "metrics/profiler-internal-health", "otelcol.signal": "metrics"}
       - name: K8S_NODE_IP
         valueFrom:
           fieldRef:
