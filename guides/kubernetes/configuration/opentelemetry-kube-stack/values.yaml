@@ -527,6 +527,11 @@ instrumentation:
     endpoint: http://opentelemetry-kube-stack-daemon-collector.opentelemetry-operator-system.svc.cluster.local:4318
   sampler:
     type: parentbased_always_on
+  propagators:
+    - tracecontext
+    - baggage
+    # - b3 # disabled FIXME https://datadoghq.atlassian.net/browse/OTEL-3268
+    # - b3multi # disabled FIXME https://datadoghq.atlassian.net/browse/OTEL-3268
   # The opentelemetry-kube-stack Helm chart renders language sections even when empty, preventing the
   # Operator from falling back to its default agent image and yielding invalid init containers.
   # TODO: File an issue against the opentelemetry-kube-stack Helm chart for this behavior.
