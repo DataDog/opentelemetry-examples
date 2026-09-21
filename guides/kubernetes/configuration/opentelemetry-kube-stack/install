@@ -144,9 +144,11 @@ helm install cert-manager jetstack/cert-manager \
 echo "Installing OpenTelemetry Kube Stack Helm Chart..."
 
 # FIXME use deployment.environment.name, it's a workaround for https://github.com/DataDog/dd-trace-java/pull/12324
+# FIXME set DD_ENV for Host Profiling, it's a workaround
 HELM_SET_ARGS=(
     --set-string "resourceAttributes.deployment\.environment=$DEPLOYMENT_ENVIRONMENT_NAME"
     --set-string "resourceAttributes.deployment\.environment\.name=$DEPLOYMENT_ENVIRONMENT_NAME"
+    --set-string "instrumentation.env[0].value=$DEPLOYMENT_ENVIRONMENT_NAME"
     --set defaultCRConfig.presets.resourceDetection.aks.enabled=$RESOURCE_DETECTION_AKS_ENABLED
     --set defaultCRConfig.presets.resourceDetection.eks.enabled=$RESOURCE_DETECTION_EKS_ENABLED
     --set defaultCRConfig.presets.resourceDetection.gcp.enabled=$RESOURCE_DETECTION_GCP_ENABLED
