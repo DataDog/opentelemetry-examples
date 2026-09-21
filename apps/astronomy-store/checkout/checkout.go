@@ -10,6 +10,7 @@ import (
 	"github.com/google/uuid"
 	"github.com/segmentio/kafka-go"
 	"go.opentelemetry.io/otel/attribute"
+	"go.opentelemetry.io/otel/codes"
 	"go.opentelemetry.io/otel/trace"
 )
 
@@ -119,10 +120,14 @@ func (cs *checkoutServer) placeOrder(w http.ResponseWriter, r *http.Request) {
 	)
 
 	if err := cs.publishOrder(ctx, result); err != nil {
+		span.RecordError(err)
+		span.SetStatus(codes.Error, "failed to publish order to Kafka")
 		logger.ErrorContext(ctx, "failed to publish order to Kafka",
 			slog.String("demo.order.id", orderID),
 			slog.Any("error", err),
 		)
+		http.Error(w, "failed to place order", http.StatusInternalServerError)
+		return
 	}
 
 	w.Header().Set("Content-Type", "application/json")
