@@ -717,13 +717,14 @@ instrumentation:
         value: /otel-auto-instrumentation-dotnet
   java:
     # image: ghcr.io/open-telemetry/opentelemetry-operator/autoinstrumentation-java:2.28.1
-    image: registry.ddbuild.io/ssi/dd-otel-autoinstrumentation-java:glci135938671 # ?
+    # image: registry.ddbuild.io/ssi/dd-otel-autoinstrumentation-java:glci135938671 # ?
+    image: ghcr.io/cyrille-leclerc/dd-autoinstrumentation-java:1.66.0
   nodejs:
     # image: ghcr.io/open-telemetry/opentelemetry-operator/autoinstrumentation-nodejs:0.77.0
-    image: ghcr.io/cyrille-leclerc/dd-autoinstrumentation-nodejs:6.6.0
+    image: datadog/dd-otel-autoinstrumentation-js:6.16.0
   python:
     # image: ghcr.io/open-telemetry/opentelemetry-operator/autoinstrumentation-python:0.64b0
-    image: ghcr.io/cyrille-leclerc/dd-autoinstrumentation-python:4.11.1
+    image: ghcr.io/cyrille-leclerc/dd-autoinstrumentation-python:4.15.1
     # The auto-instrumentation init container bundles ddtrace native builds for every supported
     # Python version (3.9-3.14) x libc (glibc/musl) x arch (x86_64/aarch64), ~330MB total, which
     # exceeds the Operator's 200Mi default EmptyDir limit and gets the pod evicted.

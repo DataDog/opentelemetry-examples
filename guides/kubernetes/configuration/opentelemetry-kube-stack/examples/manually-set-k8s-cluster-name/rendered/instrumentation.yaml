@@ -54,11 +54,11 @@ spec:
       deployment.environment.name: production
       k8s.cluster.name: my_k8s_cluster
   java:
-    image: registry.ddbuild.io/ssi/dd-otel-autoinstrumentation-java:glci135938671
+    image: ghcr.io/cyrille-leclerc/dd-autoinstrumentation-java:1.66.0
   nodejs:
-    image: ghcr.io/cyrille-leclerc/dd-autoinstrumentation-nodejs:6.6.0
+    image: datadog/dd-otel-autoinstrumentation-js:6.16.0
   python:
-    image: ghcr.io/cyrille-leclerc/dd-autoinstrumentation-python:4.11.1
+    image: ghcr.io/cyrille-leclerc/dd-autoinstrumentation-python:4.15.1
     volumeLimitSize: 500Mi
   dotnet:
     env:
@@ -69,3 +69,4 @@ spec:
     - name: DD_DOTNET_TRACER_HOME
       value: /otel-auto-instrumentation-dotnet
     image: ghcr.io/zacharycmontoya/dd-autoinstrumentation-dotnet:3.52.0
+
