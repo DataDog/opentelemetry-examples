@@ -65,10 +65,24 @@ defaultCRConfig:
       resource_detection/env:
         override: false
     exporters:
-      datadog/exporter:
-        api:
-          key: ${env:DD_API_KEY}
-          site: ${env:DD_SITE:-datadoghq.com}
+      otlp_http:
+        endpoint: https://otlp.${env:DD_SITE:-datadoghq.com}
+        headers:
+          dd-api-key: ${env:DD_API_KEY}
+          # Maps resource attributes and instrumentation scope metadata to Datadog metric tags.
+          dd-otel-metric-config: >-
+            {
+            "resource_attributes_as_tags": true,
+            "instrumentation_scope_metadata_as_tags": true
+            }
+        compression: zstd
+        compression_params:
+          level: 3
+        sending_queue:
+          batch:
+            sizer: bytes
+            min_size: 2097152
+            max_size: 4194304
     extensions:
       health_check:
         endpoint: 0.0.0.0:13133
@@ -250,24 +264,19 @@ collectors:
               conditions:
                 - metric.name == "kube_cronjob_info"
 
-      exporters:
-        datadog/exporter:
-          orchestrator_explorer:
-            enabled: true
-
       service:
         pipelines:
           logs:
             receivers: [k8s_objects]
             processors: [resource_detection/env]
-            exporters: [datadog/exporter]
+            exporters: [otlp_http]
 
           metrics/otel_operator:
             receivers: [prometheus/otel_operator]
             processors:
               - resource_detection/env
               - cumulativetodelta
-            exporters: [datadog/exporter]
+            exporters: [otlp_http]
 
           metrics/count:
             receivers: [prometheus/ksm]
@@ -283,7 +292,7 @@ collectors:
               - resource_detection/env
               - cumulativetodelta
               - transform/sum_to_gauge
-            exporters: [datadog/exporter]
+            exporters: [otlp_http]
 
   daemon:
     # Disable the chart-default daemon_scrape_configs.yaml Prometheus scrape.
@@ -424,7 +433,87 @@ collectors:
             - container.id
 
       connectors:
-        datadog/connector: {}
+        forward: {}
+        # Generate RED (Rate, Error, Duration) metrics from traces for APM
+        span_metrics:
+          # Note: Spans without service.name will be ignored
+          aggregation_temporality: AGGREGATION_TEMPORALITY_DELTA
+          add_resource_attributes: true
+          histogram:
+            exponential: {}
+            unit: s
+          dimensions:
+            # (Duplicate dimensions are not allowed and are thus commented out)
+          
+            ## Unified Service Tagging
+            - name: deployment.environment.name
+            - name: service.version
+            - name: http.response.status_code
+          
+            ## Container tags
+            ## May be used as additional primary tags or in service remapping rules
+            - name: container.id # Required for correct aggregation
+          
+            ## Host name inference
+            - name: aws.ecs.launchtype
+            - name: aws.ecs.task.arn
+            - name: cloud.provider
+            - name: cloud.account.id
+            - name: host.id
+            - name: host.name
+            - name: k8s.node.name
+            - name: k8s.cluster.name
+            - name: azure.resourcegroup.name
+          
+            ## Peer service inference
+            - name: aws.s3.bucket
+            - name: db.namespace
+            - name: messaging.destination.name
+            - name: messaging.system
+            - name: server.address
+          
+            ## Operation name inference
+            - name: operation.name
+            - name: http.request.method
+            - name: http.method
+            - name: db.system
+            #- name: messaging.system
+            - name: messaging.operation
+            - name: rpc.system
+            - name: rpc.service
+            - name: faas.invoked_provider
+            - name: faas.invoked_name
+            - name: faas.trigger
+            - name: graphql.operation.type
+            - name: network.protocol.name
+          
+            ## Resource name inference
+            - name: resource.name
+            #- name: http.request.method
+            #- name: http.method
+            - name: http.route
+            #- name: messaging.operation
+            - name: messaging.destination
+            #- name: messaging.destination.name
+            - name: rpc.method
+            #- name: rpc.service
+            #- name: graphql.operation.type
+            - name: graphql.operation.name
+            #- name: db.system
+            - name: db.statement
+            - name: db.query.text
+          
+            ## Optional container tags
+            ## May be used as additional primary tags or in service remapping rules
+            # # - name: cloud.provider
+            # - name: cloud.region
+            # - name: cloud.availability_zone
+            ## Comment out all container tags above if you uncomment this
+            # - glob: container.**
+            ## Comment out all aws.ecs tags above if you uncomment this
+            # - glob: aws.ecs.**
+            ## Comment out all k8s.*.name tags above if you uncomment this
+            # - glob: k8s.*.name
 
       extensions:
         datadog:
@@ -435,25 +524,29 @@ collectors:
           logs:
             receivers: [otlp]
             processors: [resource_detection/env]
-            exporters: [datadog/exporter]
+            exporters: [otlp_http]
 
           traces:
             receivers: [otlp]
             processors: [resource_detection/env]
-            exporters: [datadog/connector]
+            exporters: [forward, span_metrics]
 
           # Add sampling processors here if needed.
           traces/sampling:
-            receivers: [datadog/connector]
-            exporters: [datadog/exporter]
+            receivers: [forward]
+            exporters: [otlp_http]
+
+          metrics/span_metrics:
+            receivers: [span_metrics]
+            exporters: [otlp_http]
 
           metrics:
-            receivers: [datadog/connector, otlp]
+            receivers: [otlp]
             processors:
               - resource_detection/env
               - cumulativetodelta
               - deltatorate
-            exporters: [datadog/exporter]
+            exporters: [otlp_http]
 
           metrics/cadvisor:
             receivers: [prometheus/cadvisor]
@@ -466,7 +559,7 @@ collectors:
                 cumulativetodelta,
                 deltatorate/cadvisor,
               ]
-            exporters: [datadog/exporter]
+            exporters: [otlp_http]
 instrumentation:
   enabled: true
   env:
