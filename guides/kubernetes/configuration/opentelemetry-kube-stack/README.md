@@ -9,13 +9,15 @@ The `opentelemetry-kube-stack` chart installs the OpenTelemetry Operator and ren
 - **`cluster`** — a single-replica Deployment responsible for cluster-scope telemetry: scraping kube-state-metrics and watching Kubernetes objects.
 - **`daemon`** — a DaemonSet running on every node, responsible for node-scope telemetry (host and kubelet metrics) and for terminating the OTLP endpoint that application workloads send traces, logs, and metrics to.
 
-Optionally, a dedicated [opentelemetry-collector][chart] Helm release installs the **host profiler** — a DaemonSet running the OpenTelemetry eBPF profiler on every node and exporting continuous profiles to Datadog. See [Host profiler (optional)](#host-profiler-optional).
+Optionally, the release installs the **host profiler** collector - a DaemonSet running the OpenTelemetry eBPF profiler on every node and exporting profiles to Datadog. See [Host profiler (optional)](#host-profiler-optional).
 
 ## Prerequisites
 
 - A Kubernetes secret named `datadog-secret` with keys `api-key` (required) and `dd-site` (optional; defaults to `datadoghq.com`).
 - [cert-manager][cm] installed in the cluster, for the operator's admission webhook.
-- Linux nodes with kernel >= 5.10, only for the optional host profiler.
+- Linux nodes with kernel >= 5.10, only for the optional host profiler. Enabling the
+  host-profiler collector also requires Kubernetes >= 1.30: its `securityContext`
+  uses the container-level `appArmorProfile` field, introduced in 1.30.
 
 ## Quickstart
 
@@ -30,9 +32,9 @@ The installer prompts for your Datadog API key and site (the site defaults to `d
 It then:
 
 - creates the `opentelemetry-operator-system` namespace and the `datadog-secret` secret;
-- installs cert-manager when needed; and
+- installs cert-manager when needed;
 - installs or upgrades the OpenTelemetry Kube Stack Helm chart;
-- when the host profiler is enabled, installs or upgrades the `host-profiler` Helm release (see below).
+- optionally installs or upgrades the `host-profiler`.
 
 If you choose to save your credentials, the installer writes them to `.env` with permissions restricted to the file owner. Keep this file out of version control.
 
@@ -102,27 +104,31 @@ helm repo add open-telemetry https://open-telemetry.github.io/opentelemetry-helm
 helm repo update
 helm upgrade --install opentelemetry-kube-stack \
   open-telemetry/opentelemetry-kube-stack \
-  --version 0.20.8 \
+  --version 0.21.0 \
   --namespace opentelemetry-operator-system \
   --values ./values.yaml \
   --values ./deployment/values.yaml
 ```
 
-Optionally, install the host profiler release (or answer `y` to the installer's prompt instead):
+Alternatively, if you want to enable the `host-profiler` collector:
 
 ```sh
-helm upgrade --install host-profiler \
-  open-telemetry/opentelemetry-collector \
-  --version 0.172.0 \
+helm upgrade --install opentelemetry-kube-stack \
+  open-telemetry/opentelemetry-kube-stack \
+  --version 0.21.0 \
   --namespace opentelemetry-operator-system \
-  -f ./host-profiler-values.yaml
+  --set collectors.host-profiler.enabled=true \
+  --values ./values.yaml \
+  --values ./host-profiler-rbac-values.yaml \
+  --values ./deployment/values.yaml
 ```
 
-On clusters enforcing NetworkPolicy, add one of:
+On clusters enforcing NetworkPolicy, also apply one of:
 
 ```sh
-  -f ./host-profiler-network-policy.yaml          # any enforcing CNI
-  -f ./host-profiler-cilium-network-policy.yaml   # Cilium, FQDN-scoped egress
+kubectl apply -f ./host-profiler-network-policy.yaml          # any enforcing CNI
+# or
+kubectl apply -f ./host-profiler-cilium-network-policy.yaml   # Cilium, FQDN-scoped egress
 ```
 
 ## Host profiler (optional)
@@ -130,8 +136,6 @@ On clusters enforcing NetworkPolicy, add one of:
 The host profiler runs the [Datadog host profiler][dd-host-profiler] (Datadog's own distribution of the [OpenTelemetry eBPF profiler][ebpf-profiler], to which it actively contributes) as a collector DaemonSet on every node and exports profiles to Datadog's OTLP intake.
 
 Enable it by answering `y` to the installer's prompt, or install manually following the [manual installation steps][dd-host-profiler-install]. Unlike the other collectors, its pods need more privileges, which is why it is opt-in.
-
-It runs as a dedicated `opentelemetry-collector` release for now: `opentelemetry-kube-stack` does not ship the `profiling` preset or the unprivileged security context yet, and the release will be folded into the main kube-stack values once it does.
 
 ## Cluster name detection
 
@@ -155,9 +159,8 @@ Both collectors default to `500m` CPU / `1Gi` memory limits and `200m` CPU / `50
 
 Verified against:
 
-- `opentelemetry-kube-stack` chart `>= 0.20.8`
+- `opentelemetry-kube-stack` chart `>= 0.21.0`
 - Collector image `otel/opentelemetry-collector-contrib >= 0.154.0` (pinned in values.yaml under `opentelemetry-operator.manager.collectorImage`)
-- `opentelemetry-collector` chart `>= 0.153.0` for the host profiler release (`profiling` preset);
 
 [chart]: https://github.com/open-telemetry/opentelemetry-helm-charts/tree/main/charts/opentelemetry-kube-stack
 [cm]: https://cert-manager.io/docs/installation/

@@ -28,7 +28,7 @@ defaultCRConfig:
         secretKeyRef:
           name: datadog-secret
           key: api-key
-    - name: DD_SITE  # e.g. datadoghq.com, us3.datadoghq.com, datadoghq.eu. Defaults to datadoghq.com.
+    - name: DD_SITE # e.g. datadoghq.com, us3.datadoghq.com, datadoghq.eu. Defaults to datadoghq.com.
       valueFrom:
         secretKeyRef:
           name: datadog-secret
@@ -98,7 +98,6 @@ defaultCRConfig:
                     endpoint: http://localhost:4318
 
 collectors:
-
   cluster:
     enabled: true
     suffix: cluster
@@ -472,15 +471,181 @@ collectors:
               - cumulativetodelta
               - deltatorate/cadvisor
             exporters: [datadog/exporter]
+  # Datadog's distribution of the OpenTelemetry eBPF profiler
+  # see https://github.com/DataDog/datadog-agent/blob/main/cmd/host-profiler/deploy/README.md
+  host-profiler:
+    enabled: false
+    suffix: host-profiler
+    # The host-profiler is only supported on Linux nodes
+    nodeSelector:
+      kubernetes.io/os: linux
+    # Recommended: run as a DaemonSet to collect profiles from every supported node
+    # and provide a cluster-wide view.
+    mode: daemonset
+
+    # The ddot-ebpf image is a dedicated distribution: its binary may not
+    # include the shared defaultCRConfig components. Isolation keeps the shared
+    # config, presets, and targetAllocator from being merged into this collector.
+    inheritDefaultCRConfig: false
+
+    # Host Profiler preview image. Update the tag when using a newer preview build.
+    image:
+      repository: datadog/ddot-ebpf-dev
+      # temporary while the preview v2 is not yet published
+      tag: nightly-main-c83d6890
+
+    env:
+      - name: DD_API_KEY
+        valueFrom:
+          secretKeyRef:
+            name: datadog-secret
+            key: api-key
+      - name: DD_SITE # e.g. datadoghq.com, us3.datadoghq.com, datadoghq.eu. Defaults to datadoghq.com.
+        valueFrom:
+          secretKeyRef:
+            name: datadog-secret
+            key: dd-site
+            optional: true
+      - name: MY_POD_IP
+        valueFrom:
+          fieldRef:
+            fieldPath: status.podIP
+      - name: K8S_NODE_IP
+        valueFrom:
+          fieldRef:
+            fieldPath: status.hostIP
+
+    # Enable the chart integrations the Host Profiler relies on. The profiling
+    # preset configures host-level profiling settings such as hostPID and the
+    # profile receiver wiring; kubernetesAttributes adds Kubernetes metadata.
+    presets:
+      profiling:
+        enabled: true
+      kubernetesAttributes:
+        enabled: true
+        extractAllPodLabels: true
+
+    # Required Linux capabilities for host-wide eBPF profiling.
+    # The container is not privileged and drops all default capabilities.
+    securityContext:
+      privileged: false
+      readOnlyRootFilesystem: true
+      allowPrivilegeEscalation: false
+      # Keep AppArmor unconfined so it does not block cross-process access.
+      appArmorProfile:
+        type: Unconfined
+      # Use spc_t, or an equivalent type, here and in the init container.
+      seLinuxOptions:
+        type: spc_t
+      capabilities:
+        add:
+          - BPF
+          - PERFMON
+          - SYS_PTRACE
+          - SYS_RESOURCE
+          - DAC_READ_SEARCH
+          - SYSLOG
+          - CHECKPOINT_RESTORE
+          - IPC_LOCK
+        drop:
+          - ALL
+      seccompProfile:
+        type: Localhost
+        localhostProfile: host-profiler.json
+
+    # Install the seccomp profile from the Host Profiler image onto each node.
+    # The main container references this profile through securityContext.seccompProfile.
+    initContainers:
+      - name: seccomp-installer
+        image: "{{ .collector.image.repository }}:{{ .collector.image.tag }}"
+        command:
+          - cp
+          - /etc/dd-host-profiler/seccomp.json
+          - /host/var/lib/kubelet/seccomp/host-profiler.json
+        securityContext:
+          allowPrivilegeEscalation: false
+          readOnlyRootFilesystem: true
+          appArmorProfile:
+            type: Unconfined
+          seLinuxOptions:
+            type: spc_t
+          capabilities:
+            drop:
+              - ALL
+        volumeMounts:
+          - name: host-seccomp
+            mountPath: /host/var/lib/kubelet/seccomp
+
+    # Resource defaults for the Host Profiler container. Explicit zero requests avoid
+    # reserving CPU or memory on every node, while limits cap runaway usage. Set
+    # nonzero requests if your cluster policy requires them or you want reserved capacity.
+    # Increase the memory limit if the Host Profiler uploads debug symbols for large binaries.
+    resources:
+      requests:
+        cpu: "0"
+        memory: "0"
+      limits:
+        cpu: "500m"
+        memory: "1Gi"
+
+    volumeMounts:
+      # /tmp is required because the container uses a read-only root filesystem.
+      - name: tmpdir
+        mountPath: /tmp
+
+    volumes:
+      - name: tmpdir
+        emptyDir: {}
+      # Host path where kubelet reads Localhost seccomp profiles.
+      - name: host-seccomp
+        hostPath:
+          path: /var/lib/kubelet/seccomp
+          type: DirectoryOrCreate
+
+    config:
+      extensions:
+        health_check:
+          endpoint: "[${env:MY_POD_IP}]:13133"
+
+      receivers:
+        # OTLP receiver for collector self-telemetry metrics forwarded to Datadog.
+        otlp:
+          protocols:
+            grpc: {}
+            http: {}
+        # Host Profiler receiver. DD_SITE and DD_API_KEY are provided by collector-values.yaml.
+        profiling:
+          symbol_uploader:
+            enabled: true
+            symbol_endpoints:
+              - site: ${env:DD_SITE:-datadoghq.com}
+                api_key: ${env:DD_API_KEY}
+
+      exporters:
+        # Export profiles and metrics to Datadog through OTLP HTTP.
+        otlp_http:
+          endpoint: https://otlp.${env:DD_SITE:-datadoghq.com}
+          headers:
+            dd-api-key: ${env:DD_API_KEY}
+            dd-otel-metric-config: '{"resource_attributes_as_tags": true}'
+
+      service:
+        extensions: [health_check]
+        pipelines:
+          # The Helm chart's kubernetesAttributes preset adds the k8sattributes
+          # processor to the rendered metrics pipeline.
+          metrics:
+            receivers: [otlp]
+            exporters: [otlp_http]
+          # The Helm chart's profiling and kubernetesAttributes presets add the
+          # profiling receiver and k8sattributes processor to the rendered profiles
+          # pipeline.
+          profiles:
+            exporters: [otlp_http]
+
 instrumentation:
   enabled: true
   env:
-    # FIXME remove when the host profiler image embeds process context
-    # propagation. Until then: the eBPF host profiler
-    # extracts DD_ENV from each instrumented process (receiver default) and
-    # Datadog maps it to the `env` tag, keeping the APM -> Profiler navigation working.
-    - name: DD_ENV
-      value: ""
     - name: OTEL_SEMCONV_STABILITY_OPT_IN
       value: "http,database,rpc,messaging"
     - name: OTEL_EXPORTER_OTLP_METRICS_TEMPORALITY_PREFERENCE
