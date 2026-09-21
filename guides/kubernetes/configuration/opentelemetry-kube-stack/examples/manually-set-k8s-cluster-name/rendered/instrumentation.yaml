@@ -15,11 +15,6 @@ spec:
   propagators:
     - tracecontext
     - baggage
-    - b3
-    - b3multi
-    - jaeger
-    - xray
-    - ottrace
   sampler:
     type: parentbased_always_on
   env:
