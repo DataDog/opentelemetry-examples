@@ -87,7 +87,7 @@ spec:
         lease_name: k8s.cluster.receiver.opentelemetry.io
         lease_namespace: opentelemetry-operator-system
     processors:
-      cumulativetodelta: {}
+      cumulative_to_delta: {}
       groupbyattrs:
         keys:
         - k8s.pod.uid
@@ -382,7 +382,7 @@ spec:
           - groupbyattrs
           - k8s_attributes
           - resource_detection/env
-          - cumulativetodelta
+          - cumulative_to_delta
           - transform/sum_to_gauge
           - resource/global
           receivers:
@@ -402,7 +402,7 @@ spec:
           - datadog/exporter
           processors:
           - resource_detection/env
-          - cumulativetodelta
+          - cumulative_to_delta
           - resource/global
           receivers:
           - prometheus/otel_operator
@@ -507,12 +507,12 @@ spec:
         send_batch_max_size: 1500
         send_batch_size: 1000
         timeout: 1s
-      cumulativetodelta: {}
-      deltatorate:
+      cumulative_to_delta: {}
+      delta_to_rate:
         metrics:
         - k8s.pod.network.io
         - k8s.pod.network.errors
-      deltatorate/cadvisor:
+      delta_to_rate/cadvisor:
         metrics:
         - container_cpu_usage_seconds_total
         - container_cpu_cfs_periods_total
@@ -823,8 +823,8 @@ spec:
           processors:
           - k8s_attributes
           - resource_detection/env
-          - cumulativetodelta
-          - deltatorate
+          - cumulative_to_delta
+          - delta_to_rate
           - resource/global
           receivers:
           - datadog/connector
@@ -839,8 +839,8 @@ spec:
           - transform/cadvisor_labels
           - groupbyattrs
           - k8s_attributes
-          - cumulativetodelta
-          - deltatorate/cadvisor
+          - cumulative_to_delta
+          - delta_to_rate/cadvisor
           - resource/global
           receivers:
           - prometheus/cadvisor
