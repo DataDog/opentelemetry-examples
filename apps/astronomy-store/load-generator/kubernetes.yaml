@@ -14,8 +14,6 @@ data:
     import { check, sleep } from "k6";
 
     const frontendUrl = __ENV.FRONTEND_URL || "http://frontend:8080";
-    const fraudDetectionUrl =
-      __ENV.FRAUD_DETECTION_URL || "http://fraud-detection:8080";
 
     export const options = {
       scenarios: {
@@ -74,14 +72,6 @@ data:
         "checkout order created": (response) => response.status === 201,
       });
 
-      const fraudCheck = http.post(
-        `${fraudDetectionUrl}/fraud-detection/check-order`,
-        null,
-      );
-      check(fraudCheck, {
-        "fraud score returned": (response) => response.status === 200,
-      });
-
       sleep(1);
     }
 ---
@@ -107,8 +97,6 @@ spec:
           env:
             - name: FRONTEND_URL
               value: http://frontend:8080
-            - name: FRAUD_DETECTION_URL
-              value: http://fraud-detection:8080
           volumeMounts:
             - name: script
               mountPath: /scripts

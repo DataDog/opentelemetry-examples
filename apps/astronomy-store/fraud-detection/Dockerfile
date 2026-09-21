@@ -18,6 +18,4 @@ ENV DD_GIT_REPOSITORY_URL=${VCS_REPOSITORY_URL_FULL}
 ENV DD_GIT_COMMIT_SHA=${VCS_REF_HEAD_REVISION}
 ## --- END Datadog Git/VCS env vars (DD_GIT_*) ---
 
-EXPOSE 8080
-
-CMD ["gunicorn", "--bind", "0.0.0.0:8080", "--workers", "1", "app:app"]
+CMD ["python", "app.py"]

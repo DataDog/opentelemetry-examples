@@ -1,10 +1,14 @@
+import json
 import logging
+import os
 import random
 import sys
 
 import structlog
-from flask import Flask, jsonify
-from opentelemetry import trace
+from confluent_kafka import Consumer
+from opentelemetry import context as otel_context
+from opentelemetry import propagate, trace
+from opentelemetry.trace import SpanKind
 
 
 def configure_logging() -> None:
@@ -39,17 +43,65 @@ def configure_logging() -> None:
 
 configure_logging()
 logger = structlog.get_logger(__name__)
-app = Flask(__name__)
+
+KAFKA_ADDR = os.environ.get("KAFKA_ADDR", "kafka:9092")
+KAFKA_TOPIC = os.environ.get("KAFKA_TOPIC", "orders")
+KAFKA_CONSUMER_GROUP = "fraud-detection"
+
+tracer = trace.get_tracer(__name__)
 
 
-@app.post("/fraud-detection/check-order")
-def check_order():
+def _extract_context(message) -> otel_context.Context:
+    headers = message.headers() or []
+    carrier = {key: value.decode("utf-8") for key, value in headers}
+    return propagate.extract(carrier)
+
+
+def check_order(order: dict) -> int:
     fraud_score = random.randrange(100)
     trace.get_current_span().set_attribute("astronomystore.fraud_score", fraud_score)
-    logger.info("check_order", fraud_score=fraud_score)
-    return jsonify(fraud_score=fraud_score), 200
+    logger.info(
+        "check_order",
+        order_id=order.get("order_id"),
+        fraud_score=fraud_score,
+    )
+    return fraud_score
 
 
-@app.get("/health")
-def health():
-    return "", 200
+def main() -> None:
+    consumer = Consumer(
+        {
+            "bootstrap.servers": KAFKA_ADDR,
+            "group.id": KAFKA_CONSUMER_GROUP,
+            "auto.offset.reset": "earliest",
+            "enable.auto.commit": False,
+            "enable.auto.offset.store": False,
+        }
+    )
+    consumer.subscribe([KAFKA_TOPIC])
+    logger.info(
+        "fraud-detection consumer started",
+        bootstrap_servers=KAFKA_ADDR,
+        topic=KAFKA_TOPIC,
+        group_id=KAFKA_CONSUMER_GROUP,
+    )
+    try:
+        while True:
+            message = consumer.poll(timeout=1.0)
+            if message is None:
+                continue
+            if message.error():
+                logger.error("kafka consumer error", error=str(message.error()))
+                continue
+            ctx = _extract_context(message)
+            with tracer.start_as_current_span(
+                    "process_order", context=ctx, kind=SpanKind.CONSUMER
+            ):
+                check_order(json.loads(message.value().decode("utf-8")))
+            consumer.commit(message=message)
+    finally:
+        consumer.close()
+
+
+if __name__ == "__main__":
+    main()
