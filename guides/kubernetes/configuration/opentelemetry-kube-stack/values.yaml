@@ -433,7 +433,6 @@ collectors:
             - container.id
 
       connectors:
-        # Separate trace processing from span-metrics generation so RED metrics are computed on all traces.
         forward: {}
         span_metrics:
           aggregation_temporality: AGGREGATION_TEMPORALITY_DELTA
@@ -441,16 +440,6 @@ collectors:
           histogram:
             exponential: {}
             unit: s
-          # Only span-level (per-call) attributes are listed here. Resource-level semconv
-          # attributes (deployment.environment.name, service.version, container.id, cloud.*,
-          # host.*, k8s.node.name, k8s.cluster.name, azure.resourcegroup.name, aws.ecs.*) are
-          # already promoted onto the generated metrics' resource by add_resource_attributes
-          # above, and this pipeline's otlp_http exporter turns those into Datadog tags via
-          # dd-otel-metric-config.resource_attributes_as_tags, so listing them again here would
-          # be redundant. Namespace globs (e.g. `- glob: "http.*"`, `- glob: "db.**"`) were
-          # considered but skipped: several namespaces below (http, db, messaging, rpc, faas)
-          # have other semconv attributes that are high-cardinality (query text, message/request
-          # IDs, byte sizes, ports) and would blow up dimension cardinality if swept in.
           dimensions:
             - name: http.response.status_code
             - name: aws.s3.bucket
