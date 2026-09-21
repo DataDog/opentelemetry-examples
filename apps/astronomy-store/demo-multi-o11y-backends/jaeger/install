@@ -1,0 +1,28 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+
+kubectl create namespace jaeger --dry-run=client -o yaml | kubectl apply -f -
+
+helm repo add jaegertracing https://jaegertracing.github.io/helm-charts
+helm repo update jaegertracing
+
+helm upgrade --install jaeger jaegertracing/jaeger \
+  --version 4.12.0 \
+  --namespace jaeger \
+  --values "$SCRIPT_DIR/values.yaml" \
+  --wait --timeout 120s
+
+cat <<'EOF'
+
+Done.
+
+Send OTLP traces to:
+  grpc://jaeger.jaeger.svc.cluster.local:4317
+  http://jaeger.jaeger.svc.cluster.local:4318
+
+View them in the Jaeger UI:
+  kubectl port-forward -n jaeger svc/jaeger 16686:16686
+  open http://localhost:16686
+EOF
