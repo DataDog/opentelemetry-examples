@@ -46,7 +46,7 @@ spec:
       hostPID: true
       containers:
       - name: agent
-        image: "registry.datadoghq.com/agent:7.81.1-jmx"
+        image: "registry.datadoghq.com/agent:7.83.2-jmx"
         imagePullPolicy: IfNotPresent
         command: ["agent", "run"]
         securityContext:
@@ -93,6 +93,8 @@ spec:
           - name: DD_DISCOVERY_ENABLED
             value: "false"
           - name: DD_APM_DEBUGGER_LOGS_ENABLED_OVERRIDE
+            value: "true"
+          - name: DD_DYNAMIC_INSTRUMENTATION_ENABLED
             value: "true"
           - name: DD_OTLP_CONFIG_LOGS_ENABLED
             value: "false"
@@ -247,7 +249,7 @@ spec:
           successThreshold: 1
           timeoutSeconds: 5
       - name: trace-agent
-        image: "registry.datadoghq.com/agent:7.81.1-jmx"
+        image: "registry.datadoghq.com/agent:7.83.2-jmx"
         imagePullPolicy: IfNotPresent
         command: ["trace-loader", "/etc/datadog-agent/datadog.yaml", "trace-agent", "-config=/etc/datadog-agent/datadog.yaml"]
         securityContext:
@@ -294,6 +296,8 @@ spec:
           - name: DD_DISCOVERY_ENABLED
             value: "false"
           - name: DD_APM_DEBUGGER_LOGS_ENABLED_OVERRIDE
+            value: "true"
+          - name: DD_DYNAMIC_INSTRUMENTATION_ENABLED
             value: "true"
           - name: DD_OTLP_CONFIG_LOGS_ENABLED
             value: "false"
@@ -369,7 +373,7 @@ spec:
       initContainers:
       - name: init-volume
         
-        image: "registry.datadoghq.com/agent:7.81.1-jmx"
+        image: "registry.datadoghq.com/agent:7.83.2-jmx"
         imagePullPolicy: IfNotPresent
         command: ["bash", "-c"]
         args:
@@ -382,7 +386,7 @@ spec:
           {}
       - name: init-config
         
-        image: "registry.datadoghq.com/agent:7.81.1-jmx"
+        image: "registry.datadoghq.com/agent:7.83.2-jmx"
         imagePullPolicy: IfNotPresent
         command:
           - bash
@@ -441,6 +445,8 @@ spec:
           - name: DD_DISCOVERY_ENABLED
             value: "false"
           - name: DD_APM_DEBUGGER_LOGS_ENABLED_OVERRIDE
+            value: "true"
+          - name: DD_DYNAMIC_INSTRUMENTATION_ENABLED
             value: "true"
           - name: DD_OTLP_CONFIG_LOGS_ENABLED
             value: "false"
@@ -502,3 +508,6 @@ spec:
     rollingUpdate:
       maxUnavailable: 10%
     type: RollingUpdate
+
+
+
