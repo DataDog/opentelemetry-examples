@@ -503,7 +503,19 @@ spec:
         add_resource_attributes: true
         aggregation_temporality: AGGREGATION_TEMPORALITY_DELTA
         dimensions:
+        - name: deployment.environment.name
+        - name: service.version
         - name: http.response.status_code
+        - name: container.id
+        - name: aws.ecs.launchtype
+        - name: aws.ecs.task.arn
+        - name: cloud.provider
+        - name: cloud.account.id
+        - name: host.id
+        - name: host.name
+        - name: k8s.node.name
+        - name: k8s.cluster.name
+        - name: azure.resourcegroup.name
         - name: aws.s3.bucket
         - name: db.namespace
         - name: messaging.destination.name

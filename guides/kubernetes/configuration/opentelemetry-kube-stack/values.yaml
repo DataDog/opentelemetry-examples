@@ -434,23 +434,50 @@ collectors:
 
       connectors:
         forward: {}
+        # Generate RED (Rate, Error, Duration) metrics from traces for APM
         span_metrics:
+          # Note: Spans without service.name will be ignored
           aggregation_temporality: AGGREGATION_TEMPORALITY_DELTA
           add_resource_attributes: true
           histogram:
             exponential: {}
             unit: s
           dimensions:
+            # (Duplicate dimensions are not allowed and are thus commented out)
+          
+            ## Unified Service Tagging
+            - name: deployment.environment.name
+            - name: service.version
             - name: http.response.status_code
+          
+            ## Container tags
+            ## May be used as additional primary tags or in service remapping rules
+            - name: container.id # Required for correct aggregation
+          
+            ## Host name inference
+            - name: aws.ecs.launchtype
+            - name: aws.ecs.task.arn
+            - name: cloud.provider
+            - name: cloud.account.id
+            - name: host.id
+            - name: host.name
+            - name: k8s.node.name
+            - name: k8s.cluster.name
+            - name: azure.resourcegroup.name
+          
+            ## Peer service inference
             - name: aws.s3.bucket
             - name: db.namespace
             - name: messaging.destination.name
             - name: messaging.system
             - name: server.address
+          
+            ## Operation name inference
             - name: operation.name
             - name: http.request.method
             - name: http.method
             - name: db.system
+            #- name: messaging.system
             - name: messaging.operation
             - name: rpc.system
             - name: rpc.service
@@ -459,13 +486,34 @@ collectors:
             - name: faas.trigger
             - name: graphql.operation.type
             - name: network.protocol.name
+          
+            ## Resource name inference
             - name: resource.name
+            #- name: http.request.method
+            #- name: http.method
             - name: http.route
+            #- name: messaging.operation
             - name: messaging.destination
+            #- name: messaging.destination.name
             - name: rpc.method
+            #- name: rpc.service
+            #- name: graphql.operation.type
             - name: graphql.operation.name
+            #- name: db.system
             - name: db.statement
             - name: db.query.text
+          
+            ## Optional container tags
+            ## May be used as additional primary tags or in service remapping rules
+            # # - name: cloud.provider
+            # - name: cloud.region
+            # - name: cloud.availability_zone
+            ## Comment out all container tags above if you uncomment this
+            # - glob: container.**
+            ## Comment out all aws.ecs tags above if you uncomment this
+            # - glob: aws.ecs.**
+            ## Comment out all k8s.*.name tags above if you uncomment this
+            # - glob: k8s.*.name
 
       extensions:
         datadog:
