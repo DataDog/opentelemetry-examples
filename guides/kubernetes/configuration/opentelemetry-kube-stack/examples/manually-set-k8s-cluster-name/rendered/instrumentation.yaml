@@ -25,6 +25,8 @@ spec:
   env:
     - name: DD_AGENT_HOST
       value: "ddagent-kube-stack-datadog.opentelemetry-operator-system.svc.cluster.local"
+    - name: DD_DATA_STREAMS_ENABLED
+      value: "true"
     - name: DD_DBM_PROPAGATION_MODE
       value: "full"
     - name: DD_DBM_TRACE_PREPARED_STATEMENTS
@@ -39,10 +41,14 @@ spec:
       value: "true"
     - name: DD_TRACE_OTEL_SEMANTICS_ENABLED
       value: "true"
+    - name: DD_TRACE_REMOVE_INTEGRATION_SERVICE_NAMES_ENABLED
+      value: "true"
     - name: OTEL_EXPORTER_OTLP_METRICS_TEMPORALITY_PREFERENCE
       value: "delta"
     - name: OTEL_EXPORTER_OTLP_PROTOCOL
       value: "http/protobuf"
+    - name: OTEL_EXPORTER_OTLP_TRACES_ENDPOINT
+      value: "http://opentelemetry-kube-stack-daemon-collector.opentelemetry-operator-system.svc.cluster.local:4318/v1/traces"
     - name: OTEL_SEMCONV_STABILITY_OPT_IN
       value: "http,database,rpc,messaging"
     - name: OTEL_TRACES_EXPORTER

@@ -46,7 +46,7 @@ spec:
       hostPID: true
       containers:
       - name: agent
-        image: "registry.datadoghq.com/agent:7.81.1"
+        image: "registry.datadoghq.com/agent:7.81.1-jmx"
         imagePullPolicy: IfNotPresent
         command: ["agent", "run"]
         securityContext:
@@ -247,7 +247,7 @@ spec:
           successThreshold: 1
           timeoutSeconds: 5
       - name: trace-agent
-        image: "registry.datadoghq.com/agent:7.81.1"
+        image: "registry.datadoghq.com/agent:7.81.1-jmx"
         imagePullPolicy: IfNotPresent
         command: ["trace-loader", "/etc/datadog-agent/datadog.yaml", "trace-agent", "-config=/etc/datadog-agent/datadog.yaml"]
         securityContext:
@@ -369,7 +369,7 @@ spec:
       initContainers:
       - name: init-volume
         
-        image: "registry.datadoghq.com/agent:7.81.1"
+        image: "registry.datadoghq.com/agent:7.81.1-jmx"
         imagePullPolicy: IfNotPresent
         command: ["bash", "-c"]
         args:
@@ -382,7 +382,7 @@ spec:
           {}
       - name: init-config
         
-        image: "registry.datadoghq.com/agent:7.81.1"
+        image: "registry.datadoghq.com/agent:7.81.1-jmx"
         imagePullPolicy: IfNotPresent
         command:
           - bash
