@@ -6,7 +6,9 @@ import sys
 
 import structlog
 from confluent_kafka import Consumer
-from opentelemetry import trace
+from opentelemetry import context as otel_context
+from opentelemetry import propagate, trace
+from opentelemetry.trace import SpanKind
 
 
 def configure_logging() -> None:
@@ -46,6 +48,14 @@ KAFKA_ADDR = os.environ.get("KAFKA_ADDR", "kafka:9092")
 KAFKA_TOPIC = os.environ.get("KAFKA_TOPIC", "orders")
 KAFKA_CONSUMER_GROUP = "fraud-detection"
 
+tracer = trace.get_tracer(__name__)
+
+
+def _extract_context(message) -> otel_context.Context:
+    headers = message.headers() or []
+    carrier = {key: value.decode("utf-8") for key, value in headers}
+    return propagate.extract(carrier)
+
 
 def check_order(order: dict) -> int:
     fraud_score = random.randrange(100)
@@ -64,6 +74,8 @@ def main() -> None:
             "bootstrap.servers": KAFKA_ADDR,
             "group.id": KAFKA_CONSUMER_GROUP,
             "auto.offset.reset": "earliest",
+            "enable.auto.commit": False,
+            "enable.auto.offset.store": False,
         }
     )
     consumer.subscribe([KAFKA_TOPIC])
@@ -81,7 +93,12 @@ def main() -> None:
             if message.error():
                 logger.error("kafka consumer error", error=str(message.error()))
                 continue
-            check_order(json.loads(message.value().decode("utf-8")))
+            ctx = _extract_context(message)
+            with tracer.start_as_current_span(
+                    "process_order", context=ctx, kind=SpanKind.CONSUMER
+            ):
+                check_order(json.loads(message.value().decode("utf-8")))
+            consumer.commit(message=message)
     finally:
         consumer.close()
 
