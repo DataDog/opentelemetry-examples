@@ -114,6 +114,15 @@ installer sets `resourceAttributes.k8s.cluster.name` to the supplied cluster nam
 
 See `examples/` for rendered values and manifests for each deployment type.
 
+## Troubleshooting
+
+### Kubernetes Explorer reports "KSM Disabled"
+
+Expected for this deployment: the Kubernetes Explorer install-health panel reports on Datadog Agent components, and
+this stack runs no Agent. See [Kubernetes Explorer reports "KSM Disabled"][ksm-disabled] in the guide README for what
+the panel is reporting and how to confirm kube-state-metrics data is arriving. The collector name to port-forward
+here is `opentelemetry-kube-stack-cluster-collector` in the `opentelemetry-operator-system` namespace.
+
 ## Resource allocation
 
 Both collectors default to `500m` CPU / `1Gi` memory limits and `200m` CPU / `500Mi` memory requests. Scale up for large clusters.
@@ -127,6 +136,7 @@ Verified against:
 
 [chart]: https://github.com/open-telemetry/opentelemetry-helm-charts/tree/main/charts/opentelemetry-kube-stack
 [cm]: https://cert-manager.io/docs/installation/
+[ksm-disabled]: ../../README.md#kubernetes-explorer-reports-ksm-disabled
 
 ## Appendix
 

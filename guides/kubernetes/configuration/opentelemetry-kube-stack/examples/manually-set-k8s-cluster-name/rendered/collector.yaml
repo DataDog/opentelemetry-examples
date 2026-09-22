@@ -96,6 +96,14 @@ spec:
         lease_namespace: opentelemetry-operator-system
     processors:
       cumulativetodelta: {}
+      filter/drop_internal_metrics:
+        error_mode: ignore
+        metrics:
+          metric:
+          - instrumentation_scope.name == "github.com/open-telemetry/opentelemetry-collector-contrib/receiver/prometheusreceiver"
+            and IsMatch(name, "^scrape_")
+          - instrumentation_scope.name == "github.com/open-telemetry/opentelemetry-collector-contrib/connector/countconnector"
+            and name == "metric.count"
       groupbyattrs:
         keys:
         - k8s.pod.uid
@@ -176,7 +184,8 @@ spec:
         metric_statements:
         - context: datapoint
           statements:
-          - set(attributes["k8s.pod.uid"], attributes["uid"])
+          - set(attributes["k8s.pod.uid"], attributes["uid"]) where IsMatch(metric.name,
+            "^kube_pod_")
           - delete_key(attributes, "uid")
         - context: resource
           statements:
@@ -385,6 +394,7 @@ spec:
           exporters:
           - otlp_http
           processors:
+          - filter/drop_internal_metrics
           - transform/ksm_to_dd
           - transform/rename_uid
           - groupbyattrs
@@ -409,6 +419,7 @@ spec:
           exporters:
           - otlp_http
           processors:
+          - filter/drop_internal_metrics
           - resource_detection/env
           - cumulativetodelta
           - resource/global
