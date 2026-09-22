@@ -491,8 +491,7 @@ collectors:
     # Host Profiler preview image. Update the tag when using a newer preview build.
     image:
       repository: datadog/ddot-ebpf-dev
-      # temporary while the preview v2 is not yet published
-      tag: nightly-main-c83d6890
+      tag: mackjmr-hp-preview-v2
 
     env:
       - name: DD_API_KEY
@@ -510,10 +509,6 @@ collectors:
         valueFrom:
           fieldRef:
             fieldPath: status.podIP
-      - name: K8S_NODE_IP
-        valueFrom:
-          fieldRef:
-            fieldPath: status.hostIP
 
     # Enable the chart integrations the Host Profiler relies on. The profiling
     # preset configures host-level profiling settings such as hostPID and the
