@@ -85,8 +85,9 @@ jobs:
       - name: Install opentelemetry-kube-stack
         run: |
           cp "$GITHUB_WORKSPACE/.github/workflows/scripts/dummy-credentials.env" .env
-          # Pipe answers ("Other" and then defaults)
-          printf '4\n\n\n' | ./install
+          # Pipe answers ("Other", then defaults for cluster name, deployment
+          # environment, host profiler, and egress network policy)
+          printf '4\n\n\n\n\n' | ./install
 
       - name: Wait for the collectors to roll out
         run: |
