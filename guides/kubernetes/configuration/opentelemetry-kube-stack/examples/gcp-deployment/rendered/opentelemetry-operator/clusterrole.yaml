@@ -397,9 +397,6 @@ rules:
       - subjectaccessreviews
     verbs:
       - create
-
-
-
 ---
 # Source: opentelemetry-kube-stack/charts/opentelemetry-operator/templates/clusterrole.yaml
 apiVersion: rbac.authorization.k8s.io/v1
@@ -419,5 +416,3 @@ rules:
       - /metrics
     verbs:
       - get
-
-

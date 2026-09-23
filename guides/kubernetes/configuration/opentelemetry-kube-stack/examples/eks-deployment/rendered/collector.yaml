@@ -6,7 +6,7 @@ metadata:
   name: opentelemetry-kube-stack-cluster
   namespace: opentelemetry-operator-system
   labels:
-    helm.sh/chart: opentelemetry-kube-stack-0.20.8
+    helm.sh/chart: opentelemetry-kube-stack-0.21.0
     app.kubernetes.io/version: "0.154.0"
     app.kubernetes.io/managed-by: Helm
     release: "opentelemetry-kube-stack"        
@@ -480,7 +480,6 @@ spec:
         key: dd-site
         name: datadog-secret
         optional: true
-
 ---
 # Source: opentelemetry-kube-stack/templates/collector.yaml
 apiVersion: opentelemetry.io/v1beta1
@@ -489,7 +488,7 @@ metadata:
   name: opentelemetry-kube-stack-daemon
   namespace: opentelemetry-operator-system
   labels:
-    helm.sh/chart: opentelemetry-kube-stack-0.20.8
+    helm.sh/chart: opentelemetry-kube-stack-0.21.0
     app.kubernetes.io/version: "0.154.0"
     app.kubernetes.io/managed-by: Helm
     release: "opentelemetry-kube-stack"        
@@ -1018,4 +1017,3 @@ spec:
   - name: hostfs
     hostPath:
       path: /
-

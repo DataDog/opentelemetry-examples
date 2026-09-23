@@ -10,6 +10,8 @@ It deletes:
     certificaterequests, orders, and challenges;
   - the opentelemetry-kube-stack Helm release in the
     opentelemetry-operator-system namespace;
+  - the host-profiler egress NetworkPolicy and CiliumNetworkPolicy in the
+    opentelemetry-operator-system namespace (if installed);
   - the datadog-secret secret in the opentelemetry-operator-system namespace;
   - OpenTelemetry CRDs: opentelemetrycollectors, instrumentations, and
     opampbridges.
@@ -35,9 +37,20 @@ kubectl delete crd \
   challenges.acme.cert-manager.io \
 || echo "WARNING: Could not uninstall cert-manager CRDs. Continuing..."
 
+kubectl delete networkpolicy \
+  --namespace opentelemetry-operator-system \
+  --ignore-not-found=true \
+  opentelemetry-kube-stack-host-profiler-egress \
+  || echo "WARNING: Could not delete the host-profiler NetworkPolicy. Continuing..."
+kubectl delete ciliumnetworkpolicy \
+  --namespace opentelemetry-operator-system \
+  --ignore-not-found=true \
+  opentelemetry-kube-stack-host-profiler-egress \
+  || echo "WARNING: CiliumNetworkPolicy CRD not installed. Continuing..."
+
 helm uninstall opentelemetry-kube-stack \
   --namespace opentelemetry-operator-system  \
-  || echo "WARNING: Could not uninstall opentelemetry-stack. Continuing..."
+  || echo "WARNING: Could not uninstall opentelemetry-kube-stack. Continuing..."
 
 echo "Removing Datadog endpoint configuration..."
 kubectl delete secrets --namespace opentelemetry-operator-system  --ignore-not-found=true datadog-secret

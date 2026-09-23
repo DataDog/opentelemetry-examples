@@ -25,7 +25,7 @@ defaultCRConfig:
         secretKeyRef:
           name: datadog-secret
           key: api-key
-    - name: DD_SITE  # e.g. datadoghq.com, us3.datadoghq.com, datadoghq.eu. Defaults to datadoghq.com.
+    - name: DD_SITE # e.g. datadoghq.com, us3.datadoghq.com, datadoghq.eu. Defaults to datadoghq.com.
       valueFrom:
         secretKeyRef:
           name: datadog-secret
@@ -105,7 +105,6 @@ defaultCRConfig:
                     endpoint: http://localhost:4318
 
 collectors:
-
   cluster:
     enabled: true
     suffix: cluster
@@ -444,16 +443,16 @@ collectors:
             unit: s
           dimensions:
             # (Duplicate dimensions are not allowed and are thus commented out)
-          
+
             ## Unified Service Tagging
             - name: deployment.environment.name
             - name: service.version
             - name: http.response.status_code
-          
+
             ## Container tags
             ## May be used as additional primary tags or in service remapping rules
             - name: container.id # Required for correct aggregation
-          
+
             ## Host name inference
             - name: aws.ecs.launchtype
             - name: aws.ecs.task.arn
@@ -464,14 +463,14 @@ collectors:
             - name: k8s.node.name
             - name: k8s.cluster.name
             - name: azure.resourcegroup.name
-          
+
             ## Peer service inference
             - name: aws.s3.bucket
             - name: db.namespace
             - name: messaging.destination.name
             - name: messaging.system
             - name: server.address
-          
+
             ## Operation name inference
             - name: operation.name
             - name: http.request.method
@@ -486,7 +485,7 @@ collectors:
             - name: faas.trigger
             - name: graphql.operation.type
             - name: network.protocol.name
-          
+
             ## Resource name inference
             - name: resource.name
             #- name: http.request.method
@@ -502,7 +501,7 @@ collectors:
             #- name: db.system
             - name: db.statement
             - name: db.query.text
-          
+
             ## Optional container tags
             ## May be used as additional primary tags or in service remapping rules
             # # - name: cloud.provider
@@ -560,6 +559,96 @@ collectors:
                 deltatorate/cadvisor,
               ]
             exporters: [otlp_http]
+  # The OpenTelemetry eBPF profiler distribution.
+  # see https://github.com/open-telemetry/opentelemetry-collector-releases/tree/main/distributions/otelcol-ebpf-profiler
+  host-profiler:
+    enabled: false
+    suffix: host-profiler
+    # The eBPF profiler is only supported on Linux nodes.
+    nodeSelector:
+      kubernetes.io/os: linux
+    # Run as a DaemonSet to collect profiles from every supported node and
+    # provide a cluster-wide view.
+    mode: daemonset
+
+    # The otelcol-ebpf-profiler distribution is a dedicated distribution: its
+    # binary does not include the shared defaultCRConfig components. Isolation
+    # keeps the shared config, presets, and targetAllocator from being merged
+    # into this collector.
+    inheritDefaultCRConfig: false
+
+    # The upstream distribution publishes the profiles pipeline behind an alpha
+    # feature gate.
+    args:
+      feature-gates: "+service.profilesSupport"
+
+    image:
+      repository: ghcr.io/open-telemetry/opentelemetry-collector-releases/opentelemetry-collector-ebpf-profiler
+      tag: 0.157.0
+
+    env:
+      - name: DD_API_KEY
+        valueFrom:
+          secretKeyRef:
+            name: datadog-secret
+            key: api-key
+      - name: DD_SITE # e.g. datadoghq.com, us3.datadoghq.com, datadoghq.eu. Defaults to datadoghq.com.
+        valueFrom:
+          secretKeyRef:
+            name: datadog-secret
+            key: dd-site
+            optional: true
+      - name: MY_POD_IP
+        valueFrom:
+          fieldRef:
+            fieldPath: status.podIP
+
+    # Enable the chart integrations the profiler relies on. The profiling
+    # preset configures host-level profiling settings such as hostPID and the
+    # profile receiver wiring; kubernetesAttributes adds Kubernetes metadata.
+    presets:
+      profiling:
+        enabled: true
+      kubernetesAttributes:
+        enabled: true
+        extractAllPodLabels: true
+
+    # Resource defaults for the profiler container. Explicit zero requests avoid
+    # reserving CPU or memory on every node, while limits cap runaway usage. Set
+    # nonzero requests if your cluster policy requires them or you want reserved
+    # capacity. Increase the memory limit if you profile large binaries.
+    resources:
+      requests:
+        cpu: "0"
+        memory: "0"
+      limits:
+        cpu: "500m"
+        memory: "1Gi"
+
+    config:
+      extensions:
+        health_check:
+          endpoint: "[${env:MY_POD_IP}]:13133"
+
+      exporters:
+        # Export profiles to Datadog through OTLP HTTP.
+        otlp_http:
+          endpoint: https://otlp.${env:DD_SITE:-datadoghq.com}
+          headers:
+            dd-api-key: ${env:DD_API_KEY}
+            dd-otel-metric-config: '{"resource_attributes_as_tags": true}'
+
+      service:
+        extensions: [health_check]
+        pipelines:
+          # The profiling preset adds the profiling receiver and the
+          # kubernetesAttributes preset adds the k8s_attributes processor to
+          # the rendered profiles pipeline. Only the exporter is set here: it
+          # overrides the preset's debug fallback.
+          profiles:
+            processors: [resource_detection/env]
+            exporters: [otlp_http]
+
 instrumentation:
   enabled: true
   env:

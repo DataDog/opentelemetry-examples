@@ -1,0 +1,34 @@
+# Optional egress NetworkPolicy for the host-profiler collector.
+#
+# Mirror of datadog-agent
+# cmd/host-profiler/deploy/standalone/helm/network-policy-values.yaml.
+#
+# Requires a cluster networking layer that enforces Kubernetes NetworkPolicy.
+# If your cluster does not enforce NetworkPolicy resources, this manifest is
+# accepted but does not restrict egress.
+#
+# This NetworkPolicy allows DNS, egress on port 443 to any destination (Datadog
+# intake among others), and kubelet API access (port 10250).
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: opentelemetry-kube-stack-host-profiler-egress
+  namespace: opentelemetry-operator-system
+spec:
+  podSelector:
+    matchLabels:
+      app.kubernetes.io/name: opentelemetry-kube-stack-host-profiler-collector
+  policyTypes:
+    - Egress
+  egress:
+    - ports:
+        - port: 53
+          protocol: UDP
+        - port: 53
+          protocol: TCP
+    - ports:
+        - port: 443
+          protocol: TCP
+    - ports:
+        - port: 10250
+          protocol: TCP

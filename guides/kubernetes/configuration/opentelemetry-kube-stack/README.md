@@ -1,6 +1,6 @@
 # kube-stack values.yaml
 
-Reference `values.yaml` for the [opentelemetry-kube-stack][chart] Helm chart, configured to send Kubernetes telemetry to Datadog. 
+Reference `values.yaml` for the [opentelemetry-kube-stack][chart] Helm chart, configured to send Kubernetes telemetry to Datadog.
 
 ## What this deploys
 
@@ -9,10 +9,13 @@ The `opentelemetry-kube-stack` chart installs the OpenTelemetry Operator and ren
 - **`cluster`** — a single-replica Deployment responsible for cluster-scope telemetry: scraping kube-state-metrics and watching Kubernetes objects.
 - **`daemon`** — a DaemonSet running on every node, responsible for node-scope telemetry (host and kubelet metrics) and for terminating the OTLP endpoint that application workloads send traces, logs, and metrics to.
 
+Optionally, the release installs the otelcol eBPF profiler collector distribution - a DaemonSet running the OpenTelemetry eBPF profiler on every node and exporting profiles to Datadog. See [Host profiler (optional)](#host-profiler-optional).
+
 ## Prerequisites
 
 - A Kubernetes secret named `datadog-secret` with keys `api-key` (required) and `dd-site` (optional; defaults to `datadoghq.com`).
 - [cert-manager][cm] installed in the cluster, for the operator's admission webhook.
+- Linux nodes with kernel >= 5.10, only for the optional `eBPF profiler`.
 
 ## Quickstart
 
@@ -22,13 +25,14 @@ Run the installer from this directory:
 ./install
 ```
 
-The installer prompts for your Datadog API key and site (the site defaults to `datadoghq.com`), Kubernetes platform, and deployment environment. For EKS, GKE, and AKS, it enables the matching resource-detection preset. For other platforms, it prompts for the Kubernetes cluster name.
+The installer prompts for your Datadog API key and site (the site defaults to `datadoghq.com`), Kubernetes platform, deployment environment, and whether to enable the `host profiler`. For EKS, GKE, and AKS, it enables the matching resource-detection preset. For other platforms, it prompts for the Kubernetes cluster name.
 
 It then:
 
 - creates the `opentelemetry-operator-system` namespace and the `datadog-secret` secret;
-- installs cert-manager when needed; and
-- installs or upgrades the OpenTelemetry Kube Stack Helm chart.
+- installs cert-manager when needed;
+- installs or upgrades the OpenTelemetry Kube Stack Helm chart;
+- optionally installs or upgrades the `host profiler`.
 
 If you choose to save your credentials, the installer writes them to `.env` with permissions restricted to the file owner. Keep this file out of version control.
 
@@ -98,11 +102,40 @@ helm repo add open-telemetry https://open-telemetry.github.io/opentelemetry-helm
 helm repo update
 helm upgrade --install opentelemetry-kube-stack \
   open-telemetry/opentelemetry-kube-stack \
-  --version 0.20.8 \
+  --version 0.21.0 \
   --namespace opentelemetry-operator-system \
   --values ./values.yaml \
   --values ./deployment/values.yaml
 ```
+
+Alternatively, if you want to enable the `host profiler` collector:
+
+```sh
+helm upgrade --install opentelemetry-kube-stack \
+  open-telemetry/opentelemetry-kube-stack \
+  --version 0.21.0 \
+  --namespace opentelemetry-operator-system \
+  --set collectors.host-profiler.enabled=true \
+  --values ./values.yaml \
+  --values ./host-profiler-rbac-values.yaml \
+  --values ./deployment/values.yaml
+```
+
+On clusters enforcing NetworkPolicy, also apply one of:
+
+```sh
+kubectl apply -f ./host-profiler-network-policy.yaml          # any enforcing CNI
+# or
+kubectl apply -f ./host-profiler-cilium-network-policy.yaml   # Cilium, FQDN-scoped egress
+```
+
+## Host profiler (optional)
+
+The host profiler runs the [OpenTelemetry eBPF profiler][ebpf-profiler] on every Linux node and exports continuous profiles to Datadog.
+
+Enable it by answering `y` to the installer's prompt, or install manually following the [manual installation steps](#install-with-values-files). Unlike the other collectors, its pods need more privileges, which is why it is opt-in.
+
+The collector runs the upstream [`otelcol-ebpf-profiler`][ebpf-profiler-dist] distribution.
 
 ## Cluster name detection
 
@@ -112,7 +145,7 @@ OpenTelemetry Collector then automatically populates `k8s.cluster.name`.
  For other Kubernetes platforms, the
 installer sets `resourceAttributes.k8s.cluster.name` to the supplied cluster name.
 
-See `examples/` for rendered values and manifests for each deployment type.
+See `examples/` for rendered values and manifests for each deployment type. Regenerate them with `make generate-examples`.
 
 ## Resource allocation
 
@@ -122,11 +155,13 @@ Both collectors default to `500m` CPU / `1Gi` memory limits and `200m` CPU / `50
 
 Verified against:
 
-- `opentelemetry-kube-stack` chart `>= 0.20.8`
+- `opentelemetry-kube-stack` chart `>= 0.21.0`
 - Collector image `otel/opentelemetry-collector-contrib >= 0.154.0` (pinned in values.yaml under `opentelemetry-operator.manager.collectorImage`)
 
 [chart]: https://github.com/open-telemetry/opentelemetry-helm-charts/tree/main/charts/opentelemetry-kube-stack
 [cm]: https://cert-manager.io/docs/installation/
+[ebpf-profiler]: https://github.com/open-telemetry/opentelemetry-ebpf-profiler
+[ebpf-profiler-dist]: https://github.com/open-telemetry/opentelemetry-collector-releases/tree/main/distributions/otelcol-ebpf-profiler
 
 ## Appendix
 

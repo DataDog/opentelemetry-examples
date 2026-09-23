@@ -4,15 +4,16 @@ apiVersion: v1
 kind: ServiceAccount
 metadata:
   name: delete-resources-sa
+  namespace: opentelemetry-operator-system
   annotations:
     "helm.sh/hook-delete-policy": before-hook-creation,hook-succeeded
-
 ---
 # Source: opentelemetry-kube-stack/templates/hooks.yaml
 apiVersion: rbac.authorization.k8s.io/v1
 kind: Role
 metadata:
   name: delete-resources-role
+  namespace: opentelemetry-operator-system
   annotations:
     "helm.sh/hook-delete-policy": before-hook-creation,hook-succeeded
 rules:
@@ -26,13 +27,13 @@ rules:
       - get
       - list
       - delete
-
 ---
 # Source: opentelemetry-kube-stack/templates/hooks.yaml
 apiVersion: rbac.authorization.k8s.io/v1
 kind: RoleBinding
 metadata:
   name: delete-resources-rolebinding
+  namespace: opentelemetry-operator-system
   annotations:
     "helm.sh/hook-delete-policy": before-hook-creation,hook-succeeded
 roleRef:
@@ -42,13 +43,13 @@ roleRef:
 subjects:
   - kind: ServiceAccount
     name: delete-resources-sa
-
 ---
 # Source: opentelemetry-kube-stack/templates/hooks.yaml
 apiVersion: batch/v1
 kind: Job
 metadata:
   name: opentelemetry-kube-stack-pre-delete-job
+  namespace: opentelemetry-operator-system
   annotations:
     "helm.sh/hook": pre-delete
     "helm.sh/hook-delete-policy": hook-succeeded,hook-failed
@@ -64,5 +65,4 @@ spec:
           - "delete"
           - "instrumentations,opampbridges,opentelemetrycollectors"
           - "-l"
-          - "helm.sh/chart=opentelemetry-kube-stack-0.20.8"
-
+          - "helm.sh/chart=opentelemetry-kube-stack-0.21.0"
