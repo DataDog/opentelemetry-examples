@@ -479,6 +479,7 @@ spec:
         key: dd-site
         name: datadog-secret
         optional: true
+
 ---
 # Source: opentelemetry-kube-stack/templates/collector.yaml
 apiVersion: opentelemetry.io/v1beta1
@@ -1015,3 +1016,4 @@ spec:
   - name: hostfs
     hostPath:
       path: /
+
