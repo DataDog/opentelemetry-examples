@@ -630,6 +630,10 @@ collectors:
         health_check:
           endpoint: "[${env:MY_POD_IP}]:13133"
 
+      receivers:
+        profiling:
+          include_env_vars: OTEL_RESOURCE_ATTRIBUTES
+
       exporters:
         # Export profiles to Datadog through OTLP HTTP.
         otlp_http:
