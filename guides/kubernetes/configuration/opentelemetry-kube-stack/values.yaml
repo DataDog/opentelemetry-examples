@@ -64,6 +64,8 @@ defaultCRConfig:
       cumulativetodelta: {}
       resource_detection/env:
         override: false
+        eks:
+          node_from_env_var: K8S_NODE_NAME
     exporters:
       otlp_http:
         endpoint: https://otlp.${env:DD_SITE:-datadoghq.com}
