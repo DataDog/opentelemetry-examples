@@ -1,0 +1,32 @@
+name: opentelemetry-kube-stack generated values
+
+on:
+  pull_request:
+    branches: [ "main" ]
+  push:
+    branches: [ "main" ]
+
+jobs:
+  check-generated-values:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: guides/kubernetes/configuration/opentelemetry-kube-stack
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+
+      - name: Set up Go
+        uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
+        with:
+          go-version-file: generate/go.mod
+
+      - name: Regenerate values.yaml
+        run: make generate-base-values
+
+      - name: Fail if values.yaml is out of date
+        run: |
+          if [ -n "$(git status --porcelain -- values.yaml)" ]; then
+            echo "::error::values.yaml is out of date. Run make generate-base-values locally."
+            exit 1
+          fi

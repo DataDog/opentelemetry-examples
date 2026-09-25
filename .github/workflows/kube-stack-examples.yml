@@ -5,12 +5,14 @@ on:
     branches: [ "main" ]
     paths:
       - "guides/kubernetes/configuration/opentelemetry-kube-stack/**"
+      - "generate/**"
       - ".github/workflows/kube-stack-examples.yml"
       - ".github/workflows/scripts/**"
   push:
     branches: [ "main" ]
     paths:
       - "guides/kubernetes/configuration/opentelemetry-kube-stack/**"
+      - "generate/**"
       - ".github/workflows/kube-stack-examples.yml"
       - ".github/workflows/scripts/**"
 
@@ -25,6 +27,11 @@ jobs:
     steps:
       - name: Checkout repository
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+
+      - name: Set up Go
+        uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
+        with:
+          go-version-file: generate/go.mod
 
       - name: Install pinned Helm version
         run: |
