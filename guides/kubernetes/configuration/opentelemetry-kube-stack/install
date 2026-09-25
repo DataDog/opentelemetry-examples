@@ -110,6 +110,10 @@ HELM_SET_ARGS=(
     --set defaultCRConfig.presets.resourceDetection.gcp.enabled=$RESOURCE_DETECTION_GCP_ENABLED
 )
 
+if [[ "$RESOURCE_DETECTION_EKS_ENABLED" == "true" ]]; then
+    HELM_SET_ARGS+=(--set "defaultCRConfig.config.processors.resource_detection/env.eks.node_from_env_var=K8S_NODE_NAME")
+fi
+
 if [[ -n "$K8S_CLUSTER_NAME" ]]; then
     HELM_SET_ARGS+=(--set-string "resourceAttributes.k8s\.cluster\.name=$K8S_CLUSTER_NAME")
 fi

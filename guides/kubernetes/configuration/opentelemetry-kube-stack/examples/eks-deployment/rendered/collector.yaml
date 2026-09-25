@@ -148,6 +148,7 @@ spec:
         - eks
         - k8s_api
         eks:
+          node_from_env_var: K8S_NODE_NAME
           resource_attributes:
             k8s.cluster.name:
               enabled: true
@@ -666,6 +667,7 @@ spec:
         - eks
         - k8s_api
         eks:
+          node_from_env_var: K8S_NODE_NAME
           resource_attributes:
             k8s.cluster.name:
               enabled: true

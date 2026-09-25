@@ -5,3 +5,8 @@ defaultCRConfig:
     resourceDetection:
       eks:
         enabled: true
+  config:
+    processors:
+      resource_detection/env:
+        eks:
+          node_from_env_var: K8S_NODE_NAME
