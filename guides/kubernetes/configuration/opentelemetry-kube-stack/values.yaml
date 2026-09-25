@@ -71,6 +71,8 @@ defaultCRConfig:
       cumulativetodelta: {}
       resource_detection/env:
         override: false
+        eks:
+          node_from_env_var: K8S_NODE_NAME
     exporters:
       datadog/exporter:
         api:
