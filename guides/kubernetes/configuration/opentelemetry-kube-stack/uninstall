@@ -11,8 +11,10 @@ It deletes:
   - the opentelemetry-kube-stack Helm release in the
     opentelemetry-operator-system namespace;
   - the datadog-secret secret in the opentelemetry-operator-system namespace;
-  - OpenTelemetry CRDs: opentelemetrycollectors, instrumentations, and
-    opampbridges.
+  - CRDs bundled with the opentelemetry-kube-stack chart: opentelemetrycollectors,
+    instrumentations, opampbridges, targetallocators, podmonitors, probes,
+    scrapeconfigs, and servicemonitors (Helm never deletes CRDs on uninstall);
+  - the cert-manager and opentelemetry-operator-system namespaces.
 
 Deleting CRDs also deletes all corresponding custom resources in the cluster.
 EOF
@@ -43,8 +45,21 @@ echo "Removing Datadog endpoint configuration..."
 kubectl delete secrets --namespace opentelemetry-operator-system  --ignore-not-found=true datadog-secret
 
 
-# Remove OpenTelemetry CRDs (optional - be careful as this affects all OpenTelemetry resources)
+# Remove CRDs bundled with the opentelemetry-kube-stack chart (optional - be
+# careful as this affects all OpenTelemetry and Prometheus-operator resources
+# in the cluster). Helm never deletes CRDs on uninstall, so these must be
+# removed explicitly.
 echo "Delete CRDs"
-kubectl delete crd  --namespace opentelemetry-operator-system opentelemetrycollectors.opentelemetry.io
-kubectl delete crd  --namespace opentelemetry-operator-system instrumentations.opentelemetry.io
-kubectl delete crd  --namespace opentelemetry-operator-system opampbridges.opentelemetry.io
+kubectl delete crd \
+  opentelemetrycollectors.opentelemetry.io \
+  instrumentations.opentelemetry.io \
+  opampbridges.opentelemetry.io \
+  targetallocators.opentelemetry.io \
+  podmonitors.monitoring.coreos.com \
+  probes.monitoring.coreos.com \
+  scrapeconfigs.monitoring.coreos.com \
+  servicemonitors.monitoring.coreos.com \
+  || echo "WARNING: Could not delete one or more opentelemetry-kube-stack CRDs. Continuing..."
+
+echo "Removing namespaces..."
+kubectl delete namespace --ignore-not-found=true opentelemetry-operator-system cert-manager
