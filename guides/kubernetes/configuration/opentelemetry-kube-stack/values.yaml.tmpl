@@ -1,26 +1,50 @@
+{{- /* Base opentelemetry-kube-stack values shared by both exporter modes.
+   Rendered by generate/main.go into values-ddot.yaml (.Ddot=true) and
+   values-otlp-http.yaml (.Ddot=false). Run `make generate-base-values`
+   after editing. */ -}}
+{{.Banner}}
 clusterName: ""
-
 resourceAttributes:
   deployment.environment.name: production # overwrite as needed
-
-# collectorImage is set per exporter mode (values-modes/*.fragment.yaml).
+{{- if .Ddot}}
+  deployment.environment: production # FIXME only use deployment.environment.name, it's a workaround for https://github.com/DataDog/dd-trace-java/pull/12324
+{{- end}}
 opentelemetry-operator:
-  manager: {}
-
+  manager:
+    collectorImage:
+      repository: otel/opentelemetry-collector-contrib
+      tag: "0.154.0"
+{{- if .Ddot}}
+      # repository: datadog/ddot-collector
+      # tag: 7.82.3
+{{- end}}
 kubeStateMetrics:
   enabled: true
 kube-state-metrics:
   fullnameOverride: kube-state-metrics
-
 # Shared defaults merged into every collector. env detector stays off (it
 # would stamp the collector pod's identity on incoming telemetry); for clouds
 # not supported by the resource detection processor, set k8s.cluster.name via
 # a resource/cluster processor (see README).
 defaultCRConfig:
-  # env is set per exporter mode (values-modes/*.fragment.yaml): DDOT mode adds
-  # an extra DD_HOSTNAME entry, and Helm replaces list values wholesale rather
-  # than merging them, so the whole list has to live in the fragment.
-
+  env:
+    - name: DD_API_KEY
+      valueFrom:
+        secretKeyRef:
+          name: datadog-secret
+          key: api-key
+    - name: DD_SITE  # e.g. datadoghq.com, us3.datadoghq.com, datadoghq.eu. Defaults to datadoghq.com.
+      valueFrom:
+        secretKeyRef:
+          name: datadog-secret
+          key: dd-site
+          optional: true
+{{- if .Ddot}}
+    - name: DD_HOSTNAME # FIXME required on K3S with datadog/ddot-collector:7.82.3 to prevent "Error: unable to reliably determine the host name."
+      valueFrom:
+        fieldRef:
+          fieldPath: spec.nodeName
+{{- end}}
   # Starting-point resource allocation. Scale up for large clusters.
   resources:
     limits:
@@ -53,7 +77,32 @@ defaultCRConfig:
       cumulativetodelta: {}
       resource_detection/env:
         override: false
-    # exporters is set per exporter mode (values-modes/*.fragment.yaml).
+    exporters:
+{{- if .Ddot}}
+      datadog/exporter:
+        api:
+          key: ${env:DD_API_KEY}
+          site: ${env:DD_SITE:-datadoghq.com}
+{{- else}}
+      otlp_http:
+        endpoint: https://otlp.${env:DD_SITE:-datadoghq.com}
+        headers:
+          dd-api-key: ${env:DD_API_KEY}
+          # Maps resource attributes and instrumentation scope metadata to Datadog metric tags.
+          dd-otel-metric-config: >-
+            {
+            "resource_attributes_as_tags": true,
+            "instrumentation_scope_metadata_as_tags": true
+            }
+        compression: zstd
+        compression_params:
+          level: 3
+        sending_queue:
+          batch:
+            sizer: bytes
+            min_size: 2097152
+            max_size: 4194304
+{{- end}}
     extensions:
       health_check:
         endpoint: 0.0.0.0:13133
@@ -74,28 +123,23 @@ defaultCRConfig:
                   otlp:
                     protocol: http/protobuf
                     endpoint: http://localhost:4318
-
 collectors:
-
   cluster:
     enabled: true
     suffix: cluster
     mode: deployment
     replicas: 1
-
     presets:
       kubernetesObjects:
         enabled: true
         watch: true
       clusterMetrics:
         enabled: true
-
     config:
       receivers:
         # Override the kubernetesObjects preset's default 1h interval.
         k8s_objects:
           interval: 3m
-
         prometheus/ksm:
           config:
             scrape_configs:
@@ -109,7 +153,6 @@ collectors:
                   - source_labels: [__name__]
                     regex: "kube_cronjob_.*|kube_daemonset_.*|kube_deployment_.*|kube_job_.*|kube_namespace_created|kube_node_.*|kube_pod_.*|kube_replicaset_.*|kube_statefulset_.*|kube_service_spec_type"
                     action: keep
-
         prometheus/otel_operator:
           config:
             scrape_configs:
@@ -122,7 +165,6 @@ collectors:
                 static_configs:
                   - targets:
                       - opentelemetry-kube-stack-opentelemetry-operator:8443
-
       processors:
         # Rename the prometheus `uid` label to k8s.pod.uid (OTel standard),
         # required for the groupbyattrs step below.
@@ -138,10 +180,8 @@ collectors:
               statements:
                 - delete_key(attributes, "service.name")
                 - delete_key(attributes, "service.instance.id")
-
         groupbyattrs:
           keys: [k8s.pod.uid]
-
         # Rewrite KSM datapoint attributes to Datadog tag names.
         transform/ksm_to_dd:
           metric_statements:
@@ -165,7 +205,6 @@ collectors:
                 - delete_key(attributes, "service")
                 - set(attributes["kube_cronjob"], attributes["cronjob"])
                 - delete_key(attributes, "cronjob")
-
         # Pin pod_association to k8s.pod.uid so KSM metrics are associated
         # with their target pod (uid set by transform/rename_uid), not the
         # KSM pod itself via ip/name fallbacks from the preset default.
@@ -174,7 +213,6 @@ collectors:
             - sources:
                 - from: resource_attribute
                   name: k8s.pod.uid
-
         transform/sum_to_gauge:
           metric_statements:
             - convert_sum_to_gauge() where metric.name == "k8s.service.count"
@@ -186,7 +224,6 @@ collectors:
             - convert_sum_to_gauge() where metric.name == "k8s.statefulset.count"
             - convert_sum_to_gauge() where metric.name == "k8s.daemonset.count"
             - convert_sum_to_gauge() where metric.name == "k8s.cronjob.count"
-
       connectors:
         count/k8s_entities:
           datapoints:
@@ -234,27 +271,27 @@ collectors:
                   default_value: unspecified_namespace
               conditions:
                 - metric.name == "kube_cronjob_info"
-
-      # exporters is set per exporter mode (values-modes/*.fragment.yaml).
-
+{{- if .Ddot}}
+      exporters:
+        datadog/exporter:
+          orchestrator_explorer:
+            enabled: true
+{{- end}}
       service:
         pipelines:
-          # logs, metrics/otel_operator and metrics get their `exporters` from
-          # values-modes/*.fragment.yaml.
           logs:
             receivers: [k8s_objects]
             processors: [resource_detection/env]
-
+            exporters: [{{.Exporter}}]
           metrics/otel_operator:
             receivers: [prometheus/otel_operator]
             processors:
               - resource_detection/env
               - cumulativetodelta
-
+            exporters: [{{.Exporter}}]
           metrics/count:
             receivers: [prometheus/ksm]
             exporters: [count/k8s_entities]
-
           metrics:
             receivers: [otlp, prometheus/ksm, count/k8s_entities]
             processors:
@@ -265,11 +302,10 @@ collectors:
               - resource_detection/env
               - cumulativetodelta
               - transform/sum_to_gauge
-
+            exporters: [{{.Exporter}}]
   daemon:
     # Disable the chart-default daemon_scrape_configs.yaml Prometheus scrape.
     scrape_configs_file: ""
-
     # Chart's daemon defaults set lower limits; raise to match defaultCRConfig.
     resources:
       limits:
@@ -278,7 +314,6 @@ collectors:
       requests:
         cpu: 200m
         memory: 500Mi
-
     presets:
       kubernetesEvents:
         enabled: false
@@ -294,7 +329,6 @@ collectors:
       resourceDetection:
         env:
           enabled: false
-
     config:
       receivers:
         # cAdvisor metrics from the kubelet.
@@ -354,13 +388,11 @@ collectors:
                   - source_labels: [container]
                     regex: ^(POD)?$
                     action: drop
-
       processors:
         deltatorate:
           metrics:
             - k8s.pod.network.io
             - k8s.pod.network.errors
-
         deltatorate/cadvisor:
           metrics:
             - container_cpu_usage_seconds_total
@@ -371,7 +403,6 @@ collectors:
             - container_cpu_user_seconds_total
             - container_fs_reads_bytes_total
             - container_fs_writes_bytes_total
-
         transform/cadvisor_labels:
           metric_statements:
             - context: datapoint
@@ -394,7 +425,6 @@ collectors:
               statements:
                 - delete_key(attributes, "service.name")
                 - delete_key(attributes, "service.instance.id")
-
         # Ref: https://github.com/open-telemetry/opentelemetry-collector-contrib/tree/821a9d9c2c1623c4a0ceba5d47b57c48879c3f84/processor/groupbyattrsprocessor
         # Prometheus metrics are flat, so we need to extract the resource from the datapoint labels
         groupbyattrs:
@@ -403,35 +433,96 @@ collectors:
             - k8s.namespace.name
             - k8s.container.name
             - container.id
-
-      # connectors is set per exporter mode (values-modes/*.fragment.yaml):
-      # DDOT uses datadog/connector; OTLP/HTTP uses forward + span_metrics.
-
+      connectors:
+{{- if .Ddot}}
+        datadog/connector: {}
+{{- else}}
+        # Separate trace processing from span-metrics generation so RED metrics are computed on all traces.
+        forward: {}
+        span_metrics:
+          aggregation_temporality: AGGREGATION_TEMPORALITY_DELTA
+          add_resource_attributes: true
+          histogram:
+            exponential: {}
+            unit: s
+          # Only span-level (per-call) attributes are listed here. Resource-level semconv
+          # attributes (deployment.environment.name, service.version, container.id, cloud.*,
+          # host.*, k8s.node.name, k8s.cluster.name, azure.resourcegroup.name, aws.ecs.*) are
+          # already promoted onto the generated metrics' resource by add_resource_attributes
+          # above, and this pipeline's otlp_http exporter turns those into Datadog tags via
+          # dd-otel-metric-config.resource_attributes_as_tags, so listing them again here would
+          # be redundant. Namespace globs (e.g. `- glob: "http.*"`, `- glob: "db.**"`) were
+          # considered but skipped: several namespaces below (http, db, messaging, rpc, faas)
+          # have other semconv attributes that are high-cardinality (query text, message/request
+          # IDs, byte sizes, ports) and would blow up dimension cardinality if swept in.
+          dimensions:
+            - name: http.response.status_code
+            - name: aws.s3.bucket
+            - name: db.namespace
+            - name: messaging.destination.name
+            - name: messaging.system
+            - name: server.address
+            - name: operation.name
+            - name: http.request.method
+            - name: http.method
+            - name: db.system
+            - name: messaging.operation
+            - name: rpc.system
+            - name: rpc.service
+            - name: faas.invoked_provider
+            - name: faas.invoked_name
+            - name: faas.trigger
+            - name: graphql.operation.type
+            - name: network.protocol.name
+            - name: resource.name
+            - name: http.route
+            - name: messaging.destination
+            - name: rpc.method
+            - name: graphql.operation.name
+            - name: db.statement
+            - name: db.query.text
+{{- end}}
       extensions:
         datadog:
           deployment_type: daemonset
-
       service:
         pipelines:
-          # logs and metrics/cadvisor get their `exporters` from
-          # values-modes/*.fragment.yaml. metrics gets its `receivers` and
-          # `exporters` there too (DDOT also receives from datadog/connector).
-          # traces/sampling is fully owned by the fragment (its `receivers`
-          # names the mode-specific connector).
           logs:
             receivers: [otlp]
             processors: [resource_detection/env]
-
+            exporters: [{{.Exporter}}]
           traces:
             receivers: [otlp]
             processors: [resource_detection/env]
-
+{{- if .Ddot}}
+            exporters: [datadog/connector]
+{{- else}}
+            exporters: [forward, span_metrics]
+{{- end}}
+          # Add sampling processors here if needed.
+          traces/sampling:
+{{- if .Ddot}}
+            receivers: [datadog/connector]
+{{- else}}
+            receivers: [forward]
+{{- end}}
+            exporters: [{{.Exporter}}]
+{{- if not .Ddot}}
+          metrics/span_metrics:
+            receivers: [span_metrics]
+            exporters: [otlp_http]
+{{- end}}
           metrics:
+{{- if .Ddot}}
+            receivers: [datadog/connector, otlp]
+{{- else}}
+            receivers: [otlp]
+{{- end}}
             processors:
               - resource_detection/env
               - cumulativetodelta
               - deltatorate
-
+            exporters: [{{.Exporter}}]
           metrics/cadvisor:
             receivers: [prometheus/cadvisor]
             processors:
@@ -441,13 +532,104 @@ collectors:
               - k8s_attributes
               - cumulativetodelta
               - deltatorate/cadvisor
-
+            exporters: [{{.Exporter}}]
 instrumentation:
   enabled: true
-  # env, dotnet, java, nodejs and python are set per exporter mode
-  # (values-modes/*.fragment.yaml): DDOT mode injects Datadog-flavored SDK
-  # images and DD_*/OTel-bridge env vars; OTLP/HTTP mode uses upstream
-  # OpenTelemetry auto-instrumentation images.
+  env:
+{{- if .Ddot}}
+    # FIXME remove when the host profiler image embeds process context
+    # propagation. Until then: the eBPF host profiler
+    # extracts DD_ENV from each instrumented process (receiver default) and
+    # Datadog maps it to the `env` tag, keeping the APM -> Profiler navigation working.
+    - name: DD_ENV
+      value: ""
+{{- end}}
+    - name: OTEL_SEMCONV_STABILITY_OPT_IN
+      value: "http,database,rpc,messaging"
+    - name: OTEL_EXPORTER_OTLP_METRICS_TEMPORALITY_PREFERENCE
+      value: delta
+    # Node.js defaults to gRPC; use HTTP so every service exports to port 4318.
+    - name: OTEL_EXPORTER_OTLP_PROTOCOL
+      value: http/protobuf
+{{- if .Ddot}}
+    ## DDOT SDKs SPECIFIC CONFIGURATION
+    ## Enable the OTel Mode on DDOT SDKs
+    - name: "OTEL_TRACES_EXPORTER"
+      value: "otlp"
+    - name: "DD_TRACE_OTEL_ENABLED"
+      value: "true"
+    - name: "DD_LOGS_OTEL_ENABLED"
+      value: "true"
+    - name: "DD_METRICS_OTEL_ENABLED"
+      value: "true"
+    - name: "DD_TRACE_OTEL_SEMANTICS_ENABLED"
+      value: "true"
+    # DD_OTEL_SDK_ENABLED: Candidate new env var to enable OTel mode on DDOT SDKs, replacing all the previous ones,
+    # but not yet supported by the DDOT SDKs
+    # - name: "DD_OTEL_SDK_ENABLED"
+    #  value: "true"
+    ## DDOT CONFIGURATION
+    - name: "DD_AGENT_HOST"
+      value: "ddagent-kube-stack-datadog.opentelemetry-operator-system.svc.cluster.local"
+    # DBM SUPPORT
+    - name: "DD_DBM_PROPAGATION_MODE"
+      value: "full"
+    - name: "DD_DBM_TRACE_PREPARED_STATEMENTS"
+      value: "true"
+{{- end}}
+  # The opentelemetry-kube-stack Helm chart renders language sections even when empty, preventing the
+  # Operator from falling back to its default agent image and yielding invalid init containers.
+  # TODO: File an issue against the opentelemetry-kube-stack Helm chart for this behavior.
+  dotnet:
+{{- if .Ddot}}
+    image: ghcr.io/zacharycmontoya/dd-autoinstrumentation-dotnet:3.52.0
+    # Unlike the other languages, .NET needs more setup to instrument an application:
+    # - The CORECLR_PROFILER_PATH env variable must be set (matching other languages)
+    # - The .NET Tracer's DD_DOTNET_TRACER_HOME env variable must be set
+    # - The CORECLR_PROFILER env variable must the CLSID of the CLR profiler that is initialized,
+    # and currently the opentelemetry-operator sets it to OpenTelemetry's CLSID {918728DD-259F-4A6A-AC2B-B85E1B658318},
+    # whereas the Datadog's CLSID is {846F5F1C-F9AE-4B07-969E-05C26BC060D8}
+    env:
+      - name: CORECLR_PROFILER
+        value: "{846F5F1C-F9AE-4B07-969E-05C26BC060D8}"
+      - name: CORECLR_PROFILER_PATH
+        value: /otel-auto-instrumentation-dotnet/linux/Datadog.Tracer.Native.so
+      - name: DD_DOTNET_TRACER_HOME
+        value: /otel-auto-instrumentation-dotnet
+{{- else}}
+    image: ghcr.io/open-telemetry/opentelemetry-operator/autoinstrumentation-dotnet:1.15.0
+{{- end}}
+  java:
+{{- if .Ddot}}
+    # image: ghcr.io/open-telemetry/opentelemetry-operator/autoinstrumentation-java:2.28.1
+    image: registry.ddbuild.io/ssi/dd-otel-autoinstrumentation-java:glci135938671 # ?
+{{- else}}
+    image: ghcr.io/open-telemetry/opentelemetry-operator/autoinstrumentation-java:2.28.1
+{{- end}}
+  nodejs:
+{{- if .Ddot}}
+    # image: ghcr.io/open-telemetry/opentelemetry-operator/autoinstrumentation-nodejs:0.77.0
+    image: ghcr.io/cyrille-leclerc/dd-autoinstrumentation-nodejs:6.6.0
+{{- else}}
+    image: ghcr.io/open-telemetry/opentelemetry-operator/autoinstrumentation-nodejs:0.77.0
+{{- end}}
+  python:
+{{- if .Ddot}}
+    # image: ghcr.io/open-telemetry/opentelemetry-operator/autoinstrumentation-python:0.64b0
+    image: ghcr.io/cyrille-leclerc/dd-autoinstrumentation-python:4.11.1
+    # The auto-instrumentation init container bundles ddtrace native builds for every supported
+    # Python version (3.9-3.14) x libc (glibc/musl) x arch (x86_64/aarch64), ~330MB total, which
+    # exceeds the Operator's 200Mi default EmptyDir limit and gets the pod evicted.
+    #
+    # The Operator warns that this field ("volumeSizeLimit" in the warning is the Go field name;
+    # "volumeLimitSize" here is its JSON/YAML tag) is deprecated in favor of `volume.size`, but as
+    # of Operator 0.154.0 / chart 0.20.6 that replacement field doesn't exist in the CRD schema
+    # yet, so this is the only working way to raise the volume limit. Safe to ignore until the
+    # Operator ships `spec.python.volume.size`.
+    volumeLimitSize: 500Mi
+{{- else}}
+    image: ghcr.io/open-telemetry/opentelemetry-operator/autoinstrumentation-python:0.64b0
+{{- end}}
   exporter:
     # Daemon collector Service DNS. Update the collector name and namespace
     # to match your install: http://<helm-release-name>-daemon-collector.<namespace>.svc.cluster.local:4318
