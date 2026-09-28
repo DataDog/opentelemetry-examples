@@ -33,6 +33,9 @@ spec:
           }
       labels:
         app.kubernetes.io/name: kafka
+        # Skip Datadog Single Step Instrumentation if enabled cluster-wide: kafka isn't
+        # instrumented by the OpenTelemetry Operator, avoid double instrumentation.
+        admission.datadoghq.com/enabled: "false"
     spec:
       containers:
         - name: kafka

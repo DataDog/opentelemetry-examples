@@ -13,6 +13,20 @@ Optionally, the release installs the **host profiler** collector - a DaemonSet r
 
 The Datadog Agent itself is installed separately, via the **[Datadog Operator][dd-operator]** (`DatadogAgent` custom resource, `datadog-agent.yaml`), running as a DaemonSet in its own **`datadog` namespace** — the namespace name used throughout Datadog's own documentation and examples. It is deliberately scoped down (cluster checks, orchestrator explorer, KSM core, process collection, log collection, APM auto-instrumentation, and the Cluster Agent are all disabled): the OTel collectors above already handle Kubernetes object/metrics monitoring and log collection, and application SDKs are instrumented via the OpenTelemetry Operator instead of Datadog single-step APM instrumentation. Dynamic Instrumentation (Live Debugger) stays enabled.
 
+### Hybrid OTel + Datadog APM instrumentation
+
+`datadog-agent.yaml` ships with `features.apm.instrumentation.enabled: false`, since this guide instruments applications via the OpenTelemetry Operator instead. It can be flipped to `true` to let the Datadog Agent auto-instrument workloads too (e.g. while migrating a service from Datadog tracers to OTel SDKs) — but a pod must never be instrumented by both at once.
+
+The OpenTelemetry Operator marks a pod for injection with `instrumentation.opentelemetry.io/inject-*` pod **annotations**. Datadog's admission controller cannot select on annotations: `apm.instrumentation.targets[].podSelector` is a plain Kubernetes label selector, and only ever matches pod **labels**. So to exclude an OTel-instrumented pod template from Datadog auto-instrumentation, add this label to it directly, alongside the OTel annotations:
+
+```yaml
+metadata:
+  labels:
+    admission.datadoghq.com/enabled: "false"
+```
+
+That label makes Datadog's admission controller skip the pod outright — no `podSelector` needed.
+
 ## Prerequisites
 
 - A Kubernetes secret named `datadog-secret`, with keys `api-key` (required) and `dd-site` (optional; defaults to `datadoghq.com`), **duplicated in both the `opentelemetry-operator-system` namespace** (read by the OTel collectors' Datadog exporter, see `values.yaml`) **and the `datadog` namespace** (read by the `DatadogAgent` custom resource). Two copies are needed because a `DatadogAgent` CR can only reference a secret in its own namespace, and the OTel collectors run in a different namespace.

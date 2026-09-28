@@ -186,6 +186,9 @@ spec:
     metadata:
       labels:
         app.kubernetes.io/name: astronomy-db
+        # Skip Datadog Single Step Instrumentation if enabled cluster-wide: astronomy-db isn't
+        # instrumented by the OpenTelemetry Operator, avoid double instrumentation.
+        admission.datadoghq.com/enabled: "false"
       annotations:
         # Datadog Database Monitoring: autodiscover the postgres check on this pod.
         # See https://docs.datadoghq.com/database_monitoring/setup_postgres/selfhosted/?tab=postgres15
