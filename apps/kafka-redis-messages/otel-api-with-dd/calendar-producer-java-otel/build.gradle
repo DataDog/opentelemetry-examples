@@ -34,7 +34,7 @@ dependencies {
 
     // https://mvnrepository.com/artifact/org.apache.kafka/kafka-clients
     implementation 'org.apache.kafka:kafka-clients:3.9.2'
-    implementation 'io.opentelemetry:opentelemetry-api:1.61.0'
+    implementation 'io.opentelemetry:opentelemetry-api:1.62.0'
     implementation 'io.opentelemetry.instrumentation:opentelemetry-kafka-clients-2.6:1.20.0'
     implementation 'io.opentelemetry.instrumentation:opentelemetry-kafka-clients-2.6:1.19.2-alpha'
 
