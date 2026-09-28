@@ -81,7 +81,7 @@ subjects:
 ---
 apiVersion: v1
 data:
-  token: U1phb2FRT05aTnJTU0dzQWFQQ0tyT1B3ZVRuWFNQZ2Y=
+  token: UXZXU1djV3NVVkVjQ29NcVZ0RUh6enB5bXJDVFNLY1E=
 kind: Secret
 metadata:
   labels:
@@ -289,7 +289,7 @@ apiVersion: datadoghq.com/v1alpha1
 kind: DatadogAgentInternal
 metadata:
   annotations:
-    agent.datadoghq.com/ddaispechash: 9c5ed30137348395063c5c49b415b7e9
+    agent.datadoghq.com/ddaispechash: c0464ac810710f99c6b0370de4921b06
   finalizers:
   - finalizer.datadoghq.com/datadogagentinternal
   labels:
@@ -329,6 +329,26 @@ spec:
         injector: {}
         languageDetection:
           enabled: true
+        targets:
+        - ddTraceConfigs:
+          - name: DD_PROFILING_ENABLED
+            value: auto
+          - name: DD_DBM_PROPAGATION_MODE
+            value: full
+          - name: DD_DBM_TRACE_PREPARED_STATEMENTS
+            value: "true"
+          - name: DD_DATA_STREAMS_ENABLED
+            value: "true"
+          - name: DD_TRACE_REMOVE_INTEGRATION_SERVICE_NAMES_ENABLED
+            value: "true"
+          ddTraceVersions:
+            dotnet: "3"
+            java: "1"
+            js: "5"
+            php: "1"
+            python: "4"
+            ruby: "2"
+          name: default-target
       unixDomainSocketConfig:
         enabled: true
         path: /var/run/datadog/apm.socket
@@ -439,6 +459,20 @@ spec:
             value: "true"
           - name: DD_DYNAMIC_INSTRUMENTATION_ENABLED
             value: "true"
+          - name: DD_CLUSTER_AGENT_ENABLED
+            value: "false"
+        init-config:
+          env:
+          - name: DD_CLUSTER_AGENT_ENABLED
+            value: "false"
+        system-probe:
+          env:
+          - name: DD_CLUSTER_AGENT_ENABLED
+            value: "false"
+        trace-agent:
+          env:
+          - name: DD_CLUSTER_AGENT_ENABLED
+            value: "false"
       image:
         tag: 7.83.2-jmx
 ---
@@ -446,7 +480,7 @@ apiVersion: apps/v1
 kind: DaemonSet
 metadata:
   annotations:
-    agent.datadoghq.com/agentspechash: ca1ad031fd59e6888dddcd0517046d38
+    agent.datadoghq.com/agentspechash: ad8d18f8619922d57f93393b4c97f4ae
   labels:
     agent.datadoghq.com/component: agent
     agent.datadoghq.com/name: datadog
@@ -499,7 +533,7 @@ spec:
         - name: KUBERNETES
           value: "yes"
         - name: DD_CLUSTER_AGENT_ENABLED
-          value: "true"
+          value: "false"
         - name: DD_CLUSTER_AGENT_KUBERNETES_SERVICE_NAME
           value: datadog-cluster-agent
         - name: DD_KUBERNETES_USE_ENDPOINT_SLICES
@@ -645,7 +679,7 @@ spec:
         - name: KUBERNETES
           value: "yes"
         - name: DD_CLUSTER_AGENT_ENABLED
-          value: "true"
+          value: "false"
         - name: DD_CLUSTER_AGENT_KUBERNETES_SERVICE_NAME
           value: datadog-cluster-agent
         - name: DD_KUBERNETES_USE_ENDPOINT_SLICES
@@ -727,7 +761,7 @@ spec:
         - name: KUBERNETES
           value: "yes"
         - name: DD_CLUSTER_AGENT_ENABLED
-          value: "true"
+          value: "false"
         - name: DD_CLUSTER_AGENT_KUBERNETES_SERVICE_NAME
           value: datadog-cluster-agent
         - name: DD_KUBERNETES_USE_ENDPOINT_SLICES
@@ -844,7 +878,7 @@ spec:
         - name: KUBERNETES
           value: "yes"
         - name: DD_CLUSTER_AGENT_ENABLED
-          value: "true"
+          value: "false"
         - name: DD_CLUSTER_AGENT_KUBERNETES_SERVICE_NAME
           value: datadog-cluster-agent
         - name: DD_KUBERNETES_USE_ENDPOINT_SLICES

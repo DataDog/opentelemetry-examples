@@ -36,7 +36,43 @@ spec:
     # No APM single-step (auto) instrumentation: SDKs are injected via the OTel Operator instead.
     apm:
       instrumentation:
+        # CAN BE DISABLED WHEN INSTRUMENTING WITH THE OPENTELEMETRY OPERATOR, CAN BE ENABLED FOR HYBRID OTEL AND DATADOG
+        # NATIVE INSTRUMENTATION. ENABLING DD INSTRUMENTATION REQUIRES EXCLUDING PODS THAT ARE INJECTED WITH OTEL SDKS
+        # BY THE OPENTELEMETRY OPERATOR FROM DD INSTRUMENTATION, OTHERWISE THE SAME POD WILL BE INSTRUMENTED TWICE.
+        #
+        # The OpenTelemetry Operator marks pods for injection with the
+        # "instrumentation.opentelemetry.io/inject-*" pod ANNOTATIONS, but the target's
+        # `podSelector` below only matches pod LABELS (it's a plain Kubernetes label
+        # selector, and Datadog's admission controller only ever reads pod.Labels, never
+        # pod.Annotations) — so a podSelector keyed on those annotation names can never
+        # exclude anything. To exclude an OTel-instrumented pod template from Datadog
+        # auto-instrumentation, add this label to it directly, alongside the OTel
+        # annotations: `admission.datadoghq.com/enabled: "false"`. That label bypasses
+        # Datadog's admission controller entirely, with no selector needed.
         enabled: false
+        targets:
+          - name: "default-target"
+            ddTraceVersions:
+              java: "1"
+              python: "4"
+              js: "5"
+              php: "1"
+              dotnet: "3"
+              ruby: "2"
+            ddTraceConfigs:
+              ## PROFILING SUPPORT
+              - name: "DD_PROFILING_ENABLED"
+                value: "auto"
+              ## DBM SUPPORT
+              - name: "DD_DBM_PROPAGATION_MODE"
+                value: "full"
+              - name: "DD_DBM_TRACE_PREPARED_STATEMENTS"
+                value: "true"
+              # DSM SUPPORT
+              - name: "DD_DATA_STREAMS_ENABLED"
+                value: "true"
+              - name: "DD_TRACE_REMOVE_INTEGRATION_SERVICE_NAMES_ENABLED"
+                value: "true"
     dynamicInstrumentation:
       enabled: true
   override:
@@ -47,20 +83,36 @@ spec:
       # -jmx variant bundles a JRE so JMXFetch can run JMX checks (e.g. Kafka `ad.datadoghq.com/kafka.checks`).
       image:
         tag: "7.83.2-jmx"
+      # The Operator's default env vars always point node agent containers at the Cluster
+      # Agent (DD_CLUSTER_AGENT_ENABLED=true, DD_CLUSTER_AGENT_KUBERNETES_SERVICE_NAME=
+      # datadog-cluster-agent), regardless of `override.clusterAgent.disabled` above. Since
+      # the Cluster Agent workload doesn't exist here, its Service has no endpoints, so every
+      # node agent container must explicitly disable that client to avoid repeatedly trying to
+      # reach an unavailable Cluster Agent.
+      # Upstream bug: https://github.com/DataDog/datadog-operator/issues/3521
       containers:
         agent:
           env:
             - name: "DD_ORCHESTRATOR_EXPLORER_KUBELET_CONFIG_CHECK_ENABLED"
               value: "false"
-            # no-op on agent >= 7.78.0, real switch is this env var (kubelet_configuration_check
-            # above and discovery.enabled in the Helm chart are informational only)
             - name: "DD_DISCOVERY_ENABLED"
               value: "false"
             - name: "DD_APM_DEBUGGER_LOGS_ENABLED_OVERRIDE"
               value: "true"
             - name: "DD_DYNAMIC_INSTRUMENTATION_ENABLED"
               value: "true"
+            - name: "DD_CLUSTER_AGENT_ENABLED"
+              value: "false"
+        trace-agent:
+          env:
+            - name: "DD_CLUSTER_AGENT_ENABLED"
+              value: "false"
+        system-probe:
+          env:
+            - name: "DD_CLUSTER_AGENT_ENABLED"
+              value: "false"
+        init-config:
+          env:
+            - name: "DD_CLUSTER_AGENT_ENABLED"
+              value: "false"
 
-# Note: the Helm chart's `datadog.operator.enabled: false` (whether the Datadog
-# Operator itself manages the Agent) has no CRD equivalent and is intentionally
-# omitted here, since this manifest is already applied via the Operator.

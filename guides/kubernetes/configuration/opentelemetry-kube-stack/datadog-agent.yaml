@@ -83,6 +83,13 @@ spec:
       # -jmx variant bundles a JRE so JMXFetch can run JMX checks (e.g. Kafka `ad.datadoghq.com/kafka.checks`).
       image:
         tag: "7.83.2-jmx"
+      # The Operator's default env vars always point node agent containers at the Cluster
+      # Agent (DD_CLUSTER_AGENT_ENABLED=true, DD_CLUSTER_AGENT_KUBERNETES_SERVICE_NAME=
+      # datadog-cluster-agent), regardless of `override.clusterAgent.disabled` above. Since
+      # the Cluster Agent workload doesn't exist here, its Service has no endpoints, so every
+      # node agent container must explicitly disable that client to avoid repeatedly trying to
+      # reach an unavailable Cluster Agent.
+      # Upstream bug: https://github.com/DataDog/datadog-operator/issues/3521
       containers:
         agent:
           env:
@@ -94,4 +101,18 @@ spec:
               value: "true"
             - name: "DD_DYNAMIC_INSTRUMENTATION_ENABLED"
               value: "true"
+            - name: "DD_CLUSTER_AGENT_ENABLED"
+              value: "false"
+        trace-agent:
+          env:
+            - name: "DD_CLUSTER_AGENT_ENABLED"
+              value: "false"
+        system-probe:
+          env:
+            - name: "DD_CLUSTER_AGENT_ENABLED"
+              value: "false"
+        init-config:
+          env:
+            - name: "DD_CLUSTER_AGENT_ENABLED"
+              value: "false"
 
