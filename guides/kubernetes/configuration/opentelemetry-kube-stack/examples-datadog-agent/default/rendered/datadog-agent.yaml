@@ -81,7 +81,7 @@ subjects:
 ---
 apiVersion: v1
 data:
-  token: UXZXU1djV3NVVkVjQ29NcVZ0RUh6enB5bXJDVFNLY1E=
+  token: UlVoZlNubHRIVWhkT21rbkpIQXZCZm5HaGhIV1NYZko=
 kind: Secret
 metadata:
   labels:
