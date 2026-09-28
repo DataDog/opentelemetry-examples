@@ -118,17 +118,25 @@ echo ""
 
 # WARNING: dont change "namespace=opentelemetry-operator-system" as it is used in the 'instrumentation' CRD defined in values.yaml
 
-echo "Creating Kubernetes namespace..."
+echo "Creating Kubernetes namespaces..."
 
 kubectl create namespace opentelemetry-operator-system || echo "WARNING: Could not create namespace 'opentelemetry-operator-system' (may already exist or insufficient permissions). Continuing..."
+# The Datadog Operator and the DatadogAgent custom resource live in their own
+# "datadog" namespace, separate from the OpenTelemetry Kube Stack.
+kubectl create namespace datadog || echo "WARNING: Could not create namespace 'datadog' (may already exist or insufficient permissions). Continuing..."
 
 echo "Creating or updating Datadog secret..."
 
-kubectl create secret generic datadog-secret \
-  --namespace opentelemetry-operator-system  \
-  --from-literal="api-key=$DD_API_KEY" \
-  --from-literal="dd-site=${DD_SITE:-datadoghq.com}" \
-  --dry-run=client -o yaml | kubectl apply -f -
+# The secret is duplicated in both namespaces: opentelemetry-operator-system's
+# copy is used by the Datadog exporter in the OTel collectors (see values.yaml),
+# and datadog's copy is used by the DatadogAgent custom resource.
+for DD_SECRET_NAMESPACE in opentelemetry-operator-system datadog; do
+    kubectl create secret generic datadog-secret \
+      --namespace "$DD_SECRET_NAMESPACE"  \
+      --from-literal="api-key=$DD_API_KEY" \
+      --from-literal="dd-site=${DD_SITE:-datadoghq.com}" \
+      --dry-run=client -o yaml | kubectl apply -f -
+done
 
 echo "Configuring and updating Helm"
 
@@ -200,15 +208,18 @@ if [[ -n "$HOST_PROFILER_NETWORK_POLICY_FILE" ]]; then
       || echo "WARNING: Could not apply the host-profiler egress NetworkPolicy (is Cilium installed if you chose the Cilium policy?). Continuing..."
 fi
 
-echo "Installing Datadog Agent"
+echo "Installing Datadog Operator..."
 
-helm upgrade ddagent-kube-stack \
-    datadog/datadog \
-    --version 3.240.0 \
+helm upgrade datadog-operator \
+    datadog/datadog-operator \
     --install \
-    --namespace opentelemetry-operator-system \
-    --set-string datadog.clusterName=$K8S_CLUSTER_NAME \
-    --set-string datadog.apiKeyExistingSecret='datadog-secret' \
-    --set-string datadog.site=${DD_SITE:-datadoghq.com} \
-    "${HELM_SET_ARGS[@]}" \
-    -f "$SCRIPT_DIR/dd-agent-values.yaml"
+    --namespace datadog \
+    --wait --timeout 5m
+
+echo "Applying the DatadogAgent custom resource..."
+
+sed \
+  -e "s|<CLUSTER_NAME>|${K8S_CLUSTER_NAME:-unknown_k8s_cluster}|" \
+  -e "s|<DD_SITE>|${DD_SITE:-datadoghq.com}|" \
+  "$SCRIPT_DIR/datadog-agent.yaml" \
+  | kubectl apply --namespace datadog -f -

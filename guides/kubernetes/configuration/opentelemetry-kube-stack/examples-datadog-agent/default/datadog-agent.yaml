@@ -1,0 +1,66 @@
+# Datadog Operator CRD equivalent of ./dd-agent-values.yaml (Helm chart values).
+# Both configure the Datadog Agent to run alongside the OpenTelemetry Kube Stack:
+# the OTel collectors handle Kubernetes object/metrics monitoring and log collection,
+# so cluster checks, orchestrator explorer, KSM core, process collection, and the
+# Cluster Agent itself are disabled here to avoid duplicate collection.
+kind: "DatadogAgent"
+apiVersion: "datadoghq.com/v2alpha1"
+metadata:
+  name: "datadog"
+  namespace: "datadog"
+spec:
+  global:
+    # my_k8s_cluster / datadoghq.com are substituted by the `install` script.
+    clusterName: "my_k8s_cluster"
+    site: "datadoghq.com"
+    credentials:
+      apiSecret:
+        secretName: "datadog-secret"
+        keyName: "api-key"
+  features:
+    clusterChecks:
+      enabled: false
+    orchestratorExplorer:
+      enabled: false
+    kubeStateMetricsCore:
+      enabled: false
+    liveProcessCollection:
+      enabled: false
+    processDiscovery:
+      enabled: false
+    eventCollection:
+      collectKubernetesEvents: false
+    # No log collection by the Agent: the OTel Kube Stack daemon collector handles logs.
+    logCollection:
+      enabled: false
+    # No APM single-step (auto) instrumentation: SDKs are injected via the OTel Operator instead.
+    apm:
+      instrumentation:
+        enabled: false
+    dynamicInstrumentation:
+      enabled: true
+  override:
+    # Cluster Agent not needed: Kubernetes monitoring is done by the OTel collectors.
+    clusterAgent:
+      disabled: true
+    nodeAgent:
+      # -jmx variant bundles a JRE so JMXFetch can run JMX checks (e.g. Kafka `ad.datadoghq.com/kafka.checks`).
+      image:
+        tag: "7.83.2-jmx"
+      containers:
+        agent:
+          env:
+            - name: "DD_ORCHESTRATOR_EXPLORER_KUBELET_CONFIG_CHECK_ENABLED"
+              value: "false"
+            # no-op on agent >= 7.78.0, real switch is this env var (kubelet_configuration_check
+            # above and discovery.enabled in the Helm chart are informational only)
+            - name: "DD_DISCOVERY_ENABLED"
+              value: "false"
+            - name: "DD_APM_DEBUGGER_LOGS_ENABLED_OVERRIDE"
+              value: "true"
+            - name: "DD_DYNAMIC_INSTRUMENTATION_ENABLED"
+              value: "true"
+
+# Note: the Helm chart's `datadog.operator.enabled: false` (whether the Datadog
+# Operator itself manages the Agent) has no CRD equivalent and is intentionally
+# omitted here, since this manifest is already applied via the Operator.
