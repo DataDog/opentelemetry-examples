@@ -8,6 +8,11 @@ CI_SCRIPTS := $(REPO_ROOT)/.github/workflows/scripts
 validate:
 	@DUMMY_ENV_FILE=$(CI_SCRIPTS)/dummy-credentials.env $(CI_SCRIPTS)/validate-opentelemetry-kube-stack.sh
 
+.PHONY: generate-base-values
+generate-base-values:
+	@echo "Generating values.yaml from values.yaml.tmpl"
+	@cd $(REPO_ROOT)/generate && go run .
+
 .PHONY: generate-examples
 generate-examples:
 	@echo "Generating all examples into their rendered/ subdirectory"
