@@ -81,7 +81,7 @@ subjects:
 ---
 apiVersion: v1
 data:
-  token: UlVoZlNubHRIVWhkT21rbkpIQXZCZm5HaGhIV1NYZko=
+  token: Wll6WWpKcEdrbm5XRlpiZEdYTGZ0QUtHZ1VLb1JwVEc=
 kind: Secret
 metadata:
   labels:
@@ -289,7 +289,8 @@ apiVersion: datadoghq.com/v1alpha1
 kind: DatadogAgentInternal
 metadata:
   annotations:
-    agent.datadoghq.com/ddaispechash: c0464ac810710f99c6b0370de4921b06
+    agent.datadoghq.com/ddaispechash: e07a29c1bb19acd2da8cf9329fc779e8
+    agent.datadoghq.com/instrumentation-crd-enabled: "false"
   finalizers:
   - finalizer.datadoghq.com/datadogagentinternal
   labels:
@@ -461,17 +462,25 @@ spec:
             value: "true"
           - name: DD_CLUSTER_AGENT_ENABLED
             value: "false"
+          - name: DD_KUBERNETES_USE_ENDPOINT_SLICES
+            value: "false"
         init-config:
           env:
           - name: DD_CLUSTER_AGENT_ENABLED
+            value: "false"
+          - name: DD_KUBERNETES_USE_ENDPOINT_SLICES
             value: "false"
         system-probe:
           env:
           - name: DD_CLUSTER_AGENT_ENABLED
             value: "false"
+          - name: DD_KUBERNETES_USE_ENDPOINT_SLICES
+            value: "false"
         trace-agent:
           env:
           - name: DD_CLUSTER_AGENT_ENABLED
+            value: "false"
+          - name: DD_KUBERNETES_USE_ENDPOINT_SLICES
             value: "false"
       image:
         tag: 7.83.2-jmx
@@ -480,7 +489,7 @@ apiVersion: apps/v1
 kind: DaemonSet
 metadata:
   annotations:
-    agent.datadoghq.com/agentspechash: ad8d18f8619922d57f93393b4c97f4ae
+    agent.datadoghq.com/agentspechash: 7f65319b9deef6e6e367d9cf045da056
   labels:
     agent.datadoghq.com/component: agent
     agent.datadoghq.com/name: datadog
@@ -537,7 +546,7 @@ spec:
         - name: DD_CLUSTER_AGENT_KUBERNETES_SERVICE_NAME
           value: datadog-cluster-agent
         - name: DD_KUBERNETES_USE_ENDPOINT_SLICES
-          value: "true"
+          value: "false"
         - name: DD_CLUSTER_AGENT_TOKEN_NAME
           value: datadog-token
         - name: DD_AUTH_TOKEN_FILE_PATH
@@ -576,8 +585,6 @@ spec:
           value: "true"
         - name: DD_SYSPROBE_SOCKET
           value: /var/run/sysprobe/sysprobe.sock
-        - name: DD_INSTRUMENTATION_CRD_CONTROLLER_ENABLED
-          value: "true"
         - name: DD_PROCESS_CONFIG_RUN_IN_CORE_AGENT_ENABLED
           value: "true"
         - name: DD_PROCESS_CONFIG_CONTAINER_COLLECTION_ENABLED
@@ -683,7 +690,7 @@ spec:
         - name: DD_CLUSTER_AGENT_KUBERNETES_SERVICE_NAME
           value: datadog-cluster-agent
         - name: DD_KUBERNETES_USE_ENDPOINT_SLICES
-          value: "true"
+          value: "false"
         - name: DD_CLUSTER_AGENT_TOKEN_NAME
           value: datadog-token
         - name: DD_AUTH_TOKEN_FILE_PATH
@@ -765,7 +772,7 @@ spec:
         - name: DD_CLUSTER_AGENT_KUBERNETES_SERVICE_NAME
           value: datadog-cluster-agent
         - name: DD_KUBERNETES_USE_ENDPOINT_SLICES
-          value: "true"
+          value: "false"
         - name: DD_CLUSTER_AGENT_TOKEN_NAME
           value: datadog-token
         - name: DD_AUTH_TOKEN_FILE_PATH
@@ -882,7 +889,7 @@ spec:
         - name: DD_CLUSTER_AGENT_KUBERNETES_SERVICE_NAME
           value: datadog-cluster-agent
         - name: DD_KUBERNETES_USE_ENDPOINT_SLICES
-          value: "true"
+          value: "false"
         - name: DD_CLUSTER_AGENT_TOKEN_NAME
           value: datadog-token
         - name: DD_AUTH_TOKEN_FILE_PATH

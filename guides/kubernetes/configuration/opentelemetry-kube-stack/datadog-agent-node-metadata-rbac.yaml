@@ -1,0 +1,34 @@
+# Supplementary RBAC for the node agent's local Service/Pod metadata fallback.
+#
+# The Cluster Agent is disabled in datadog-agent.yaml (`override.clusterAgent.disabled: true`,
+# `DD_CLUSTER_AGENT_ENABLED=false`). When the Cluster Agent is unreachable/disabled, the node
+# agent's "kube_metadata" workloadmeta collector unconditionally falls back to querying the
+# Kubernetes API server directly for Service/Endpoints metadata (used to tag workloads), instead
+# of skipping that work. The Datadog Operator's default node agent ClusterRole only grants `get`
+# on `endpoints`, not the `list`/`watch` this fallback needs, so without this supplementary RBAC
+# the agent logs "endpoints is forbidden ... cannot list resource \"endpoints\"" errors on a loop.
+#
+# This is a separate ClusterRole/ClusterRoleBinding (not a patch to the Operator-managed
+# `datadog-agent` ClusterRole) because the Operator reconciles and would overwrite in-place edits
+# to its own RBAC objects.
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: datadog-agent-node-metadata
+rules:
+  - apiGroups: [""]
+    resources: ["endpoints"]
+    verbs: ["list", "watch"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: datadog-agent-node-metadata
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: datadog-agent-node-metadata
+subjects:
+  - kind: ServiceAccount
+    name: datadog-agent
+    namespace: datadog

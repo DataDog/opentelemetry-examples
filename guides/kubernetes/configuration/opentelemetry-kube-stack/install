@@ -223,3 +223,6 @@ sed \
   -e "s|<DD_SITE>|${DD_SITE:-datadoghq.com}|" \
   "$SCRIPT_DIR/datadog-agent.yaml" \
   | kubectl apply --namespace datadog -f -
+
+echo "Applying supplementary node agent RBAC (Cluster Agent disabled, see datadog-agent-node-metadata-rbac.yaml)..."
+kubectl apply -f "$SCRIPT_DIR/datadog-agent-node-metadata-rbac.yaml"

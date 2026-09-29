@@ -8,6 +8,12 @@ apiVersion: "datadoghq.com/v2alpha1"
 metadata:
   name: "datadog"
   namespace: "datadog"
+  annotations:
+    # The Instrumentation CRD controller feature is enabled by default and requires a live
+    # Cluster Agent (disabled below). Left on, the core agent's "instrumentation-checks" config
+    # provider polls a Cluster Agent that doesn't exist and logs "temporary failure in
+    # clusterAgentClient" errors every ~10s. See https://github.com/DataDog/datadog-operator/issues/3521
+    agent.datadoghq.com/instrumentation-crd-enabled: "false"
 spec:
   global:
     # my_k8s_cluster / datadoghq.com are substituted by the `install` script.
@@ -85,10 +91,12 @@ spec:
         tag: "7.83.2-jmx"
       # The Operator's default env vars always point node agent containers at the Cluster
       # Agent (DD_CLUSTER_AGENT_ENABLED=true, DD_CLUSTER_AGENT_KUBERNETES_SERVICE_NAME=
-      # datadog-cluster-agent), regardless of `override.clusterAgent.disabled` above. Since
-      # the Cluster Agent workload doesn't exist here, its Service has no endpoints, so every
-      # node agent container must explicitly disable that client to avoid repeatedly trying to
-      # reach an unavailable Cluster Agent.
+      # datadog-cluster-agent, DD_KUBERNETES_USE_ENDPOINT_SLICES=true), regardless of
+      # `override.clusterAgent.disabled` above. Since the Cluster Agent workload doesn't exist
+      # here, its Service has no endpoints, so every node agent container must explicitly
+      # disable that client to avoid repeatedly trying to reach an unavailable Cluster Agent
+      # (DD_CLUSTER_AGENT_ENABLED) and hitting the API server directly for endpointslices
+      # without the RBAC to list them cluster-wide (DD_KUBERNETES_USE_ENDPOINT_SLICES).
       # Upstream bug: https://github.com/DataDog/datadog-operator/issues/3521
       containers:
         agent:
@@ -103,16 +111,24 @@ spec:
               value: "true"
             - name: "DD_CLUSTER_AGENT_ENABLED"
               value: "false"
+            - name: "DD_KUBERNETES_USE_ENDPOINT_SLICES"
+              value: "false"
         trace-agent:
           env:
             - name: "DD_CLUSTER_AGENT_ENABLED"
+              value: "false"
+            - name: "DD_KUBERNETES_USE_ENDPOINT_SLICES"
               value: "false"
         system-probe:
           env:
             - name: "DD_CLUSTER_AGENT_ENABLED"
               value: "false"
+            - name: "DD_KUBERNETES_USE_ENDPOINT_SLICES"
+              value: "false"
         init-config:
           env:
             - name: "DD_CLUSTER_AGENT_ENABLED"
+              value: "false"
+            - name: "DD_KUBERNETES_USE_ENDPOINT_SLICES"
               value: "false"
 

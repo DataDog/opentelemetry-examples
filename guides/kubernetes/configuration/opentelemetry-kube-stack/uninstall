@@ -13,6 +13,7 @@ It deletes:
   - the host-profiler egress NetworkPolicy and CiliumNetworkPolicy in the
     opentelemetry-operator-system namespace (if installed);
   - the datadog DatadogAgent custom resource in the datadog namespace;
+  - the datadog-agent-node-metadata supplementary ClusterRole/ClusterRoleBinding;
   - the datadog-operator Helm release in the datadog namespace;
   - the datadog-secret secret in the opentelemetry-operator-system and
     datadog namespaces;
@@ -81,6 +82,11 @@ kubectl delete datadogagent \
   --ignore-not-found=true \
   datadog \
   || echo "WARNING: Could not delete the datadog DatadogAgent custom resource. Continuing..."
+
+kubectl delete clusterrolebinding --ignore-not-found=true datadog-agent-node-metadata \
+  || echo "WARNING: Could not delete the datadog-agent-node-metadata ClusterRoleBinding. Continuing..."
+kubectl delete clusterrole --ignore-not-found=true datadog-agent-node-metadata \
+  || echo "WARNING: Could not delete the datadog-agent-node-metadata ClusterRole. Continuing..."
 
 helm uninstall datadog-operator \
   --namespace datadog  \
