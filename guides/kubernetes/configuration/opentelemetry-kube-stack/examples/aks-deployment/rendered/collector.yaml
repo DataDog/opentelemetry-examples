@@ -151,6 +151,8 @@ spec:
         detectors:
         - aks
         - k8s_api
+        eks:
+          node_from_env_var: K8S_NODE_NAME
         override: false
       transform/ksm_to_dd:
         metric_statements:
@@ -668,6 +670,8 @@ spec:
         detectors:
         - aks
         - k8s_api
+        eks:
+          node_from_env_var: K8S_NODE_NAME
         override: false
       transform/cadvisor_labels:
         metric_statements:

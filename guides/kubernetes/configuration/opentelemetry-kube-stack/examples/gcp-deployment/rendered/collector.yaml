@@ -147,6 +147,8 @@ spec:
         detectors:
         - gcp
         - k8s_api
+        eks:
+          node_from_env_var: K8S_NODE_NAME
         gcp:
           resource_attributes:
             k8s.cluster.name:
@@ -664,6 +666,8 @@ spec:
         detectors:
         - gcp
         - k8s_api
+        eks:
+          node_from_env_var: K8S_NODE_NAME
         gcp:
           resource_attributes:
             k8s.cluster.name:
