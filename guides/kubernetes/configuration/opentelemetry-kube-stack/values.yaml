@@ -8,6 +8,22 @@ opentelemetry-operator:
     collectorImage:
       repository: otel/opentelemetry-collector-contrib
       tag: "0.154.0"
+  # Don't admit uninstrumented pods while the operator is down; skip infra and
+  # the operator itself to avoid a deadlock.
+  # See https://github.com/open-telemetry/opentelemetry-operator/issues/1329
+  admissionWebhooks:
+    pods:
+      failurePolicy: Fail
+      namespaceSelector:
+        matchExpressions:
+          - key: kubernetes.io/metadata.name
+            operator: NotIn
+            values: [kube-system, kube-node-lease, kube-public, cert-manager]
+      objectSelector:
+        matchExpressions:
+          - key: app.kubernetes.io/name
+            operator: NotIn
+            values: [opentelemetry-operator]
 
 kubeStateMetrics:
   enabled: true

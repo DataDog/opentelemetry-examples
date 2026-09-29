@@ -6,9 +6,9 @@ metadata:
   annotations:
     cert-manager.io/inject-ca-from: opentelemetry-operator-system/opentelemetry-kube-stack-opentelemetry-operator-serving-cert
   labels:
-    helm.sh/chart: opentelemetry-operator-0.119.0
+    helm.sh/chart: opentelemetry-operator-0.123.0
     app.kubernetes.io/name: opentelemetry-operator
-    app.kubernetes.io/version: "0.154.0"
+    app.kubernetes.io/version: "0.159.0"
     app.kubernetes.io/managed-by: Helm
     app.kubernetes.io/part-of: opentelemetry-operator
     app.kubernetes.io/instance: opentelemetry-kube-stack
@@ -69,7 +69,22 @@ webhooks:
         namespace: opentelemetry-operator-system
         path: /mutate-v1-pod
         port: 443
-    failurePolicy: Ignore
+    namespaceSelector:
+      matchExpressions:
+      - key: kubernetes.io/metadata.name
+        operator: NotIn
+        values:
+        - kube-system
+        - kube-node-lease
+        - kube-public
+        - cert-manager
+    objectSelector:
+      matchExpressions:
+      - key: app.kubernetes.io/name
+        operator: NotIn
+        values:
+        - opentelemetry-operator
+    failurePolicy: Fail
     name: mpod.kb.io
     rules:
       - apiGroups:
@@ -92,9 +107,9 @@ metadata:
   annotations:
     cert-manager.io/inject-ca-from: opentelemetry-operator-system/opentelemetry-kube-stack-opentelemetry-operator-serving-cert
   labels:
-    helm.sh/chart: opentelemetry-operator-0.119.0
+    helm.sh/chart: opentelemetry-operator-0.123.0
     app.kubernetes.io/name: opentelemetry-operator
-    app.kubernetes.io/version: "0.154.0"
+    app.kubernetes.io/version: "0.159.0"
     app.kubernetes.io/managed-by: Helm
     app.kubernetes.io/part-of: opentelemetry-operator
     app.kubernetes.io/instance: opentelemetry-kube-stack
