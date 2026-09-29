@@ -21,12 +21,12 @@ jobs:
         with:
           go-version-file: generate/go.mod
 
-      - name: Regenerate values.yaml
+      - name: Regenerate values-<mode>.yaml
         run: make generate-base-values
 
-      - name: Fail if values.yaml is out of date
+      - name: Fail if values-<mode>.yaml is out of date
         run: |
-          if [ -n "$(git status --porcelain -- values.yaml)" ]; then
-            echo "::error::values.yaml is out of date. Run make generate-base-values locally."
+          if [ -n "$(git status --porcelain -- 'values-*.yaml')" ]; then
+            echo "::error::values-<mode>.yaml is out of date. Run make generate-base-values locally."
             exit 1
           fi

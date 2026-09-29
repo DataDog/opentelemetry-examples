@@ -74,7 +74,7 @@ echo ""
 
 #### BEGINNING OF INSTALLATION SCRIPT
 
-# WARNING: dont change "namespace=opentelemetry-operator-system" as it is used in the 'instrumentation' CRD defined in values.yaml
+# WARNING: dont change "namespace=opentelemetry-operator-system" as it is used in the 'instrumentation' CRD defined in values-otlp-http.yaml
 
 echo "Creating Kubernetes namespace..."
 
@@ -120,4 +120,4 @@ helm upgrade opentelemetry-kube-stack \
     --install \
     --namespace opentelemetry-operator-system \
     "${HELM_SET_ARGS[@]}" \
-    -f "$SCRIPT_DIR/values.yaml"
+    -f "$SCRIPT_DIR/values-otlp-http.yaml"
