@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Renders every guides/.../examples/<example>/*values.yaml into a
+# Renders every guides/.../examples/<example>/values.yaml into a
 # rendered-<mode>/ subdirectory, once per exporter mode passed as an
 # argument. Called by `make generate-otel-kube-stack-examples`.
 set -euo pipefail
@@ -15,28 +15,25 @@ mkdir -p "$TMP_DIRECTORY"
 
 EXAMPLES=$(find ${EXAMPLES_DIR} -maxdepth 1 -mindepth 1 -type d -exec basename {} \;)
 for example in ${EXAMPLES}; do
-	VALUES=$(find ${EXAMPLES_DIR}/${example} -name '*values.yaml')
 	for mode in "$@"; do
 		echo "Generating example: ${example} (mode: ${mode})"
 		rm -rf "${EXAMPLES_DIR}/${example}/rendered-${mode}"
-		for value in ${VALUES}; do
-			helm template opentelemetry-kube-stack \
-				open-telemetry/opentelemetry-kube-stack \
-				--namespace opentelemetry-operator-system \
-				--version "0.20.8" \
-				--values ./values-${mode}.yaml --values ${value} \
-				--output-dir "${EXAMPLES_DIR}/${example}/rendered-${mode}"
-			mv ${EXAMPLES_DIR}/${example}/rendered-${mode}/opentelemetry-kube-stack/templates/* "${EXAMPLES_DIR}/${example}/rendered-${mode}"
-			SUBCHARTS_DIR=${EXAMPLES_DIR}/${example}/rendered-${mode}/opentelemetry-kube-stack/charts
-			if [ -d "${SUBCHARTS_DIR}" ]; then
-				SUBCHARTS=$(find ${SUBCHARTS_DIR} -maxdepth 1 -mindepth 1 -type d -exec basename {} \;)
-				for subchart in ${SUBCHARTS}; do
-					mkdir -p "${EXAMPLES_DIR}/${example}/rendered-${mode}/${subchart}"
-					mv ${SUBCHARTS_DIR}/${subchart}/templates/* "${EXAMPLES_DIR}/${example}/rendered-${mode}/${subchart}"
-				done
-				rm -rf ${EXAMPLES_DIR}/${example}/rendered-${mode}/opentelemetry-kube-stack
-			fi
-		done
+		helm template opentelemetry-kube-stack \
+			open-telemetry/opentelemetry-kube-stack \
+			--namespace opentelemetry-operator-system \
+			--version "0.20.8" \
+			--values ./values-${mode}.yaml --values ${EXAMPLES_DIR}/${example}/values.yaml \
+			--output-dir "${EXAMPLES_DIR}/${example}/rendered-${mode}"
+		mv ${EXAMPLES_DIR}/${example}/rendered-${mode}/opentelemetry-kube-stack/templates/* "${EXAMPLES_DIR}/${example}/rendered-${mode}"
+		SUBCHARTS_DIR=${EXAMPLES_DIR}/${example}/rendered-${mode}/opentelemetry-kube-stack/charts
+		if [ -d "${SUBCHARTS_DIR}" ]; then
+			SUBCHARTS=$(find ${SUBCHARTS_DIR} -maxdepth 1 -mindepth 1 -type d -exec basename {} \;)
+			for subchart in ${SUBCHARTS}; do
+				mkdir -p "${EXAMPLES_DIR}/${example}/rendered-${mode}/${subchart}"
+				mv ${SUBCHARTS_DIR}/${subchart}/templates/* "${EXAMPLES_DIR}/${example}/rendered-${mode}/${subchart}"
+			done
+			rm -rf ${EXAMPLES_DIR}/${example}/rendered-${mode}/opentelemetry-kube-stack
+		fi
 	done
 done
 
