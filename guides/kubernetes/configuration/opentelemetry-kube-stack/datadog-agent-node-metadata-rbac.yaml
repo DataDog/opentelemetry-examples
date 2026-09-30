@@ -8,6 +8,13 @@
 # on `endpoints`, not the `list`/`watch` this fallback needs, so without this supplementary RBAC
 # the agent logs "endpoints is forbidden ... cannot list resource \"endpoints\"" errors on a loop.
 #
+# Likewise, the node agent's host tagger normally gets its node's labels/annotations from the
+# Cluster Agent; without it, it falls back to `GET /api/v1/nodes/<nodeName>` on the API server.
+# The Operator's default ClusterRole only grants `get` on `nodes/metrics`, `nodes/proxy`,
+# `nodes/spec` and `nodes/stats`, not on `nodes` itself, so without this supplementary RBAC the
+# agent logs "Unable to auto discover node labels: nodes \"<node>\" is forbidden ... cannot get
+# resource \"nodes\"" errors.
+#
 # This is a separate ClusterRole/ClusterRoleBinding (not a patch to the Operator-managed
 # `datadog-agent` ClusterRole) because the Operator reconciles and would overwrite in-place edits
 # to its own RBAC objects.
@@ -19,6 +26,9 @@ rules:
   - apiGroups: [""]
     resources: ["endpoints"]
     verbs: ["list", "watch"]
+  - apiGroups: [""]
+    resources: ["nodes"]
+    verbs: ["get"]
 ---
 apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRoleBinding
