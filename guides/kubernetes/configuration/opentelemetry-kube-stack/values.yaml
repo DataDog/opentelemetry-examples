@@ -666,7 +666,7 @@ instrumentation:
     #  value: "true"
     ## DDOT CONFIGURATION
     - name: "DD_AGENT_HOST"
-      value: "ddagent-kube-stack-datadog.opentelemetry-operator-system.svc.cluster.local"
+      value: "datadog-agent.datadog.svc.cluster.local"
     # DBM SUPPORT
     - name: "DD_DBM_PROPAGATION_MODE"
       value: "full"

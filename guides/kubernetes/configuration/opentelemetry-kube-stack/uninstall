@@ -12,11 +12,19 @@ It deletes:
     opentelemetry-operator-system namespace;
   - the host-profiler egress NetworkPolicy and CiliumNetworkPolicy in the
     opentelemetry-operator-system namespace (if installed);
-  - the ddagent-kube-stack Helm release in the
-    opentelemetry-operator-system namespace;
-  - the datadog-secret secret in the opentelemetry-operator-system namespace;
-  - OpenTelemetry CRDs: opentelemetrycollectors, instrumentations, and
-    opampbridges.
+  - the datadog DatadogAgent custom resource in the datadog namespace;
+  - the legacy ddagent-kube-stack Datadog Agent Helm release in the
+    opentelemetry-operator-system namespace (if installed);
+  - the datadog-operator Helm release in the datadog namespace;
+  - the datadog-secret secret in the opentelemetry-operator-system and
+    datadog namespaces;
+  - OpenTelemetry CRDs: opentelemetrycollectors, instrumentations,
+    opampbridges, and targetallocators;
+  - Datadog Operator CRDs: datadogagents, datadogagentprofiles,
+    datadogagentinternals, datadoginstrumentations, datadogmonitors,
+    datadogslos, datadogdashboards, datadogmetrics, datadogcsidrivers,
+    datadoggenericresources, datadogpodautoscalers, and
+    datadogpodautoscalerclusterprofiles.
 
 Deleting CRDs also deletes all corresponding custom resources in the cluster.
 EOF
@@ -70,16 +78,61 @@ kubectl delete ciliumnetworkpolicy \
   host-profiler-egress \
   || echo "WARNING: CiliumNetworkPolicy CRD not installed. Continuing..."
 
+# Foreground cascading deletion: wait until the DatadogAgent's dependents (the
+# DatadogAgentInternal and, through it, the agent DaemonSet/pods, Services and RBAC)
+# are gone before uninstalling the Datadog Operator below. The DatadogAgentInternal
+# carries a finalizer only the Operator can remove, so uninstalling the Operator first
+# leaves it (and the agent pods it owns) stuck, and hangs the CRD deletion further down.
+kubectl delete datadogagent \
+  --namespace datadog \
+  --ignore-not-found=true \
+  --cascade=foreground \
+  --timeout=5m \
+  datadog \
+  || echo "WARNING: Could not delete the datadog DatadogAgent custom resource. Continuing..."
+
+# Remove the legacy Datadog Agent Helm release (the Datadog Agent used to be
+# installed with the datadog/datadog Helm chart in the opentelemetry-operator-system
+# namespace).
 helm uninstall ddagent-kube-stack \
-  --namespace opentelemetry-operator-system  \
-  || echo "WARNING: Could not uninstall ddagent-kube-stack. Continuing..."
+  --namespace opentelemetry-operator-system \
+  || echo "WARNING: No legacy ddagent-kube-stack Helm release. Continuing..."
+
+helm uninstall datadog-operator \
+  --namespace datadog  \
+  || echo "WARNING: Could not uninstall datadog-operator. Continuing..."
 
 echo "Removing Datadog endpoint configuration..."
 kubectl delete secrets --namespace opentelemetry-operator-system  --ignore-not-found=true datadog-secret
+kubectl delete secrets --namespace datadog  --ignore-not-found=true datadog-secret
 
 
-# Remove OpenTelemetry CRDs (optional - be careful as this affects all OpenTelemetry resources)
+# Remove OpenTelemetry CRDs (optional - be careful as this affects all OpenTelemetry resources).
+# CRDs are cluster-scoped, hence no --namespace. This is the full set installed by the
+# opentelemetry-kube-stack chart's otel-crds subchart (crds.installOtel: true).
 echo "Delete CRDs"
-kubectl delete crd  --namespace opentelemetry-operator-system opentelemetrycollectors.opentelemetry.io
-kubectl delete crd  --namespace opentelemetry-operator-system instrumentations.opentelemetry.io
-kubectl delete crd  --namespace opentelemetry-operator-system opampbridges.opentelemetry.io
+kubectl delete crd --ignore-not-found=true \
+  opentelemetrycollectors.opentelemetry.io \
+  instrumentations.opentelemetry.io \
+  opampbridges.opentelemetry.io \
+  targetallocators.opentelemetry.io \
+  || echo "WARNING: Could not delete the OpenTelemetry Operator CRDs. Continuing..."
+
+# Remove Datadog Operator CRDs (optional - be careful as this affects all Datadog Operator
+# resources). This is the full set the datadog-operator chart's datadog-crds subchart can
+# install; several (datadogagentprofiles, datadogdashboards, datadoggenericresources,
+# datadogslos) are disabled by the chart's own defaults and won't exist unless enabled.
+kubectl delete crd --ignore-not-found=true \
+  datadogagents.datadoghq.com \
+  datadogagentprofiles.datadoghq.com \
+  datadogagentinternals.datadoghq.com \
+  datadoginstrumentations.datadoghq.com \
+  datadogmonitors.datadoghq.com \
+  datadogslos.datadoghq.com \
+  datadogdashboards.datadoghq.com \
+  datadogmetrics.datadoghq.com \
+  datadogcsidrivers.datadoghq.com \
+  datadoggenericresources.datadoghq.com \
+  datadogpodautoscalers.datadoghq.com \
+  datadogpodautoscalerclusterprofiles.datadoghq.com \
+  || echo "WARNING: Could not delete the Datadog Operator CRDs. Continuing..."

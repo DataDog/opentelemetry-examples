@@ -1,0 +1,108 @@
+# DatadogAgent custom resource, reconciled by the Datadog Operator, configuring the
+# Datadog Agent to run alongside the OpenTelemetry Kube Stack:
+# the OTel collectors handle Kubernetes object/metrics monitoring and log collection,
+# so cluster checks, orchestrator explorer, KSM core and process collection are disabled
+# here to avoid duplicate collection.
+#
+# The Cluster Agent is kept: the node Agent relies on it for cluster-level metadata (node
+# labels, Service/Endpoints tags) and the Operator doesn't fully support running without it.
+# See https://github.com/DataDog/datadog-operator/issues/3521
+kind: "DatadogAgent"
+apiVersion: "datadoghq.com/v2alpha1"
+metadata:
+  name: "datadog"
+  namespace: "datadog"
+spec:
+  global:
+    # datadoghq.com and the cluster name placeholder are substituted by the `install` script, which
+    # removes the `clusterName` line on EKS/GKE/AKS so the Agent auto-detects the cluster name.
+    clusterName: "my_k8s_cluster"
+    site: "datadoghq.com"
+    credentials:
+      apiSecret:
+        secretName: "datadog-secret"
+        keyName: "api-key"
+  features:
+    clusterChecks:
+      enabled: false
+    orchestratorExplorer:
+      enabled: false
+    kubeStateMetricsCore:
+      enabled: false
+    liveProcessCollection:
+      enabled: false
+    processDiscovery:
+      enabled: false
+    eventCollection:
+      collectKubernetesEvents: false
+    # No log collection by the Agent: the OTel Kube Stack daemon collector handles logs.
+    logCollection:
+      enabled: false
+    # No APM single-step (auto) instrumentation: SDKs are injected via the OTel Operator instead.
+    apm:
+      instrumentation:
+        # CAN BE DISABLED WHEN INSTRUMENTING WITH THE OPENTELEMETRY OPERATOR, CAN BE ENABLED FOR HYBRID OTEL AND DATADOG
+        # NATIVE INSTRUMENTATION. ENABLING DD INSTRUMENTATION REQUIRES EXCLUDING PODS THAT ARE INJECTED WITH OTEL SDKS
+        # BY THE OPENTELEMETRY OPERATOR FROM DD INSTRUMENTATION, OTHERWISE THE SAME POD WILL BE INSTRUMENTED TWICE.
+        #
+        # The OpenTelemetry Operator marks pods for injection with the
+        # "instrumentation.opentelemetry.io/inject-*" pod ANNOTATIONS, but the target's
+        # `podSelector` below only matches pod LABELS (it's a plain Kubernetes label
+        # selector, and Datadog's admission controller only ever reads pod.Labels, never
+        # pod.Annotations) — so a podSelector keyed on those annotation names can never
+        # exclude anything. To exclude an OTel-instrumented pod template from Datadog
+        # auto-instrumentation, add this label to it directly, alongside the OTel
+        # annotations: `admission.datadoghq.com/enabled: "false"`. That label bypasses
+        # Datadog's admission controller entirely, with no selector needed.
+        enabled: false
+        targets:
+          - name: "default-target"
+            ddTraceVersions:
+              java: "1"
+              python: "4"
+              js: "5"
+              php: "1"
+              dotnet: "3"
+              ruby: "2"
+            ddTraceConfigs:
+              ## PROFILING SUPPORT
+              - name: "DD_PROFILING_ENABLED"
+                value: "auto"
+              ## DBM SUPPORT
+              - name: "DD_DBM_PROPAGATION_MODE"
+                value: "full"
+              - name: "DD_DBM_TRACE_PREPARED_STATEMENTS"
+                value: "true"
+              # DSM SUPPORT
+              - name: "DD_DATA_STREAMS_ENABLED"
+                value: "true"
+              - name: "DD_TRACE_REMOVE_INTEGRATION_SERVICE_NAMES_ENABLED"
+                value: "true"
+    # Live Debugger / Dynamic Instrumentation for Go apps: enables the system-probe Dynamic
+    # Instrumentation module (sets DD_DYNAMIC_INSTRUMENTATION_ENABLED on the core agent and
+    # system-probe containers),
+    # which requires Linux kernel >= 5.17. Java, Python, .NET... apps don't need it.
+    # See https://docs.datadoghq.com/tracing/live_debugger/?prog_lang=go
+    dynamicInstrumentation:
+      enabled: true
+  override:
+    nodeAgent:
+      # -jmx variant bundles a JRE so JMXFetch can run JMX checks (e.g. Kafka `ad.datadoghq.com/kafka.checks`).
+      image:
+        tag: "7.83.2-jmx"
+      containers:
+        agent:
+          env:
+            - name: "DD_ORCHESTRATOR_EXPLORER_KUBELET_CONFIG_CHECK_ENABLED"
+              value: "false"
+            - name: "DD_DISCOVERY_ENABLED"
+              value: "false"
+            # Live Debugger requires `logs_enabled: true` or this override, as log collection is
+            # disabled above.
+            - name: "DD_APM_DEBUGGER_LOGS_ENABLED_OVERRIDE"
+              value: "true"
+            # The legacy `kubernetes_state` check's auto_conf.yaml autodiscovers the OTel Kube
+            # Stack's kube-state-metrics pod and scrapes it, duplicating the Kubernetes object
+            # metrics the OTel collectors already collect (hence `kubeStateMetricsCore` disabled above).
+            - name: "DD_IGNORE_AUTOCONF"
+              value: "kubernetes_state"

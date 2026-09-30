@@ -38,6 +38,11 @@ if [[ ! -f "$SCRIPT_DIR/.env" ]]; then
     echo
     [[ -z "$DD_API_KEY" ]] && error "Datadog API Key cannot be empty"
 
+    # Optional: the Datadog Operator needs an application key to manage the Datadog Agent
+    # from Datadog Fleet Automation (see the Datadog Operator installation below).
+    read -r -s -p "Datadog Application Key, optional, to manage the Agent from Fleet Automation (leave empty to skip): " DD_APP_KEY
+    echo
+
     # Ask if user wants to save to .env file
     read -p "Save credentials to .env file? (y/n): " SAVE_TO_ENV
     if [[ "$SAVE_TO_ENV" == "y" || "$SAVE_TO_ENV" == "Y" ]]; then
@@ -45,6 +50,7 @@ if [[ ! -f "$SCRIPT_DIR/.env" ]]; then
         {
             echo "export DD_SITE=\"${DD_SITE}\""
             echo "export DD_API_KEY=\"${DD_API_KEY}\""
+            [[ -n "$DD_APP_KEY" ]] && echo "export DD_APP_KEY=\"${DD_APP_KEY}\""
         } >> "$SCRIPT_DIR/.env"
         chmod 600 "$SCRIPT_DIR/.env"
         echo "$SCRIPT_DIR/.env file created successfully."
@@ -78,10 +84,17 @@ esac
 export K8S_MANAGED_SERVICE_DETECTOR
 
 
-K8S_CLUSTER_NAME="unknown_k8s_cluster"
+# The Datadog Agent only accepts lowercase letters, digits, "-" and "." in cluster names (no
+# uppercase, no "_"): it rewrites "_" to "-" and ignores names with uppercase letters.
+K8S_CLUSTER_NAME="unknown-k8s-cluster"
 if [[ "$KUBE_CLUSTER_TYPE" == "Other" ]]; then
-    read -p "Kubernetes Cluster Name (default: 'unknown_k8s_cluster'): " K8S_CLUSTER_NAME
-    K8S_CLUSTER_NAME=${K8S_CLUSTER_NAME:-unknown_k8s_cluster}
+    read -p "Kubernetes Cluster Name (default: 'unknown-k8s-cluster'): " K8S_CLUSTER_NAME
+    K8S_CLUSTER_NAME=${K8S_CLUSTER_NAME:-unknown-k8s-cluster}
+    NORMALIZED_K8S_CLUSTER_NAME=$(echo "$K8S_CLUSTER_NAME" | tr '[:upper:]_' '[:lower:]-')
+    if [[ "$NORMALIZED_K8S_CLUSTER_NAME" != "$K8S_CLUSTER_NAME" ]]; then
+        echo "Using cluster name '$NORMALIZED_K8S_CLUSTER_NAME' instead of '$K8S_CLUSTER_NAME' (lowercase, '-' instead of '_')."
+        K8S_CLUSTER_NAME="$NORMALIZED_K8S_CLUSTER_NAME"
+    fi
 else
   # k8s.cluster.name will be auto-detected by the OpenTelemetry Collector Resource Detection Processor
   # based on the cloud provider detector (eks, gcp, aks)
@@ -118,17 +131,31 @@ echo ""
 
 # WARNING: dont change "namespace=opentelemetry-operator-system" as it is used in the 'instrumentation' CRD defined in values.yaml
 
-echo "Creating Kubernetes namespace..."
+echo "Creating Kubernetes namespaces..."
 
 kubectl create namespace opentelemetry-operator-system || echo "WARNING: Could not create namespace 'opentelemetry-operator-system' (may already exist or insufficient permissions). Continuing..."
+# The Datadog Operator and the DatadogAgent custom resource live in their own
+# "datadog" namespace, separate from the OpenTelemetry Kube Stack.
+kubectl create namespace datadog || echo "WARNING: Could not create namespace 'datadog' (may already exist or insufficient permissions). Continuing..."
 
 echo "Creating or updating Datadog secret..."
 
-kubectl create secret generic datadog-secret \
-  --namespace opentelemetry-operator-system  \
-  --from-literal="api-key=$DD_API_KEY" \
-  --from-literal="dd-site=${DD_SITE:-datadoghq.com}" \
-  --dry-run=client -o yaml | kubectl apply -f -
+# The secret is duplicated in both namespaces: opentelemetry-operator-system's
+# copy is used by the Datadog exporter in the OTel collectors (see values.yaml),
+# and datadog's copy is used by the DatadogAgent custom resource and the Datadog
+# Operator. Only datadog's copy holds the (optional) application key.
+for DD_SECRET_NAMESPACE in opentelemetry-operator-system datadog; do
+    DD_APP_KEY_SECRET_ARGS=()
+    if [[ "$DD_SECRET_NAMESPACE" == "datadog" && -n "${DD_APP_KEY:-}" ]]; then
+        DD_APP_KEY_SECRET_ARGS=(--from-literal="app-key=$DD_APP_KEY")
+    fi
+    kubectl create secret generic datadog-secret \
+      --namespace "$DD_SECRET_NAMESPACE"  \
+      --from-literal="api-key=$DD_API_KEY" \
+      --from-literal="dd-site=${DD_SITE:-datadoghq.com}" \
+      ${DD_APP_KEY_SECRET_ARGS[@]+"${DD_APP_KEY_SECRET_ARGS[@]}"} \
+      --dry-run=client -o yaml | kubectl apply -f -
+done
 
 echo "Configuring and updating Helm"
 
@@ -200,15 +227,67 @@ if [[ -n "$HOST_PROFILER_NETWORK_POLICY_FILE" ]]; then
       || echo "WARNING: Could not apply the host-profiler egress NetworkPolicy (is Cilium installed if you chose the Cilium policy?). Continuing..."
 fi
 
-echo "Installing Datadog Agent"
+# Uninstall the legacy Datadog Agent Helm release (the Datadog Agent used to be
+# installed with the datadog/datadog Helm chart in the opentelemetry-operator-system
+# namespace): two Datadog Agent DaemonSets must not run on the same node.
+helm status ddagent-kube-stack --namespace opentelemetry-operator-system >/dev/null 2>&1 \
+  && helm uninstall ddagent-kube-stack --namespace opentelemetry-operator-system --wait \
+  || echo "WARNING: No legacy ddagent-kube-stack Helm release found. Continuing..."
 
-helm upgrade ddagent-kube-stack \
-    datadog/datadog \
-    --version 3.240.0 \
+echo "Installing Datadog Operator..."
+
+# The Operator's own identity (API key, site and cluster name), used for its telemetry and
+# metadata. Without them, the Operator falls back to the DatadogAgent's credentials and settings.
+OPERATOR_HELM_ARGS=(
+    --set apiKeyExistingSecret=datadog-secret
+    --set-string site="${DD_SITE:-datadoghq.com}"
+)
+if [[ -n "$K8S_CLUSTER_NAME" ]]; then
+    OPERATOR_HELM_ARGS+=(--set-string clusterName="$K8S_CLUSTER_NAME")
+fi
+
+# Fleet Automation: with an application key, the Operator connects to Datadog Remote
+# Configuration so the Datadog Agent can be managed from Datadog:
+# - remoteConfiguration.enabled: enable/disable Agent features (e.g. from the Datadog UI),
+# - previewFleetRollouts: apply Fleet Automation configuration changes to the DatadogAgent
+#   (Preview, request access for your org at
+#   https://www.datadoghq.com/product-preview/configure-agent-kubernetes-operator/).
+if [[ -n "${DD_APP_KEY:-}" ]]; then
+    echo "Enabling Fleet Automation (Remote Configuration) in the Datadog Operator..."
+    OPERATOR_HELM_ARGS+=(
+        --set appKeyExistingSecret=datadog-secret
+        --set remoteConfiguration.enabled=true
+        --set previewFleetRollouts=true
+    )
+    if [[ -z "$K8S_CLUSTER_NAME" ]]; then
+        echo "WARNING: No cluster name set (EKS/GKE/AKS): the Datadog Operator's Remote Configuration requires one." \
+             "Choose 'Other' and enter the cluster name to enable Fleet Automation."
+    fi
+else
+    echo "DD_APP_KEY not set: Fleet Automation (managing the Agent from Datadog) is disabled." \
+         "Add 'export DD_APP_KEY=...' to $SCRIPT_DIR/.env and re-run this script to enable it."
+fi
+
+helm upgrade datadog-operator \
+    datadog/datadog-operator \
     --install \
-    --namespace opentelemetry-operator-system \
-    --set-string datadog.clusterName=$K8S_CLUSTER_NAME \
-    --set-string datadog.apiKeyExistingSecret='datadog-secret' \
-    --set-string datadog.site=${DD_SITE:-datadoghq.com} \
-    "${HELM_SET_ARGS[@]}" \
-    -f "$SCRIPT_DIR/dd-agent-values.yaml"
+    --namespace datadog \
+    ${OPERATOR_HELM_ARGS[@]+"${OPERATOR_HELM_ARGS[@]}"} \
+    --wait --timeout 5m
+
+echo "Applying the DatadogAgent custom resource..."
+
+# On EKS/GKE/AKS, K8S_CLUSTER_NAME is empty: drop the `clusterName` line so the Datadog Agent
+# auto-detects the cluster name from the cloud provider. An empty `clusterName: ""` isn't enough,
+# the Operator would still set DD_CLUSTER_NAME on the agent containers.
+if [[ -n "$K8S_CLUSTER_NAME" ]]; then
+    CLUSTER_NAME_SED_ARGS=(-e "s|<CLUSTER_NAME>|$K8S_CLUSTER_NAME|")
+else
+    CLUSTER_NAME_SED_ARGS=(-e "/<CLUSTER_NAME>/d")
+fi
+
+sed \
+  "${CLUSTER_NAME_SED_ARGS[@]}" \
+  -e "s|<DD_SITE>|${DD_SITE:-datadoghq.com}|" \
+  "$SCRIPT_DIR/datadog-agent.yaml" \
+  | kubectl apply --namespace datadog -f -
