@@ -81,7 +81,7 @@ subjects:
 ---
 apiVersion: v1
 data:
-  token: Wll6WWpKcEdrbm5XRlpiZEdYTGZ0QUtHZ1VLb1JwVEc=
+  token: SGZWdkV6YlpyZ0doZGJPdm9DV1hJaXNVYUxRTk9KUkY=
 kind: Secret
 metadata:
   labels:
@@ -196,37 +196,6 @@ metadata:
     app.kubernetes.io/name: datadog-agent-deployment
     app.kubernetes.io/part-of: datadog-datadog
     app.kubernetes.io/version: ""
-    operator.datadoghq.com/managed-by-store: "true"
-  name: datadog-admission-controller
-  namespace: datadog
-  ownerReferences:
-  - apiVersion: datadoghq.com/v1alpha1
-    blockOwnerDeletion: true
-    controller: true
-    kind: DatadogAgentInternal
-    name: datadog
-    uid: ""
-spec:
-  internalTrafficPolicy: Cluster
-  ports:
-  - name: admissioncontrollerport
-    port: 443
-    protocol: TCP
-    targetPort: 8000
-  selector:
-    agent.datadoghq.com/component: cluster-agent
-    agent.datadoghq.com/name: datadog
-  type: ClusterIP
----
-apiVersion: v1
-kind: Service
-metadata:
-  labels:
-    app.kubernetes.io/instance: datadog
-    app.kubernetes.io/managed-by: datadog-operator
-    app.kubernetes.io/name: datadog-agent-deployment
-    app.kubernetes.io/part-of: datadog-datadog
-    app.kubernetes.io/version: ""
     operator.datadoghq.com/managed-by-dda-controller: "true"
     operator.datadoghq.com/managed-by-store: "true"
   name: datadog-agent
@@ -289,7 +258,7 @@ apiVersion: datadoghq.com/v1alpha1
 kind: DatadogAgentInternal
 metadata:
   annotations:
-    agent.datadoghq.com/ddaispechash: e07a29c1bb19acd2da8cf9329fc779e8
+    agent.datadoghq.com/ddaispechash: 76742de3de57bdc822d27e512b80b3f1
     agent.datadoghq.com/instrumentation-crd-enabled: "false"
   finalizers:
   - finalizer.datadoghq.com/datadogagentinternal
@@ -309,13 +278,11 @@ spec:
     admissionController:
       cwsInstrumentation:
         enabled: false
-      enabled: true
+      enabled: false
       kubernetesAdmissionEvents:
         enabled: false
-      mutateUnlabelled: false
       mutation:
         enabled: true
-      serviceName: datadog-admission-controller
       validation:
         enabled: true
     apm:
@@ -460,6 +427,8 @@ spec:
             value: "true"
           - name: DD_DYNAMIC_INSTRUMENTATION_ENABLED
             value: "true"
+          - name: DD_IGNORE_AUTOCONF
+            value: kubernetes_state
           - name: DD_CLUSTER_AGENT_ENABLED
             value: "false"
           - name: DD_KUBERNETES_USE_ENDPOINT_SLICES
@@ -489,7 +458,7 @@ apiVersion: apps/v1
 kind: DaemonSet
 metadata:
   annotations:
-    agent.datadoghq.com/agentspechash: 7f65319b9deef6e6e367d9cf045da056
+    agent.datadoghq.com/agentspechash: 7a648ff8e5530b7635245d00dae49d45
   labels:
     agent.datadoghq.com/component: agent
     agent.datadoghq.com/name: datadog
@@ -597,6 +566,8 @@ spec:
           value: "false"
         - name: DD_APM_DEBUGGER_LOGS_ENABLED_OVERRIDE
           value: "true"
+        - name: DD_IGNORE_AUTOCONF
+          value: kubernetes_state
         image: registry.datadoghq.com/agent:7.83.2-jmx
         livenessProbe:
           failureThreshold: 6

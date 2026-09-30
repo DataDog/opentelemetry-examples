@@ -16,7 +16,8 @@ metadata:
     agent.datadoghq.com/instrumentation-crd-enabled: "false"
 spec:
   global:
-    # my_k8s_cluster / datadoghq.com are substituted by the `install` script.
+    # datadoghq.com and the cluster name placeholder are substituted by the `install` script, which
+    # removes the `clusterName` line on EKS/GKE/AKS so the Agent auto-detects the cluster name.
     clusterName: "my_k8s_cluster"
     site: "datadoghq.com"
     credentials:
@@ -36,6 +37,12 @@ spec:
       enabled: false
     eventCollection:
       collectKubernetesEvents: false
+    # The admission controller runs in the Cluster Agent (disabled below), so it can't work here.
+    # Left on (the default), the Operator still creates an unused `datadog-admission-controller`
+    # Service and adds admission controller rules to the Cluster Agent RBAC.
+    # See https://github.com/DataDog/datadog-operator/issues/3521
+    admissionController:
+      enabled: false
     # No log collection by the Agent: the OTel Kube Stack daemon collector handles logs.
     logCollection:
       enabled: false
@@ -109,6 +116,11 @@ spec:
               value: "true"
             - name: "DD_DYNAMIC_INSTRUMENTATION_ENABLED"
               value: "true"
+            # The legacy `kubernetes_state` check's auto_conf.yaml autodiscovers the OTel Kube
+            # Stack's kube-state-metrics pod and scrapes it, duplicating the Kubernetes object
+            # metrics the OTel collectors already collect (hence `kubeStateMetricsCore` disabled above).
+            - name: "DD_IGNORE_AUTOCONF"
+              value: "kubernetes_state"
             - name: "DD_CLUSTER_AGENT_ENABLED"
               value: "false"
             - name: "DD_KUBERNETES_USE_ENDPOINT_SLICES"

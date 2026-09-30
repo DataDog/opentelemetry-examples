@@ -78,10 +78,17 @@ esac
 export K8S_MANAGED_SERVICE_DETECTOR
 
 
-K8S_CLUSTER_NAME="unknown_k8s_cluster"
+# The Datadog Agent only accepts lowercase letters, digits, "-" and "." in cluster names (no
+# uppercase, no "_"): it rewrites "_" to "-" and ignores names with uppercase letters.
+K8S_CLUSTER_NAME="unknown-k8s-cluster"
 if [[ "$KUBE_CLUSTER_TYPE" == "Other" ]]; then
-    read -p "Kubernetes Cluster Name (default: 'unknown_k8s_cluster'): " K8S_CLUSTER_NAME
-    K8S_CLUSTER_NAME=${K8S_CLUSTER_NAME:-unknown_k8s_cluster}
+    read -p "Kubernetes Cluster Name (default: 'unknown-k8s-cluster'): " K8S_CLUSTER_NAME
+    K8S_CLUSTER_NAME=${K8S_CLUSTER_NAME:-unknown-k8s-cluster}
+    NORMALIZED_K8S_CLUSTER_NAME=$(echo "$K8S_CLUSTER_NAME" | tr '[:upper:]_' '[:lower:]-')
+    if [[ "$NORMALIZED_K8S_CLUSTER_NAME" != "$K8S_CLUSTER_NAME" ]]; then
+        echo "Using cluster name '$NORMALIZED_K8S_CLUSTER_NAME' instead of '$K8S_CLUSTER_NAME' (lowercase, '-' instead of '_')."
+        K8S_CLUSTER_NAME="$NORMALIZED_K8S_CLUSTER_NAME"
+    fi
 else
   # k8s.cluster.name will be auto-detected by the OpenTelemetry Collector Resource Detection Processor
   # based on the cloud provider detector (eks, gcp, aks)
@@ -218,8 +225,17 @@ helm upgrade datadog-operator \
 
 echo "Applying the DatadogAgent custom resource..."
 
+# On EKS/GKE/AKS, K8S_CLUSTER_NAME is empty: drop the `clusterName` line so the Datadog Agent
+# auto-detects the cluster name from the cloud provider. An empty `clusterName: ""` isn't enough,
+# the Operator would still set DD_CLUSTER_NAME on the agent containers.
+if [[ -n "$K8S_CLUSTER_NAME" ]]; then
+    CLUSTER_NAME_SED_ARGS=(-e "s|<CLUSTER_NAME>|$K8S_CLUSTER_NAME|")
+else
+    CLUSTER_NAME_SED_ARGS=(-e "/<CLUSTER_NAME>/d")
+fi
+
 sed \
-  -e "s|<CLUSTER_NAME>|${K8S_CLUSTER_NAME:-unknown_k8s_cluster}|" \
+  "${CLUSTER_NAME_SED_ARGS[@]}" \
   -e "s|<DD_SITE>|${DD_SITE:-datadoghq.com}|" \
   "$SCRIPT_DIR/datadog-agent.yaml" \
   | kubectl apply --namespace datadog -f -

@@ -165,8 +165,15 @@ helm upgrade --install datadog-operator \
   --namespace datadog \
   --wait --timeout 5m
 
+# On EKS/GKE/AKS (empty K8S_CLUSTER_NAME), drop the clusterName line so the Agent auto-detects it
+if [[ -n "$K8S_CLUSTER_NAME" ]]; then
+  CLUSTER_NAME_SED_ARGS=(-e "s|<CLUSTER_NAME>|$K8S_CLUSTER_NAME|")
+else
+  CLUSTER_NAME_SED_ARGS=(-e "/<CLUSTER_NAME>/d")
+fi
+
 sed \
-  -e "s|<CLUSTER_NAME>|${K8S_CLUSTER_NAME:-unknown_k8s_cluster}|" \
+  "${CLUSTER_NAME_SED_ARGS[@]}" \
   -e "s|<DD_SITE>|$DD_SITE|" \
   ./datadog-agent.yaml \
   | kubectl apply --namespace datadog -f -
