@@ -1,5 +1,6 @@
-// Command generate renders the opentelemetry-kube-stack guide's values.yaml
-// from its values.yaml.tmpl. Run via `make generate-base-values` in
+// Command generate renders the opentelemetry-kube-stack guide's
+// values-<mode>.yaml files from its values.yaml.tmpl, one per exporter mode.
+// Run via `make generate-base-values` in
 // guides/kubernetes/configuration/opentelemetry-kube-stack (cds into this
 // directory first).
 package main
@@ -13,18 +14,30 @@ import (
 
 const guideDir = "../guides/kubernetes/configuration/opentelemetry-kube-stack"
 
-func main() {
-	tmpl := template.Must(template.ParseFiles(filepath.Join(guideDir, "values.yaml.tmpl")))
+type mode struct {
+	name string
+}
 
-	out, err := os.Create(filepath.Join(guideDir, "values.yaml"))
+var modes = []mode{
+	{name: "otlp-http"},
+}
+
+func render(tmpl *template.Template, m mode) error {
+	out, err := os.Create(filepath.Join(guideDir, "values-"+m.name+".yaml"))
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "failed to create values.yaml: %s\n", err)
-		os.Exit(1)
+		return err
 	}
 	defer out.Close()
 
-	if err := tmpl.Execute(out, nil); err != nil {
-		fmt.Fprintf(os.Stderr, "failed to render values.yaml: %s\n", err)
-		os.Exit(1)
+	return tmpl.Execute(out, nil)
+}
+
+func main() {
+	tmpl := template.Must(template.ParseFiles(filepath.Join(guideDir, "values.yaml.tmpl")))
+	for _, m := range modes {
+		if err := render(tmpl, m); err != nil {
+			fmt.Fprintf(os.Stderr, "failed to render values-%s.yaml: %s\n", m.name, err)
+			os.Exit(1)
+		}
 	}
 }

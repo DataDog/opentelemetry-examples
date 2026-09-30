@@ -24,20 +24,21 @@ validate_collector_configs() {
 
   # Extract Collector image
   local collector_image
-  collector_image="$(yq '.opentelemetry-operator.manager.collectorImage.repository + ":" + .opentelemetry-operator.manager.collectorImage.tag' values.yaml)"
+  collector_image="$(yq '.opentelemetry-operator.manager.collectorImage.repository + ":" + .opentelemetry-operator.manager.collectorImage.tag' values-otlp-http.yaml)"
   echo "Validating collector configs against ${collector_image}"
 
   # Move each config into its own file.
-  local collector_file example doc_count i kind name
-  for collector_file in examples/*/rendered/collector.yaml; do
+  local collector_file example mode doc_count i kind name
+  for collector_file in examples/*/rendered-*/collector.yaml; do
     example="$(basename "$(dirname "$(dirname "${collector_file}")")")"
+    mode="$(basename "$(dirname "${collector_file}")")"
     doc_count="$(yq 'di' "${collector_file}" | tail -1)"
     for i in $(seq 0 "${doc_count}"); do
       kind="$(yq "select(di == ${i}) | .kind" "${collector_file}")"
       [[ "${kind}" = "OpenTelemetryCollector" ]] || continue
       name="$(yq "select(di == ${i}) | .metadata.name" "${collector_file}")"
       yq "select(di == ${i}) | .spec.config" "${collector_file}" \
-        > "${work_dir}/${example}--${name}.yaml"
+        > "${work_dir}/${example}--${mode}--${name}.yaml"
     done
   done
   chmod -R a+rX "${work_dir}"
@@ -73,7 +74,7 @@ validate_manifests() {
     -strict -summary \
     -schema-location default \
     -schema-location 'https://raw.githubusercontent.com/datreeio/CRDs-catalog/main/{{.Group}}/{{.ResourceKind}}_{{.ResourceAPIVersion}}.json' \
-    examples/*/rendered
+    examples/*/rendered-*
 }
 
 status=0
