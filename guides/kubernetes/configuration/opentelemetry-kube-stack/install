@@ -280,10 +280,11 @@ echo "Applying the DatadogAgent custom resource..."
 # On EKS/GKE/AKS, K8S_CLUSTER_NAME is empty: drop the `clusterName` line so the Datadog Agent
 # auto-detects the cluster name from the cloud provider. An empty `clusterName: ""` isn't enough,
 # the Operator would still set DD_CLUSTER_NAME on the agent containers.
+# Likewise, only set the Agent hostname from the Kubernetes node name on non-cloud clusters.
 if [[ -n "$K8S_CLUSTER_NAME" ]]; then
-    CLUSTER_NAME_SED_ARGS=(-e "s|<CLUSTER_NAME>|$K8S_CLUSTER_NAME|")
+    CLUSTER_NAME_SED_ARGS=(-e "s|<CLUSTER_NAME>|$K8S_CLUSTER_NAME|" -e "s| *# <HOSTNAME_FROM_NODE_NAME>||")
 else
-    CLUSTER_NAME_SED_ARGS=(-e "/<CLUSTER_NAME>/d")
+    CLUSTER_NAME_SED_ARGS=(-e "/<CLUSTER_NAME>/d" -e "/<HOSTNAME_FROM_NODE_NAME>/d")
 fi
 
 sed \
