@@ -32,6 +32,15 @@ export K8S_CLUSTER_TYPE=eks
 ./install
 ```
 
+Alternatively, copy `.env.example` to `.env`, fill it in, and load it before running the installer:
+
+```sh
+cp .env.example .env
+# Edit .env
+source .env
+./install
+```
+
 For EKS, GKE, and AKS, the installer enables the matching resource-detection preset.
 
 It then:

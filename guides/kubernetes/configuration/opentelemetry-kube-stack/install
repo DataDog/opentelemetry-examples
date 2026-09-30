@@ -10,6 +10,14 @@ DD_SITE=${DD_SITE:-datadoghq.com}
 K8S_CLUSTER_TYPE=${K8S_CLUSTER_TYPE:-other}
 DEPLOYMENT_ENVIRONMENT_NAME=${DEPLOYMENT_ENVIRONMENT_NAME:-production}
 
+case "$K8S_CLUSTER_TYPE" in
+    eks|gcp|aks|other) ;;
+    *)
+        echo "ERROR: K8S_CLUSTER_TYPE must be one of: eks, gcp, aks, other (got '$K8S_CLUSTER_TYPE')" >&2
+        exit 1
+        ;;
+esac
+
 #### BEGINNING OF INSTALLATION SCRIPT
 
 # WARNING: dont change "namespace=opentelemetry-operator-system" as it is used in the 'instrumentation' CRD defined in values.yaml
