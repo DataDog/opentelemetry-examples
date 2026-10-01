@@ -1,27 +1,100 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+error() { echo "ERROR: $*" >&2; exit 1; }
+
+# When run through process substitution (`bash <(curl -fsSL .../install)`), the script isn't a
+# file on disk: use the current directory (e.g. for the .env file) instead.
+if [[ -f "${BASH_SOURCE[0]}" ]]; then
+    SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+else
+    SCRIPT_DIR="$PWD"
+fi
+
+# Where the configuration files (values.yaml, datadog-agent.yaml...) are read from: by default
+# from GitHub, so that this script can be downloaded and run on its own. Accepts a GitHub folder
+# URL (https://github.com/<owner>/<repo>/tree/<branch>/<path>) or a raw base URL.
+DEFAULT_CONFIG_URL="https://github.com/DataDog/opentelemetry-examples/tree/cyrille-leclerc/use-dd-operator/guides/kubernetes/configuration/opentelemetry-kube-stack"
+CONFIG_URL="$DEFAULT_CONFIG_URL"
+USE_LOCAL_CONFIG=false
+
+usage() {
+    cat <<EOF
+Usage: $0 [--local | --config-url=<url>] [--force-conflicts] [<overlay-values.yaml>]
+
+  --local                 Use the configuration files next to this script ($SCRIPT_DIR)
+                          instead of downloading them.
+  --config-url=<url>      Download the configuration files from this GitHub folder URL
+                          (https://github.com/<owner>/<repo>/tree/<branch>/<path>) or raw base URL.
+                          Default: $DEFAULT_CONFIG_URL
+  --force-conflicts       Have Helm's server-side apply take ownership of conflicting fields.
+  <overlay-values.yaml>   Optional values file merged on top of values.yaml: a local file, a URL,
+                          or a path relative to the configuration folder
+                          (e.g. examples/export-to-datadog-and-jaeger/values.yaml).
+EOF
+}
 
 # Optional extra/overlay values.yaml (e.g. examples/export-to-datadog-and-jaeger/values.yaml)
-# merged on top of the base values.yaml, and an optional "--force-conflicts" flag, in any order.
+# merged on top of the base values.yaml, and optional flags, in any order.
 OVERLAY_VALUES_FILE=""
 FORCE_CONFLICTS_ARGS=()
 for arg in "$@"; do
-    if [[ "$arg" == "--force-conflicts" ]]; then
-        # The OpenTelemetry Operator's own controller (field manager "manager") takes ownership
-        # of some Instrumentation CR fields (e.g. .spec.env) when it defaults/mutates them, which
-        # then conflicts with Helm's server-side apply on later upgrades that change those fields:
-        # "UPGRADE FAILED: conflict occurred while applying object ...: conflict with "manager" ...".
-        # Pass --force-conflicts to have Helm's server-side apply take ownership back.
-        FORCE_CONFLICTS_ARGS=(--force-conflicts)
-    else
-        OVERLAY_VALUES_FILE="$arg"
-    fi
+    case "$arg" in
+        --force-conflicts)
+            # The OpenTelemetry Operator's own controller (field manager "manager") takes ownership
+            # of some Instrumentation CR fields (e.g. .spec.env) when it defaults/mutates them, which
+            # then conflicts with Helm's server-side apply on later upgrades that change those fields:
+            # "UPGRADE FAILED: conflict occurred while applying object ...: conflict with "manager" ...".
+            # Pass --force-conflicts to have Helm's server-side apply take ownership back.
+            FORCE_CONFLICTS_ARGS=(--force-conflicts) ;;
+        --local) USE_LOCAL_CONFIG=true ;;
+        --config-url=*) CONFIG_URL="${arg#--config-url=}" ;;
+        -h|--help) usage; exit 0 ;;
+        -*) usage >&2; error "Unknown option: $arg" ;;
+        *) OVERLAY_VALUES_FILE="$arg" ;;
+    esac
 done
+
+# The configuration files used by this script, relative to the configuration folder.
+CONFIG_FILES=(
+    values.yaml
+    datadog-agent.yaml
+    host-profiler-rbac-values.yaml
+    host-profiler-network-policy.yaml
+    host-profiler-cilium-network-policy.yaml
+)
+
+# Downloaded files go to a temporary directory, deleted on exit.
+DOWNLOAD_DIR="$(mktemp -d)"
+trap 'rm -rf "$DOWNLOAD_DIR"' EXIT
+
+# https://github.com/<owner>/<repo>/tree/<branch>/<path> -> https://raw.githubusercontent.com/<owner>/<repo>/<branch>/<path>
+# (raw.githubusercontent.com resolves branch names containing "/").
+CONFIG_RAW_URL="$(echo "${CONFIG_URL%/}" | sed -E 's|^https://github\.com/([^/]+)/([^/]+)/(tree\|blob)/|https://raw.githubusercontent.com/\1/\2/|')"
+
+if [[ "$USE_LOCAL_CONFIG" == true ]]; then
+    CONFIG_DIR="$SCRIPT_DIR"
+    echo "Using the local configuration files from $CONFIG_DIR"
+else
+    CONFIG_DIR="$DOWNLOAD_DIR"
+    echo "Downloading the configuration files from $CONFIG_RAW_URL ..."
+    for config_file in "${CONFIG_FILES[@]}"; do
+        curl -fsSL "$CONFIG_RAW_URL/$config_file" -o "$CONFIG_DIR/$config_file" \
+          || error "Could not download $CONFIG_RAW_URL/$config_file (use --local to use the files on disk)"
+    done
+fi
+
 OVERLAY_VALUES_ARGS=()
 if [[ -n "$OVERLAY_VALUES_FILE" ]]; then
-    [[ -f "$OVERLAY_VALUES_FILE" ]] || { echo "Overlay values file not found: $OVERLAY_VALUES_FILE" >&2; exit 1; }
+    if [[ "$OVERLAY_VALUES_FILE" =~ ^https?:// || ( "$USE_LOCAL_CONFIG" != true && ! -f "$OVERLAY_VALUES_FILE" ) ]]; then
+        # A URL, or a path relative to the remote configuration folder
+        OVERLAY_VALUES_URL="$OVERLAY_VALUES_FILE"
+        [[ "$OVERLAY_VALUES_URL" =~ ^https?:// ]] || OVERLAY_VALUES_URL="$CONFIG_RAW_URL/${OVERLAY_VALUES_FILE#./}"
+        OVERLAY_VALUES_FILE="$DOWNLOAD_DIR/overlay-values.yaml"
+        curl -fsSL "$OVERLAY_VALUES_URL" -o "$OVERLAY_VALUES_FILE" \
+          || error "Could not download the overlay values file $OVERLAY_VALUES_URL"
+    fi
+    [[ -f "$OVERLAY_VALUES_FILE" ]] || error "Overlay values file not found: $OVERLAY_VALUES_FILE"
     OVERLAY_VALUES_ARGS=(-f "$OVERLAY_VALUES_FILE")
 fi
 
@@ -117,12 +190,12 @@ if [[ "$ENABLE_HOST_PROFILER" == "y" || "$ENABLE_HOST_PROFILER" == "Y" ]]; then
     # whose CNI enforces NetworkPolicy.
     read -p "Egress NetworkPolicy? (n)one / (s)tandard / (c)ilium (default: none): " HOST_PROFILER_NETWORK_POLICY
     case "${HOST_PROFILER_NETWORK_POLICY:-n}" in
-        s*) HOST_PROFILER_NETWORK_POLICY_FILE="$SCRIPT_DIR/host-profiler-network-policy.yaml" ;;
-        c*) HOST_PROFILER_NETWORK_POLICY_FILE="$SCRIPT_DIR/host-profiler-cilium-network-policy.yaml" ;;
+        s*) HOST_PROFILER_NETWORK_POLICY_FILE="$CONFIG_DIR/host-profiler-network-policy.yaml" ;;
+        c*) HOST_PROFILER_NETWORK_POLICY_FILE="$CONFIG_DIR/host-profiler-cilium-network-policy.yaml" ;;
     esac
     HOST_PROFILER_ENABLED_ARGS=(
         --set collectors.host-profiler.enabled=true
-        -f "$SCRIPT_DIR/host-profiler-rbac-values.yaml"
+        -f "$CONFIG_DIR/host-profiler-rbac-values.yaml"
     )
 fi
 echo ""
@@ -202,7 +275,7 @@ helm upgrade opentelemetry-kube-stack \
     --namespace opentelemetry-operator-system \
     "${FORCE_CONFLICTS_ARGS[@]}" \
     "${HELM_SET_ARGS[@]}" \
-    -f "$SCRIPT_DIR/values.yaml" \
+    -f "$CONFIG_DIR/values.yaml" \
     ${HOST_PROFILER_ENABLED_ARGS[@]+"${HOST_PROFILER_ENABLED_ARGS[@]}"} \
     ${OVERLAY_VALUES_ARGS[@]+"${OVERLAY_VALUES_ARGS[@]}"}
 
@@ -290,5 +363,5 @@ fi
 sed \
   "${CLUSTER_NAME_SED_ARGS[@]}" \
   -e "s|<DD_SITE>|${DD_SITE:-datadoghq.com}|" \
-  "$SCRIPT_DIR/datadog-agent.yaml" \
+  "$CONFIG_DIR/datadog-agent.yaml" \
   | kubectl apply --namespace datadog -f -

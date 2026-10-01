@@ -37,11 +37,19 @@ That label makes Datadog's admission controller skip the pod outright — no `po
 
 ## Quickstart
 
-Run the installer from this directory:
+Download and run the installer. You don't need to clone the repository: by default, the installer downloads its configuration files (`values.yaml`, `datadog-agent.yaml`...) from GitHub:
 
 ```sh
+curl -fsSL -o install https://raw.githubusercontent.com/DataDog/opentelemetry-examples/cyrille-leclerc/use-dd-operator/guides/kubernetes/configuration/opentelemetry-kube-stack/install
+chmod +x install
 ./install
 ```
+
+Options (see `./install --help`):
+
+- `--local`: use the configuration files next to the `install` script instead of downloading them, for example to test local changes from a clone of this repository;
+- `--config-url=<url>`: download the configuration files from another GitHub folder, like `https://github.com/DataDog/opentelemetry-examples/tree/<branch>/guides/kubernetes/configuration/opentelemetry-kube-stack`;
+- `<overlay-values.yaml>`: a values file merged on top of `values.yaml`, as a local file, a URL, or a path relative to the configuration folder (for example `examples/export-to-datadog-and-jaeger/values.yaml`).
 
 The installer prompts for your Datadog API key and site (the site defaults to `datadoghq.com`), Kubernetes platform, deployment environment, and whether to enable the eBPF host profiler. For EKS, GKE, and AKS, it enables the matching resource-detection preset. For other platforms, it prompts for the Kubernetes cluster name.
 
