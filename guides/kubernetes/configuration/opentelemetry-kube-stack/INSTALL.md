@@ -42,7 +42,7 @@ chmod +x install
 ## 2. Provide the Datadog credentials
 
 The script reads the Datadog credentials from a `.env` file next to it (in the current directory when run with
-`bash <(curl ...)`). Without a `.env` file, it prompts for them and offers to save them to `.env`.
+`bash <(curl ...)`). Without a `.env` file, it prompts for them on every run.
 
 To skip the credential prompts, create the `.env` file beforehand:
 
@@ -72,7 +72,6 @@ The script asks the following questions:
 | Datadog Site | Your Datadog site, e.g. `datadoghq.eu`. Required. Only asked without a `.env` file. |
 | Datadog API Key | Your API key (input hidden). Required. Only asked without a `.env` file. |
 | Datadog Application Key | Optional (input hidden): leave empty to skip Fleet Automation. Only asked without a `.env` file. |
-| Save credentials to .env file? | `y` to save the credentials to `.env` (owner-only permissions) for later runs. |
 | Kubernetes cluster type | `EKS`, `GKE`, or `AKS` to auto-detect the cluster name from the cloud provider, `Other` otherwise. |
 | Kubernetes Cluster Name | Only asked for `Other`. Defaults to `unknown-k8s-cluster`. Uppercase letters are lowercased and `_` replaced with `-`. |
 | Deployment Environment Name | Sets `deployment.environment.name` on all telemetry. Defaults to `production`. |
@@ -148,7 +147,7 @@ chmod +x migrate
 ```
 
 Otherwise, re-run the script: every step is idempotent (`helm upgrade --install`, `kubectl apply`). It asks the deployment
-questions again, so give the same answers to keep the same configuration. Credentials come from `.env` when saved.
+questions again, so give the same answers to keep the same configuration. Credentials come from `.env` when it exists.
 
 ## Troubleshooting
 

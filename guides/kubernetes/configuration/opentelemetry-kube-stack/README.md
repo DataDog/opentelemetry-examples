@@ -65,7 +65,7 @@ It then:
 - installs or upgrades the Datadog Operator (`datadog/datadog-operator` chart) in the `datadog` namespace, with [Fleet Automation](#fleet-automation-optional) enabled when an application key is provided;
 - applies the `datadog-agent.yaml` `DatadogAgent` custom resource to the `datadog` namespace, substituting the cluster name and site into it.
 
-If you choose to save your credentials, the installer writes them to `.env` with permissions restricted to the file owner. Keep this file out of version control.
+To skip the credential prompts on every run, create the `.env` file yourself, see the [installation guide](INSTALL.md#2-provide-the-datadog-credentials). Keep this file out of version control.
 
 ### Migrating from a previous setup
 
