@@ -17,8 +17,8 @@ if [[ -z "${DD_API_KEY:-}" ]]; then
 fi
 
 case "${DD_INSTALL_FLOW:-}" in
-    upstream) VALUES_FILE=values-otlp-http.yaml ; CHART_VERSION=0.20.8 ;;
-    ddot) VALUES_FILE=values-ddot.yaml ; CHART_VERSION=0.21.0 ;;
+    upstream) VALUES_FILE=values-otlp-http.yaml ;;
+    ddot) VALUES_FILE=values-ddot.yaml ;;
     *)
         echo "ERROR: DD_INSTALL_FLOW must be one of: upstream, ddot (got '${DD_INSTALL_FLOW:-}')" >&2
         exit 1
@@ -129,7 +129,7 @@ fi
 
 helm upgrade opentelemetry-kube-stack \
     open-telemetry/opentelemetry-kube-stack \
-    --version "$CHART_VERSION" \
+    --version 0.21.0 \
     --install \
     --namespace opentelemetry-operator-system \
     "${HELM_SET_ARGS[@]}" \

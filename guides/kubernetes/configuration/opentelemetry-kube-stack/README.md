@@ -125,7 +125,7 @@ helm repo add open-telemetry https://open-telemetry.github.io/opentelemetry-helm
 helm repo update
 helm upgrade --install opentelemetry-kube-stack \
   open-telemetry/opentelemetry-kube-stack \
-  --version 0.20.8 \
+  --version 0.21.0 \
   --namespace opentelemetry-operator-system \
   --values ./values.yaml \
   --values ./deployment/values.yaml
@@ -133,7 +133,7 @@ helm upgrade --install opentelemetry-kube-stack \
 
 ## Host profiler (optional)
 
-The host profiler is available only with the `ddot` flow, which uses the `opentelemetry-kube-stack` chart `0.21.0`. This collector runs the [Datadog host profiler][dd-host-profiler], Datadog's distribution of the [OpenTelemetry eBPF profiler][ebpf-profiler], as a DaemonSet on every node and exports profiles to Datadog's OTLP intake.
+The host profiler is available only with the `ddot` flow. This collector runs the [Datadog host profiler][dd-host-profiler], Datadog's distribution of the [OpenTelemetry eBPF profiler][ebpf-profiler], as a DaemonSet on every node and exports profiles to Datadog's OTLP intake.
 
 The host profiler is opt-in because its pods need more privileges than the other collectors. To enable it, set `DD_HOST_PROFILER_ENABLED=true` before you run the installer. The installer then also applies `host-profiler-rbac-values.yaml` and, on clusters that enforce NetworkPolicy, the policy that `DD_HOST_PROFILER_NETWORK_POLICY` selects: `host-profiler-network-policy.yaml` (`standard`, any enforcing CNI) or `host-profiler-cilium-network-policy.yaml` (`cilium`, FQDN-scoped egress).
 
@@ -155,7 +155,7 @@ Both collectors default to `500m` CPU / `1Gi` memory limits and `200m` CPU / `50
 
 Verified against:
 
-- `opentelemetry-kube-stack` chart `>= 0.20.8`
+- `opentelemetry-kube-stack` chart `>= 0.21.0`
 - Collector image `otel/opentelemetry-collector-contrib >= 0.154.0` (pinned in values.yaml under `opentelemetry-operator.manager.collectorImage`)
 
 [chart]: https://github.com/open-telemetry/opentelemetry-helm-charts/tree/main/charts/opentelemetry-kube-stack

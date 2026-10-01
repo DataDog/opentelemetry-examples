@@ -16,16 +16,12 @@ mkdir -p "$TMP_DIRECTORY"
 EXAMPLES=$(find ${EXAMPLES_DIR} -maxdepth 1 -mindepth 1 -type d -exec basename {} \;)
 for example in ${EXAMPLES}; do
 	for mode in "$@"; do
-		case "${mode}" in
-			ddot) chart_version=0.21.0 ;;
-			*) chart_version=0.20.8 ;;
-		esac
 		echo "Generating example: ${example} (mode: ${mode})"
 		rm -rf "${EXAMPLES_DIR}/${example}/rendered-${mode}"
 		helm template opentelemetry-kube-stack \
 			open-telemetry/opentelemetry-kube-stack \
 			--namespace opentelemetry-operator-system \
-			--version "${chart_version}" \
+			--version "0.21.0" \
 			--values ./values-${mode}.yaml --values ${EXAMPLES_DIR}/${example}/values.yaml \
 			--output-dir "${EXAMPLES_DIR}/${example}/rendered-${mode}"
 		mv ${EXAMPLES_DIR}/${example}/rendered-${mode}/opentelemetry-kube-stack/templates/* "${EXAMPLES_DIR}/${example}/rendered-${mode}"
