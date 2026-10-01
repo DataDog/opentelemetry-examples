@@ -66,8 +66,7 @@ spec:
               ruby: "2"
     # Live Debugger / Dynamic Instrumentation for Go apps: enables the system-probe Dynamic
     # Instrumentation module (sets DD_DYNAMIC_INSTRUMENTATION_ENABLED on the core agent and
-    # system-probe containers),
-    # which requires Linux kernel >= 5.17. Java, Python, .NET... apps don't need it.
+    # system-probe containers)
     # See https://docs.datadoghq.com/tracing/live_debugger/?prog_lang=go
     dynamicInstrumentation:
       enabled: true

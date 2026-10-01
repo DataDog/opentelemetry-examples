@@ -672,7 +672,7 @@ instrumentation:
     - name: "DD_AGENT_HOST"
       value: "datadog-agent.datadog.svc.cluster.local"
     # DBM SUPPORT
-    - name: "DD_DBM_PROPAGATION_MODE"
+    - name: "DD_DBM_PROPAGATION_MODE" # full, service, disabled
       value: "full"
     - name: "DD_DBM_TRACE_PREPARED_STATEMENTS"
       value: "true"
