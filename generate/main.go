@@ -16,10 +16,15 @@ const guideDir = "../guides/kubernetes/configuration/opentelemetry-kube-stack"
 
 type mode struct {
 	name string
+	// DDOT enables the ddot-flow sections of values.yaml.tmpl.
+	DDOT bool
+	// Exporter is the exporter that every pipeline in values.yaml.tmpl uses.
+	Exporter string
 }
 
 var modes = []mode{
-	{name: "otlp-http"},
+	{name: "otlp-http", Exporter: "otlp_http"},
+	{name: "ddot", DDOT: true, Exporter: "datadog/exporter"},
 }
 
 func render(tmpl *template.Template, m mode) error {
@@ -29,7 +34,7 @@ func render(tmpl *template.Template, m mode) error {
 	}
 	defer out.Close()
 
-	return tmpl.Execute(out, nil)
+	return tmpl.Execute(out, m)
 }
 
 func main() {

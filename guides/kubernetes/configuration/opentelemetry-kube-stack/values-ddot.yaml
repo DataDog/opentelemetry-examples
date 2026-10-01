@@ -2,9 +2,7 @@ clusterName: ""
 
 resourceAttributes:
   deployment.environment.name: production # overwrite as needed
-{{- if .DDOT}}
   deployment.environment: production # FIXME only use deployment.environment.name, it's a workaround for https://github.com/DataDog/dd-trace-java/pull/12324
-{{- end}}
 
 opentelemetry-operator:
   manager:
@@ -34,12 +32,10 @@ defaultCRConfig:
           name: datadog-secret
           key: dd-site
           optional: true
-{{- if .DDOT}}
     - name: DD_HOSTNAME # FIXME required on K3S with datadog/ddot-collector:7.82.3 to prevent "Error: unable to reliably determine the host name."
       valueFrom:
         fieldRef:
           fieldPath: spec.nodeName
-{{- end}}
 
   # Starting-point resource allocation. Scale up for large clusters.
   resources:
@@ -74,31 +70,10 @@ defaultCRConfig:
       resource_detection/env:
         override: false
     exporters:
-{{- if .DDOT}}
       datadog/exporter:
         api:
           key: ${env:DD_API_KEY}
           site: ${env:DD_SITE:-datadoghq.com}
-{{- else}}
-      otlp_http:
-        endpoint: https://otlp.${env:DD_SITE:-datadoghq.com}
-        headers:
-          dd-api-key: ${env:DD_API_KEY}
-          # Maps resource attributes and instrumentation scope metadata to Datadog metric tags.
-          dd-otel-metric-config: >-
-            {
-            "resource_attributes_as_tags": true,
-            "instrumentation_scope_metadata_as_tags": true
-            }
-        compression: zstd
-        compression_params:
-          level: 3
-        sending_queue:
-          batch:
-            sizer: bytes
-            min_size: 2097152
-            max_size: 4194304
-{{- end}}
     extensions:
       health_check:
         endpoint: 0.0.0.0:13133
@@ -279,27 +254,25 @@ collectors:
                   default_value: unspecified_namespace
               conditions:
                 - metric.name == "kube_cronjob_info"
-{{- if .DDOT}}
 
       exporters:
         datadog/exporter:
           orchestrator_explorer:
             enabled: true
-{{- end}}
 
       service:
         pipelines:
           logs:
             receivers: [k8s_objects]
             processors: [resource_detection/env]
-            exporters: [{{.Exporter}}]
+            exporters: [datadog/exporter]
 
           metrics/otel_operator:
             receivers: [prometheus/otel_operator]
             processors:
               - resource_detection/env
               - cumulative_to_delta
-            exporters: [{{.Exporter}}]
+            exporters: [datadog/exporter]
 
           metrics/count:
             receivers: [prometheus/ksm]
@@ -315,7 +288,7 @@ collectors:
               - resource_detection/env
               - cumulative_to_delta
               - transform/sum_to_gauge
-            exporters: [{{.Exporter}}]
+            exporters: [datadog/exporter]
 
   daemon:
     # Disable the chart-default daemon_scrape_configs.yaml Prometheus scrape.
@@ -456,91 +429,7 @@ collectors:
             - container.id
 
       connectors:
-{{- if .DDOT}}
         datadog/connector: {}
-{{- else}}
-        forward: {}
-        # Generate RED (Rate, Error, Duration) metrics from traces for APM
-        span_metrics:
-          # Note: Spans without service.name will be ignored
-          aggregation_temporality: AGGREGATION_TEMPORALITY_DELTA
-          add_resource_attributes: true
-          histogram:
-            exponential: {}
-            unit: s
-          dimensions:
-            # (Duplicate dimensions are not allowed and are thus commented out)
-          
-            ## Unified Service Tagging
-            - name: deployment.environment.name
-            - name: service.version
-            - name: http.response.status_code
-          
-            ## Container tags
-            ## May be used as additional primary tags or in service remapping rules
-            - name: container.id # Required for correct aggregation
-          
-            ## Host name inference
-            - name: aws.ecs.launchtype
-            - name: aws.ecs.task.arn
-            - name: cloud.provider
-            - name: cloud.account.id
-            - name: host.id
-            - name: host.name
-            - name: k8s.node.name
-            - name: k8s.cluster.name
-            - name: azure.resourcegroup.name
-          
-            ## Peer service inference
-            - name: aws.s3.bucket
-            - name: db.namespace
-            - name: messaging.destination.name
-            - name: messaging.system
-            - name: server.address
-          
-            ## Operation name inference
-            - name: operation.name
-            - name: http.request.method
-            - name: http.method
-            - name: db.system
-            #- name: messaging.system
-            - name: messaging.operation
-            - name: rpc.system
-            - name: rpc.service
-            - name: faas.invoked_provider
-            - name: faas.invoked_name
-            - name: faas.trigger
-            - name: graphql.operation.type
-            - name: network.protocol.name
-          
-            ## Resource name inference
-            - name: resource.name
-            #- name: http.request.method
-            #- name: http.method
-            - name: http.route
-            #- name: messaging.operation
-            - name: messaging.destination
-            #- name: messaging.destination.name
-            - name: rpc.method
-            #- name: rpc.service
-            #- name: graphql.operation.type
-            - name: graphql.operation.name
-            #- name: db.system
-            - name: db.statement
-            - name: db.query.text
-          
-            ## Optional container tags
-            ## May be used as additional primary tags or in service remapping rules
-            # # - name: cloud.provider
-            # - name: cloud.region
-            # - name: cloud.availability_zone
-            ## Comment out all container tags above if you uncomment this
-            # - glob: container.**
-            ## Comment out all aws.ecs tags above if you uncomment this
-            # - glob: aws.ecs.**
-            ## Comment out all k8s.*.name tags above if you uncomment this
-            # - glob: k8s.*.name
-{{- end}}
 
       extensions:
         datadog:
@@ -551,43 +440,25 @@ collectors:
           logs:
             receivers: [otlp]
             processors: [resource_detection/env]
-            exporters: [{{.Exporter}}]
+            exporters: [datadog/exporter]
 
           traces:
             receivers: [otlp]
             processors: [resource_detection/env]
-{{- if .DDOT}}
             exporters: [datadog/connector]
-{{- else}}
-            exporters: [forward, span_metrics]
-{{- end}}
 
           # Add sampling processors here if needed.
           traces/sampling:
-{{- if .DDOT}}
             receivers: [datadog/connector]
-{{- else}}
-            receivers: [forward]
-{{- end}}
-            exporters: [{{.Exporter}}]
-{{- if not .DDOT}}
-
-          metrics/span_metrics:
-            receivers: [span_metrics]
-            exporters: [{{.Exporter}}]
-{{- end}}
+            exporters: [datadog/exporter]
 
           metrics:
-{{- if .DDOT}}
             receivers: [datadog/connector, otlp]
-{{- else}}
-            receivers: [otlp]
-{{- end}}
             processors:
               - resource_detection/env
               - cumulative_to_delta
               - delta_to_rate
-            exporters: [{{.Exporter}}]
+            exporters: [datadog/exporter]
 
           metrics/cadvisor:
             receivers: [prometheus/cadvisor]
@@ -600,7 +471,7 @@ collectors:
                 cumulative_to_delta,
                 delta_to_rate/cadvisor,
               ]
-            exporters: [{{.Exporter}}]
+            exporters: [datadog/exporter]
 instrumentation:
   enabled: true
   env:
@@ -611,7 +482,6 @@ instrumentation:
     # Node.js defaults to gRPC; use HTTP so every service exports to port 4318.
     - name: OTEL_EXPORTER_OTLP_PROTOCOL
       value: http/protobuf
-{{- if .DDOT}}
     ## DDOT SDKs SPECIFIC CONFIGURATION
     ## Enable the OTel Mode on DDOT SDKs
     - name: "OTEL_TRACES_EXPORTER"
@@ -645,24 +515,20 @@ instrumentation:
     ## https://github.com/DataDog/dd-trace-go/pull/5407
     - name: "OTEL_EXPORTER_OTLP_TRACES_ENDPOINT"
       value: "http://opentelemetry-kube-stack-daemon-collector.opentelemetry-operator-system.svc.cluster.local:4318/v1/traces"
-{{- end}}
   exporter:
     # Daemon collector Service DNS. Update the collector name and namespace
     # to match your install: http://<release>-daemon-collector.<namespace>.svc.cluster.local:4318
     endpoint: http://opentelemetry-kube-stack-daemon-collector.opentelemetry-operator-system.svc.cluster.local:4318
   sampler:
     type: parentbased_always_on
-{{- if .DDOT}}
   propagators:
     - tracecontext
     - baggage
     # - b3 # disabled FIXME https://datadoghq.atlassian.net/browse/OTEL-3268
     # - b3multi # disabled FIXME https://datadoghq.atlassian.net/browse/OTEL-3268
-{{- end}}
   # The opentelemetry-kube-stack Helm chart renders language sections even when empty, preventing the
   # Operator from falling back to its default agent image and yielding invalid init containers.
   # TODO: File an issue against the opentelemetry-kube-stack Helm chart for this behavior.
-{{- if .DDOT}}
   dotnet:
     image: ghcr.io/zacharycmontoya/dd-autoinstrumentation-dotnet:3.52.0
     # Unlike the other languages, .NET needs more setup to instrument an application:
@@ -698,13 +564,3 @@ instrumentation:
     # yet, so this is the only working way to raise the volume limit. Safe to ignore until the
     # Operator ships `spec.python.volume.size`.
     volumeLimitSize: 500Mi
-{{- else}}
-  dotnet:
-    image: ghcr.io/open-telemetry/opentelemetry-operator/autoinstrumentation-dotnet:1.15.0
-  java:
-    image: ghcr.io/open-telemetry/opentelemetry-operator/autoinstrumentation-java:2.28.1
-  nodejs:
-    image: ghcr.io/open-telemetry/opentelemetry-operator/autoinstrumentation-nodejs:0.77.0
-  python:
-    image: ghcr.io/open-telemetry/opentelemetry-operator/autoinstrumentation-python:0.64b0
-{{- end}}
