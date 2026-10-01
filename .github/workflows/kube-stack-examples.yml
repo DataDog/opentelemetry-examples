@@ -45,7 +45,7 @@ jobs:
       - name: Fail if rendered examples are out of date
         run: |
           if [ -n "$(git status --porcelain -- examples/)" ]; then
-            echo "::error::examples/*/rendered is out of date. Run make generate-examples locally with Helm ${HELM_VERSION}."
+            echo "::error::examples/*/rendered-* is out of date. Run make generate-examples locally with Helm ${HELM_VERSION}."
             exit 1
           fi
 
@@ -83,10 +83,9 @@ jobs:
         run: kubectl config set-context --current --namespace=opentelemetry-operator-system
 
       - name: Install opentelemetry-kube-stack
-        run: |
-          cp "$GITHUB_WORKSPACE/.github/workflows/scripts/dummy-credentials.env" .env
-          # Pipe answers ("Other" and then defaults)
-          printf '4\n\n\n' | ./install
+        env:
+          DD_API_KEY: "00000000000000000000000000000000"
+        run: ./install
 
       - name: Wait for the collectors to roll out
         run: |
