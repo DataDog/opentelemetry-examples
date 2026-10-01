@@ -79,15 +79,17 @@ spec:
       # -jmx variant bundles a JRE so JMXFetch can run JMX checks (e.g. Kafka `ad.datadoghq.com/kafka.checks`).
       image:
         tag: "7.83.2-jmx"
+      # <HOSTNAME_FROM_NODE_NAME:BEGIN>
       # On non-cloud clusters, use the Kubernetes node name as the Agent hostname (instead of the
       # container runtime's hostname, e.g. the VM hostname on Rancher Desktop) so the Agent's host
       # matches the host.name set from k8s.node.name by the OTel collectors. Dropped by `install`
       # on EKS/GKE/AKS where the cloud provider hostname is preferred.
-      env: # <HOSTNAME_FROM_NODE_NAME>
-        - name: DD_HOSTNAME # <HOSTNAME_FROM_NODE_NAME>
-          valueFrom: # <HOSTNAME_FROM_NODE_NAME>
-            fieldRef: # <HOSTNAME_FROM_NODE_NAME>
-              fieldPath: spec.nodeName # <HOSTNAME_FROM_NODE_NAME>
+      env:
+        - name: DD_HOSTNAME
+          valueFrom:
+            fieldRef:
+              fieldPath: spec.nodeName
+      # <HOSTNAME_FROM_NODE_NAME:END>
       containers:
         agent:
           env:

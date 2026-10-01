@@ -67,7 +67,7 @@ generate-datadog-operator-examples:
 	mkdir -p $${EXAMPLE_DIR}/rendered; \
 	sed \
 		-e "s|<CLUSTER_NAME>|my-k8s-cluster|" \
-		-e "s| *# <HOSTNAME_FROM_NODE_NAME>||" \
+		-e "/<HOSTNAME_FROM_NODE_NAME:/d" \
 		-e "s|<DD_SITE>|datadoghq.com|" \
 		./datadog-agent.yaml \
 		> $${EXAMPLE_DIR}/datadog-agent.yaml; \
