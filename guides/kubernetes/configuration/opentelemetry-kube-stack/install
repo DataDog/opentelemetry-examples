@@ -17,8 +17,8 @@ if [[ -z "${DD_API_KEY:-}" ]]; then
 fi
 
 case "${DD_INSTALL_FLOW:-}" in
-    upstream) VALUES_FILE=values-otlp-http.yaml ;;
-    ddot) VALUES_FILE=values-ddot.yaml ;;
+    upstream) VALUES_FILE=values-otlp-http.yaml ; CHART_VERSION=0.20.8 ;;
+    ddot) VALUES_FILE=values-ddot.yaml ; CHART_VERSION=0.21.0 ;;
     *)
         echo "ERROR: DD_INSTALL_FLOW must be one of: upstream, ddot (got '${DD_INSTALL_FLOW:-}')" >&2
         exit 1
@@ -36,6 +36,44 @@ case "$K8S_CLUSTER_TYPE" in
         exit 1
         ;;
 esac
+
+# The eBPF host profiler needs Linux nodes with kernel >= 5.10 and runs one
+# collector per node with eBPF capabilities. Off by default because of these
+# extra privileges.
+DD_HOST_PROFILER_ENABLED=${DD_HOST_PROFILER_ENABLED:-false}
+DD_HOST_PROFILER_NETWORK_POLICY=${DD_HOST_PROFILER_NETWORK_POLICY:-none}
+HOST_PROFILER_NETWORK_POLICY_FILE=""
+HOST_PROFILER_ENABLED_ARGS=()
+
+case "$DD_HOST_PROFILER_ENABLED" in
+    true|false) ;;
+    *)
+        echo "ERROR: DD_HOST_PROFILER_ENABLED must be one of: true, false (got '$DD_HOST_PROFILER_ENABLED')" >&2
+        exit 1
+        ;;
+esac
+
+if [[ "$DD_HOST_PROFILER_ENABLED" == "true" ]]; then
+    if [[ "$DD_INSTALL_FLOW" != "ddot" ]]; then
+        echo "ERROR: DD_HOST_PROFILER_ENABLED=true requires DD_INSTALL_FLOW=ddot" >&2
+        exit 1
+    fi
+    # Egress policy for the profiler, only useful on default-deny clusters
+    # whose CNI enforces NetworkPolicy.
+    case "$DD_HOST_PROFILER_NETWORK_POLICY" in
+        none) ;;
+        standard) HOST_PROFILER_NETWORK_POLICY_FILE="$SCRIPT_DIR/host-profiler-network-policy.yaml" ;;
+        cilium) HOST_PROFILER_NETWORK_POLICY_FILE="$SCRIPT_DIR/host-profiler-cilium-network-policy.yaml" ;;
+        *)
+            echo "ERROR: DD_HOST_PROFILER_NETWORK_POLICY must be one of: none, standard, cilium (got '$DD_HOST_PROFILER_NETWORK_POLICY')" >&2
+            exit 1
+            ;;
+    esac
+    HOST_PROFILER_ENABLED_ARGS=(
+        --set collectors.host-profiler.enabled=true
+        -f "$SCRIPT_DIR/host-profiler-rbac-values.yaml"
+    )
+fi
 
 #### BEGINNING OF INSTALLATION SCRIPT
 
@@ -91,12 +129,36 @@ fi
 
 helm upgrade opentelemetry-kube-stack \
     open-telemetry/opentelemetry-kube-stack \
-    --version 0.20.8 \
+    --version "$CHART_VERSION" \
     --install \
     --namespace opentelemetry-operator-system \
     "${HELM_SET_ARGS[@]}" \
     -f "$SCRIPT_DIR/$VALUES_FILE" \
+    ${HOST_PROFILER_ENABLED_ARGS[@]+"${HOST_PROFILER_ENABLED_ARGS[@]}"} \
     ${OVERLAY_VALUES_ARGS[@]+"${OVERLAY_VALUES_ARGS[@]}"}
+
+if [[ "$DD_INSTALL_FLOW" == "ddot" ]]; then
+    # The standard and Cilium policies select the same pods and Kubernetes
+    # NetworkPolicies are additive: remove both NetworkPolicy before applying
+    # the selected one (or none), so a policy from a previous run cannot widen
+    # the requested egress.
+    kubectl delete networkpolicy \
+      --namespace opentelemetry-operator-system \
+      --ignore-not-found=true \
+      opentelemetry-kube-stack-host-profiler-egress \
+      || echo "WARNING: Could not delete the host-profiler NetworkPolicy. Continuing..."
+    kubectl delete ciliumnetworkpolicy \
+      --namespace opentelemetry-operator-system \
+      --ignore-not-found=true \
+      opentelemetry-kube-stack-host-profiler-egress \
+      || echo "WARNING: CiliumNetworkPolicy CRD not installed. Continuing..."
+fi
+
+if [[ -n "$HOST_PROFILER_NETWORK_POLICY_FILE" ]]; then
+    echo "Applying the host-profiler egress NetworkPolicy..."
+    kubectl apply -f "$HOST_PROFILER_NETWORK_POLICY_FILE" \
+      || echo "WARNING: Could not apply the host-profiler egress NetworkPolicy (is Cilium installed if you chose the Cilium policy?). Continuing..."
+fi
 
 if [[ "$DD_INSTALL_FLOW" == "ddot" ]]; then
     echo "Installing Datadog Agent"
