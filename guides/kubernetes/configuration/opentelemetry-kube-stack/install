@@ -110,11 +110,6 @@ HELM_SET_ARGS=(
     --set-string "resourceAttributes.deployment\.environment\.name=$DEPLOYMENT_ENVIRONMENT_NAME"
 )
 
-if [[ "$DD_INSTALL_FLOW" == "ddot" ]]; then
-    # FIXME use deployment.environment.name, it's a workaround for https://github.com/DataDog/dd-trace-java/pull/12324
-    HELM_SET_ARGS+=(--set-string "resourceAttributes.deployment\.environment=$DEPLOYMENT_ENVIRONMENT_NAME")
-fi
-
 if [[ "$K8S_CLUSTER_TYPE" != "other" ]]; then
     HELM_SET_ARGS+=(--set "defaultCRConfig.presets.resourceDetection.$K8S_CLUSTER_TYPE.enabled=true")
 fi

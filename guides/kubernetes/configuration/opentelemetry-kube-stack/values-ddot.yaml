@@ -2,7 +2,6 @@ clusterName: ""
 
 resourceAttributes:
   deployment.environment.name: production # overwrite as needed
-  deployment.environment: production # FIXME only use deployment.environment.name, it's a workaround for https://github.com/DataDog/dd-trace-java/pull/12324
 
 opentelemetry-operator:
   manager:

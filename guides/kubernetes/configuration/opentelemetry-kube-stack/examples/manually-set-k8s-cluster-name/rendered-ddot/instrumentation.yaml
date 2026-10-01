@@ -50,7 +50,6 @@ spec:
   resource:
     addK8sUIDAttributes: true
     resourceAttributes:
-      deployment.environment: production
       deployment.environment.name: production
       k8s.cluster.name: my_k8s_cluster
   java:
