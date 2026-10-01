@@ -1,6 +1,16 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+
+# Optional extra/overlay values.yaml merged on top of the base values file.
+OVERLAY_VALUES_FILE="${1:-}"
+OVERLAY_VALUES_ARGS=()
+if [[ -n "$OVERLAY_VALUES_FILE" ]]; then
+    [[ -f "$OVERLAY_VALUES_FILE" ]] || { echo "Overlay values file not found: $OVERLAY_VALUES_FILE" >&2; exit 1; }
+    OVERLAY_VALUES_ARGS=(-f "$OVERLAY_VALUES_FILE")
+fi
+
 if [[ -z "${DD_API_KEY:-}" ]]; then
     echo "ERROR: DD_API_KEY is not set" >&2
     exit 1
@@ -79,15 +89,14 @@ if [[ -n "${K8S_CLUSTER_NAME:-}" ]]; then
     HELM_SET_ARGS+=(--set-string "resourceAttributes.k8s\.cluster\.name=$K8S_CLUSTER_NAME")
 fi
 
-SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-
 helm upgrade opentelemetry-kube-stack \
     open-telemetry/opentelemetry-kube-stack \
     --version 0.20.8 \
     --install \
     --namespace opentelemetry-operator-system \
     "${HELM_SET_ARGS[@]}" \
-    -f "$SCRIPT_DIR/$VALUES_FILE"
+    -f "$SCRIPT_DIR/$VALUES_FILE" \
+    ${OVERLAY_VALUES_ARGS[@]+"${OVERLAY_VALUES_ARGS[@]}"}
 
 if [[ "$DD_INSTALL_FLOW" == "ddot" ]]; then
     echo "Installing Datadog Agent"
