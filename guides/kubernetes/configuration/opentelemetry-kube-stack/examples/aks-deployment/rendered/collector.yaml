@@ -838,9 +838,9 @@ spec:
           - k8s_attributes
           - resource_detection/env
           - resource/hostname
-          - resource/global
           - cumulativetodelta
           - deltatorate
+          - resource/global
           receivers:
           - datadog/connector
           - otlp
