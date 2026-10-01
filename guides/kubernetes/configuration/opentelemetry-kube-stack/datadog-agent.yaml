@@ -46,8 +46,8 @@ spec:
         # BY THE OPENTELEMETRY OPERATOR FROM DD INSTRUMENTATION, OTHERWISE THE SAME POD WILL BE INSTRUMENTED TWICE.
         #
         # The OpenTelemetry Operator marks pods for injection with the
-        # "instrumentation.opentelemetry.io/inject-*" pod ANNOTATIONS, but the target's
-        # `podSelector` below only matches pod LABELS (it's a plain Kubernetes label
+        # "instrumentation.opentelemetry.io/inject-*" pod ANNOTATIONS, but the Datadog Operator
+        # target's `podSelector` below only matches pod LABELS (it's a plain Kubernetes label
         # selector, and Datadog's admission controller only ever reads pod.Labels, never
         # pod.Annotations) — so a podSelector keyed on those annotation names can never
         # exclude anything. To exclude an OTel-instrumented pod template from Datadog
@@ -64,20 +64,6 @@ spec:
               php: "1"
               dotnet: "3"
               ruby: "2"
-            ddTraceConfigs:
-              ## PROFILING SUPPORT
-              - name: "DD_PROFILING_ENABLED"
-                value: "auto"
-              ## DBM SUPPORT
-              - name: "DD_DBM_PROPAGATION_MODE"
-                value: "full"
-              - name: "DD_DBM_TRACE_PREPARED_STATEMENTS"
-                value: "true"
-              # DSM SUPPORT
-              - name: "DD_DATA_STREAMS_ENABLED"
-                value: "true"
-              - name: "DD_TRACE_REMOVE_INTEGRATION_SERVICE_NAMES_ENABLED"
-                value: "true"
     # Live Debugger / Dynamic Instrumentation for Go apps: enables the system-probe Dynamic
     # Instrumentation module (sets DD_DYNAMIC_INSTRUMENTATION_ENABLED on the core agent and
     # system-probe containers),

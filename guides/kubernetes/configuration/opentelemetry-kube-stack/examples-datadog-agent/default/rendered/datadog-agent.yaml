@@ -400,7 +400,7 @@ subjects:
 ---
 apiVersion: v1
 data:
-  token: bWFFU0hCUHVwY0pFRFp1bkdDZXFpS3NIUVJVZXpKSFo=
+  token: dnJyanhZYVJXTFZBRmd4Qmt2WURhS3hydlpYcUltTUE=
 kind: Secret
 metadata:
   labels:
@@ -608,7 +608,7 @@ apiVersion: datadoghq.com/v1alpha1
 kind: DatadogAgentInternal
 metadata:
   annotations:
-    agent.datadoghq.com/ddaispechash: 01da618dfeb07d609c3a45df8c48fa60
+    agent.datadoghq.com/ddaispechash: a2e83c6b989d429b3c34a1bd133b2645
   finalizers:
   - finalizer.datadoghq.com/datadogagentinternal
   labels:
@@ -649,18 +649,7 @@ spec:
         languageDetection:
           enabled: true
         targets:
-        - ddTraceConfigs:
-          - name: DD_PROFILING_ENABLED
-            value: auto
-          - name: DD_DBM_PROPAGATION_MODE
-            value: full
-          - name: DD_DBM_TRACE_PREPARED_STATEMENTS
-            value: "true"
-          - name: DD_DATA_STREAMS_ENABLED
-            value: "true"
-          - name: DD_TRACE_REMOVE_INTEGRATION_SERVICE_NAMES_ENABLED
-            value: "true"
-          ddTraceVersions:
+        - ddTraceVersions:
             dotnet: "3"
             java: "1"
             js: "5"
@@ -1307,7 +1296,7 @@ apiVersion: apps/v1
 kind: Deployment
 metadata:
   annotations:
-    agent.datadoghq.com/agentspechash: 0212127bc55922d8ee2d8ae57415736a
+    agent.datadoghq.com/agentspechash: 13fcbf7ba8896b063bb2194875dde1ab
   labels:
     agent.datadoghq.com/component: cluster-agent
     agent.datadoghq.com/name: datadog
@@ -1446,7 +1435,7 @@ spec:
         - name: DD_APM_INSTRUMENTATION_ENABLED
           value: "false"
         - name: DD_APM_INSTRUMENTATION_TARGETS
-          value: '[{"name":"default-target","ddTraceVersions":{"dotnet":"3","java":"1","js":"5","php":"1","python":"4","ruby":"2"},"ddTraceConfigs":[{"name":"DD_PROFILING_ENABLED","value":"auto"},{"name":"DD_DBM_PROPAGATION_MODE","value":"full"},{"name":"DD_DBM_TRACE_PREPARED_STATEMENTS","value":"true"},{"name":"DD_DATA_STREAMS_ENABLED","value":"true"},{"name":"DD_TRACE_REMOVE_INTEGRATION_SERVICE_NAMES_ENABLED","value":"true"}]}]'
+          value: '[{"name":"default-target","ddTraceVersions":{"dotnet":"3","java":"1","js":"5","php":"1","python":"4","ruby":"2"}}]'
         - name: DD_DOGSTATSD_HOST_SOCKET_PATH
           value: /var/run/datadog
         - name: DD_DOGSTATSD_SOCKET
