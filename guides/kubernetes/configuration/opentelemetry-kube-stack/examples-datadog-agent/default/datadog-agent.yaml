@@ -68,6 +68,10 @@ spec:
     # Instrumentation module (sets DD_DYNAMIC_INSTRUMENTATION_ENABLED on the core agent and
     # system-probe containers)
     # See https://docs.datadoghq.com/tracing/live_debugger/?prog_lang=go
+    # Known issue: on arm64 nodes running Linux >= 6.18 (e.g. Rancher Desktop on Apple Silicon),
+    # Go probes fail to load with "invalid bpf_context access off=328 size=8" as the kernel's
+    # struct pt_regs shrank. Use an x86_64 node or an older arm64 kernel (e.g. 6.12) meanwhile.
+    # See https://github.com/DataDog/datadog-agent/issues/57314
     dynamicInstrumentation:
       enabled: true
   override:
