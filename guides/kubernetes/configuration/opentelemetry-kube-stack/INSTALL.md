@@ -80,8 +80,7 @@ The script asks the following questions:
 | Egress NetworkPolicy? | Only asked with the host profiler: `s`tandard or `c`ilium on clusters enforcing NetworkPolicy, `n`one otherwise (default). |
 
 It then installs or upgrades every component, as described in the [Quickstart](README.md#quickstart). Some `WARNING`
-lines are expected and harmless, for example when a namespace or cert-manager already exists, or when there's no
-legacy Helm release to remove.
+lines are expected and harmless, for example when a namespace or cert-manager already exists.
 
 ## 4. Verify the installation
 
@@ -138,7 +137,17 @@ For example, to also export traces to Jaeger:
 
 ## Upgrading
 
-Re-run the script: every step is idempotent (`helm upgrade --install`, `kubectl apply`). It asks the deployment
+If the cluster runs a setup from an earlier version of this guide (the standalone `host-profiler` or the
+`ddagent-kube-stack` Helm release), the `install` script stops and asks you to remove it first with the `migrate`
+script, see [Migrating from a previous setup](README.md#migrating-from-a-previous-setup):
+
+```sh
+curl -fsSL -o migrate https://raw.githubusercontent.com/DataDog/opentelemetry-examples/cyrille-leclerc/use-dd-operator/guides/kubernetes/configuration/opentelemetry-kube-stack/migrate
+chmod +x migrate
+./migrate
+```
+
+Otherwise, re-run the script: every step is idempotent (`helm upgrade --install`, `kubectl apply`). It asks the deployment
 questions again, so give the same answers to keep the same configuration. Credentials come from `.env` when saved.
 
 ## Troubleshooting
@@ -146,6 +155,8 @@ questions again, so give the same answers to keep the same configuration. Creden
 - **`UPGRADE FAILED: conflict occurred while applying object ...: conflict with "manager"`**: the OpenTelemetry
   Operator took ownership of some `Instrumentation` fields that the new configuration changes. Re-run with
   `./install --force-conflicts`.
+- **`Found the legacy '...' Helm release from a previous setup`**: run `./migrate` to remove it, then re-run
+  `./install`, see [Upgrading](#upgrading).
 - **`Could not download ...`**: the configuration files couldn't be fetched from GitHub. Check the network access and
   the `--config-url`, or run from a clone of this repository with `--local`.
 - **`No cluster name set (EKS/GKE/AKS): the Datadog Operator's Remote Configuration requires one`**: Fleet Automation

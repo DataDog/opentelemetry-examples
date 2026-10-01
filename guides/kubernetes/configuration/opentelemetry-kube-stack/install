@@ -98,6 +98,15 @@ if [[ -n "$OVERLAY_VALUES_FILE" ]]; then
     OVERLAY_VALUES_ARGS=(-f "$OVERLAY_VALUES_FILE")
 fi
 
+# Refuse to install next to a previous setup of this guide (two eBPF profilers or two Datadog Agent
+# DaemonSets must not run on the same node): the `migrate` script removes it.
+for legacy_release in host-profiler ddagent-kube-stack; do
+    if helm status "$legacy_release" --namespace opentelemetry-operator-system >/dev/null 2>&1; then
+        error "Found the legacy '$legacy_release' Helm release from a previous setup in the" \
+              "opentelemetry-operator-system namespace: run ./migrate to remove it, then re-run this script."
+    fi
+done
+
 # Load environment variables from .env file if it exists
 [[ -f "$SCRIPT_DIR/.env" ]] && source "$SCRIPT_DIR/.env"
 
@@ -247,14 +256,6 @@ helm install cert-manager jetstack/cert-manager \
 
 echo "Installing OpenTelemetry Kube Stack Helm Chart..."
 
-# Uninstall the legacy standalone host-profiler release first: two eBPF
-# profilers must not run concurrently on the same node. If the upgrade below
-# fails, re-run this script to get profiling back.
-helm status host-profiler --namespace opentelemetry-operator-system >/dev/null 2>&1 \
-  && helm uninstall host-profiler --namespace opentelemetry-operator-system \
-  || echo "WARNING: No legacy host-profiler Helm release found. Continuing..."
-
-
 # FIXME use deployment.environment.name, it's a workaround for https://github.com/DataDog/dd-trace-java/pull/12324
 HELM_SET_ARGS=(
     --set-string "resourceAttributes.deployment\.environment=$DEPLOYMENT_ENVIRONMENT_NAME"
@@ -299,13 +300,6 @@ if [[ -n "$HOST_PROFILER_NETWORK_POLICY_FILE" ]]; then
     kubectl apply -f "$HOST_PROFILER_NETWORK_POLICY_FILE" \
       || echo "WARNING: Could not apply the host-profiler egress NetworkPolicy (is Cilium installed if you chose the Cilium policy?). Continuing..."
 fi
-
-# Uninstall the legacy Datadog Agent Helm release (the Datadog Agent used to be
-# installed with the datadog/datadog Helm chart in the opentelemetry-operator-system
-# namespace): two Datadog Agent DaemonSets must not run on the same node.
-helm status ddagent-kube-stack --namespace opentelemetry-operator-system >/dev/null 2>&1 \
-  && helm uninstall ddagent-kube-stack --namespace opentelemetry-operator-system --wait \
-  || echo "WARNING: No legacy ddagent-kube-stack Helm release found. Continuing..."
 
 echo "Installing Datadog Operator..."
 

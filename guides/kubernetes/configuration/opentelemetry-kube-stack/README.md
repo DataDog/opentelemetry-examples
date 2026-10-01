@@ -61,17 +61,28 @@ It then:
 - creates the `opentelemetry-operator-system` and `datadog` namespaces;
 - creates the `datadog-secret` secret in both namespaces (see [Prerequisites](#prerequisites) for why it's duplicated);
 - installs cert-manager when needed;
-- installs or upgrades the OpenTelemetry Kube Stack Helm chart, optionally enabling the `host-profiler` collector in the same release (and uninstalls the legacy standalone `host-profiler` Helm release, if one exists from before it was folded into this chart);
-- uninstalls the legacy `ddagent-kube-stack` Datadog Agent Helm release, if one exists from before the Datadog Operator was used;
+- installs or upgrades the OpenTelemetry Kube Stack Helm chart, optionally enabling the `host-profiler` collector in the same release;
 - installs or upgrades the Datadog Operator (`datadog/datadog-operator` chart) in the `datadog` namespace, with [Fleet Automation](#fleet-automation-optional) enabled when an application key is provided;
 - applies the `datadog-agent.yaml` `DatadogAgent` custom resource to the `datadog` namespace, substituting the cluster name and site into it.
 
 If you choose to save your credentials, the installer writes them to `.env` with permissions restricted to the file owner. Keep this file out of version control.
 
+### Migrating from a previous setup
+
+Earlier versions of this guide installed the eBPF host profiler as a standalone `host-profiler` Helm release, and the Datadog Agent with the `datadog/datadog` Helm chart as the `ddagent-kube-stack` release, both in the `opentelemetry-operator-system` namespace. They must not run next to the current setup: two eBPF profilers, or two Datadog Agent DaemonSets, must not run on the same node. The installer stops when it finds them. Remove them with the `migrate` script, then re-run the installer:
+
+```sh
+./migrate
+./install
+```
+
+`migrate` lists the legacy Helm releases it finds and asks for confirmation before uninstalling them.
+
 ## Install with values files
 
 To perform the same installation without the interactive script, create a Kubernetes secret for the Datadog credentials,
-install cert-manager, then apply a platform-specific values overlay.
+install cert-manager, then apply a platform-specific values overlay. When upgrading from an earlier version of this
+guide, first run `./migrate`, see [Migrating from a previous setup](#migrating-from-a-previous-setup).
 
 Set the Datadog credentials:
 
@@ -169,11 +180,6 @@ Finally, install the [Datadog Operator][dd-operator] and apply the `DatadogAgent
 
 ```sh
 export K8S_CLUSTER_NAME="my-k8s-cluster" # empty string on EKS/GKE/AKS
-
-# When upgrading a deployment that installed the Datadog Agent with the datadog/datadog Helm chart,
-# uninstall this legacy release first: two Datadog Agent DaemonSets must not run on the same node.
-helm status ddagent-kube-stack --namespace opentelemetry-operator-system >/dev/null 2>&1 \
-  && helm uninstall ddagent-kube-stack --namespace opentelemetry-operator-system --wait
 
 helm repo add datadog https://helm.datadoghq.com
 helm repo update
