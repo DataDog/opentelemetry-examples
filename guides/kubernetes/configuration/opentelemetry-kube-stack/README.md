@@ -37,6 +37,8 @@ That label makes Datadog's admission controller skip the pod outright — no `po
 
 ## Quickstart
 
+For a step-by-step walkthrough, including prerequisites, the installer's prompts, verification, and troubleshooting, see the [installation guide](INSTALL.md).
+
 Download and run the installer. You don't need to clone the repository: by default, the installer downloads its configuration files (`values.yaml`, `datadog-agent.yaml`...) from GitHub:
 
 ```sh
@@ -49,9 +51,10 @@ Options (see `./install --help`):
 
 - `--local`: use the configuration files next to the `install` script instead of downloading them, for example to test local changes from a clone of this repository;
 - `--config-url=<url>`: download the configuration files from another GitHub folder, like `https://github.com/DataDog/opentelemetry-examples/tree/<branch>/guides/kubernetes/configuration/opentelemetry-kube-stack`;
-- `<overlay-values.yaml>`: a values file merged on top of `values.yaml`, as a local file, a URL, or a path relative to the configuration folder (for example `examples/export-to-datadog-and-jaeger/values.yaml`).
+- `<overlay-values.yaml>`: a values file merged on top of `values.yaml`, as a local file, a URL, or a path relative to the configuration folder (for example `examples/export-to-datadog-and-jaeger/values.yaml`);
+- `--force-conflicts`: have Helm's server-side apply take ownership of conflicting fields, to recover from `UPGRADE FAILED: conflict occurred while applying object ...: conflict with "manager"` errors. Requires Helm 4.
 
-The installer prompts for your Datadog API key and site (the site defaults to `datadoghq.com`), Kubernetes platform, deployment environment, and whether to enable the eBPF host profiler. For EKS, GKE, and AKS, it enables the matching resource-detection preset. For other platforms, it prompts for the Kubernetes cluster name.
+The installer reads your Datadog API key, site, and optional application key from a `.env` file next to it, or prompts for them when there's none (the site defaults to `datadoghq.com` only when `.env` doesn't set `DD_SITE`; the prompt requires it). It then prompts for your Kubernetes platform, deployment environment, and whether to enable the eBPF host profiler. For EKS, GKE, and AKS, it enables the matching resource-detection preset. For other platforms, it prompts for the Kubernetes cluster name.
 
 It then:
 
