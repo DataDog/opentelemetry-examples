@@ -20,14 +20,13 @@ USE_LOCAL_CONFIG=false
 
 usage() {
     cat <<EOF
-Usage: $0 [--local | --config-url=<url>] [--force-conflicts] [<overlay-values.yaml>]
+Usage: $0 [--local | --config-url=<url>] [<overlay-values.yaml>]
 
   --local                 Use the configuration files next to this script ($SCRIPT_DIR)
                           instead of downloading them.
   --config-url=<url>      Download the configuration files from this GitHub folder URL
                           (https://github.com/<owner>/<repo>/tree/<branch>/<path>) or raw base URL.
                           Default: $DEFAULT_CONFIG_URL
-  --force-conflicts       Have Helm's server-side apply take ownership of conflicting fields.
   <overlay-values.yaml>   Optional values file merged on top of values.yaml: a local file, a URL,
                           or a path relative to the configuration folder
                           (e.g. examples/export-to-datadog-and-jaeger/values.yaml).
@@ -37,16 +36,8 @@ EOF
 # Optional extra/overlay values.yaml (e.g. examples/export-to-datadog-and-jaeger/values.yaml)
 # merged on top of the base values.yaml, and optional flags, in any order.
 OVERLAY_VALUES_FILE=""
-FORCE_CONFLICTS_ARGS=()
 for arg in "$@"; do
     case "$arg" in
-        --force-conflicts)
-            # The OpenTelemetry Operator's own controller (field manager "manager") takes ownership
-            # of some Instrumentation CR fields (e.g. .spec.env) when it defaults/mutates them, which
-            # then conflicts with Helm's server-side apply on later upgrades that change those fields:
-            # "UPGRADE FAILED: conflict occurred while applying object ...: conflict with "manager" ...".
-            # Pass --force-conflicts to have Helm's server-side apply take ownership back.
-            FORCE_CONFLICTS_ARGS=(--force-conflicts) ;;
         --local) USE_LOCAL_CONFIG=true ;;
         --config-url=*) CONFIG_URL="${arg#--config-url=}" ;;
         -h|--help) usage; exit 0 ;;
@@ -120,9 +111,9 @@ else
     echo
     [[ -z "$DD_API_KEY" ]] && error "Datadog API Key cannot be empty"
 
-    # Optional: the Datadog Operator needs an application key to manage the Datadog Agent
+    # Optional but strongly recommended: the Datadog Operator needs an application key to manage the Datadog Agent
     # from Datadog Fleet Automation (see the Datadog Operator installation below).
-    read -r -s -p "Datadog Application Key, optional, to manage the Agent from Fleet Automation (leave empty to skip): " DD_APP_KEY
+    read -r -s -p "Datadog Application Key, optional but strongly recommended, to manage the Agent from Fleet Automation (leave empty to skip): " DD_APP_KEY
     echo
 fi
 
@@ -261,7 +252,6 @@ helm upgrade opentelemetry-kube-stack \
     --version 0.21.0 \
     --install \
     --namespace opentelemetry-operator-system \
-    ${FORCE_CONFLICTS_ARGS[@]+"${FORCE_CONFLICTS_ARGS[@]}"} \
     "${HELM_SET_ARGS[@]}" \
     -f "$CONFIG_DIR/values.yaml" \
     ${HOST_PROFILER_ENABLED_ARGS[@]+"${HOST_PROFILER_ENABLED_ARGS[@]}"} \

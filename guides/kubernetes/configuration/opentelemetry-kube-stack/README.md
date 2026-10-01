@@ -51,8 +51,7 @@ Options (see `./install --help`):
 
 - `--local`: use the configuration files next to the `install` script instead of downloading them, for example to test local changes from a clone of this repository;
 - `--config-url=<url>`: download the configuration files from another GitHub folder, like `https://github.com/DataDog/opentelemetry-examples/tree/<branch>/guides/kubernetes/configuration/opentelemetry-kube-stack`;
-- `<overlay-values.yaml>`: a values file merged on top of `values.yaml`, as a local file, a URL, or a path relative to the configuration folder (for example `examples/export-to-datadog-and-jaeger/values.yaml`);
-- `--force-conflicts`: have Helm's server-side apply take ownership of conflicting fields, to recover from `UPGRADE FAILED: conflict occurred while applying object ...: conflict with "manager"` errors. Requires Helm 4.
+- `<overlay-values.yaml>`: a values file merged on top of `values.yaml`, as a local file, a URL, or a path relative to the configuration folder (for example `examples/export-to-datadog-and-jaeger/values.yaml`).
 
 The installer reads your Datadog API key, site, and optional application key from a `.env` file next to it, or prompts for them when there's none (the site defaults to `datadoghq.com` only when `.env` doesn't set `DD_SITE`; the prompt requires it). It then prompts for your Kubernetes platform, deployment environment, and whether to enable the eBPF host profiler. For EKS, GKE, and AKS, it enables the matching resource-detection preset. For other platforms, it prompts for the Kubernetes cluster name.
 
@@ -67,22 +66,12 @@ It then:
 
 To skip the credential prompts on every run, create the `.env` file yourself, see the [installation guide](INSTALL.md#2-provide-the-datadog-credentials). Keep this file out of version control.
 
-### Migrating from a previous setup
-
-Earlier versions of this guide installed the eBPF host profiler as a standalone `host-profiler` Helm release, and the Datadog Agent with the `datadog/datadog` Helm chart as the `ddagent-kube-stack` release, both in the `opentelemetry-operator-system` namespace. They must not run next to the current setup: two eBPF profilers, or two Datadog Agent DaemonSets, must not run on the same node. The installer stops when it finds them. Remove them with the `migrate` script, then re-run the installer:
-
-```sh
-./migrate
-./install
-```
-
-`migrate` lists the legacy Helm releases it finds and asks for confirmation before uninstalling them.
+Datadog engineers upgrading a cluster set up with an earlier version of this guide: see the [migration guide](MIGRATE.md).
 
 ## Install with values files
 
 To perform the same installation without the interactive script, create a Kubernetes secret for the Datadog credentials,
-install cert-manager, then apply a platform-specific values overlay. When upgrading from an earlier version of this
-guide, first run `./migrate`, see [Migrating from a previous setup](#migrating-from-a-previous-setup).
+install cert-manager, then apply a platform-specific values overlay.
 
 Set the Datadog credentials:
 
