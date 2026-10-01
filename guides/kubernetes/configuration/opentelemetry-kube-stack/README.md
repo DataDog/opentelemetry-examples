@@ -119,7 +119,7 @@ cp examples/gcp-deployment/values.yaml deployment/values.yaml
 cp examples/aks-deployment/values.yaml deployment/values.yaml
 ```
 
-For other Kubernetes platforms, start with the manual cluster-name example and replace `my_k8s_cluster` and `production`
+For other Kubernetes platforms, start with the manual cluster-name example and replace `my-k8s-cluster` and `production`
 with the cluster name and deployment environment. `DD_SITE` continues to be sourced from `datadog-secret`.
 
 ```sh
@@ -162,10 +162,15 @@ kubectl apply -f ./host-profiler-network-policy.yaml          # any enforcing CN
 kubectl apply -f ./host-profiler-cilium-network-policy.yaml   # Cilium, FQDN-scoped egress
 ```
 
-Finally, install the [Datadog Operator][dd-operator] and apply the `DatadogAgent` custom resource, substituting the cluster name and site placeholders (`<CLUSTER_NAME>` / `<DD_SITE>`) in `datadog-agent.yaml`. Use the same cluster name as `deployment/values.yaml` above (leave `K8S_CLUSTER_NAME` empty on EKS/GKE/AKS, where it's auto-detected instead):
+Finally, install the [Datadog Operator][dd-operator] and apply the `DatadogAgent` custom resource, substituting the cluster name and site placeholders (`<CLUSTER_NAME>` / `<DD_SITE>`) in `datadog-agent.yaml`. Use the same cluster name as `deployment/values.yaml` above, following the [cluster name constraints](#cluster-name-constraints) (leave `K8S_CLUSTER_NAME` empty on EKS/GKE/AKS, where it's auto-detected instead):
 
 ```sh
-export K8S_CLUSTER_NAME="my_k8s_cluster" # empty string on EKS/GKE/AKS
+export K8S_CLUSTER_NAME="my-k8s-cluster" # empty string on EKS/GKE/AKS
+
+# When upgrading a deployment that installed the Datadog Agent with the datadog/datadog Helm chart,
+# uninstall this legacy release first: two Datadog Agent DaemonSets must not run on the same node.
+helm status ddagent-kube-stack --namespace opentelemetry-operator-system >/dev/null 2>&1 \
+  && helm uninstall ddagent-kube-stack --namespace opentelemetry-operator-system --wait
 
 helm repo add datadog https://helm.datadoghq.com
 helm repo update
@@ -174,11 +179,12 @@ helm upgrade --install datadog-operator \
   --namespace datadog \
   --wait --timeout 5m
 
-# On EKS/GKE/AKS (empty K8S_CLUSTER_NAME), drop the clusterName line so the Agent auto-detects it
+# On EKS/GKE/AKS (empty K8S_CLUSTER_NAME), drop the clusterName line so the Agent auto-detects it.
+# Likewise, only set the Agent hostname from the Kubernetes node name on non-cloud clusters.
 if [[ -n "$K8S_CLUSTER_NAME" ]]; then
-  CLUSTER_NAME_SED_ARGS=(-e "s|<CLUSTER_NAME>|$K8S_CLUSTER_NAME|")
+  CLUSTER_NAME_SED_ARGS=(-e "s|<CLUSTER_NAME>|$K8S_CLUSTER_NAME|" -e "s| *# <HOSTNAME_FROM_NODE_NAME>||")
 else
-  CLUSTER_NAME_SED_ARGS=(-e "/<CLUSTER_NAME>/d")
+  CLUSTER_NAME_SED_ARGS=(-e "/<CLUSTER_NAME>/d" -e "/<HOSTNAME_FROM_NODE_NAME>/d")
 fi
 
 sed \
@@ -213,8 +219,26 @@ Enable it by answering `y` to the installer's prompt, or install manually follow
 For EKS, AKS, and GKE, the installer enables the corresponding resource-detection preset in both collectors. The
 OpenTelemetry Collector then automatically populates `k8s.cluster.name`.
 
- For other Kubernetes platforms, the
+For other Kubernetes platforms, the
 installer sets `resourceAttributes.k8s.cluster.name` to the supplied cluster name.
+
+### Cluster name constraints
+
+The supplied cluster name is used both as the OpenTelemetry `k8s.cluster.name` resource attribute and as the Datadog
+Agent's `clusterName`, so it must satisfy the [Datadog Agent's restrictions][dd-cluster-name]. It's made of
+dot-separated tokens that:
+
+- only contain lowercase letters, numbers, and hyphens (`-`): no uppercase letters and no underscores (`_`);
+- start with a letter;
+- end with a letter or a number.
+
+The whole name must be at most 80 characters long. For example, `my-k8s-cluster` and `prod.eu-west-1` are valid;
+`my_k8s_cluster`, `My-k8s-cluster`, and `1-cluster` are not.
+
+The Datadog Agent rewrites `_` to `-` and ignores names containing uppercase letters, so an invalid name leaves the
+Agent's and the OpenTelemetry Collector's telemetry with different (or missing) cluster names. The installer lowercases
+the supplied name and replaces `_` with `-` (with a message if it does); when installing manually, choose a valid name
+and use it for both `k8s.cluster.name` and `K8S_CLUSTER_NAME`.
 
 See `examples/` for rendered values and manifests for each deployment type. Regenerate them with `make generate-otel-kube-stack-examples`.
 
@@ -239,6 +263,7 @@ Verified against:
 [dd-live-debugger-go]: https://docs.datadoghq.com/tracing/live_debugger/?prog_lang=go
 [dd-fleet-automation]: https://docs.datadoghq.com/agent/fleet_automation/
 [dd-app-keys]: https://docs.datadoghq.com/account_management/api-app-keys/#application-keys
+[dd-cluster-name]: https://docs.datadoghq.com/containers/kubernetes/installation/
 [dd-fleet-k8s-preview]: https://www.datadoghq.com/product-preview/configure-agent-kubernetes-operator/
 
 ## Appendix
