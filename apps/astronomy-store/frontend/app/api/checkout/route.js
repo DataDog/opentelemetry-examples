@@ -1,3 +1,5 @@
+import { logger } from "../../../lib/logger";
+
 const checkoutUrl = process.env.CHECKOUT_URL ?? "http://checkout:8080";
 
 export async function POST(request) {
@@ -9,6 +11,11 @@ export async function POST(request) {
     body,
     cache: "no-store",
   });
+
+  logger.info(
+    { "http.route": "/api/checkout", "http.response.status_code": response.status },
+    "POST /api/checkout processed",
+  );
 
   return new Response(response.body, {
     status: response.status,

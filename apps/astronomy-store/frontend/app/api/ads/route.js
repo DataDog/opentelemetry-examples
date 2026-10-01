@@ -1,3 +1,5 @@
+import { logger } from "../../../lib/logger";
+
 const adUrl = process.env.AD_URL ?? "http://ad:8080";
 
 export async function GET(request) {
@@ -12,6 +14,11 @@ export async function GET(request) {
   const response = await fetch(target, {
     cache: "no-store",
   });
+
+  logger.info(
+    { "http.route": "/api/ads", "http.response.status_code": response.status },
+    "GET /api/ads processed",
+  );
 
   return new Response(response.body, {
     status: response.status,
