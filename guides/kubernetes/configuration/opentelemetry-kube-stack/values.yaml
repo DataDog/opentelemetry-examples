@@ -440,15 +440,17 @@ collectors:
         # `resource/hostname` is defined by the chart's default daemon collector config: it sets
         # host.name from k8s.node.name, when not already set, so telemetry is attributed to the host
         # of the node's Datadog Agent (e.g. for Datadog Live Debugger's Agent checks).
+        # `resource/global` (from `resourceAttributes`) is listed explicitly: the chart only appends it
+        # to the pipelines that don't list it.
         pipelines:
           logs:
             receivers: [otlp]
-            processors: [resource_detection/env, resource/hostname]
+            processors: [resource_detection/env, resource/hostname, resource/global]
             exporters: [datadog/exporter]
 
           traces:
             receivers: [otlp]
-            processors: [resource_detection/env, resource/hostname]
+            processors: [resource_detection/env, resource/hostname, resource/global]
             exporters: [datadog/connector]
 
           # Add sampling processors here if needed.
@@ -461,6 +463,7 @@ collectors:
             processors:
               - resource_detection/env
               - resource/hostname
+              - resource/global
               - cumulativetodelta
               - deltatorate
             exporters: [datadog/exporter]
