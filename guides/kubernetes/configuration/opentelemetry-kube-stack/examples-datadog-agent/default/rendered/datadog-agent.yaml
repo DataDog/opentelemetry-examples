@@ -400,7 +400,7 @@ subjects:
 ---
 apiVersion: v1
 data:
-  token: UVhGYkdoS2ZvT3FBWEtPT25yTHp6VXhDaFNLV3dnaVM=
+  token: bWFFU0hCUHVwY0pFRFp1bkdDZXFpS3NIUVJVZXpKSFo=
 kind: Secret
 metadata:
   labels:
@@ -608,7 +608,7 @@ apiVersion: datadoghq.com/v1alpha1
 kind: DatadogAgentInternal
 metadata:
   annotations:
-    agent.datadoghq.com/ddaispechash: 22b4e5e7892c695005125d31c130b876
+    agent.datadoghq.com/ddaispechash: 01da618dfeb07d609c3a45df8c48fa60
   finalizers:
   - finalizer.datadoghq.com/datadogagentinternal
   labels:
@@ -776,6 +776,11 @@ spec:
             value: "true"
           - name: DD_IGNORE_AUTOCONF
             value: kubernetes_state
+      env:
+      - name: DD_HOSTNAME
+        valueFrom:
+          fieldRef:
+            fieldPath: spec.nodeName
       image:
         tag: 7.83.2-jmx
 ---
@@ -783,7 +788,7 @@ apiVersion: apps/v1
 kind: DaemonSet
 metadata:
   annotations:
-    agent.datadoghq.com/agentspechash: 072b96d6cf3e590eec05542c43c66d96
+    agent.datadoghq.com/agentspechash: effeb00aef3a466c173fde7ee4a260c1
   labels:
     agent.datadoghq.com/component: agent
     agent.datadoghq.com/name: datadog
@@ -889,6 +894,10 @@ spec:
           value: "true"
         - name: DD_DISCOVERY_ENABLED
           value: "false"
+        - name: DD_HOSTNAME
+          valueFrom:
+            fieldRef:
+              fieldPath: spec.nodeName
         - name: DD_ORCHESTRATOR_EXPLORER_KUBELET_CONFIG_CHECK_ENABLED
           value: "false"
         - name: DD_APM_DEBUGGER_LOGS_ENABLED_OVERRIDE
@@ -1023,6 +1032,10 @@ spec:
           value: /var/run/datadog/dsd.socket
         - name: DD_REMOTE_CONFIGURATION_ENABLED
           value: "true"
+        - name: DD_HOSTNAME
+          valueFrom:
+            fieldRef:
+              fieldPath: spec.nodeName
         image: registry.datadoghq.com/agent:7.83.2-jmx
         livenessProbe:
           initialDelaySeconds: 15
@@ -1109,6 +1122,10 @@ spec:
           value: "true"
         - name: DD_DISCOVERY_USE_SYSTEM_PROBE_LITE
           value: "true"
+        - name: DD_HOSTNAME
+          valueFrom:
+            fieldRef:
+              fieldPath: spec.nodeName
         image: registry.datadoghq.com/agent:7.83.2-jmx
         name: system-probe
         resources: {}

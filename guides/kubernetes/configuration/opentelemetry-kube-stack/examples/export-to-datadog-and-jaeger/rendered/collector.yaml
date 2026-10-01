@@ -820,6 +820,7 @@ spec:
           processors:
           - k8s_attributes
           - resource_detection/env
+          - resource/hostname
           - resource/global
           receivers:
           - otlp
@@ -830,6 +831,7 @@ spec:
           processors:
           - k8s_attributes
           - resource_detection/env
+          - resource/hostname
           - cumulativetodelta
           - deltatorate
           - resource/global
@@ -858,6 +860,7 @@ spec:
           processors:
           - k8s_attributes
           - resource_detection/env
+          - resource/hostname
           - resource/global
           receivers:
           - otlp
