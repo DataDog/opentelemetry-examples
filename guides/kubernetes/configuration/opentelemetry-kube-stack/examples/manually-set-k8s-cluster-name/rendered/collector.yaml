@@ -140,7 +140,7 @@ spec:
           value: production
         - action: upsert
           key: k8s.cluster.name
-          value: my_k8s_cluster
+          value: my-k8s-cluster
       resource_detection/env:
         detectors:
         - k8s_api
@@ -602,7 +602,7 @@ spec:
           value: production
         - action: upsert
           key: k8s.cluster.name
-          value: my_k8s_cluster
+          value: my-k8s-cluster
       resource/hostname:
         attributes:
         - action: insert

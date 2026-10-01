@@ -52,7 +52,7 @@ spec:
     resourceAttributes:
       deployment.environment: production
       deployment.environment.name: production
-      k8s.cluster.name: my_k8s_cluster
+      k8s.cluster.name: my-k8s-cluster
   java:
     image: ghcr.io/cyrille-leclerc/dd-autoinstrumentation-java:1.66.0
   nodejs:

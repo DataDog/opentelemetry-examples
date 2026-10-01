@@ -400,7 +400,7 @@ subjects:
 ---
 apiVersion: v1
 data:
-  token: dnJyanhZYVJXTFZBRmd4Qmt2WURhS3hydlpYcUltTUE=
+  token: eHlVSEZGQXd1cWJOeW9mc1RZZldHSVVxY2FrVUhXb04=
 kind: Secret
 metadata:
   labels:
@@ -608,7 +608,7 @@ apiVersion: datadoghq.com/v1alpha1
 kind: DatadogAgentInternal
 metadata:
   annotations:
-    agent.datadoghq.com/ddaispechash: a2e83c6b989d429b3c34a1bd133b2645
+    agent.datadoghq.com/ddaispechash: 9181bf19aca51fa3682305f1c8316add
   finalizers:
   - finalizer.datadoghq.com/datadogagentinternal
   labels:
@@ -738,7 +738,7 @@ spec:
     clusterAgentTokenSecret:
       keyName: token
       secretName: datadog-token
-    clusterName: my_k8s_cluster
+    clusterName: my-k8s-cluster
     containerStrategy: optimized
     credentials:
       apiSecret:
@@ -777,7 +777,7 @@ apiVersion: apps/v1
 kind: DaemonSet
 metadata:
   annotations:
-    agent.datadoghq.com/agentspechash: effeb00aef3a466c173fde7ee4a260c1
+    agent.datadoghq.com/agentspechash: dfadd010b17889c9861e46fc1379473d
   labels:
     agent.datadoghq.com/component: agent
     agent.datadoghq.com/name: datadog
@@ -844,7 +844,7 @@ spec:
             fieldRef:
               fieldPath: status.hostIP
         - name: DD_CLUSTER_NAME
-          value: my_k8s_cluster
+          value: my-k8s-cluster
         - name: DD_SITE
           value: datadoghq.com
         - name: DD_LOG_LEVEL
@@ -996,7 +996,7 @@ spec:
             fieldRef:
               fieldPath: status.hostIP
         - name: DD_CLUSTER_NAME
-          value: my_k8s_cluster
+          value: my-k8s-cluster
         - name: DD_SITE
           value: datadoghq.com
         - name: DD_LOG_LEVEL
@@ -1082,7 +1082,7 @@ spec:
             fieldRef:
               fieldPath: status.hostIP
         - name: DD_CLUSTER_NAME
-          value: my_k8s_cluster
+          value: my-k8s-cluster
         - name: DD_SITE
           value: datadoghq.com
         - name: DD_LOG_LEVEL
@@ -1296,7 +1296,7 @@ apiVersion: apps/v1
 kind: Deployment
 metadata:
   annotations:
-    agent.datadoghq.com/agentspechash: 13fcbf7ba8896b063bb2194875dde1ab
+    agent.datadoghq.com/agentspechash: 90d6d006775d5199050c6c077c4b46c0
   labels:
     agent.datadoghq.com/component: cluster-agent
     agent.datadoghq.com/name: datadog
@@ -1387,7 +1387,7 @@ spec:
         - name: DATADOGAGENT_CR_NAME
           value: datadog
         - name: DD_CLUSTER_NAME
-          value: my_k8s_cluster
+          value: my-k8s-cluster
         - name: DD_SITE
           value: datadoghq.com
         - name: DD_LOG_LEVEL
