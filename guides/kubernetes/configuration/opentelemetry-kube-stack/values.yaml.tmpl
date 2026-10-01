@@ -570,19 +570,17 @@ collectors:
             receivers: [forward]
 {{- end}}
             exporters: [{{.Exporter}}]
-{{- if not .DDOT}}
 
           metrics/span_metrics:
+{{- if .DDOT}}
+            receivers: [datadog/connector]
+{{- else}}
             receivers: [span_metrics]
-            exporters: [{{.Exporter}}]
 {{- end}}
+            exporters: [{{.Exporter}}]
 
           metrics:
-{{- if .DDOT}}
-            receivers: [datadog/connector, otlp]
-{{- else}}
             receivers: [otlp]
-{{- end}}
             processors:
               - resource_detection/env
               - cumulative_to_delta

@@ -452,8 +452,12 @@ collectors:
             receivers: [datadog/connector]
             exporters: [datadog/exporter]
 
+          metrics/span_metrics:
+            receivers: [datadog/connector]
+            exporters: [datadog/exporter]
+
           metrics:
-            receivers: [datadog/connector, otlp]
+            receivers: [otlp]
             processors:
               - resource_detection/env
               - cumulative_to_delta

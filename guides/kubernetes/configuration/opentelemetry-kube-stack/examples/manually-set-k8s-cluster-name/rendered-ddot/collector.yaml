@@ -837,7 +837,6 @@ spec:
           - delta_to_rate
           - resource/global
           receivers:
-          - datadog/connector
           - otlp
           - host_metrics
           - kubelet_stats
@@ -854,6 +853,13 @@ spec:
           - resource/global
           receivers:
           - prometheus/cadvisor
+        metrics/span_metrics:
+          exporters:
+          - datadog/exporter
+          processors:
+          - resource/global
+          receivers:
+          - datadog/connector
         traces:
           exporters:
           - datadog/connector

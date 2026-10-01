@@ -14,21 +14,30 @@ import (
 
 const guideDir = "../guides/kubernetes/configuration/opentelemetry-kube-stack"
 
-type mode struct {
-	name string
-	// DDOT enables the ddot-flow sections of values.yaml.tmpl.
-	DDOT bool
-	// Exporter is the exporter that every pipeline in values.yaml.tmpl uses.
-	Exporter string
+type mode string
+
+const (
+	otlpHTTP mode = "otlp-http"
+	ddot     mode = "ddot"
+)
+
+var modes = []mode{otlpHTTP, ddot}
+
+// DDOT enables the ddot-flow sections of values.yaml.tmpl.
+func (m mode) DDOT() bool {
+	return m == ddot
 }
 
-var modes = []mode{
-	{name: "otlp-http", Exporter: "otlp_http"},
-	{name: "ddot", DDOT: true, Exporter: "datadog/exporter"},
+// Exporter is the exporter that every pipeline in values.yaml.tmpl uses.
+func (m mode) Exporter() string {
+	if m.DDOT() {
+		return "datadog/exporter"
+	}
+	return "otlp_http"
 }
 
 func render(tmpl *template.Template, m mode) error {
-	out, err := os.Create(filepath.Join(guideDir, "values-"+m.name+".yaml"))
+	out, err := os.Create(filepath.Join(guideDir, "values-"+string(m)+".yaml"))
 	if err != nil {
 		return err
 	}
@@ -41,7 +50,7 @@ func main() {
 	tmpl := template.Must(template.ParseFiles(filepath.Join(guideDir, "values.yaml.tmpl")))
 	for _, m := range modes {
 		if err := render(tmpl, m); err != nil {
-			fmt.Fprintf(os.Stderr, "failed to render values-%s.yaml: %s\n", m.name, err)
+			fmt.Fprintf(os.Stderr, "failed to render values-%s.yaml: %s\n", m, err)
 			os.Exit(1)
 		}
 	}
