@@ -273,7 +273,7 @@ helm upgrade opentelemetry-kube-stack \
     --version 0.21.0 \
     --install \
     --namespace opentelemetry-operator-system \
-    "${FORCE_CONFLICTS_ARGS[@]}" \
+    ${FORCE_CONFLICTS_ARGS[@]+"${FORCE_CONFLICTS_ARGS[@]}"} \
     "${HELM_SET_ARGS[@]}" \
     -f "$CONFIG_DIR/values.yaml" \
     ${HOST_PROFILER_ENABLED_ARGS[@]+"${HOST_PROFILER_ENABLED_ARGS[@]}"} \
