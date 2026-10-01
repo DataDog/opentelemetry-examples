@@ -21,6 +21,7 @@ Configure the installer with environment variables, then run it from this direct
 | Variable | Description | Default |
 |---|---|---|
 | `DD_API_KEY` | Datadog API key. | None (required) |
+| `DD_INSTALL_FLOW` | Installation flow: `upstream` (OTLP/HTTP exporter and upstream OpenTelemetry SDKs) or `ddot` (Datadog exporter, DDOT SDKs, and the Datadog Agent). | None (required) |
 | `DD_SITE` | Datadog site, for example `datadoghq.eu`. | `datadoghq.com` |
 | `K8S_CLUSTER_TYPE` | Kubernetes platform: `eks` (EKS), `gcp` (GKE), `aks` (AKS), or `other`. | `other` |
 | `K8S_CLUSTER_NAME` | Kubernetes cluster name. For `eks`, `gcp`, and `aks`, overrides the auto-detected name. | Auto-detected for `eks`, `gcp`, and `aks`; unset otherwise |
@@ -28,6 +29,7 @@ Configure the installer with environment variables, then run it from this direct
 
 ```sh
 export DD_API_KEY="<your-datadog-api-key>"
+export DD_INSTALL_FLOW=upstream
 export K8S_CLUSTER_TYPE=eks
 ./install
 ```
@@ -46,8 +48,9 @@ For EKS, GKE, and AKS, the installer enables the matching resource-detection pre
 It then:
 
 - creates the `opentelemetry-operator-system` namespace and the `datadog-secret` secret;
-- installs cert-manager when needed; and
-- installs or upgrades the OpenTelemetry Kube Stack Helm chart.
+- installs cert-manager when needed;
+- installs or upgrades the OpenTelemetry Kube Stack Helm chart with `values-otlp-http.yaml` (`upstream`) or `values-ddot.yaml` (`ddot`); and
+- for `ddot`, installs or upgrades the Datadog Agent Helm chart with `dd-agent-values.yaml`.
 
 ## Install with values files
 

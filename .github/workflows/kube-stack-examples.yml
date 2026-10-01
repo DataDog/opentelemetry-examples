@@ -66,8 +66,12 @@ jobs:
         run: make validate
 
   deploy-kind:
-    name: Deploy to a kind cluster
+    name: Deploy to a kind cluster (${{ matrix.flow }})
     runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        flow: [upstream, ddot]
     defaults:
       run:
         working-directory: guides/kubernetes/configuration/opentelemetry-kube-stack
@@ -86,6 +90,7 @@ jobs:
       - name: Install opentelemetry-kube-stack
         env:
           DD_API_KEY: "00000000000000000000000000000000"
+          DD_INSTALL_FLOW: ${{ matrix.flow }}
         run: ./install
 
       - name: Wait for the collectors to roll out

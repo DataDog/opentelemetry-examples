@@ -6,6 +6,15 @@ if [[ -z "${DD_API_KEY:-}" ]]; then
     exit 1
 fi
 
+case "${DD_INSTALL_FLOW:-}" in
+    upstream) VALUES_FILE=values-otlp-http.yaml ;;
+    ddot) VALUES_FILE=values-ddot.yaml ;;
+    *)
+        echo "ERROR: DD_INSTALL_FLOW must be one of: upstream, ddot (got '${DD_INSTALL_FLOW:-}')" >&2
+        exit 1
+        ;;
+esac
+
 DD_SITE=${DD_SITE:-datadoghq.com}
 K8S_CLUSTER_TYPE=${K8S_CLUSTER_TYPE:-other}
 DEPLOYMENT_ENVIRONMENT_NAME=${DEPLOYMENT_ENVIRONMENT_NAME:-production}
@@ -20,7 +29,7 @@ esac
 
 #### BEGINNING OF INSTALLATION SCRIPT
 
-# WARNING: dont change "namespace=opentelemetry-operator-system" as it is used in the 'instrumentation' CRD defined in values-otlp-http.yaml
+# WARNING: dont change "namespace=opentelemetry-operator-system" as it is used in the 'instrumentation' CRD defined in values-otlp-http.yaml and values-ddot.yaml
 
 echo "Creating Kubernetes namespace..."
 
@@ -53,6 +62,11 @@ HELM_SET_ARGS=(
     --set-string "resourceAttributes.deployment\.environment\.name=$DEPLOYMENT_ENVIRONMENT_NAME"
 )
 
+if [[ "$DD_INSTALL_FLOW" == "ddot" ]]; then
+    # FIXME use deployment.environment.name, it's a workaround for https://github.com/DataDog/dd-trace-java/pull/12324
+    HELM_SET_ARGS+=(--set-string "resourceAttributes.deployment\.environment=$DEPLOYMENT_ENVIRONMENT_NAME")
+fi
+
 if [[ "$K8S_CLUSTER_TYPE" != "other" ]]; then
     HELM_SET_ARGS+=(--set "defaultCRConfig.presets.resourceDetection.$K8S_CLUSTER_TYPE.enabled=true")
 fi
@@ -73,4 +87,22 @@ helm upgrade opentelemetry-kube-stack \
     --install \
     --namespace opentelemetry-operator-system \
     "${HELM_SET_ARGS[@]}" \
-    -f "$SCRIPT_DIR/values-otlp-http.yaml"
+    -f "$SCRIPT_DIR/$VALUES_FILE"
+
+if [[ "$DD_INSTALL_FLOW" == "ddot" ]]; then
+    echo "Installing Datadog Agent"
+
+    helm repo add datadog https://helm.datadoghq.com
+    helm repo update
+
+    helm upgrade ddagent-kube-stack \
+        datadog/datadog \
+        --version 3.240.0 \
+        --install \
+        --namespace opentelemetry-operator-system \
+        --set-string datadog.clusterName=${K8S_CLUSTER_NAME:-} \
+        --set-string datadog.apiKeyExistingSecret='datadog-secret' \
+        --set-string datadog.site=$DD_SITE \
+        "${HELM_SET_ARGS[@]}" \
+        -f "$SCRIPT_DIR/dd-agent-values.yaml"
+fi
