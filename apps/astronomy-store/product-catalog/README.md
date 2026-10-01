@@ -10,3 +10,7 @@ kubectl apply -f kubernetes.yaml
 ```
 
 The Deployment uses the OpenTelemetry Operator's .NET auto-instrumentation annotation. The application does not configure an OpenTelemetry SDK; the Operator instruments its ASP.NET Core HTTP requests.
+
+`GetProduct` logs an info-level message with the requested `uid` through ASP.NET Core's built-in `ILogger` (`Microsoft.Extensions.Logging`), which the .NET auto-instrumentation hooks to correlate log records with the active trace.
+
+Logs are written to stdout as one JSON object per line (`AddJsonConsole` in `Program.cs`), with scopes included so each request's log lines carry its `TraceId` and `SpanId`. `appsettings.json` raises the `Microsoft.AspNetCore` log level to `Warning` to drop ASP.NET Core's per-request info logs.
