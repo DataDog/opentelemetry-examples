@@ -14,3 +14,5 @@ kubectl apply -f kubernetes.yaml
 ```
 
 The Deployment uses the OpenTelemetry Operator's Node.js auto-instrumentation annotation. The outgoing `fetch` call can therefore be traced without application-level SDK configuration.
+
+Each route handler logs an info-level message naming the route once the request is processed, e.g. `GET /api/ads processed`, with `http.route` and `http.response.status_code` attributes. Logs are written as JSON to stdout with [pino](https://getpino.io/) (see `lib/logger.js`); set `LOG_LEVEL` to change the level (defaults to `info`).

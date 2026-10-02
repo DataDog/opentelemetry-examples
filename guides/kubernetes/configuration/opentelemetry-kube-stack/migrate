@@ -1,0 +1,60 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+# Removes the elements of previous setups of this guide, which `install` refuses to run next to:
+# - the standalone host-profiler Helm release: the pre-0.21.0 guide installed the eBPF profiler from
+#   the opentelemetry-collector chart, it's now a collector of the opentelemetry-kube-stack release.
+#   Two eBPF profilers must not run concurrently on the same node.
+# - the ddagent-kube-stack Helm release: the Datadog Agent used to be installed with the
+#   datadog/datadog Helm chart in the opentelemetry-operator-system namespace, it's now managed by
+#   the Datadog Operator. Two Datadog Agent DaemonSets must not run on the same node.
+
+if [[ "${1:-}" == "--help" || "${1:-}" == "-h" ]]; then
+    cat <<EOF
+Usage: $0
+
+Removes the elements of previous setups of this guide from the current Kubernetes cluster, before
+running ./install:
+  - the legacy standalone host-profiler Helm release, and its host-profiler-egress NetworkPolicy and
+    CiliumNetworkPolicy, in the opentelemetry-operator-system namespace;
+  - the legacy ddagent-kube-stack Datadog Agent Helm release in the opentelemetry-operator-system
+    namespace.
+EOF
+    exit 0
+fi
+
+NAMESPACE="opentelemetry-operator-system"
+
+LEGACY_RELEASES=()
+for release in host-profiler ddagent-kube-stack; do
+    helm status "$release" --namespace "$NAMESPACE" >/dev/null 2>&1 && LEGACY_RELEASES+=("$release")
+done
+
+if [[ ${#LEGACY_RELEASES[@]} -eq 0 ]]; then
+    echo "No legacy Helm release found in the $NAMESPACE namespace: nothing to migrate."
+else
+    echo "Found legacy Helm releases in the $NAMESPACE namespace: ${LEGACY_RELEASES[*]}"
+    read -r -p "Type 'yes' to uninstall them: " confirmation
+    if [[ "$confirmation" != "yes" ]]; then
+        echo "Migration cancelled."
+        exit 0
+    fi
+    for release in "${LEGACY_RELEASES[@]}"; do
+        echo "Uninstalling the legacy $release Helm release..."
+        helm uninstall "$release" --namespace "$NAMESPACE" --wait
+    done
+fi
+
+# The standalone host-profiler's egress policies weren't part of its Helm release.
+kubectl delete networkpolicy \
+  --namespace "$NAMESPACE" \
+  --ignore-not-found=true \
+  host-profiler-egress \
+  || echo "WARNING: Could not delete the legacy host-profiler NetworkPolicy. Continuing..."
+kubectl delete ciliumnetworkpolicy \
+  --namespace "$NAMESPACE" \
+  --ignore-not-found=true \
+  host-profiler-egress \
+  2>/dev/null || true # The CiliumNetworkPolicy CRD only exists on Cilium clusters.
+
+echo "Migration complete: you can now run ./install."

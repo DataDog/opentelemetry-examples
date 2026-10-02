@@ -42,6 +42,6 @@ docker build -t astronomy-store/ad:latest .
 kubectl apply -f kubernetes.yaml
 ```
 
-The Deployment uses the OpenTelemetry Operator's Java auto-instrumentation annotation, so Spring MVC HTTP requests are instrumented automatically. On top of that, the application depends directly on `io.opentelemetry:opentelemetry-api` and uses it in `AdController` to add `app.ads.context_keys` and `app.ads.count` attributes to the current span, and logs an info-level message for every `getAds` invocation.
+The Deployment uses the OpenTelemetry Operator's Java auto-instrumentation annotation, so Spring MVC HTTP requests are instrumented automatically. On top of that, the application depends directly on `io.opentelemetry:opentelemetry-api` and uses it in `AdController` to add `app.ads.context_keys` and `app.ads.count` attributes to the current span, and logs an info-level message for every `getAds` invocation. Logs are written to stdout as one [Logstash-format](https://docs.spring.io/spring-boot/reference/features/logging.html#features.logging.structured) JSON object per line (`logging.structured.format.console=logstash` in `application.properties`), including the `dd.trace_id` and `dd.span_id` that `dd-java-agent` injects into the MDC.
 
 The service connects to `astronomy-db` (see `../astronomy-db`) via `DB_URL`, `DB_USERNAME`, and `DB_PASSWORD` environment variables, set in `kubernetes.yaml`.

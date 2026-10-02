@@ -6,8 +6,8 @@ metadata:
   name: opentelemetry-kube-stack-cluster
   namespace: opentelemetry-operator-system
   labels:
-    helm.sh/chart: opentelemetry-kube-stack-0.21.0
-    app.kubernetes.io/version: "0.154.0"
+    helm.sh/chart: opentelemetry-kube-stack-0.23.2
+    app.kubernetes.io/version: "0.159.0"
     app.kubernetes.io/managed-by: Helm
     release: "opentelemetry-kube-stack"        
 spec:
@@ -469,10 +469,6 @@ spec:
       secretKeyRef:
         key: api-key
         name: datadog-secret
-  - name: DD_HOSTNAME
-    valueFrom:
-      fieldRef:
-        fieldPath: spec.nodeName
   - name: DD_SITE
     valueFrom:
       secretKeyRef:
@@ -487,8 +483,8 @@ metadata:
   name: opentelemetry-kube-stack-daemon
   namespace: opentelemetry-operator-system
   labels:
-    helm.sh/chart: opentelemetry-kube-stack-0.21.0
-    app.kubernetes.io/version: "0.154.0"
+    helm.sh/chart: opentelemetry-kube-stack-0.23.2
+    app.kubernetes.io/version: "0.159.0"
     app.kubernetes.io/managed-by: Helm
     release: "opentelemetry-kube-stack"        
 spec:
@@ -828,6 +824,7 @@ spec:
           processors:
           - k8s_attributes
           - resource_detection/env
+          - resource/hostname
           - resource/global
           receivers:
           - otlp
@@ -838,6 +835,7 @@ spec:
           processors:
           - k8s_attributes
           - resource_detection/env
+          - resource/hostname
           - cumulativetodelta
           - deltatorate
           - resource/global
@@ -865,6 +863,7 @@ spec:
           processors:
           - k8s_attributes
           - resource_detection/env
+          - resource/hostname
           - resource/global
           receivers:
           - otlp
@@ -942,10 +941,6 @@ spec:
       secretKeyRef:
         key: api-key
         name: datadog-secret
-  - name: DD_HOSTNAME
-    valueFrom:
-      fieldRef:
-        fieldPath: spec.nodeName
   - name: DD_SITE
     valueFrom:
       secretKeyRef:

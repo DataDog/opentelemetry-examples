@@ -8,9 +8,11 @@ opentelemetry-operator:
   manager:
     collectorImage:
       repository: otel/opentelemetry-collector-contrib
-      tag: "0.154.0"
-      # repository: datadog/ddot-collector
-      # tag: 7.82.3
+      tag: "0.162.0"
+      #repository: datadog/ddot-collector
+      #tag: "7.85.0-rc.2"
+      #repository: datadog/otel-agent-dev
+      #tag: "agagniere-nodefilter-7"
 
 kubeStateMetrics:
   enabled: true
@@ -34,11 +36,6 @@ defaultCRConfig:
           name: datadog-secret
           key: dd-site
           optional: true
-    - name: DD_HOSTNAME # FIXME required on K3S with datadog/ddot-collector:7.82.3 to prevent "Error: unable to reliably determine the host name."
-      valueFrom:
-        fieldRef:
-          fieldPath: spec.nodeName
-
   # Starting-point resource allocation. Scale up for large clusters.
   resources:
     limits:
@@ -321,6 +318,20 @@ collectors:
           enabled: false
 
     config:
+      # FIXME map the level of the Datadog Agent, Cluster Agent and Operator logs (namespace `datadog`)
+      # to the log severity. They write JSON logs (DD_LOG_FORMAT_JSON for the Agent and Cluster
+      # Agent, see datadog-agent.yaml; the Operator by default), tailed by the chart's
+      # `logsCollection` preset `file_log` receiver as plain string bodies. Datadog parses these JSON
+      # bodies into attributes (message, level...), but every log keeps `status: info`, even with
+      # `level: ERROR`: the OTLP severity is unset, so the Datadog exporter sends an empty `status`
+      # attribute. Add operators after the preset's container parser (Helm replaces lists: repeat it,
+      # `{id: container-parser, type: container, max_log_size: 102400}`), applied only to the
+      # `datadog` namespace (`if: 'resource["k8s.namespace.name"] == "datadog"'`): a `json_parser`
+      # with `severity: {parse_from: attributes.level}` (Agent and Cluster Agent fields: agent, time
+      # "yyyy-MM-dd HH:mm:ss UTC", level, file, line, func, msg; Operator fields: level, ts, msg...).
+      # The Agent's JMXFetch lines are wrapped as {"msg": "<yyyy-MM-dd HH:mm:ss> UTC | JMX | <LEVEL> |
+      # ..."} without a level field: their level needs a `regex_parser` on `attributes.msg`, see
+      # https://github.com/DataDog/datadog-agent/issues/57387.
       receivers:
         # cAdvisor metrics from the kubelet.
         prometheus/cadvisor:
@@ -440,12 +451,12 @@ collectors:
         pipelines:
           logs:
             receivers: [otlp]
-            processors: [resource_detection/env]
+            processors: [resource_detection/env, resource/hostname]
             exporters: [datadog/exporter]
 
           traces:
             receivers: [otlp]
-            processors: [resource_detection/env]
+            processors: [resource_detection/env, resource/hostname]
             exporters: [datadog/connector]
 
           # Add sampling processors here if needed.
@@ -457,6 +468,7 @@ collectors:
             receivers: [datadog/connector, otlp]
             processors:
               - resource_detection/env
+              - resource/hostname
               - cumulativetodelta
               - deltatorate
             exporters: [datadog/exporter]
@@ -618,6 +630,13 @@ collectors:
 
       exporters:
         # Export profiles and metrics to Datadog through OTLP HTTP.
+        # FIXME the host profiler's self-telemetry metrics (received by `otlp`, exported here to
+        # Datadog's OTLP intake) show up in Datadog under the host "otelcol-helm" instead of the
+        # node's host "<node name>-<cluster name>" used by the Datadog Agent and the other collectors.
+        # "otelcol-helm" isn't set in this configuration nor in the pod environment, whose
+        # OTEL_RESOURCE_ATTRIBUTES sets host.name and k8s.node.name to the node name: its origin
+        # (Datadog's OTLP intake host resolution or the host profiler distribution) is unconfirmed.
+        # To investigate, e.g. by setting the `datadog.host.name` resource attribute.
         otlp_http:
           endpoint: https://otlp.${env:DD_SITE:-datadoghq.com}
           headers:
@@ -666,9 +685,9 @@ instrumentation:
     #  value: "true"
     ## DDOT CONFIGURATION
     - name: "DD_AGENT_HOST"
-      value: "ddagent-kube-stack-datadog.opentelemetry-operator-system.svc.cluster.local"
+      value: "datadog-agent.datadog.svc.cluster.local"
     # DBM SUPPORT
-    - name: "DD_DBM_PROPAGATION_MODE"
+    - name: "DD_DBM_PROPAGATION_MODE" # full, service, disabled
       value: "full"
     - name: "DD_DBM_TRACE_PREPARED_STATEMENTS"
       value: "true"

@@ -11,9 +11,25 @@ The `opentelemetry-kube-stack` chart installs the OpenTelemetry Operator and ren
 
 Optionally, the release installs the **host profiler** collector - a DaemonSet running the OpenTelemetry eBPF profiler on every node and exporting profiles to Datadog. See [Host profiler (optional)](#host-profiler-optional).
 
+The Datadog Agent itself is installed separately, via the **[Datadog Operator][dd-operator]** (`DatadogAgent` custom resource, `datadog-agent.yaml`), running as a DaemonSet in its own **`datadog` namespace** — the namespace name used throughout Datadog's own documentation and examples. It is deliberately scoped down (cluster checks, orchestrator explorer, KSM core, process collection, log collection, and APM auto-instrumentation are all disabled): the OTel collectors above already handle Kubernetes object/metrics monitoring and log collection, and application SDKs are instrumented via the OpenTelemetry Operator instead of Datadog single-step APM instrumentation. The Datadog Cluster Agent is kept, as the node Agent relies on it for cluster-level metadata. Dynamic Instrumentation (Live Debugger) stays enabled, including the system-probe module needed for Go apps (Linux kernel >= 5.17, see [Live Debugger for Go][dd-live-debugger-go]).
+
+### Hybrid OTel + Datadog APM instrumentation
+
+`datadog-agent.yaml` ships with `features.apm.instrumentation.enabled: false`, since this guide instruments applications via the OpenTelemetry Operator instead. It can be flipped to `true` to let the Datadog Agent auto-instrument workloads too (e.g. while migrating a service from Datadog tracers to OTel SDKs) — but a pod must never be instrumented by both at once.
+
+The OpenTelemetry Operator marks a pod for injection with `instrumentation.opentelemetry.io/inject-*` pod **annotations**. Datadog's admission controller cannot select on annotations: `apm.instrumentation.targets[].podSelector` is a plain Kubernetes label selector, and only ever matches pod **labels**. So to exclude an OTel-instrumented pod template from Datadog auto-instrumentation, add this label to it directly, alongside the OTel annotations:
+
+```yaml
+metadata:
+  labels:
+    admission.datadoghq.com/enabled: "false"
+```
+
+That label makes Datadog's admission controller skip the pod outright — no `podSelector` needed.
+
 ## Prerequisites
 
-- A Kubernetes secret named `datadog-secret` with keys `api-key` (required) and `dd-site` (optional; defaults to `datadoghq.com`).
+- A Kubernetes secret named `datadog-secret`, with keys `api-key` (required) and `dd-site` (optional; defaults to `datadoghq.com`), **duplicated in both the `opentelemetry-operator-system` namespace** (read by the OTel collectors' Datadog exporter, see `values.yaml`) **and the `datadog` namespace** (read by the `DatadogAgent` custom resource). Two copies are needed because a `DatadogAgent` CR can only reference a secret in its own namespace, and the OTel collectors run in a different namespace.
 - [cert-manager][cm] installed in the cluster, for the operator's admission webhook.
 - Linux nodes with kernel >= 5.10, only for the optional host profiler. Enabling the
   host-profiler collector also requires Kubernetes >= 1.30: its `securityContext`
@@ -21,22 +37,36 @@ Optionally, the release installs the **host profiler** collector - a DaemonSet r
 
 ## Quickstart
 
-Run the installer from this directory:
+For a step-by-step walkthrough, including prerequisites, the installer's prompts, verification, and troubleshooting, see the [installation guide](INSTALL.md).
+
+Download and run the installer. You don't need to clone the repository: by default, the installer downloads its configuration files (`values.yaml`, `datadog-agent.yaml`...) from GitHub:
 
 ```sh
+curl -fsSL -o install https://raw.githubusercontent.com/DataDog/opentelemetry-examples/cyrille-leclerc/use-dd-operator/guides/kubernetes/configuration/opentelemetry-kube-stack/install
+chmod +x install
 ./install
 ```
 
-The installer prompts for your Datadog API key and site (the site defaults to `datadoghq.com`), Kubernetes platform, deployment environment, and whether to enable the eBPF host profiler. For EKS, GKE, and AKS, it enables the matching resource-detection preset. For other platforms, it prompts for the Kubernetes cluster name.
+Options (see `./install --help`):
+
+- `--local`: use the configuration files next to the `install` script instead of downloading them, for example to test local changes from a clone of this repository;
+- `--config-url=<url>`: download the configuration files from another GitHub folder, like `https://github.com/DataDog/opentelemetry-examples/tree/<branch>/guides/kubernetes/configuration/opentelemetry-kube-stack`;
+- `<overlay-values.yaml>`: a values file merged on top of `values.yaml`, as a local file, a URL, or a path relative to the configuration folder (for example `examples/export-to-datadog-and-jaeger/values.yaml`).
+
+The installer reads your Datadog API key, site, and optional application key from a `.env` file next to it, or prompts for them when there's none (the site defaults to `datadoghq.com` only when `.env` doesn't set `DD_SITE`; the prompt requires it). It then prompts for your Kubernetes platform, deployment environment, and whether to enable the eBPF host profiler. For EKS, GKE, and AKS, it enables the matching resource-detection preset. For other platforms, it prompts for the Kubernetes cluster name.
 
 It then:
 
-- creates the `opentelemetry-operator-system` namespace and the `datadog-secret` secret;
-- installs cert-manager when needed;
-- installs or upgrades the OpenTelemetry Kube Stack Helm chart;
-- optionally installs or upgrades the `host-profiler`.
+- creates the `opentelemetry-operator-system` and `datadog` namespaces;
+- creates the `datadog-secret` secret in both namespaces (see [Prerequisites](#prerequisites) for why it's duplicated);
+- installs cert-manager, unless it's already installed (detected by its `certificates.cert-manager.io` CRD);
+- installs or upgrades the OpenTelemetry Kube Stack Helm chart, optionally enabling the `host-profiler` collector in the same release;
+- installs or upgrades the Datadog Operator (`datadog/datadog-operator` chart) in the `datadog` namespace, with [Fleet Automation](#fleet-automation-optional) enabled when an application key is provided;
+- applies the `datadog-agent.yaml` `DatadogAgent` custom resource to the `datadog` namespace, substituting the cluster name and site into it.
 
-If you choose to save your credentials, the installer writes them to `.env` with permissions restricted to the file owner. Keep this file out of version control.
+To skip the credential prompts on every run, create the `.env` file yourself, see the [installation guide](INSTALL.md#2-provide-the-datadog-credentials). Keep this file out of version control.
+
+Datadog engineers upgrading a cluster set up with an earlier version of this guide: see the [migration guide](MIGRATE.md).
 
 ## Install with values files
 
@@ -50,17 +80,21 @@ export DD_API_KEY="<your-datadog-api-key>"
 export DD_SITE="datadoghq.com" # Use your Datadog site when different.
 ```
 
-Create the namespace and secret consumed by the collectors:
+Create the namespaces and the secret, duplicated into both — `opentelemetry-operator-system` for the OTel collectors' Datadog exporter, `datadog` for the `DatadogAgent` custom resource:
 
 ```sh
 kubectl create namespace opentelemetry-operator-system \
   --dry-run=client -o yaml | kubectl apply -f -
-
-kubectl create secret generic datadog-secret \
-  --namespace opentelemetry-operator-system \
-  --from-literal="api-key=$DD_API_KEY" \
-  --from-literal="dd-site=$DD_SITE" \
+kubectl create namespace datadog \
   --dry-run=client -o yaml | kubectl apply -f -
+
+for NS in opentelemetry-operator-system datadog; do
+  kubectl create secret generic datadog-secret \
+    --namespace "$NS" \
+    --from-literal="api-key=$DD_API_KEY" \
+    --from-literal="dd-site=$DD_SITE" \
+    --dry-run=client -o yaml | kubectl apply -f -
+done
 ```
 
 Install cert-manager:
@@ -88,7 +122,7 @@ cp examples/gcp-deployment/values.yaml deployment/values.yaml
 cp examples/aks-deployment/values.yaml deployment/values.yaml
 ```
 
-For other Kubernetes platforms, start with the manual cluster-name example and replace `my_k8s_cluster` and `production`
+For other Kubernetes platforms, start with the manual cluster-name example and replace `my-k8s-cluster` and `production`
 with the cluster name and deployment environment. `DD_SITE` continues to be sourced from `datadog-secret`.
 
 ```sh
@@ -104,7 +138,7 @@ helm repo add open-telemetry https://open-telemetry.github.io/opentelemetry-helm
 helm repo update
 helm upgrade --install opentelemetry-kube-stack \
   open-telemetry/opentelemetry-kube-stack \
-  --version 0.21.0 \
+  --version 0.23.2 \
   --namespace opentelemetry-operator-system \
   --values ./values.yaml \
   --values ./deployment/values.yaml
@@ -115,7 +149,7 @@ Alternatively, if you want to enable the `host-profiler` collector:
 ```sh
 helm upgrade --install opentelemetry-kube-stack \
   open-telemetry/opentelemetry-kube-stack \
-  --version 0.21.0 \
+  --version 0.23.2 \
   --namespace opentelemetry-operator-system \
   --set collectors.host-profiler.enabled=true \
   --values ./values.yaml \
@@ -131,6 +165,47 @@ kubectl apply -f ./host-profiler-network-policy.yaml          # any enforcing CN
 kubectl apply -f ./host-profiler-cilium-network-policy.yaml   # Cilium, FQDN-scoped egress
 ```
 
+Finally, install the [Datadog Operator][dd-operator] and apply the `DatadogAgent` custom resource, substituting the cluster name and site placeholders (`<CLUSTER_NAME>` / `<DD_SITE>`) in `datadog-agent.yaml`. Use the same cluster name as `deployment/values.yaml` above, following the [cluster name constraints](#cluster-name-constraints) (leave `K8S_CLUSTER_NAME` empty on EKS/GKE/AKS, where it's auto-detected instead):
+
+```sh
+export K8S_CLUSTER_NAME="my-k8s-cluster" # empty string on EKS/GKE/AKS
+
+helm repo add datadog https://helm.datadoghq.com
+helm repo update
+helm upgrade --install datadog-operator \
+  datadog/datadog-operator \
+  --namespace datadog \
+  --wait --timeout 5m
+
+# On EKS/GKE/AKS (empty K8S_CLUSTER_NAME), drop the clusterName line so the Agent auto-detects it.
+# Likewise, only set the Agent hostname from the Kubernetes node name and the cluster name on non-cloud clusters.
+if [[ -n "$K8S_CLUSTER_NAME" ]]; then
+  CLUSTER_NAME_SED_ARGS=(-e "s|<CLUSTER_NAME>|$K8S_CLUSTER_NAME|" -e "/<HOSTNAME_FROM_NODE_NAME:/d")
+else
+  CLUSTER_NAME_SED_ARGS=(-e "/<CLUSTER_NAME>/d" -e "/<HOSTNAME_FROM_NODE_NAME:BEGIN>/,/<HOSTNAME_FROM_NODE_NAME:END>/d")
+fi
+
+sed \
+  "${CLUSTER_NAME_SED_ARGS[@]}" \
+  -e "s|<DD_SITE>|$DD_SITE|" \
+  ./datadog-agent.yaml \
+  | kubectl apply --namespace datadog -f -
+```
+
+## Fleet Automation (optional)
+
+To manage the Datadog Agent from [Fleet Automation][dd-fleet-automation], give the installer a Datadog [application key][dd-app-keys]: it prompts for one during the interactive setup, or add it to `.env` and re-run `./install`:
+
+```sh
+export DD_APP_KEY="<your-datadog-application-key>"
+```
+
+The installer always gives the Datadog Operator its own API key, site, and cluster name. With an application key, it also stores it as `app-key` in the `datadog` namespace's `datadog-secret`, and installs the Datadog Operator with it and with Remote Configuration enabled (`appKeyExistingSecret`, `remoteConfiguration.enabled=true` and `previewFleetRollouts=true` Helm values). Without an application key, the Operator is installed without Remote Configuration.
+
+- Remote configuration of Agents running on Kubernetes is in Preview: [request access][dd-fleet-k8s-preview] for your Datadog organization.
+- The Operator's Remote Configuration requires a cluster name: on EKS, GKE, and AKS, choose `Other` and enter the cluster name.
+- The application key acts with the permissions of the user who created it: prefer a dedicated, scoped application key.
+
 ## Host profiler (optional)
 
 The host profiler runs the [Datadog host profiler][dd-host-profiler] (Datadog's own distribution of the [OpenTelemetry eBPF profiler][ebpf-profiler], to which it actively contributes) as a collector DaemonSet on every node and exports profiles to Datadog's OTLP intake.
@@ -142,14 +217,32 @@ Enable it by answering `y` to the installer's prompt, or install manually follow
 For EKS, AKS, and GKE, the installer enables the corresponding resource-detection preset in both collectors. The
 OpenTelemetry Collector then automatically populates `k8s.cluster.name`.
 
- For other Kubernetes platforms, the
+For other Kubernetes platforms, the
 installer sets `resourceAttributes.k8s.cluster.name` to the supplied cluster name.
+
+### Cluster name constraints
+
+The supplied cluster name is used both as the OpenTelemetry `k8s.cluster.name` resource attribute and as the Datadog
+Agent's `clusterName`, so it must satisfy the [Datadog Agent's restrictions][dd-cluster-name]. It's made of
+dot-separated tokens that:
+
+- only contain lowercase letters, numbers, and hyphens (`-`): no uppercase letters and no underscores (`_`);
+- start with a letter;
+- end with a letter or a number.
+
+The whole name must be at most 80 characters long. For example, `my-k8s-cluster` and `prod.eu-west-1` are valid;
+`my_k8s_cluster`, `My-k8s-cluster`, and `1-cluster` are not.
+
+The Datadog Agent rewrites `_` to `-` and ignores names containing uppercase letters, so an invalid name leaves the
+Agent's and the OpenTelemetry Collector's telemetry with different (or missing) cluster names. The installer lowercases
+the supplied name and replaces `_` with `-` (with a message if it does); when installing manually, choose a valid name
+and use it for both `k8s.cluster.name` and `K8S_CLUSTER_NAME`.
 
 See `examples/` for rendered values and manifests for each deployment type. Regenerate them with `make generate-otel-kube-stack-examples`.
 
-The Datadog Agent installed in step 3 (`ddagent-kube-stack`, `datadog/datadog` chart) has its own base values file, `dd-agent-values.yaml`, and its own examples directory, `examples-datadog-agent/`, following the same pattern — `examples-datadog-agent/default/` mimics the `--set-string` overrides the installer applies on top of `dd-agent-values.yaml`. Regenerate its rendered manifests with `make generate-datadog-agent-examples`.
+The Datadog Agent is installed as its own step, via the Datadog Operator's `DatadogAgent` custom resource (`datadog-agent.yaml`), in the `datadog` namespace — see [What this deploys](#what-this-deploys) and [Install with values files](#install-with-values-files). See `examples-datadog-agent/` for the manifests the Datadog Operator generates from it, rendered offline with the [datadog-operator][dd-operator]'s `operator-render` CLI (built on the fly from a shallow clone under `tmp/`). Regenerate it with `make generate-datadog-operator-examples`.
 
-Run `make generate-examples` to regenerate both at once.
+Run `make generate-examples` to regenerate both sets of examples in one step.
 
 ## Resource allocation
 
@@ -159,11 +252,17 @@ Both collectors default to `500m` CPU / `1Gi` memory limits and `200m` CPU / `50
 
 Verified against:
 
-- `opentelemetry-kube-stack` chart `>= 0.21.0`
-- Collector image `otel/opentelemetry-collector-contrib >= 0.154.0` (pinned in values.yaml under `opentelemetry-operator.manager.collectorImage`)
+- `opentelemetry-kube-stack` chart `>= 0.23.2`
+- Collector image `otel/opentelemetry-collector-contrib >= 0.162.0` (pinned in values.yaml under `opentelemetry-operator.manager.collectorImage`)
 
 [chart]: https://github.com/open-telemetry/opentelemetry-helm-charts/tree/main/charts/opentelemetry-kube-stack
 [cm]: https://cert-manager.io/docs/installation/
+[dd-operator]: https://github.com/DataDog/datadog-operator
+[dd-live-debugger-go]: https://docs.datadoghq.com/tracing/live_debugger/?prog_lang=go
+[dd-fleet-automation]: https://docs.datadoghq.com/agent/fleet_automation/
+[dd-app-keys]: https://docs.datadoghq.com/account_management/api-app-keys/#application-keys
+[dd-cluster-name]: https://docs.datadoghq.com/containers/kubernetes/installation/
+[dd-fleet-k8s-preview]: https://www.datadoghq.com/product-preview/configure-agent-kubernetes-operator/
 
 ## Appendix
 
