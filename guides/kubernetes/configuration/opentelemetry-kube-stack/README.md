@@ -138,7 +138,7 @@ helm repo add open-telemetry https://open-telemetry.github.io/opentelemetry-helm
 helm repo update
 helm upgrade --install opentelemetry-kube-stack \
   open-telemetry/opentelemetry-kube-stack \
-  --version 0.21.0 \
+  --version 0.23.2 \
   --namespace opentelemetry-operator-system \
   --values ./values.yaml \
   --values ./deployment/values.yaml
@@ -149,7 +149,7 @@ Alternatively, if you want to enable the `host-profiler` collector:
 ```sh
 helm upgrade --install opentelemetry-kube-stack \
   open-telemetry/opentelemetry-kube-stack \
-  --version 0.21.0 \
+  --version 0.23.2 \
   --namespace opentelemetry-operator-system \
   --set collectors.host-profiler.enabled=true \
   --values ./values.yaml \
@@ -252,8 +252,8 @@ Both collectors default to `500m` CPU / `1Gi` memory limits and `200m` CPU / `50
 
 Verified against:
 
-- `opentelemetry-kube-stack` chart `>= 0.21.0`
-- Collector image `otel/opentelemetry-collector-contrib >= 0.154.0` (pinned in values.yaml under `opentelemetry-operator.manager.collectorImage`)
+- `opentelemetry-kube-stack` chart `>= 0.23.2`
+- Collector image `otel/opentelemetry-collector-contrib >= 0.162.0` (pinned in values.yaml under `opentelemetry-operator.manager.collectorImage`)
 
 [chart]: https://github.com/open-telemetry/opentelemetry-helm-charts/tree/main/charts/opentelemetry-kube-stack
 [cm]: https://cert-manager.io/docs/installation/

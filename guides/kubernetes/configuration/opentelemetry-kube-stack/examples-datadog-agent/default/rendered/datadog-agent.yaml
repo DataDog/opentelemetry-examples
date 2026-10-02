@@ -400,7 +400,7 @@ subjects:
 ---
 apiVersion: v1
 data:
-  token: VU16VFdzYkFKc0hLRm5wZnBmcU5nWHR1V1JHVVh3Z0Q=
+  token: SURHd1JVaWRxYUR6ZFZGYld1Z0Vwb1d6TXB3c2JjbGw=
 kind: Secret
 metadata:
   labels:

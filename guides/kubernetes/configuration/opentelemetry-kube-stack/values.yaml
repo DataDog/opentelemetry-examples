@@ -8,9 +8,11 @@ opentelemetry-operator:
   manager:
     collectorImage:
       repository: otel/opentelemetry-collector-contrib
-      tag: "0.154.0"
-      # repository: datadog/ddot-collector
-      # tag: 7.82.3
+      tag: "0.162.0"
+      #repository: datadog/ddot-collector
+      #tag: "7.85.0-rc.2"
+      #repository: datadog/otel-agent-dev
+      #tag: "agagniere-nodefilter-7"
 
 kubeStateMetrics:
   enabled: true
