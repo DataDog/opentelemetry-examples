@@ -59,7 +59,7 @@ It then:
 
 - creates the `opentelemetry-operator-system` and `datadog` namespaces;
 - creates the `datadog-secret` secret in both namespaces (see [Prerequisites](#prerequisites) for why it's duplicated);
-- installs cert-manager when needed;
+- installs cert-manager, unless it's already installed (detected by its `certificates.cert-manager.io` CRD);
 - installs or upgrades the OpenTelemetry Kube Stack Helm chart, optionally enabling the `host-profiler` collector in the same release;
 - installs or upgrades the Datadog Operator (`datadog/datadog-operator` chart) in the `datadog` namespace, with [Fleet Automation](#fleet-automation-optional) enabled when an application key is provided;
 - applies the `datadog-agent.yaml` `DatadogAgent` custom resource to the `datadog` namespace, substituting the cluster name and site into it.

@@ -86,7 +86,7 @@ The script asks the following questions:
 | Egress NetworkPolicy?          | Only asked with the host profiler: `s`tandard or `c`ilium on clusters enforcing NetworkPolicy, `n`one otherwise (default). |
 
 It then installs or upgrades every component, as described in the [Quickstart](README.md#quickstart). Some `WARNING`
-lines are expected and harmless, for example when a namespace or cert-manager already exists.
+lines are expected and harmless, for example when a namespace already exists.
 
 ## 4. Verify the installation
 

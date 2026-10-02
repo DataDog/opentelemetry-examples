@@ -224,13 +224,18 @@ helm repo add jetstack       https://charts.jetstack.io
 helm repo add datadog        https://helm.datadoghq.com
 helm repo update
 
-echo "Installing cert-manager (if not already installed)..."
-
-helm install cert-manager jetstack/cert-manager \
-  --namespace cert-manager --create-namespace \
-  --set crds.enabled=true  \
-  --wait --timeout 5m \
-  || echo "WARNING: Could not install cert-manager (may already exist or insufficient permissions). Continuing..."
+# Detect cert-manager by its CRD rather than by a Helm release, to also skip installations done
+# without Helm, under another release name, or by a managed Kubernetes add-on.
+if kubectl get crd certificates.cert-manager.io >/dev/null 2>&1; then
+    echo "cert-manager is already installed (certificates.cert-manager.io CRD found), skipping its installation."
+else
+    echo "Installing cert-manager..."
+    helm install cert-manager jetstack/cert-manager \
+      --namespace cert-manager --create-namespace \
+      --set crds.enabled=true  \
+      --wait --timeout 5m \
+      || echo "WARNING: Could not install cert-manager (insufficient permissions?). Continuing..."
+fi
 
 echo "Installing OpenTelemetry Kube Stack Helm Chart..."
 
