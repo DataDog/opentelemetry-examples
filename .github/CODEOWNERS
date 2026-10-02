@@ -1,3 +1,5 @@
 # See https://help.github.com/articles/about-codeowners/ for syntax
 
-*              @DataDog/opentelemetry
+*                       @DataDog/opentelemetry
+/guides/                @DataDog/opentelemetry @cyrille-leclerc
+/apps/astronomy-store/  @DataDog/opentelemetry @cyrille-leclerc
