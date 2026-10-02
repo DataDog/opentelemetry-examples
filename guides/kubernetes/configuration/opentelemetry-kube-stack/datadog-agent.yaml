@@ -80,15 +80,20 @@ spec:
       image:
         tag: "7.83.2-jmx"
       # <HOSTNAME_FROM_NODE_NAME:BEGIN>
-      # On non-cloud clusters, use the Kubernetes node name as the Agent hostname (instead of the
-      # container runtime's hostname, e.g. the VM hostname on Rancher Desktop) so the Agent's host
-      # matches the host.name set from k8s.node.name by the OTel collectors. Dropped by `install`
-      # on EKS/GKE/AKS where the cloud provider hostname is preferred.
+      # On non-cloud clusters, use "<Kubernetes node name>-<cluster name>" as the Agent hostname
+      # (instead of the container runtime's hostname, e.g. the VM hostname on Rancher Desktop), unique
+      # across clusters. K8S_NODE_NAME and K8S_CLUSTER_NAME must be defined before DD_HOSTNAME for
+      # Kubernetes to expand them. Dropped by `install` on EKS/GKE/AKS where the cloud provider
+      # hostname is preferred.
       env:
-        - name: DD_HOSTNAME
+        - name: K8S_NODE_NAME
           valueFrom:
             fieldRef:
               fieldPath: spec.nodeName
+        - name: K8S_CLUSTER_NAME
+          value: "<CLUSTER_NAME>"
+        - name: DD_HOSTNAME
+          value: "$(K8S_NODE_NAME)-$(K8S_CLUSTER_NAME)"
       # <HOSTNAME_FROM_NODE_NAME:END>
       containers:
         agent:

@@ -466,10 +466,6 @@ spec:
       secretKeyRef:
         key: api-key
         name: datadog-secret
-  - name: DD_HOSTNAME
-    valueFrom:
-      fieldRef:
-        fieldPath: spec.nodeName
   - name: DD_SITE
     valueFrom:
       secretKeyRef:
@@ -939,10 +935,6 @@ spec:
       secretKeyRef:
         key: api-key
         name: datadog-secret
-  - name: DD_HOSTNAME
-    valueFrom:
-      fieldRef:
-        fieldPath: spec.nodeName
   - name: DD_SITE
     valueFrom:
       secretKeyRef:

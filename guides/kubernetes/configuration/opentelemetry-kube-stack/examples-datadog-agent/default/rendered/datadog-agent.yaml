@@ -400,7 +400,7 @@ subjects:
 ---
 apiVersion: v1
 data:
-  token: eHlVSEZGQXd1cWJOeW9mc1RZZldHSVVxY2FrVUhXb04=
+  token: Q2NGd25iSXhweWZaSXpydlZFeHFNSmhCY0VFWFZpWEg=
 kind: Secret
 metadata:
   labels:
@@ -608,7 +608,7 @@ apiVersion: datadoghq.com/v1alpha1
 kind: DatadogAgentInternal
 metadata:
   annotations:
-    agent.datadoghq.com/ddaispechash: 9181bf19aca51fa3682305f1c8316add
+    agent.datadoghq.com/ddaispechash: d95ff2cdb52ec41f8b18a529910c86c2
   finalizers:
   - finalizer.datadoghq.com/datadogagentinternal
   labels:
@@ -766,10 +766,14 @@ spec:
           - name: DD_IGNORE_AUTOCONF
             value: kubernetes_state
       env:
-      - name: DD_HOSTNAME
+      - name: K8S_NODE_NAME
         valueFrom:
           fieldRef:
             fieldPath: spec.nodeName
+      - name: K8S_CLUSTER_NAME
+        value: my-k8s-cluster
+      - name: DD_HOSTNAME
+        value: $(K8S_NODE_NAME)-$(K8S_CLUSTER_NAME)
       image:
         tag: 7.83.2-jmx
 ---
@@ -777,7 +781,7 @@ apiVersion: apps/v1
 kind: DaemonSet
 metadata:
   annotations:
-    agent.datadoghq.com/agentspechash: dfadd010b17889c9861e46fc1379473d
+    agent.datadoghq.com/agentspechash: f43f67894dfe91847567ed2274f8f772
   labels:
     agent.datadoghq.com/component: agent
     agent.datadoghq.com/name: datadog
@@ -883,10 +887,14 @@ spec:
           value: "true"
         - name: DD_DISCOVERY_ENABLED
           value: "false"
-        - name: DD_HOSTNAME
+        - name: K8S_NODE_NAME
           valueFrom:
             fieldRef:
               fieldPath: spec.nodeName
+        - name: K8S_CLUSTER_NAME
+          value: my-k8s-cluster
+        - name: DD_HOSTNAME
+          value: $(K8S_NODE_NAME)-$(K8S_CLUSTER_NAME)
         - name: DD_ORCHESTRATOR_EXPLORER_KUBELET_CONFIG_CHECK_ENABLED
           value: "false"
         - name: DD_APM_DEBUGGER_LOGS_ENABLED_OVERRIDE
@@ -1021,10 +1029,14 @@ spec:
           value: /var/run/datadog/dsd.socket
         - name: DD_REMOTE_CONFIGURATION_ENABLED
           value: "true"
-        - name: DD_HOSTNAME
+        - name: K8S_NODE_NAME
           valueFrom:
             fieldRef:
               fieldPath: spec.nodeName
+        - name: K8S_CLUSTER_NAME
+          value: my-k8s-cluster
+        - name: DD_HOSTNAME
+          value: $(K8S_NODE_NAME)-$(K8S_CLUSTER_NAME)
         image: registry.datadoghq.com/agent:7.83.2-jmx
         livenessProbe:
           initialDelaySeconds: 15
@@ -1111,10 +1123,14 @@ spec:
           value: "true"
         - name: DD_DISCOVERY_USE_SYSTEM_PROBE_LITE
           value: "true"
-        - name: DD_HOSTNAME
+        - name: K8S_NODE_NAME
           valueFrom:
             fieldRef:
               fieldPath: spec.nodeName
+        - name: K8S_CLUSTER_NAME
+          value: my-k8s-cluster
+        - name: DD_HOSTNAME
+          value: $(K8S_NODE_NAME)-$(K8S_CLUSTER_NAME)
         image: registry.datadoghq.com/agent:7.83.2-jmx
         name: system-probe
         resources: {}

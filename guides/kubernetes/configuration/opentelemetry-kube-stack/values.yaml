@@ -34,11 +34,6 @@ defaultCRConfig:
           name: datadog-secret
           key: dd-site
           optional: true
-    - name: DD_HOSTNAME # FIXME required on K3S with datadog/ddot-collector:7.82.3 to prevent "Error: unable to reliably determine the host name."
-      valueFrom:
-        fieldRef:
-          fieldPath: spec.nodeName
-
   # Starting-point resource allocation. Scale up for large clusters.
   resources:
     limits:
