@@ -400,7 +400,7 @@ subjects:
 ---
 apiVersion: v1
 data:
-  token: Q2NGd25iSXhweWZaSXpydlZFeHFNSmhCY0VFWFZpWEg=
+  token: VU16VFdzYkFKc0hLRm5wZnBmcU5nWHR1V1JHVVh3Z0Q=
 kind: Secret
 metadata:
   labels:
@@ -608,7 +608,7 @@ apiVersion: datadoghq.com/v1alpha1
 kind: DatadogAgentInternal
 metadata:
   annotations:
-    agent.datadoghq.com/ddaispechash: d95ff2cdb52ec41f8b18a529910c86c2
+    agent.datadoghq.com/ddaispechash: 1f3a036abe8917be70a0b9b5b99c57e1
   finalizers:
   - finalizer.datadoghq.com/datadogagentinternal
   labels:
@@ -753,6 +753,10 @@ spec:
     site: datadoghq.com
     useFIPSAgent: false
   override:
+    clusterAgent:
+      env:
+      - name: DD_LOG_FORMAT_JSON
+        value: "true"
     nodeAgent:
       containers:
         agent:
@@ -766,6 +770,8 @@ spec:
           - name: DD_IGNORE_AUTOCONF
             value: kubernetes_state
       env:
+      - name: DD_LOG_FORMAT_JSON
+        value: "true"
       - name: K8S_NODE_NAME
         valueFrom:
           fieldRef:
@@ -781,7 +787,7 @@ apiVersion: apps/v1
 kind: DaemonSet
 metadata:
   annotations:
-    agent.datadoghq.com/agentspechash: f43f67894dfe91847567ed2274f8f772
+    agent.datadoghq.com/agentspechash: bf539b3212ff5b96db9fca62ae268873
   labels:
     agent.datadoghq.com/component: agent
     agent.datadoghq.com/name: datadog
@@ -887,6 +893,8 @@ spec:
           value: "true"
         - name: DD_DISCOVERY_ENABLED
           value: "false"
+        - name: DD_LOG_FORMAT_JSON
+          value: "true"
         - name: K8S_NODE_NAME
           valueFrom:
             fieldRef:
@@ -1029,6 +1037,8 @@ spec:
           value: /var/run/datadog/dsd.socket
         - name: DD_REMOTE_CONFIGURATION_ENABLED
           value: "true"
+        - name: DD_LOG_FORMAT_JSON
+          value: "true"
         - name: K8S_NODE_NAME
           valueFrom:
             fieldRef:
@@ -1122,6 +1132,8 @@ spec:
         - name: DD_DISCOVERY_ENABLED
           value: "true"
         - name: DD_DISCOVERY_USE_SYSTEM_PROBE_LITE
+          value: "true"
+        - name: DD_LOG_FORMAT_JSON
           value: "true"
         - name: K8S_NODE_NAME
           valueFrom:
@@ -1312,7 +1324,7 @@ apiVersion: apps/v1
 kind: Deployment
 metadata:
   annotations:
-    agent.datadoghq.com/agentspechash: 90d6d006775d5199050c6c077c4b46c0
+    agent.datadoghq.com/agentspechash: 339999cfcacdcaae87eaff8aa44a82b3
   labels:
     agent.datadoghq.com/component: cluster-agent
     agent.datadoghq.com/name: datadog
@@ -1459,6 +1471,8 @@ spec:
         - name: DD_INSTRUMENTATION_CRD_CONTROLLER_ENABLED
           value: "true"
         - name: DD_REMOTE_CONFIGURATION_ENABLED
+          value: "true"
+        - name: DD_LOG_FORMAT_JSON
           value: "true"
         image: registry.datadoghq.com/cluster-agent:7.83.0
         livenessProbe:

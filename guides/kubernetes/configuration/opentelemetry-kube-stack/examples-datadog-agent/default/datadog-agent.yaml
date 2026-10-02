@@ -79,12 +79,16 @@ spec:
       # -jmx variant bundles a JRE so JMXFetch can run JMX checks (e.g. Kafka `ad.datadoghq.com/kafka.checks`).
       image:
         tag: "7.83.2-jmx"
-      # On non-cloud clusters, use "<Kubernetes node name>-<cluster name>" as the Agent hostname
-      # (instead of the container runtime's hostname, e.g. the VM hostname on Rancher Desktop), unique
-      # across clusters. K8S_NODE_NAME and K8S_CLUSTER_NAME must be defined before DD_HOSTNAME for
-      # Kubernetes to expand them. Dropped by `install` on EKS/GKE/AKS where the cloud provider
-      # hostname is preferred.
+      # Applied to all the node Agent containers (agent, trace-agent, system-probe).
       env:
+        # JSON logs, easier to parse for the OTel collector tailing the container logs.
+        - name: DD_LOG_FORMAT_JSON
+          value: "true"
+        # On non-cloud clusters, use "<Kubernetes node name>-<cluster name>" as the Agent hostname
+        # (instead of the container runtime's hostname, e.g. the VM hostname on Rancher Desktop),
+        # unique across clusters. K8S_NODE_NAME and K8S_CLUSTER_NAME must be defined before
+        # DD_HOSTNAME for Kubernetes to expand them. Dropped by `install` on EKS/GKE/AKS where the
+        # cloud provider hostname is preferred.
         - name: K8S_NODE_NAME
           valueFrom:
             fieldRef:
@@ -109,3 +113,8 @@ spec:
             # metrics the OTel collectors already collect (hence `kubeStateMetricsCore` disabled above).
             - name: "DD_IGNORE_AUTOCONF"
               value: "kubernetes_state"
+    clusterAgent:
+      env:
+        # JSON logs, easier to parse for the OTel collector tailing the container logs.
+        - name: DD_LOG_FORMAT_JSON
+          value: "true"

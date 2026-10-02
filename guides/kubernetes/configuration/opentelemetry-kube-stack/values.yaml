@@ -316,6 +316,20 @@ collectors:
           enabled: false
 
     config:
+      # FIXME map the level of the Datadog Agent, Cluster Agent and Operator logs (namespace `datadog`)
+      # to the log severity. They write JSON logs (DD_LOG_FORMAT_JSON for the Agent and Cluster
+      # Agent, see datadog-agent.yaml; the Operator by default), tailed by the chart's
+      # `logsCollection` preset `file_log` receiver as plain string bodies. Datadog parses these JSON
+      # bodies into attributes (message, level...), but every log keeps `status: info`, even with
+      # `level: ERROR`: the OTLP severity is unset, so the Datadog exporter sends an empty `status`
+      # attribute. Add operators after the preset's container parser (Helm replaces lists: repeat it,
+      # `{id: container-parser, type: container, max_log_size: 102400}`), applied only to the
+      # `datadog` namespace (`if: 'resource["k8s.namespace.name"] == "datadog"'`): a `json_parser`
+      # with `severity: {parse_from: attributes.level}` (Agent and Cluster Agent fields: agent, time
+      # "yyyy-MM-dd HH:mm:ss UTC", level, file, line, func, msg; Operator fields: level, ts, msg...).
+      # The Agent's JMXFetch lines are wrapped as {"msg": "<yyyy-MM-dd HH:mm:ss> UTC | JMX | <LEVEL> |
+      # ..."} without a level field: their level needs a `regex_parser` on `attributes.msg`, see
+      # https://github.com/DataDog/datadog-agent/issues/57387.
       receivers:
         # cAdvisor metrics from the kubelet.
         prometheus/cadvisor:
@@ -614,6 +628,13 @@ collectors:
 
       exporters:
         # Export profiles and metrics to Datadog through OTLP HTTP.
+        # FIXME the host profiler's self-telemetry metrics (received by `otlp`, exported here to
+        # Datadog's OTLP intake) show up in Datadog under the host "otelcol-helm" instead of the
+        # node's host "<node name>-<cluster name>" used by the Datadog Agent and the other collectors.
+        # "otelcol-helm" isn't set in this configuration nor in the pod environment, whose
+        # OTEL_RESOURCE_ATTRIBUTES sets host.name and k8s.node.name to the node name: its origin
+        # (Datadog's OTLP intake host resolution or the host profiler distribution) is unconfirmed.
+        # To investigate, e.g. by setting the `datadog.host.name` resource attribute.
         otlp_http:
           endpoint: https://otlp.${env:DD_SITE:-datadoghq.com}
           headers:
