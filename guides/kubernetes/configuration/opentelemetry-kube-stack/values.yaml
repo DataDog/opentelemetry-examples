@@ -432,9 +432,6 @@ collectors:
           deployment_type: daemonset
 
       service:
-        # `resource/hostname` is defined by the chart's default daemon collector config: it sets
-        # host.name from k8s.node.name, when not already set, so telemetry is attributed to the host
-        # of the node's Datadog Agent (e.g. for Datadog Live Debugger's Agent checks).
         pipelines:
           logs:
             receivers: [otlp]
