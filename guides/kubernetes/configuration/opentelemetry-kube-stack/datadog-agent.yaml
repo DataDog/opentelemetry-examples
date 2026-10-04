@@ -15,7 +15,8 @@ metadata:
 spec:
   global:
     # <DD_SITE> and the cluster name placeholder are substituted by the `install` script, which
-    # removes the `clusterName` line on EKS/GKE/AKS so the Agent auto-detects the cluster name.
+    # removes the `clusterName` line on EKS/GKE/AKS without an application key (no cluster name
+    # entered) so the Agent auto-detects the cluster name.
     clusterName: "<CLUSTER_NAME>"
     site: "<DD_SITE>"
     credentials:

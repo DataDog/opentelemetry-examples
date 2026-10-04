@@ -50,12 +50,6 @@ defaultCRConfig:
     resourceDetection:
       k8s_api:
         enabled: true
-      eks:
-        enabled: false
-      aks:
-        enabled: false
-      gcp:
-        enabled: false
   config:
     receivers:
       otlp:

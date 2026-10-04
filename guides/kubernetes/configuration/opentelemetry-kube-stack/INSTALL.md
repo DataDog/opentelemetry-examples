@@ -5,7 +5,7 @@ installs:
 
 - the [OpenTelemetry Kube Stack][chart]: the OpenTelemetry Operator, the `cluster` and `daemon` collectors, and the
   optional host profiler, which collect the Kubernetes and application telemetry;
-- [cert-manager][cm], for the OpenTelemetry Operator's admission webhook;
+- [cert-manager][cm], if not already installed, for the OpenTelemetry Operator's admission webhook;
 - the [Datadog Operator][dd-operator] and a Datadog Agent scoped down to a single role: enabling the Datadog-specific
   features of the Datadog OpenTelemetry APM SDKs, such as Live Debugger, on top of the standard OpenTelemetry
   capabilities.
@@ -17,7 +17,7 @@ See [What this deploys](README.md#what-this-deploys) for the architecture, and
 
 On the machine running the script:
 
-- **Bash**, including the stock `/bin/bash` (3.2) on macOS.
+- **Bash** 3.2 or later, on Linux or macOS (the stock `/bin/bash` 3.2 on macOS works).
 - **`kubectl`**, with its current context pointing at the target cluster (`kubectl config current-context`), and
   permissions to create namespaces, CRDs, cluster roles, and webhooks (typically `cluster-admin`).
 - **`helm`**, v3 or v4.
@@ -33,7 +33,7 @@ From Datadog:
 On the cluster:
 
 - Linux nodes with kernel >= 5.10 and Kubernetes >= 1.30, only if you enable the optional eBPF host profiler.
-- On platforms other than EKS, GKE, and AKS, a cluster name that follows the
+- On platforms other than EKS, GKE, and AKS, or with an application key, a cluster name that follows the
   [cluster name constraints](README.md#cluster-name-constraints) (lowercase letters, digits, `-` and `.`).
 
 ## 1. Download the script
@@ -80,7 +80,7 @@ The script asks the following questions:
 | Datadog API Key                | Your API key (input hidden). Required. Only asked without a `.env` file.                                                   |
 | Datadog Application Key        | Optional but strongly recommended (input hidden): enables Fleet Automation. Only asked without a `.env` file.              |
 | Kubernetes cluster type        | `EKS`, `GKE`, or `AKS` to auto-detect the cluster name from the cloud provider, `Other` otherwise.                         |
-| Kubernetes Cluster Name        | Only asked for `Other`. Defaults to `unknown-k8s-cluster`. Uppercase letters are lowercased and `_` replaced with `-`.     |
+| Kubernetes Cluster Name        | Asked for `Other`, defaults to `unknown-k8s-cluster`. Also asked on `EKS`, `GKE`, and `AKS` with an application key, for Fleet Automation, defaulting to the name in the `kubectl` context. Uppercase letters are lowercased and `_` replaced with `-`. |
 | Deployment Environment Name    | Sets `deployment.environment.name` on all telemetry. Defaults to `production`.                                             |
 | Enable the eBPF host profiler? | `y` to deploy the host profiler on every node. Defaults to `N`: its pods need eBPF privileges.                             |
 | Egress NetworkPolicy?          | Only asked with the host profiler: `s`tandard or `c`ilium on clusters enforcing NetworkPolicy, `n`one otherwise (default). |
@@ -142,7 +142,7 @@ Run `./install --help` for the full list.
 |:------------------------|:----------------------------------------------------------------------------------------------------------------------------------------|
 | `--local`               | Use the configuration files next to the script instead of downloading them, e.g. to test changes from a clone of this repository.       |
 | `--config-url=<url>`    | Download the configuration files from another GitHub folder (`https://github.com/<owner>/<repo>/tree/<branch>/<path>`) or raw base URL. |
-| `<overlay-values.yaml>` | A values file merged on top of `values.yaml`: a local file, a URL, or a path relative to the configuration folder.                      |
+| `<overlay-values.yaml>` | A values file merged on top of the `values.yaml` file of the OpenTelemetry Kube stack Helm chart: a local file, a URL, or a path relative to the configuration folder.                      |
 
 For advanced users only, for example to customize the configuration with your own values file:
 
@@ -154,8 +154,9 @@ For advanced users only, for example to customize the configuration with your ow
 
 - **`Could not download ...`**: the configuration files couldn't be fetched from GitHub. Check the network access and
   the `--config-url`, or run from a clone of this repository with `--local`.
-- **`No cluster name set (EKS/GKE/AKS): the Datadog Operator's Remote Configuration requires one`**: Fleet Automation
-  needs an explicit cluster name. Re-run, choose `Other`, and enter the cluster name.
+- **`No cluster name set: the Datadog Operator's Remote Configuration requires one`**: Fleet Automation needs an
+  explicit cluster name, and none was entered (the cluster name couldn't be derived from the `kubectl` context). Re-run
+  and enter the cluster name.
 - **`Using cluster name '...' instead of '...'`**: the cluster name you entered was normalized to satisfy the Datadog
   Agent's constraints. Use the normalized name when looking for the cluster in Datadog.
 

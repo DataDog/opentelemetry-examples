@@ -53,7 +53,7 @@ Options (see `./install --help`):
 - `--config-url=<url>`: download the configuration files from another GitHub folder, like `https://github.com/DataDog/opentelemetry-examples/tree/<branch>/guides/kubernetes/configuration/opentelemetry-kube-stack`;
 - `<overlay-values.yaml>`: a values file merged on top of `values.yaml`, as a local file, a URL, or a path relative to the configuration folder (for example `examples/export-to-datadog-and-jaeger/values.yaml`).
 
-The installer reads your Datadog API key, site, and optional application key from a `.env` file next to it, or prompts for them when there's none (the site defaults to `datadoghq.com` only when `.env` doesn't set `DD_SITE`; the prompt requires it). It then prompts for your Kubernetes platform, deployment environment, and whether to enable the eBPF host profiler. For EKS, GKE, and AKS, it enables the matching resource-detection preset. For other platforms, it prompts for the Kubernetes cluster name.
+The installer reads your Datadog API key, site, and optional application key from a `.env` file next to it, or prompts for them when there's none (the site defaults to `datadoghq.com` only when `.env` doesn't set `DD_SITE`; the prompt requires it). It then prompts for your Kubernetes platform, deployment environment, and whether to enable the eBPF host profiler. For EKS, GKE, and AKS, it enables the matching resource-detection preset. For other platforms, it prompts for the Kubernetes cluster name, and also on EKS, GKE, and AKS when you provide an application key, as [Fleet Automation](#fleet-automation-optional) needs it.
 
 It then:
 
@@ -203,7 +203,7 @@ export DD_APP_KEY="<your-datadog-application-key>"
 The installer always gives the Datadog Operator its own API key, site, and cluster name. With an application key, it also stores it as `app-key` in the `datadog` namespace's `datadog-secret`, and installs the Datadog Operator with it and with Remote Configuration enabled (`appKeyExistingSecret`, `remoteConfiguration.enabled=true` and `previewFleetRollouts=true` Helm values). Without an application key, the Operator is installed without Remote Configuration.
 
 - Remote configuration of Agents running on Kubernetes is in Preview: [request access][dd-fleet-k8s-preview] for your Datadog organization.
-- The Operator's Remote Configuration requires a cluster name: on EKS, GKE, and AKS, choose `Other` and enter the cluster name.
+- The Operator's Remote Configuration requires a cluster name, even on EKS, GKE, and AKS where the Datadog Agent and the OpenTelemetry Collector auto-detect it: the Operator only reads its `clusterName` Helm value. So with an application key, the installer also prompts for the cluster name on EKS, GKE, and AKS, defaulting to the name in the current `kubectl` context, and uses it for the Operator, the Datadog Agent, and the collectors' `k8s.cluster.name`.
 - The application key acts with the permissions of the user who created it: prefer a dedicated, scoped application key.
 
 ## Host profiler (optional)
@@ -217,8 +217,9 @@ Enable it by answering `y` to the installer's prompt, or install manually follow
 For EKS, AKS, and GKE, the installer enables the corresponding resource-detection preset in both collectors. The
 OpenTelemetry Collector then automatically populates `k8s.cluster.name`.
 
-For other Kubernetes platforms, the
-installer sets `resourceAttributes.k8s.cluster.name` to the supplied cluster name.
+For other Kubernetes platforms, and on EKS, GKE, and AKS when a cluster name is entered for
+[Fleet Automation](#fleet-automation-optional), the installer sets `resourceAttributes.k8s.cluster.name` to the supplied
+cluster name, which overrides the detected one.
 
 ### Cluster name constraints
 

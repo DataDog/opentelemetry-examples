@@ -131,14 +131,10 @@ select KUBE_CLUSTER_TYPE in "Amazon Elastic Kubernetes Service (EKS)" "Google Ku
     echo "Invalid selection, please try again."
 done
 
-RESOURCE_DETECTION_AKS_ENABLED=false
-RESOURCE_DETECTION_EKS_ENABLED=false
-RESOURCE_DETECTION_GCP_ENABLED=false
-
 case "$KUBE_CLUSTER_TYPE" in
-    "Amazon Elastic Kubernetes Service (EKS)") K8S_MANAGED_SERVICE_DETECTOR="eks" ; RESOURCE_DETECTION_EKS_ENABLED=true ;;
-    "Google Kubernetes Engine (GKE)") K8S_MANAGED_SERVICE_DETECTOR="gcp" ; RESOURCE_DETECTION_GCP_ENABLED=true ;;
-    "Azure Kubernetes Service (AKS)") K8S_MANAGED_SERVICE_DETECTOR="aks" ; RESOURCE_DETECTION_AKS_ENABLED=true ;;
+    "Amazon Elastic Kubernetes Service (EKS)") K8S_MANAGED_SERVICE_DETECTOR="eks" ;;
+    "Google Kubernetes Engine (GKE)") K8S_MANAGED_SERVICE_DETECTOR="gcp" ;;
+    "Azure Kubernetes Service (AKS)") K8S_MANAGED_SERVICE_DETECTOR="aks" ;;
     *) K8S_MANAGED_SERVICE_DETECTOR="" ;;
 esac
 export K8S_MANAGED_SERVICE_DETECTOR
@@ -146,19 +142,44 @@ export K8S_MANAGED_SERVICE_DETECTOR
 
 # The Datadog Agent only accepts lowercase letters, digits, "-" and "." in cluster names (no
 # uppercase, no "_"): it rewrites "_" to "-" and ignores names with uppercase letters.
-K8S_CLUSTER_NAME="unknown-k8s-cluster"
+#
+# On EKS/GKE/AKS, the cluster name is auto-detected (k8s.cluster.name by the OpenTelemetry Collector
+# Resource Detection Processor, clusterName by the Datadog Agent), except for the Datadog Operator:
+# its Remote Configuration, used by Fleet Automation, only reads the clusterName Helm value. So with
+# an application key, also prompt for the cluster name on EKS/GKE/AKS, defaulting to the name in the
+# current kubectl context, and use it everywhere so all the telemetry has the same cluster name.
+K8S_CLUSTER_NAME=""
 if [[ "$KUBE_CLUSTER_TYPE" == "Other" ]]; then
     read -p "Kubernetes Cluster Name (default: 'unknown-k8s-cluster'): " K8S_CLUSTER_NAME
     K8S_CLUSTER_NAME=${K8S_CLUSTER_NAME:-unknown-k8s-cluster}
+elif [[ -n "${DD_APP_KEY:-}" ]]; then
+    KUBE_CONTEXT=$(kubectl config current-context 2>/dev/null || true)
+    case "$K8S_MANAGED_SERVICE_DETECTOR" in
+        # "arn:aws:eks:<region>:<account>:cluster/<name>" or eksctl's "<user>@<name>.<region>.eksctl.io"
+        eks) case "$KUBE_CONTEXT" in
+                 arn:aws:eks:*) DEFAULT_K8S_CLUSTER_NAME="${KUBE_CONTEXT##*/}" ;;
+                 *@*.eksctl.io) DEFAULT_K8S_CLUSTER_NAME="${KUBE_CONTEXT#*@}"; DEFAULT_K8S_CLUSTER_NAME="${DEFAULT_K8S_CLUSTER_NAME%%.*}" ;;
+                 *) DEFAULT_K8S_CLUSTER_NAME="" ;;
+             esac ;;
+        # "gke_<project>_<location>_<name>", GKE cluster names have no "_"
+        gcp) [[ "$KUBE_CONTEXT" == gke_* ]] && DEFAULT_K8S_CLUSTER_NAME="${KUBE_CONTEXT##*_}" || DEFAULT_K8S_CLUSTER_NAME="" ;;
+        # `az aks get-credentials` names the context after the cluster
+        *) DEFAULT_K8S_CLUSTER_NAME="$KUBE_CONTEXT" ;;
+    esac
+    echo "Fleet Automation needs the Kubernetes cluster name for the Datadog Operator."
+    if [[ -n "$DEFAULT_K8S_CLUSTER_NAME" ]]; then
+        read -p "Kubernetes Cluster Name (default: '$DEFAULT_K8S_CLUSTER_NAME'): " K8S_CLUSTER_NAME
+        K8S_CLUSTER_NAME=${K8S_CLUSTER_NAME:-$DEFAULT_K8S_CLUSTER_NAME}
+    else
+        read -p "Kubernetes Cluster Name (leave empty to auto-detect it, without Fleet Automation): " K8S_CLUSTER_NAME
+    fi
+fi
+if [[ -n "$K8S_CLUSTER_NAME" ]]; then
     NORMALIZED_K8S_CLUSTER_NAME=$(echo "$K8S_CLUSTER_NAME" | tr '[:upper:]_' '[:lower:]-')
     if [[ "$NORMALIZED_K8S_CLUSTER_NAME" != "$K8S_CLUSTER_NAME" ]]; then
         echo "Using cluster name '$NORMALIZED_K8S_CLUSTER_NAME' instead of '$K8S_CLUSTER_NAME' (lowercase, '-' instead of '_')."
         K8S_CLUSTER_NAME="$NORMALIZED_K8S_CLUSTER_NAME"
     fi
-else
-  # k8s.cluster.name will be auto-detected by the OpenTelemetry Collector Resource Detection Processor
-  # based on the cloud provider detector (eks, gcp, aks)
-  K8S_CLUSTER_NAME=""
 fi
 export K8S_CLUSTER_NAME
 
@@ -243,10 +264,12 @@ echo "Installing OpenTelemetry Kube Stack Helm Chart..."
 HELM_SET_ARGS=(
     --set-string "resourceAttributes.deployment\.environment=$DEPLOYMENT_ENVIRONMENT_NAME"
     --set-string "resourceAttributes.deployment\.environment\.name=$DEPLOYMENT_ENVIRONMENT_NAME"
-    --set defaultCRConfig.presets.resourceDetection.aks.enabled=$RESOURCE_DETECTION_AKS_ENABLED
-    --set defaultCRConfig.presets.resourceDetection.eks.enabled=$RESOURCE_DETECTION_EKS_ENABLED
-    --set defaultCRConfig.presets.resourceDetection.gcp.enabled=$RESOURCE_DETECTION_GCP_ENABLED
 )
+
+# The eks, aks and gcp presets are disabled by default in the chart: enable the cluster's one.
+if [[ -n "$K8S_MANAGED_SERVICE_DETECTOR" ]]; then
+    HELM_SET_ARGS+=(--set "defaultCRConfig.presets.resourceDetection.${K8S_MANAGED_SERVICE_DETECTOR}.enabled=true")
+fi
 
 if [[ -n "$K8S_CLUSTER_NAME" ]]; then
     HELM_SET_ARGS+=(--set-string "resourceAttributes.k8s\.cluster\.name=$K8S_CLUSTER_NAME")
@@ -309,8 +332,8 @@ if [[ -n "${DD_APP_KEY:-}" ]]; then
         --set previewFleetRollouts=true
     )
     if [[ -z "$K8S_CLUSTER_NAME" ]]; then
-        echo "WARNING: No cluster name set (EKS/GKE/AKS): the Datadog Operator's Remote Configuration requires one." \
-             "Choose 'Other' and enter the cluster name to enable Fleet Automation."
+        echo "WARNING: No cluster name set: the Datadog Operator's Remote Configuration requires one." \
+             "Re-run this script and enter the cluster name to enable Fleet Automation."
     fi
 else
     echo "DD_APP_KEY not set: Fleet Automation (managing the Agent from Datadog) is disabled." \
@@ -326,14 +349,20 @@ helm upgrade datadog-operator \
 
 echo "Applying the DatadogAgent custom resource..."
 
-# On EKS/GKE/AKS, K8S_CLUSTER_NAME is empty: drop the `clusterName` line so the Datadog Agent
-# auto-detects the cluster name from the cloud provider. An empty `clusterName: ""` isn't enough,
-# the Operator would still set DD_CLUSTER_NAME on the agent containers.
-# Likewise, only set the Agent hostname from the Kubernetes node name and the cluster name on non-cloud clusters.
+# Without a cluster name (EKS/GKE/AKS without an application key), drop the `clusterName` line so
+# the Datadog Agent auto-detects the cluster name from the cloud provider. An empty `clusterName: ""`
+# isn't enough, the Operator would still set DD_CLUSTER_NAME on the agent containers.
+# Only set the Agent hostname from the Kubernetes node name and the cluster name on non-cloud
+# clusters: on EKS/GKE/AKS, the cloud provider hostname is preferred.
 if [[ -n "$K8S_CLUSTER_NAME" ]]; then
-    CLUSTER_NAME_SED_ARGS=(-e "s|<CLUSTER_NAME>|$K8S_CLUSTER_NAME|" -e "/<HOSTNAME_FROM_NODE_NAME:/d")
+    CLUSTER_NAME_SED_ARGS=(-e "s|<CLUSTER_NAME>|$K8S_CLUSTER_NAME|")
 else
-    CLUSTER_NAME_SED_ARGS=(-e "/<CLUSTER_NAME>/d" -e "/<HOSTNAME_FROM_NODE_NAME:BEGIN>/,/<HOSTNAME_FROM_NODE_NAME:END>/d")
+    CLUSTER_NAME_SED_ARGS=(-e "/<CLUSTER_NAME>/d")
+fi
+if [[ "$KUBE_CLUSTER_TYPE" == "Other" ]]; then
+    CLUSTER_NAME_SED_ARGS+=(-e "/<HOSTNAME_FROM_NODE_NAME:/d")
+else
+    CLUSTER_NAME_SED_ARGS+=(-e "/<HOSTNAME_FROM_NODE_NAME:BEGIN>/,/<HOSTNAME_FROM_NODE_NAME:END>/d")
 fi
 
 sed \
