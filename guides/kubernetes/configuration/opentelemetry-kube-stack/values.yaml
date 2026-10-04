@@ -8,7 +8,7 @@ opentelemetry-operator:
   manager:
     collectorImage:
       repository: otel/opentelemetry-collector-contrib
-      tag: "0.162.0"
+      tag: "0.161.0"
       #repository: datadog/ddot-collector
       #tag: "7.85.0-rc.2"
       #repository: datadog/otel-agent-dev
@@ -318,21 +318,66 @@ collectors:
           enabled: false
 
     config:
-      # FIXME map the level of the Datadog Agent, Cluster Agent and Operator logs (namespace `datadog`)
-      # to the log severity. They write JSON logs (DD_LOG_FORMAT_JSON for the Agent and Cluster
-      # Agent, see datadog-agent.yaml; the Operator by default), tailed by the chart's
-      # `logsCollection` preset `file_log` receiver as plain string bodies. Datadog parses these JSON
-      # bodies into attributes (message, level...), but every log keeps `status: info`, even with
-      # `level: ERROR`: the OTLP severity is unset, so the Datadog exporter sends an empty `status`
-      # attribute. Add operators after the preset's container parser (Helm replaces lists: repeat it,
-      # `{id: container-parser, type: container, max_log_size: 102400}`), applied only to the
-      # `datadog` namespace (`if: 'resource["k8s.namespace.name"] == "datadog"'`): a `json_parser`
-      # with `severity: {parse_from: attributes.level}` (Agent and Cluster Agent fields: agent, time
-      # "yyyy-MM-dd HH:mm:ss UTC", level, file, line, func, msg; Operator fields: level, ts, msg...).
-      # The Agent's JMXFetch lines are wrapped as {"msg": "<yyyy-MM-dd HH:mm:ss> UTC | JMX | <LEVEL> |
-      # ..."} without a level field: their level needs a `regex_parser` on `attributes.msg`, see
-      # https://github.com/DataDog/datadog-agent/issues/57387.
       receivers:
+        # FIXME the Agent's JMXFetch lines are wrapped as {"msg": "<yyyy-MM-dd HH:mm:ss> UTC | JMX |
+        # <LEVEL> | ..."} without a level field: their level would need a `regex_parser` on the
+        # message, see https://github.com/DataDog/datadog-agent/issues/57387.
+        file_log:
+          operators:
+            # The preset's container parser (Helm replaces lists, so it's repeated here).
+            - type: container
+              id: container-parser
+              max_log_size: 102400
+            - type: json_parser
+              id: datadog-json-parser
+              if: 'resource["k8s.namespace.name"] == "datadog" and body matches "^\\s*\\{"'
+              parse_from: body
+              parse_to: attributes.datadog_log
+              severity:
+                parse_from: attributes.datadog_log.level
+                mapping:
+                  fatal: critical
+              # JMXFetch lines have no level field: send them as is, without logging an error.
+              on_error: send_quiet
+            - type: move
+              id: datadog-json-msg
+              if: 'attributes["datadog_log"] != nil and attributes["datadog_log"]["msg"] != nil'
+              from: attributes.datadog_log.msg
+              to: body
+            - type: move
+              id: datadog-json-code-file
+              if: 'attributes["datadog_log"] != nil and attributes["datadog_log"]["file"] != nil'
+              from: attributes.datadog_log.file
+              to: attributes["code.file.path"]
+            - type: move
+              id: datadog-json-code-line
+              if: 'attributes["datadog_log"] != nil and attributes["datadog_log"]["line"] != nil'
+              from: attributes.datadog_log.line
+              to: attributes["code.line.number"]
+            - type: move
+              id: datadog-json-code-func
+              if: 'attributes["datadog_log"] != nil and attributes["datadog_log"]["func"] != nil'
+              from: attributes.datadog_log.func
+              to: attributes["code.function.name"]
+            # Drop `level`, already the severity, and the Agent's `time` and the Operator's `ts`:
+            # the container parser's CRI timestamp is more precise (ns vs. s and ms).
+            - type: remove
+              id: datadog-json-level
+              if: 'attributes["datadog_log"] != nil and attributes["datadog_log"]["level"] != nil'
+              field: attributes.datadog_log.level
+            - type: remove
+              id: datadog-json-time
+              if: 'attributes["datadog_log"] != nil and attributes["datadog_log"]["time"] != nil'
+              field: attributes.datadog_log.time
+            - type: remove
+              id: datadog-json-ts
+              if: 'attributes["datadog_log"] != nil and attributes["datadog_log"]["ts"] != nil'
+              field: attributes.datadog_log.ts
+            # Keep the other fields (agent, logger, the Operator's extra fields) as attributes.
+            - type: flatten
+              id: datadog-json-flatten
+              if: 'attributes["datadog_log"] != nil'
+              field: attributes.datadog_log
         # cAdvisor metrics from the kubelet.
         prometheus/cadvisor:
           config:
