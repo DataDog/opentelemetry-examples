@@ -9,6 +9,9 @@ Usage:
   ./install-app
   ROLLOUT_TIMEOUT=5m ./install-app
   IMAGE_PREFIX=ghcr.io/example/astronomy-store IMAGE_TAG=v1.2.3 ./install-app
+
+If IMAGE_PREFIX/IMAGE_TAG are not set, they default to the values in .image-env (written by
+`./build-images --push`), falling back to astronomy-store:latest.
 EOF
     exit 0
 fi
@@ -21,9 +24,25 @@ fi
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 NAMESPACE="astronomy-store"
 ROLLOUT_TIMEOUT="${ROLLOUT_TIMEOUT:-3m}"
+
+# Fall back to the prefix/tag last pushed by `./build-images --push`, if any, before
+# applying the local-build defaults. Real env vars always win.
+IMAGE_ENV_FILE="${SCRIPT_DIR}/.image-env"
+if [[ -f "${IMAGE_ENV_FILE}" ]]; then
+    while IFS='=' read -r key value; do
+        case "${key}" in
+            IMAGE_PREFIX) : "${IMAGE_PREFIX:=${value}}" ;;
+            IMAGE_TAG) : "${IMAGE_TAG:=${value}}" ;;
+        esac
+    done < <(grep -v '^\s*#' "${IMAGE_ENV_FILE}" | grep -v '^\s*$')
+fi
+
 IMAGE_PREFIX="${IMAGE_PREFIX:-astronomy-store}"
 IMAGE_PREFIX="${IMAGE_PREFIX%/}"
 IMAGE_TAG="${IMAGE_TAG:-latest}"
+
+echo "Deploying images from ${IMAGE_PREFIX} with tag ${IMAGE_TAG}."
+
 SERVICE_MANIFESTS=(
     astronomy-db/kubernetes.yaml
     ad/kubernetes.yaml

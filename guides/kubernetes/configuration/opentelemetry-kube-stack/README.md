@@ -16,21 +16,38 @@ The `opentelemetry-kube-stack` chart installs the OpenTelemetry Operator and ren
 
 ## Quickstart
 
-Run the installer from this directory:
+Configure the installer with environment variables, then run it from this directory:
+
+| Variable | Description | Default |
+|---|---|---|
+| `DD_API_KEY` | Datadog API key. | None (required) |
+| `DD_SITE` | Datadog site, for example `datadoghq.eu`. | `datadoghq.com` |
+| `K8S_CLUSTER_TYPE` | Kubernetes platform: `eks` (EKS), `gcp` (GKE), `aks` (AKS), or `other`. | `other` |
+| `K8S_CLUSTER_NAME` | Kubernetes cluster name. For `eks`, `gcp`, and `aks`, overrides the auto-detected name. | Auto-detected for `eks`, `gcp`, and `aks`; unset otherwise |
+| `DEPLOYMENT_ENVIRONMENT_NAME` | Value of the `deployment.environment.name` resource attribute. | `production` |
 
 ```sh
+export DD_API_KEY="<your-datadog-api-key>"
+export K8S_CLUSTER_TYPE=eks
 ./install
 ```
 
-The installer prompts for your Datadog API key and site (the site defaults to `datadoghq.com`), Kubernetes platform, and deployment environment. For EKS, GKE, and AKS, it enables the matching resource-detection preset. For other platforms, it prompts for the Kubernetes cluster name.
+Alternatively, copy `.env.example` to `.env`, fill it in, and load it before running the installer:
+
+```sh
+cp .env.example .env
+# Edit .env
+source .env
+./install
+```
+
+For EKS, GKE, and AKS, the installer enables the matching resource-detection preset.
 
 It then:
 
 - creates the `opentelemetry-operator-system` namespace and the `datadog-secret` secret;
 - installs cert-manager when needed; and
 - installs or upgrades the OpenTelemetry Kube Stack Helm chart.
-
-If you choose to save your credentials, the installer writes them to `.env` with permissions restricted to the file owner. Keep this file out of version control.
 
 ## Install with values files
 
@@ -107,10 +124,10 @@ helm upgrade --install opentelemetry-kube-stack \
 ## Cluster name detection
 
 For EKS, AKS, and GKE, the installer enables the corresponding resource-detection preset in both collectors. The
-OpenTelemetry Collector then automatically populates `k8s.cluster.name`.
+OpenTelemetry Collector then automatically populates `k8s.cluster.name`, unless `K8S_CLUSTER_NAME` is set.
 
  For other Kubernetes platforms, the
-installer sets `resourceAttributes.k8s.cluster.name` to the supplied cluster name.
+installer sets `resourceAttributes.k8s.cluster.name` to `K8S_CLUSTER_NAME` if that variable is set.
 
 See `examples/` for rendered values and manifests for each deployment type.
 
