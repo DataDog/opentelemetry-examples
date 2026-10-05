@@ -38,7 +38,7 @@ packaging==26.3
 protobuf==6.33.6
 requests==2.34.2
 typing_extensions==4.16.0
-urllib3==2.7.0
+urllib3==2.8.0
 Werkzeug==3.1.8
 wrapt==2.4.0
 zipp==3.23.1
