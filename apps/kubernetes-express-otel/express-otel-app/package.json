@@ -23,6 +23,26 @@
       "body-parser": {
         "qs": "^6.16.0"
       }
+    },
+    "@opentelemetry/sdk-node": {
+      "@opentelemetry/exporter-logs-otlp-grpc": {
+        "@opentelemetry/otlp-grpc-exporter-base": {
+          "@grpc/grpc-js": "^1.14.5"
+        }
+      },
+      "@opentelemetry/exporter-metrics-otlp-grpc": {
+        "@opentelemetry/otlp-grpc-exporter-base": {
+          "@grpc/grpc-js": "^1.14.5"
+        }
+      },
+      "@opentelemetry/exporter-trace-otlp-grpc": {
+        "@opentelemetry/otlp-grpc-exporter-base": {
+          "@grpc/grpc-js": "^1.14.5"
+        }
+      },
+      "@opentelemetry/otlp-grpc-exporter-base": {
+        "@grpc/grpc-js": "^1.14.5"
+      }
     }
   }
 }
