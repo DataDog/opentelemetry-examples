@@ -23,10 +23,10 @@ dependencies {
     implementation 'org.apache.kafka:kafka-clients:3.9.2'
 
     // logger
-    implementation(platform("org.apache.logging.log4j:log4j-bom:2.25.4"))
+    implementation(platform("org.apache.logging.log4j:log4j-bom:2.26.1"))
     implementation("org.apache.logging.log4j:log4j-api")
     implementation("org.apache.logging.log4j:log4j-core")
-    implementation("org.apache.logging.log4j:log4j-slf4j2-impl:2.25.4")
+    implementation("org.apache.logging.log4j:log4j-slf4j2-impl:2.26.1")
 }
 
 application {
