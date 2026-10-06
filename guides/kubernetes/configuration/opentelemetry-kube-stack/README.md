@@ -66,7 +66,7 @@ It then:
 
 To skip the credential prompts on every run, create the `.env` file yourself, see the [installation guide](INSTALL.md#2-provide-the-datadog-credentials). Keep this file out of version control.
 
-Datadog engineers upgrading a cluster set up with an earlier version of this guide: see the [migration guide](MIGRATE.md).
+Datadog engineers upgrading a cluster set up with an earlier version of this guide: see the [upgrade guide](UPGRADE.md).
 
 ## Install with values files
 

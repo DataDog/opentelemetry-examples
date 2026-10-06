@@ -1,4 +1,4 @@
-# Migration guide: the `migrate` script
+# Upgrade guide
 
 This guide is for Datadog engineers upgrading a cluster set up with an earlier version of this guide. A first
 installation doesn't need it: follow the [installation guide](INSTALL.md) instead.
@@ -19,7 +19,7 @@ must not run on the same node. The `install` script refuses to run while they ex
 ERROR: Found the legacy 'ddagent-kube-stack' Helm release from a previous setup in the opentelemetry-operator-system namespace: run ./migrate to remove it, then re-run this script.
 ```
 
-## Migrate
+## Remove the legacy releases
 
 Download and run the `migrate` script, then re-run the `install` script:
 
@@ -40,6 +40,6 @@ Between the two scripts, profiling and the features enabled by the Datadog Agent
 
 ## Upgrading the current setup
 
-Once migrated, upgrade by re-running the `install` script: every step is idempotent (`helm upgrade --install`,
+Once the legacy releases are removed, upgrade by re-running the `install` script: every step is idempotent (`helm upgrade --install`,
 `kubectl apply`). It asks the deployment questions again, so give the same answers to keep the same configuration.
 The credentials come from the `.env` file when it exists.
