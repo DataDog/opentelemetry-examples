@@ -39,12 +39,25 @@ spec:
     # No log collection by the Agent: the OTel Kube Stack daemon collector handles logs.
     logCollection:
       enabled: false
+    # Live Debugger / Dynamic Instrumentation for Go apps: enables the system-probe Dynamic
+    # Instrumentation module (sets DD_DYNAMIC_INSTRUMENTATION_ENABLED on the core agent and
+    # system-probe containers)
+    # See https://docs.datadoghq.com/tracing/live_debugger/?prog_lang=go
+    # Known issue: on arm64 nodes running Linux >= 6.18 (e.g. Rancher Desktop on Apple Silicon),
+    # Go probes fail to load with "invalid bpf_context access off=328 size=8" as the kernel's
+    # struct pt_regs shrank. Use an x86_64 node or an older arm64 kernel (e.g. 6.12) meanwhile.
+    # See https://github.com/DataDog/datadog-agent/issues/57314
+    dynamicInstrumentation:
+      enabled: true
+
     # No APM single-step (auto) instrumentation: SDKs are injected via the OTel Operator instead.
     apm:
       instrumentation:
-        # CAN BE DISABLED WHEN INSTRUMENTING WITH THE OPENTELEMETRY OPERATOR, CAN BE ENABLED FOR HYBRID OTEL AND DATADOG
-        # NATIVE INSTRUMENTATION. ENABLING DD INSTRUMENTATION REQUIRES EXCLUDING PODS THAT ARE INJECTED WITH OTEL SDKS
-        # BY THE OPENTELEMETRY OPERATOR FROM DD INSTRUMENTATION, OTHERWISE THE SAME POD WILL BE INSTRUMENTED TWICE.
+        # Disabled when instrumenting exclusively with the opentelemetry operator. Enabled for hybrid OTel and Datadog
+        # native instrumentation.
+        # Enabling simultaneously Datadog Operator and OpenTelemetry Operator auto-instrumentation
+        # requires annotating pod with explicit instrumentation instructions and set the Kubernetes label
+        # `admission.datadoghq.com/enabled` to `"true"` or `"false"`, with double quotes, to prevent double instrumentation.
         #
         # The OpenTelemetry Operator marks pods for injection with the
         # "instrumentation.opentelemetry.io/inject-*" pod ANNOTATIONS, but the Datadog Operator
@@ -65,16 +78,6 @@ spec:
               php: "1"
               dotnet: "3"
               ruby: "2"
-    # Live Debugger / Dynamic Instrumentation for Go apps: enables the system-probe Dynamic
-    # Instrumentation module (sets DD_DYNAMIC_INSTRUMENTATION_ENABLED on the core agent and
-    # system-probe containers)
-    # See https://docs.datadoghq.com/tracing/live_debugger/?prog_lang=go
-    # Known issue: on arm64 nodes running Linux >= 6.18 (e.g. Rancher Desktop on Apple Silicon),
-    # Go probes fail to load with "invalid bpf_context access off=328 size=8" as the kernel's
-    # struct pt_regs shrank. Use an x86_64 node or an older arm64 kernel (e.g. 6.12) meanwhile.
-    # See https://github.com/DataDog/datadog-agent/issues/57314
-    dynamicInstrumentation:
-      enabled: true
   override:
     nodeAgent:
       # -jmx variant bundles a JRE so JMXFetch can run JMX checks (e.g. Kafka `ad.datadoghq.com/kafka.checks`).
