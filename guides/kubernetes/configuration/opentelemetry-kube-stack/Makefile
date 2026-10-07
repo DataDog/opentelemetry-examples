@@ -1,6 +1,6 @@
 TMP_DIRECTORY = ./tmp
 chart_name = opentelemetry-kube-stack
-EXPORTER_MODES = otlp-http
+EXPORTER_MODES = otlp-http ddot
 
 REPO_ROOT := $(shell git rev-parse --show-toplevel)
 CI_SCRIPTS := $(REPO_ROOT)/.github/workflows/scripts
@@ -17,3 +17,4 @@ generate-base-values:
 .PHONY: generate-examples
 generate-examples:
 	@./render-examples $(EXPORTER_MODES)
+	@./render-datadog-agent-examples

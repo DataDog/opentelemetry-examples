@@ -1,0 +1,33 @@
+---
+# Source: datadog/templates/agent-services.yaml
+apiVersion: v1
+kind: Service
+
+metadata:
+  name: ddagent-kube-stack-datadog
+  namespace: opentelemetry-operator-system
+  labels:
+    app: "ddagent-kube-stack-datadog"
+    chart: "datadog-3.240.0"
+    release: "ddagent-kube-stack"
+    heritage: "Helm"
+    helm.sh/chart: 'datadog-3.240.0'
+    app.kubernetes.io/name: "ddagent-kube-stack-datadog"
+    app.kubernetes.io/instance: "ddagent-kube-stack"
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/version: "7"
+spec:
+  selector:
+    app: ddagent-kube-stack-datadog
+  ports:
+    - protocol: UDP
+      port: 8125
+      targetPort: 8125
+      name: dogstatsdport
+    - protocol: TCP
+      port: 8126
+      targetPort: 8126
+      name: traceport
+  internalTrafficPolicy: Local
+
+

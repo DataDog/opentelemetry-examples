@@ -1,0 +1,44 @@
+#!/usr/bin/env bash
+# Renders every examples-datadog-agent/<example>/values.yaml into a rendered/
+# subdirectory. Called by `make generate-examples`.
+set -euo pipefail
+
+cd "$(dirname "${BASH_SOURCE[0]}")"
+
+EXAMPLES_DIR=./examples-datadog-agent
+
+echo "Generating all Datadog Agent examples into their rendered/ subdirectory"
+
+EXAMPLES=$(find ${EXAMPLES_DIR} -maxdepth 1 -mindepth 1 -type d -exec basename {} \;)
+for example in ${EXAMPLES}; do
+	echo "Generating example: ${example}"
+	rm -rf "${EXAMPLES_DIR}/${example}/rendered"
+	helm template ddagent-kube-stack \
+		datadog/datadog \
+		--namespace opentelemetry-operator-system \
+		--version "3.240.0" \
+		--values ./dd-agent-values.yaml --values ${EXAMPLES_DIR}/${example}/values.yaml \
+		--output-dir "${EXAMPLES_DIR}/${example}/rendered"
+	mv ${EXAMPLES_DIR}/${example}/rendered/datadog/templates/* "${EXAMPLES_DIR}/${example}/rendered"
+	SUBCHARTS_DIR=${EXAMPLES_DIR}/${example}/rendered/datadog/charts
+	if [ -d "${SUBCHARTS_DIR}" ]; then
+		SUBCHARTS=$(find ${SUBCHARTS_DIR} -maxdepth 1 -mindepth 1 -type d -exec basename {} \;)
+		for subchart in ${SUBCHARTS}; do
+			mkdir -p "${EXAMPLES_DIR}/${example}/rendered/${subchart}"
+			mv ${SUBCHARTS_DIR}/${subchart}/templates/* "${EXAMPLES_DIR}/${example}/rendered/${subchart}"
+		done
+	fi
+	rm -rf ${EXAMPLES_DIR}/${example}/rendered/datadog
+done
+
+echo "Normalizing auto-generated values"
+if [ "$(uname)" = "Darwin" ]; then
+	find ${EXAMPLES_DIR} -name '*.yaml' -print0 | xargs -0 sed -i '' \
+		-e 's/\(install_id:\) .*/\1 "AUTO_GENERATED"/' \
+		-e 's/\(install_time:\) .*/\1 "AUTO_GENERATED"/'
+else
+	find ${EXAMPLES_DIR} -name '*.yaml' -exec sed -i'' \
+		-e 's/\(install_id:\) .*/\1 "AUTO_GENERATED"/' \
+		-e 's/\(install_time:\) .*/\1 "AUTO_GENERATED"/' \
+		{} +
+fi

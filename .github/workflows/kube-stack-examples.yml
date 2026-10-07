@@ -34,18 +34,19 @@ jobs:
           tar xzf "helm-${HELM_VERSION}-linux-amd64.tar.gz"
           echo "$PWD/linux-amd64" >> "$GITHUB_PATH"
 
-      - name: Add open-telemetry Helm repo
+      - name: Add Helm repos
         run: |
           helm repo add open-telemetry https://open-telemetry.github.io/opentelemetry-helm-charts
-          helm repo update open-telemetry
+          helm repo add datadog https://helm.datadoghq.com
+          helm repo update open-telemetry datadog
 
       - name: Regenerate examples
         run: make generate-examples
 
       - name: Fail if rendered examples are out of date
         run: |
-          if [ -n "$(git status --porcelain -- examples/)" ]; then
-            echo "::error::examples/*/rendered-* is out of date. Run make generate-examples locally with Helm ${HELM_VERSION}."
+          if [ -n "$(git status --porcelain -- examples/ examples-datadog-agent/)" ]; then
+            echo "::error::examples/*/rendered-* or examples-datadog-agent/*/rendered is out of date. Run make generate-examples locally with Helm ${HELM_VERSION}."
             exit 1
           fi
 
@@ -65,8 +66,12 @@ jobs:
         run: make validate
 
   deploy-kind:
-    name: Deploy to a kind cluster
+    name: Deploy to a kind cluster (${{ matrix.flow }})
     runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        flow: [upstream, ddot]
     defaults:
       run:
         working-directory: guides/kubernetes/configuration/opentelemetry-kube-stack
@@ -85,6 +90,7 @@ jobs:
       - name: Install opentelemetry-kube-stack
         env:
           DD_API_KEY: "00000000000000000000000000000000"
+          DD_INSTALL_FLOW: ${{ matrix.flow }}
         run: ./install
 
       - name: Wait for the collectors to roll out
