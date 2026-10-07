@@ -3,7 +3,7 @@ set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
-# Optional extra/overlay values.yaml merged on top of the base values file.
+# Optional overlay values file merged on top of the base values file.
 OVERLAY_VALUES_FILE="${1:-}"
 OVERLAY_VALUES_ARGS=()
 if [[ -n "$OVERLAY_VALUES_FILE" ]]; then
@@ -37,9 +37,6 @@ case "$K8S_CLUSTER_TYPE" in
         ;;
 esac
 
-# The eBPF host profiler needs Linux nodes with kernel >= 5.10 and runs one
-# collector per node with eBPF capabilities. Off by default because of these
-# extra privileges.
 DD_HOST_PROFILER_ENABLED=${DD_HOST_PROFILER_ENABLED:-false}
 DD_HOST_PROFILER_NETWORK_POLICY=${DD_HOST_PROFILER_NETWORK_POLICY:-none}
 HOST_PROFILER_NETWORK_POLICY_FILE=""
@@ -54,8 +51,6 @@ case "$DD_HOST_PROFILER_ENABLED" in
 esac
 
 if [[ "$DD_HOST_PROFILER_ENABLED" == "true" ]]; then
-    # Egress policy for the profiler, only useful on default-deny clusters
-    # whose CNI enforces NetworkPolicy.
     case "$DD_HOST_PROFILER_NETWORK_POLICY" in
         none) ;;
         standard) HOST_PROFILER_NETWORK_POLICY_FILE="$SCRIPT_DIR/host-profiler-network-policy.yaml" ;;
@@ -73,7 +68,7 @@ fi
 
 #### BEGINNING OF INSTALLATION SCRIPT
 
-# WARNING: dont change "namespace=opentelemetry-operator-system" as it is used in the 'instrumentation' CRD defined in values-otlp-http.yaml and values-ddot.yaml
+# WARNING: Do not change "namespace=opentelemetry-operator-system". The Instrumentation resource depends on it.
 
 echo "Creating Kubernetes namespace..."
 
@@ -128,10 +123,8 @@ helm upgrade opentelemetry-kube-stack \
     ${HOST_PROFILER_ENABLED_ARGS[@]+"${HOST_PROFILER_ENABLED_ARGS[@]}"} \
     ${OVERLAY_VALUES_ARGS[@]+"${OVERLAY_VALUES_ARGS[@]}"}
 
-# The standard and Cilium policies select the same pods and Kubernetes
-# NetworkPolicies are additive: remove both NetworkPolicy before applying
-# the selected one (or none), so a policy from a previous run cannot widen
-# the requested egress.
+# Remove both policies before applying the selected one, so a policy from a
+# previous run cannot widen the requested egress.
 kubectl delete networkpolicy \
   --namespace opentelemetry-operator-system \
   --ignore-not-found=true \

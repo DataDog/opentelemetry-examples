@@ -1,7 +1,6 @@
 #!/usr/bin/env bash
-# Renders every guides/.../examples/<example>/values.yaml into a
-# rendered-<mode>/ subdirectory, once per exporter mode passed as an
-# argument. Called by `make generate-otel-kube-stack-examples`.
+# Renders every examples/<example>/values.yaml into a rendered-<mode>/
+# subdirectory, once per exporter mode passed as an argument.
 set -euo pipefail
 
 cd "$(dirname "${BASH_SOURCE[0]}")"
@@ -9,7 +8,7 @@ cd "$(dirname "${BASH_SOURCE[0]}")"
 TMP_DIRECTORY=./tmp
 EXAMPLES_DIR=./examples
 
-# Use Helm 4.2+ since rendering changes across versions.
+# Requires Helm 4.2+.
 echo "Generating all examples into their rendered-<mode>/ subdirectories, one per exporter mode"
 mkdir -p "$TMP_DIRECTORY"
 

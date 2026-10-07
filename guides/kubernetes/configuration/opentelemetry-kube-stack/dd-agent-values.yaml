@@ -1,11 +1,3 @@
-# --- Set by CLI args ---
-#datadog:
-#  apiKeyExistingSecret: datadog-secret
-#  clusterName: <...>
-#  site: <...>
-
-# We want live debugger & dynamic instrumentation
-# but don't need the cluster agent & k8s monitoring (done by the OTel collector)
 datadog:
   # Uncomment if you have Go apps to instrument:
   #dynamicInstrumentationGo:
@@ -34,15 +26,14 @@ datadog:
       value: 'true'
     - name: DD_DYNAMIC_INSTRUMENTATION_ENABLED
       value: 'true'
-# The default agent image has no JVM bundled, so JMXFetch can't exec "java" to
-# run JMX checks (e.g. the "ad.datadoghq.com/kafka.checks" annotation on the
-# Kafka Deployment). The "-jmx" image variant bundles a JRE for this.
+# The "-jmx" image bundles the JRE that JMXFetch needs to run JMX checks (for
+# example, "ad.datadoghq.com/kafka.checks" annotations on a Kafka Deployment).
 agents:
   image:
     tag: 7.83.2-jmx
 
-# Could be enabled to get the admission controller.
-# else DD_AGENT_HOST or unix socket mount must be configured on app pods manually
+# Enable to get the admission controller. Otherwise, configure DD_AGENT_HOST or
+# the unix socket mount on app pods manually.
 clusterAgent:
   enabled: false
   #admissionController:
