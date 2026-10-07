@@ -42,7 +42,7 @@ For a step-by-step walkthrough, including prerequisites, the installer's prompts
 Download and run the installer. You don't need to clone the repository: by default, the installer downloads its configuration files (`values.yaml`, `datadog-agent.yaml`...) from GitHub:
 
 ```sh
-curl -fsSL -o install https://raw.githubusercontent.com/DataDog/opentelemetry-examples/feat/otel-kube-stack-ddot-installer/guides/kubernetes/configuration/opentelemetry-kube-stack/install
+curl -fsSL -o install https://raw.githubusercontent.com/DataDog/opentelemetry-examples/fd6eca3b5a393e8416a1beb1450d97e1d9df89a6/guides/kubernetes/configuration/opentelemetry-kube-stack/install
 chmod +x install
 ./install
 ```
