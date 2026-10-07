@@ -751,6 +751,7 @@ spec:
             enabled: true
           k8s.pod.uptime:
             enabled: true
+        node: ${env:K8S_NODE_NAME}
       otlp:
         protocols:
           grpc:

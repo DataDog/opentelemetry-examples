@@ -371,6 +371,9 @@ collectors:
                   enabled: true
             processes: {}
 
+        kubelet_stats:
+          node: ${env:K8S_NODE_NAME}
+
         # cAdvisor metrics from the kubelet.
         prometheus/cadvisor:
           config:
