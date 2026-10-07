@@ -6,8 +6,13 @@ resourceAttributes:
 opentelemetry-operator:
   manager:
     collectorImage:
+{{- if .DDOT}}
+      repository: datadog/otel-agent-dev
+      tag: agagniere-nodefilter-7
+{{- else}}
       repository: otel/opentelemetry-collector-contrib
       tag: "0.161.0"
+{{- end}}
 
 kubeStateMetrics:
   enabled: true
