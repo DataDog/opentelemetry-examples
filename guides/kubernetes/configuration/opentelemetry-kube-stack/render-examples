@@ -21,7 +21,7 @@ for example in ${EXAMPLES}; do
 		helm template opentelemetry-kube-stack \
 			open-telemetry/opentelemetry-kube-stack \
 			--namespace opentelemetry-operator-system \
-			--version "0.20.8" \
+			--version "0.23.0" \
 			--values ./values-${mode}.yaml --values ${EXAMPLES_DIR}/${example}/values.yaml \
 			--output-dir "${EXAMPLES_DIR}/${example}/rendered-${mode}"
 		mv ${EXAMPLES_DIR}/${example}/rendered-${mode}/opentelemetry-kube-stack/templates/* "${EXAMPLES_DIR}/${example}/rendered-${mode}"
