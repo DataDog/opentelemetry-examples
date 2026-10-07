@@ -42,7 +42,7 @@ You don't need to clone the repository: by default, the script downloads its con
 `datadog-agent.yaml`...) from GitHub.
 
 ```sh
-curl -fsSL -o install https://raw.githubusercontent.com/DataDog/opentelemetry-examples/cyrille-leclerc/use-dd-operator/guides/kubernetes/configuration/opentelemetry-kube-stack/install
+curl -fsSL -o install https://raw.githubusercontent.com/DataDog/opentelemetry-examples/feat/otel-kube-stack-ddot-installer/guides/kubernetes/configuration/opentelemetry-kube-stack/install
 chmod +x install
 ```
 
@@ -168,7 +168,7 @@ which deletes all their custom resources cluster-wide, including ones the `insta
 what it deletes and asks for confirmation:
 
 ```sh
-curl -fsSL -o uninstall https://raw.githubusercontent.com/DataDog/opentelemetry-examples/cyrille-leclerc/use-dd-operator/guides/kubernetes/configuration/opentelemetry-kube-stack/uninstall
+curl -fsSL -o uninstall https://raw.githubusercontent.com/DataDog/opentelemetry-examples/feat/otel-kube-stack-ddot-installer/guides/kubernetes/configuration/opentelemetry-kube-stack/uninstall
 chmod +x uninstall
 ./uninstall
 ```

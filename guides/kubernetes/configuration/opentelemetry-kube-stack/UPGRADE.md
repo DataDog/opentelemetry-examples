@@ -24,7 +24,7 @@ ERROR: Found the legacy 'ddagent-kube-stack' Helm release from a previous setup 
 Download and run the `migrate` script, then re-run the `install` script:
 
 ```sh
-curl -fsSL -o migrate https://raw.githubusercontent.com/DataDog/opentelemetry-examples/cyrille-leclerc/use-dd-operator/guides/kubernetes/configuration/opentelemetry-kube-stack/migrate
+curl -fsSL -o migrate https://raw.githubusercontent.com/DataDog/opentelemetry-examples/feat/otel-kube-stack-ddot-installer/guides/kubernetes/configuration/opentelemetry-kube-stack/migrate
 chmod +x migrate
 ./migrate
 ./install
