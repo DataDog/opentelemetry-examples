@@ -503,7 +503,6 @@ spec:
         api:
           key: ${env:DD_API_KEY}
           site: ${env:DD_SITE:-datadoghq.com}
-      debug: {}
     extensions:
       datadog:
         api:
@@ -513,10 +512,6 @@ spec:
       health_check:
         endpoint: ${env:OTEL_K8S_POD_IP}:13133
     processors:
-      batch:
-        send_batch_max_size: 1500
-        send_batch_size: 1000
-        timeout: 1s
       cumulative_to_delta: {}
       delta_to_rate:
         metrics:
@@ -605,11 +600,6 @@ spec:
         - action: upsert
           key: k8s.cluster.name
           value: my_k8s_cluster
-      resource/hostname:
-        attributes:
-        - action: insert
-          from_attribute: k8s.node.name
-          key: host.name
       resource_detection/env:
         detectors:
         - system

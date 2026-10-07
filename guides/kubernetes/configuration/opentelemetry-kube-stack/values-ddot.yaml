@@ -424,6 +424,9 @@ collectors:
                     action: drop
 
       processors:
+        batch: null
+        resource/hostname: null
+
         delta_to_rate:
           metrics:
             - k8s.pod.network.io
@@ -474,6 +477,9 @@ collectors:
 
       connectors:
         datadog/connector: {}
+
+      exporters:
+        debug: null
 
       extensions:
         datadog:

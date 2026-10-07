@@ -454,6 +454,9 @@ collectors:
                     action: drop
 
       processors:
+        batch: null
+        resource/hostname: null
+
         delta_to_rate:
           metrics:
             - k8s.pod.network.io
@@ -588,6 +591,9 @@ collectors:
             ## Comment out all k8s.*.name tags above if you uncomment this
             # - glob: k8s.*.name
 {{- end}}
+
+      exporters:
+        debug: null
 
       extensions:
         datadog:
