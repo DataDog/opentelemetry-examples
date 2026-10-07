@@ -6,8 +6,8 @@ metadata:
   name: opentelemetry-kube-stack-cluster
   namespace: opentelemetry-operator-system
   labels:
-    helm.sh/chart: opentelemetry-kube-stack-0.21.0
-    app.kubernetes.io/version: "0.154.0"
+    helm.sh/chart: opentelemetry-kube-stack-0.23.0
+    app.kubernetes.io/version: "0.159.0"
     app.kubernetes.io/managed-by: Helm
     release: "opentelemetry-kube-stack"        
 spec:
@@ -490,8 +490,8 @@ metadata:
   name: opentelemetry-kube-stack-daemon
   namespace: opentelemetry-operator-system
   labels:
-    helm.sh/chart: opentelemetry-kube-stack-0.21.0
-    app.kubernetes.io/version: "0.154.0"
+    helm.sh/chart: opentelemetry-kube-stack-0.23.0
+    app.kubernetes.io/version: "0.159.0"
     app.kubernetes.io/managed-by: Helm
     release: "opentelemetry-kube-stack"        
 spec:
