@@ -89,7 +89,7 @@ jobs:
 
       - name: Install opentelemetry-kube-stack
         env:
-          DD_API_KEY: "00000000000000000000000000000000"
+          DD_API_KEY: "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
           DD_INSTALL_FLOW: ${{ matrix.flow }}
         run: ./install
 
