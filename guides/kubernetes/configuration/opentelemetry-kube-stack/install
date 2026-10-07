@@ -14,7 +14,7 @@ fi
 # Where the configuration files (values.yaml, datadog-agent.yaml...) are read from: by default
 # from GitHub, so that this script can be downloaded and run on its own. Accepts a GitHub folder
 # URL (https://github.com/<owner>/<repo>/tree/<branch>/<path>) or a raw base URL.
-DEFAULT_CONFIG_URL="https://github.com/DataDog/opentelemetry-examples/tree/feat/otel-kube-stack-ddot-installer/guides/kubernetes/configuration/opentelemetry-kube-stack"
+DEFAULT_CONFIG_URL="https://github.com/DataDog/opentelemetry-examples/tree/236e080fcd7d549f93c9ffdac18bd5741b954762/guides/kubernetes/configuration/opentelemetry-kube-stack"
 CONFIG_URL="$DEFAULT_CONFIG_URL"
 USE_LOCAL_CONFIG=false
 
