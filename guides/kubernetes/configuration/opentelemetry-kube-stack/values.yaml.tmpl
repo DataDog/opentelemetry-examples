@@ -596,7 +596,6 @@ collectors:
                 delta_to_rate/cadvisor,
               ]
             exporters: [{{.Exporter}}]
-{{- if .DDOT}}
   # Datadog's distribution of the OpenTelemetry eBPF profiler
   # see https://github.com/DataDog/datadog-agent/blob/main/cmd/host-profiler/deploy/README.md
   host-profiler:
@@ -763,7 +762,6 @@ collectors:
           # pipeline.
           profiles:
             exporters: [otlp_http]
-{{- end}}
 instrumentation:
   enabled: true
   env:

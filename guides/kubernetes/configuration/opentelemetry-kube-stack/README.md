@@ -9,7 +9,7 @@ The `opentelemetry-kube-stack` chart installs the OpenTelemetry Operator and ren
 - **`cluster`** — a single-replica Deployment responsible for cluster-scope telemetry: scraping kube-state-metrics and watching Kubernetes objects.
 - **`daemon`** — a DaemonSet running on every node, responsible for node-scope telemetry (host and kubelet metrics) and for terminating the OTLP endpoint that application workloads send traces, logs, and metrics to.
 
-With the `ddot` flow, you can also install the **host profiler** collector — a DaemonSet that runs the OpenTelemetry eBPF profiler on every node and exports profiles to Datadog. See [Host profiler (optional)](#host-profiler-optional).
+You can also install the **host profiler** collector — a DaemonSet that runs the OpenTelemetry eBPF profiler on every node and exports profiles to Datadog. See [Host profiler (optional)](#host-profiler-optional).
 
 ## Prerequisites
 
@@ -31,7 +31,7 @@ Configure the installer with environment variables, then run it from this direct
 | `K8S_CLUSTER_TYPE` | Kubernetes platform: `eks` (EKS), `gcp` (GKE), `aks` (AKS), or `other`. | `other` |
 | `K8S_CLUSTER_NAME` | Kubernetes cluster name. For `eks`, `gcp`, and `aks`, overrides the auto-detected name. | Auto-detected for `eks`, `gcp`, and `aks`; unset otherwise |
 | `DEPLOYMENT_ENVIRONMENT_NAME` | Value of the `deployment.environment.name` resource attribute. | `production` |
-| `DD_HOST_PROFILER_ENABLED` | Enable the eBPF host profiler: `true` or `false`. Requires `DD_INSTALL_FLOW=ddot`. See [Host profiler (optional)](#host-profiler-optional). | `false` |
+| `DD_HOST_PROFILER_ENABLED` | Enable the eBPF host profiler: `true` or `false`. See [Host profiler (optional)](#host-profiler-optional). | `false` |
 | `DD_HOST_PROFILER_NETWORK_POLICY` | Host profiler egress NetworkPolicy: `none`, `standard`, or `cilium`. | `none` |
 
 ```sh
@@ -56,8 +56,8 @@ It then:
 
 - creates the `opentelemetry-operator-system` namespace and the `datadog-secret` secret;
 - installs cert-manager when needed;
-- installs or upgrades the OpenTelemetry Kube Stack Helm chart with `values-otlp-http.yaml` (`upstream`) or `values-ddot.yaml` (`ddot`); and
-- for `ddot`, installs or upgrades the Datadog Agent Helm chart with `dd-agent-values.yaml`, and optionally enables the host profiler.
+- installs or upgrades the OpenTelemetry Kube Stack Helm chart with `values-otlp-http.yaml` (`upstream`) or `values-ddot.yaml` (`ddot`), and optionally enables the host profiler; and
+- for `ddot`, installs or upgrades the Datadog Agent Helm chart with `dd-agent-values.yaml`.
 
 ## Install with values files
 
@@ -133,7 +133,7 @@ helm upgrade --install opentelemetry-kube-stack \
 
 ## Host profiler (optional)
 
-The host profiler is available only with the `ddot` flow. This collector runs the [Datadog host profiler][dd-host-profiler], Datadog's distribution of the [OpenTelemetry eBPF profiler][ebpf-profiler], as a DaemonSet on every node and exports profiles to Datadog's OTLP intake.
+This collector runs the [Datadog host profiler][dd-host-profiler], Datadog's distribution of the [OpenTelemetry eBPF profiler][ebpf-profiler], as a DaemonSet on every node and exports profiles to Datadog's OTLP intake.
 
 The host profiler is opt-in because its pods need more privileges than the other collectors. To enable it, set `DD_HOST_PROFILER_ENABLED=true` before you run the installer. The installer then also applies `host-profiler-rbac-values.yaml` and, on clusters that enforce NetworkPolicy, the policy that `DD_HOST_PROFILER_NETWORK_POLICY` selects: `host-profiler-network-policy.yaml` (`standard`, any enforcing CNI) or `host-profiler-cilium-network-policy.yaml` (`cilium`, FQDN-scoped egress).
 
