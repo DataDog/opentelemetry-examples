@@ -748,11 +748,6 @@ instrumentation:
   propagators:
     - tracecontext
     - baggage
-    # - b3 # disabled FIXME https://datadoghq.atlassian.net/browse/OTEL-3268
-    # - b3multi # disabled FIXME https://datadoghq.atlassian.net/browse/OTEL-3268
-  # The opentelemetry-kube-stack Helm chart renders language sections even when empty, preventing the
-  # Operator from falling back to its default agent image and yielding invalid init containers.
-  # TODO: File an issue against the opentelemetry-kube-stack Helm chart for this behavior.
   dotnet:
     image: ghcr.io/zacharycmontoya/dd-autoinstrumentation-dotnet:3.52.0
     # Unlike the other languages, .NET needs more setup to instrument an application:
@@ -770,11 +765,10 @@ instrumentation:
         value: /otel-auto-instrumentation-dotnet
   java:
     # image: ghcr.io/open-telemetry/opentelemetry-operator/autoinstrumentation-java:2.28.1
-    # image: registry.ddbuild.io/ssi/dd-otel-autoinstrumentation-java:glci135938671 # ?
-    image: ghcr.io/cyrille-leclerc/dd-autoinstrumentation-java:1.66.0
+    image: datadog/dd-otel-autoinstrumentation-java:1.67-preview
   nodejs:
     # image: ghcr.io/open-telemetry/opentelemetry-operator/autoinstrumentation-nodejs:0.77.0
-    image: datadog/dd-otel-autoinstrumentation-js:6.16.0
+    image: datadog/dd-otel-autoinstrumentation-js:6.20-preview
   python:
     # image: ghcr.io/open-telemetry/opentelemetry-operator/autoinstrumentation-python:0.64b0
     image: ghcr.io/cyrille-leclerc/dd-autoinstrumentation-python:4.15.1
