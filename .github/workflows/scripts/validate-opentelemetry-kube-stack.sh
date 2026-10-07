@@ -47,7 +47,7 @@ validate_collector_configs() {
   local config_file name output
   for config_file in "${work_dir}"/*.yaml; do
     name="$(basename "${config_file}")"
-    if output=$(docker run --rm \
+    if output=$(docker run --rm --network none \
       --env-file "${DUMMY_ENV_FILE}" \
       -v "${stub_dir}/serviceaccount:/var/run/secrets/kubernetes.io/serviceaccount:ro" \
       -v "${stub_dir}/hostfs:/hostfs:ro" \
