@@ -713,7 +713,11 @@ spec:
         scrapers:
           cpu:
             metrics:
+              system.cpu.frequency:
+                enabled: true
               system.cpu.logical.count:
+                enabled: true
+              system.cpu.physical.count:
                 enabled: true
               system.cpu.utilization:
                 enabled: true
@@ -769,6 +773,8 @@ spec:
           paging:
             metrics:
               system.paging.usage:
+                enabled: true
+              system.paging.utilization:
                 enabled: true
           system:
             metrics:

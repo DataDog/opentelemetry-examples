@@ -350,6 +350,19 @@ collectors:
 
     config:
       receivers:
+        host_metrics:
+          scrapers:
+            cpu:
+              metrics:
+                system.cpu.physical.count:
+                  enabled: true
+                system.cpu.frequency:
+                  enabled: true
+            paging:
+              metrics:
+                system.paging.utilization:
+                  enabled: true
+
         # cAdvisor metrics from the kubelet.
         prometheus/cadvisor:
           config:
