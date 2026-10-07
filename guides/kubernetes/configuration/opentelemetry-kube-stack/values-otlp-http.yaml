@@ -369,6 +369,7 @@ collectors:
               metrics:
                 system.paging.utilization:
                   enabled: true
+            processes: {}
 
         # cAdvisor metrics from the kubelet.
         prometheus/cadvisor:

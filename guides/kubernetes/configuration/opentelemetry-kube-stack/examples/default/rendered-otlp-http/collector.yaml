@@ -768,6 +768,7 @@ spec:
                 enabled: true
               system.paging.utilization:
                 enabled: true
+          processes: {}
           system:
             metrics:
               system.uptime:
