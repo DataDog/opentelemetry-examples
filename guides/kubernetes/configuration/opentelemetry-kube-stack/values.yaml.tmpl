@@ -103,7 +103,7 @@ defaultCRConfig:
 {{- end}}
     extensions:
       health_check:
-        endpoint: 0.0.0.0:13133
+        endpoint: ${env:OTEL_K8S_POD_IP}:13133
       datadog:
         api:
           key: ${env:DD_API_KEY}
