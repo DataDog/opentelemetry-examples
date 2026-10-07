@@ -117,6 +117,7 @@ spec:
           - k8s.cronjob.name
           - k8s.statefulset.name
           - k8s.statefulset.uid
+          - container.id
           - container.image.tag
           - container.image.name
           - k8s.cluster.uid
@@ -560,6 +561,7 @@ spec:
           - k8s.cronjob.name
           - k8s.statefulset.name
           - k8s.statefulset.uid
+          - container.id
           - container.image.tag
           - container.image.name
           - k8s.cluster.uid
