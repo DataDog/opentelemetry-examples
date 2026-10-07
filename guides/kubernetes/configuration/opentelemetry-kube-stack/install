@@ -90,11 +90,11 @@ if [[ -n "$OVERLAY_VALUES_FILE" ]]; then
 fi
 
 # Refuse to install next to a previous setup of this guide (two eBPF profilers or two Datadog Agent
-# DaemonSets must not run on the same node): the `migrate` script removes it.
+# DaemonSets must not run on the same node): the `upgrade` script removes it.
 for legacy_release in host-profiler ddagent-kube-stack; do
     if helm status "$legacy_release" --namespace opentelemetry-operator-system >/dev/null 2>&1; then
         error "Found the legacy '$legacy_release' Helm release from a previous setup in the" \
-              "opentelemetry-operator-system namespace: run ./migrate to remove it, then re-run this script."
+              "opentelemetry-operator-system namespace: run ./upgrade to remove it, then re-run this script."
     fi
 done
 

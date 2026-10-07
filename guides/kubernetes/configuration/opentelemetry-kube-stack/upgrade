@@ -31,12 +31,12 @@ for release in host-profiler ddagent-kube-stack; do
 done
 
 if [[ ${#LEGACY_RELEASES[@]} -eq 0 ]]; then
-    echo "No legacy Helm release found in the $NAMESPACE namespace: nothing to migrate."
+    echo "No legacy Helm release found in the $NAMESPACE namespace: nothing to upgrade."
 else
     echo "Found legacy Helm releases in the $NAMESPACE namespace: ${LEGACY_RELEASES[*]}"
     read -r -p "Type 'yes' to uninstall them: " confirmation
     if [[ "$confirmation" != "yes" ]]; then
-        echo "Migration cancelled."
+        echo "Upgrade cancelled."
         exit 0
     fi
     for release in "${LEGACY_RELEASES[@]}"; do
@@ -57,4 +57,4 @@ kubectl delete ciliumnetworkpolicy \
   host-profiler-egress \
   2>/dev/null || true # The CiliumNetworkPolicy CRD only exists on Cilium clusters.
 
-echo "Migration complete: you can now run ./install."
+echo "Upgrade complete: you can now run ./install."

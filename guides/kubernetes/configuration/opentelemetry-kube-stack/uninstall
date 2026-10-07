@@ -5,29 +5,33 @@ cat <<'EOF'
 WARNING: This uninstall script is for development purposes only.
 
 It deletes:
+  - the opentelemetry-kube-stack Helm release in the
+    opentelemetry-operator-system namespace;
   - the cert-manager Helm release in the cert-manager namespace;
   - cert-manager CRDs: issuers, clusterissuers, certificates,
     certificaterequests, orders, and challenges;
-  - the opentelemetry-kube-stack Helm release in the
-    opentelemetry-operator-system namespace;
   - the host-profiler egress NetworkPolicy and CiliumNetworkPolicy in the
     opentelemetry-operator-system namespace (if installed);
   - the datadog DatadogAgent custom resource in the datadog namespace;
   - the datadog-operator Helm release in the datadog namespace;
-  - the datadog-secret secret in the opentelemetry-operator-system and
-    datadog namespaces;
+  - the datadog-webhook mutating and validating webhook configurations
+    created by the Datadog Cluster Agent;
   - OpenTelemetry CRDs: opentelemetrycollectors, instrumentations,
     opampbridges, and targetallocators;
   - Datadog Operator CRDs: datadogagents, datadogagentprofiles,
     datadogagentinternals, datadoginstrumentations, datadogmonitors,
     datadogslos, datadogdashboards, datadogmetrics, datadogcsidrivers,
     datadoggenericresources, datadogpodautoscalers, and
-    datadogpodautoscalerclusterprofiles.
+    datadogpodautoscalerclusterprofiles;
+  - the opentelemetry-operator-system, datadog, and cert-manager namespaces,
+    with everything left in them (including the datadog-secret secrets).
 
 Deleting CRDs also deletes all corresponding custom resources in the cluster.
 
-It doesn't remove the elements of previous setups of this guide (legacy
-host-profiler and ddagent-kube-stack Helm releases): run ./migrate for these.
+It doesn't uninstall the elements of previous setups of this guide (legacy
+host-profiler and ddagent-kube-stack Helm releases): run ./upgrade for these
+first, as deleting the opentelemetry-operator-system namespace would only
+remove their namespaced resources and leave their cluster-wide ones behind.
 EOF
 
 read -r -p "Type 'yes' to continue with the uninstall: " confirmation
@@ -35,18 +39,6 @@ if [[ "$confirmation" != "yes" ]]; then
   echo "Uninstall cancelled."
   exit 0
 fi
-
-helm uninstall cert-manager -n cert-manager \
-   || echo "WARNING: Could not uninstall cert-manager. Continuing..."
-
-kubectl delete crd \
-  issuers.cert-manager.io \
-  clusterissuers.cert-manager.io \
-  certificates.cert-manager.io \
-  certificaterequests.cert-manager.io \
-  orders.acme.cert-manager.io \
-  challenges.acme.cert-manager.io \
-|| echo "WARNING: Could not uninstall cert-manager CRDs. Continuing..."
 
 kubectl delete networkpolicy \
   --namespace opentelemetry-operator-system \
@@ -62,6 +54,21 @@ kubectl delete ciliumnetworkpolicy \
 helm uninstall opentelemetry-kube-stack \
   --namespace opentelemetry-operator-system  \
   || echo "WARNING: Could not uninstall opentelemetry-kube-stack. Continuing..."
+
+# Uninstall cert-manager only after opentelemetry-kube-stack: the kube-stack release owns
+# cert-manager Certificate and Issuer resources, and Helm can't delete the release once
+# the cert-manager CRDs are gone ("no matches for kind \"Certificate\"").
+helm uninstall cert-manager -n cert-manager \
+   || echo "WARNING: Could not uninstall cert-manager. Continuing..."
+
+kubectl delete crd \
+  issuers.cert-manager.io \
+  clusterissuers.cert-manager.io \
+  certificates.cert-manager.io \
+  certificaterequests.cert-manager.io \
+  orders.acme.cert-manager.io \
+  challenges.acme.cert-manager.io \
+|| echo "WARNING: Could not uninstall cert-manager CRDs. Continuing..."
 
 # Foreground cascading deletion: wait until the DatadogAgent's dependents (the
 # DatadogAgentInternal and, through it, the agent DaemonSet/pods, Services and RBAC)
@@ -80,9 +87,13 @@ helm uninstall datadog-operator \
   --namespace datadog  \
   || echo "WARNING: Could not uninstall datadog-operator. Continuing..."
 
-echo "Removing Datadog endpoint configuration..."
-kubectl delete secrets --namespace opentelemetry-operator-system  --ignore-not-found=true datadog-secret
-kubectl delete secrets --namespace datadog  --ignore-not-found=true datadog-secret
+# The Cluster Agent creates its admission controller webhook configurations at runtime,
+# so neither the DatadogAgent deletion nor the Helm uninstall removes them. Delete them
+# once the Cluster Agent is gone, otherwise it would recreate them.
+kubectl delete mutatingwebhookconfiguration,validatingwebhookconfiguration \
+  --ignore-not-found=true \
+  datadog-webhook \
+  || echo "WARNING: Could not delete the datadog-webhook webhook configurations. Continuing..."
 
 
 # Remove OpenTelemetry CRDs (optional - be careful as this affects all OpenTelemetry resources).
@@ -114,3 +125,13 @@ kubectl delete crd --ignore-not-found=true \
   datadogpodautoscalers.datadoghq.com \
   datadogpodautoscalerclusterprofiles.datadoghq.com \
   || echo "WARNING: Could not delete the Datadog Operator CRDs. Continuing..."
+
+# Delete the namespaces last, to also remove what Helm doesn't track: the datadog-secret
+# secrets, and the certificates, leader-election leases and ConfigMaps that cert-manager,
+# the operators and the Cluster Agent create at runtime.
+echo "Delete namespaces"
+kubectl delete namespace --ignore-not-found=true --timeout=5m \
+  opentelemetry-operator-system \
+  datadog \
+  cert-manager \
+  || echo "WARNING: Could not delete the namespaces. Continuing..."
