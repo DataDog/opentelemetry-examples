@@ -1,7 +1,7 @@
 clusterName: ""
 
 resourceAttributes:
-  deployment.environment.name: production # overwrite as needed
+  deployment.environment.name: production
 
 opentelemetry-operator:
   manager:
@@ -14,10 +14,7 @@ kubeStateMetrics:
 kube-state-metrics:
   fullnameOverride: kube-state-metrics
 
-# Shared defaults merged into every collector. env detector stays off (it
-# would stamp the collector pod's identity on incoming telemetry); for clouds
-# not supported by the resource detection processor, set k8s.cluster.name via
-# a resource/cluster processor (see README).
+# Shared defaults merged into every collector.
 defaultCRConfig:
   env:
     - name: DD_API_KEY
@@ -25,18 +22,17 @@ defaultCRConfig:
         secretKeyRef:
           name: datadog-secret
           key: api-key
-    - name: DD_SITE  # e.g. datadoghq.com, us3.datadoghq.com, datadoghq.eu. Defaults to datadoghq.com.
+    - name: DD_SITE
       valueFrom:
         secretKeyRef:
           name: datadog-secret
           key: dd-site
           optional: true
-    - name: DD_HOSTNAME # FIXME required on K3S with datadog/ddot-collector:7.82.3 to prevent "Error: unable to reliably determine the host name."
+    - name: DD_HOSTNAME # Required on K3S to prevent "Error: unable to reliably determine the host name."
       valueFrom:
         fieldRef:
           fieldPath: spec.nodeName
 
-  # Starting-point resource allocation. Scale up for large clusters.
   resources:
     limits:
       cpu: 500m
@@ -83,8 +79,7 @@ defaultCRConfig:
         deployment_type: gateway
     service:
       extensions: [health_check, datadog]
-      # Loop collector metrics through the OTLP receiver for unified tagging.
-      # Logs are picked up by the daemon's filelog receiver — no loopback (avoids dup).
+      # Loop collector metrics through the OTLP receiver.
       telemetry:
         metrics:
           readers:
@@ -143,8 +138,7 @@ collectors:
                       - opentelemetry-kube-stack-opentelemetry-operator:8443
 
       processors:
-        # Rename the prometheus `uid` label to k8s.pod.uid (OTel standard),
-        # required for the groupbyattrs step below.
+        # groupbyattrs below requires k8s.pod.uid.
         transform/rename_uid:
           metric_statements:
             - context: datapoint
@@ -161,7 +155,6 @@ collectors:
         groupbyattrs:
           keys: [k8s.pod.uid]
 
-        # Rewrite KSM datapoint attributes to Datadog tag names.
         transform/ksm_to_dd:
           metric_statements:
             - context: datapoint
@@ -185,9 +178,8 @@ collectors:
                 - set(attributes["kube_cronjob"], attributes["cronjob"])
                 - delete_key(attributes, "cronjob")
 
-        # Pin pod_association to k8s.pod.uid so KSM metrics are associated
-        # with their target pod (uid set by transform/rename_uid), not the
-        # KSM pod itself via ip/name fallbacks from the preset default.
+        # Associate KSM metrics with their target pod by k8s.pod.uid. The preset
+        # default's ip/name fallbacks match the KSM pod itself.
         k8s_attributes:
           pod_association:
             - sources:
@@ -290,10 +282,10 @@ collectors:
             exporters: [datadog/exporter]
 
   daemon:
-    # Disable the chart-default daemon_scrape_configs.yaml Prometheus scrape.
+    # Disable the chart's default daemon Prometheus scrape.
     scrape_configs_file: ""
 
-    # Chart's daemon defaults set lower limits; raise to match defaultCRConfig.
+    # Override the chart's lower daemon defaults.
     resources:
       limits:
         cpu: 500m
@@ -311,16 +303,14 @@ collectors:
         enabled: true
       hostMetrics:
         enabled: true
-      # Chart's daemon defaults enable env disable it.
-      # env would stamp the collector pod's own identity (k8s.pod.name/namespace/ip,
-      # node.name, host.name) on incoming telemetry.
+      # Override the chart's daemon default: env would stamp the collector pod's own
+      # identity (k8s.pod.name/namespace/ip, node.name, host.name) on incoming telemetry.
       resourceDetection:
         env:
           enabled: false
 
     config:
       receivers:
-        # cAdvisor metrics from the kubelet.
         prometheus/cadvisor:
           config:
             scrape_configs:
@@ -419,7 +409,7 @@ collectors:
                 - delete_key(attributes, "service.instance.id")
 
         # Ref: https://github.com/open-telemetry/opentelemetry-collector-contrib/tree/821a9d9c2c1623c4a0ceba5d47b57c48879c3f84/processor/groupbyattrsprocessor
-        # Prometheus metrics are flat, so we need to extract the resource from the datapoint labels
+        # Extract the resource from the flat Prometheus datapoint labels.
         groupbyattrs:
           keys:
             - k8s.pod.name
@@ -483,16 +473,12 @@ collectors:
     # The host-profiler is only supported on Linux nodes
     nodeSelector:
       kubernetes.io/os: linux
-    # Recommended: run as a DaemonSet to collect profiles from every supported node
-    # and provide a cluster-wide view.
     mode: daemonset
 
-    # The ddot-ebpf image is a dedicated distribution: its binary may not
-    # include the shared defaultCRConfig components. Isolation keeps the shared
-    # config, presets, and targetAllocator from being merged into this collector.
+    # The ddot-ebpf binary may not include the shared defaultCRConfig components.
     inheritDefaultCRConfig: false
 
-    # Host Profiler preview image. Update the tag when using a newer preview build.
+    # Host Profiler preview image.
     image:
       repository: datadog/ddot-ebpf-dev
       tag: mackjmr-hp-preview-v2
@@ -503,7 +489,7 @@ collectors:
           secretKeyRef:
             name: datadog-secret
             key: api-key
-      - name: DD_SITE # e.g. datadoghq.com, us3.datadoghq.com, datadoghq.eu. Defaults to datadoghq.com.
+      - name: DD_SITE
         valueFrom:
           secretKeyRef:
             name: datadog-secret
@@ -514,9 +500,6 @@ collectors:
           fieldRef:
             fieldPath: status.podIP
 
-    # Enable the chart integrations the Host Profiler relies on. The profiling
-    # preset configures host-level profiling settings such as hostPID and the
-    # profile receiver wiring; kubernetesAttributes adds Kubernetes metadata.
     presets:
       profiling:
         enabled: true
@@ -524,8 +507,7 @@ collectors:
         enabled: true
         extractAllPodLabels: true
 
-    # Required Linux capabilities for host-wide eBPF profiling.
-    # The container is not privileged and drops all default capabilities.
+    # Required for host-wide eBPF profiling.
     securityContext:
       privileged: false
       readOnlyRootFilesystem: true
@@ -553,7 +535,6 @@ collectors:
         localhostProfile: host-profiler.json
 
     # Install the seccomp profile from the Host Profiler image onto each node.
-    # The main container references this profile through securityContext.seccompProfile.
     initContainers:
       - name: seccomp-installer
         image: "{{ .collector.image.repository }}:{{ .collector.image.tag }}"
@@ -575,9 +556,7 @@ collectors:
           - name: host-seccomp
             mountPath: /host/var/lib/kubelet/seccomp
 
-    # Resource defaults for the Host Profiler container. Explicit zero requests avoid
-    # reserving CPU or memory on every node, while limits cap runaway usage. Set
-    # nonzero requests if your cluster policy requires them or you want reserved capacity.
+    # Set nonzero requests if your cluster policy requires them or you want reserved capacity.
     # Increase the memory limit if the Host Profiler uploads debug symbols for large binaries.
     resources:
       requests:
@@ -612,7 +591,6 @@ collectors:
           protocols:
             grpc: {}
             http: {}
-        # Host Profiler receiver. DD_SITE and DD_API_KEY are provided by collector-values.yaml.
         profiling:
           symbol_uploader:
             enabled: true
@@ -621,7 +599,6 @@ collectors:
                 api_key: ${env:DD_API_KEY}
 
       exporters:
-        # Export profiles and metrics to Datadog through OTLP HTTP.
         otlp_http:
           endpoint: https://otlp.${env:DD_SITE:-datadoghq.com}
           headers:
@@ -631,14 +608,12 @@ collectors:
       service:
         extensions: [health_check]
         pipelines:
-          # The Helm chart's kubernetesAttributes preset adds the k8sattributes
-          # processor to the rendered metrics pipeline.
+          # The kubernetesAttributes preset adds the k8sattributes processor.
           metrics:
             receivers: [otlp]
             exporters: [otlp_http]
-          # The Helm chart's profiling and kubernetesAttributes presets add the
-          # profiling receiver and k8sattributes processor to the rendered profiles
-          # pipeline.
+          # The profiling and kubernetesAttributes presets add the profiling
+          # receiver and k8sattributes processor.
           profiles:
             exporters: [otlp_http]
 instrumentation:
@@ -663,10 +638,6 @@ instrumentation:
       value: "true"
     - name: "DD_TRACE_OTEL_SEMANTICS_ENABLED"
       value: "true"
-    # DD_OTEL_SDK_ENABLED: Candidate new env var to enable OTel mode on DDOT SDKs, replacing all the previous ones,
-    # but not yet supported by the DDOT SDKs
-    # - name: "DD_OTEL_SDK_ENABLED"
-    #  value: "true"
     ## DDOT CONFIGURATION
     - name: "DD_AGENT_HOST"
       value: "ddagent-kube-stack-datadog.opentelemetry-operator-system.svc.cluster.local"
@@ -680,8 +651,8 @@ instrumentation:
       value: "true"
     - name: "DD_TRACE_REMOVE_INTEGRATION_SERVICE_NAMES_ENABLED"
       value: "true"
-    ## WORKAROUND: DDOT SDK GO LANG ignores OTEL_EXPORTER_OTLP_ENDPOINT, it's a bug
-    ## https://github.com/DataDog/dd-trace-go/pull/5407
+    ## WORKAROUND: released Go DDOT SDK versions ignore OTEL_EXPORTER_OTLP_ENDPOINT for traces.
+    ## Remove once a release includes https://github.com/DataDog/dd-trace-go/pull/5407
     - name: "OTEL_EXPORTER_OTLP_TRACES_ENDPOINT"
       value: "http://opentelemetry-kube-stack-daemon-collector.opentelemetry-operator-system.svc.cluster.local:4318/v1/traces"
   exporter:
@@ -693,11 +664,6 @@ instrumentation:
   propagators:
     - tracecontext
     - baggage
-    # - b3 # disabled FIXME https://datadoghq.atlassian.net/browse/OTEL-3268
-    # - b3multi # disabled FIXME https://datadoghq.atlassian.net/browse/OTEL-3268
-  # The opentelemetry-kube-stack Helm chart renders language sections even when empty, preventing the
-  # Operator from falling back to its default agent image and yielding invalid init containers.
-  # TODO: File an issue against the opentelemetry-kube-stack Helm chart for this behavior.
   dotnet:
     image: ghcr.io/zacharycmontoya/dd-autoinstrumentation-dotnet:3.52.0
     # Unlike the other languages, .NET needs more setup to instrument an application:
@@ -715,7 +681,6 @@ instrumentation:
         value: /otel-auto-instrumentation-dotnet
   java:
     # image: ghcr.io/open-telemetry/opentelemetry-operator/autoinstrumentation-java:2.28.1
-    # image: registry.ddbuild.io/ssi/dd-otel-autoinstrumentation-java:glci135938671 # ?
     image: ghcr.io/cyrille-leclerc/dd-autoinstrumentation-java:1.66.0
   nodejs:
     # image: ghcr.io/open-telemetry/opentelemetry-operator/autoinstrumentation-nodejs:0.77.0
@@ -723,13 +688,10 @@ instrumentation:
   python:
     # image: ghcr.io/open-telemetry/opentelemetry-operator/autoinstrumentation-python:0.64b0
     image: ghcr.io/cyrille-leclerc/dd-autoinstrumentation-python:4.15.1
-    # The auto-instrumentation init container bundles ddtrace native builds for every supported
-    # Python version (3.9-3.14) x libc (glibc/musl) x arch (x86_64/aarch64), ~330MB total, which
-    # exceeds the Operator's 200Mi default EmptyDir limit and gets the pod evicted.
+    # The auto-instrumentation init container (~330MB of ddtrace native builds) exceeds the
+    # Operator's 200Mi default EmptyDir limit, which gets the pod evicted.
     #
-    # The Operator warns that this field ("volumeSizeLimit" in the warning is the Go field name;
-    # "volumeLimitSize" here is its JSON/YAML tag) is deprecated in favor of `volume.size`, but as
-    # of Operator 0.154.0 / chart 0.20.6 that replacement field doesn't exist in the CRD schema
-    # yet, so this is the only working way to raise the volume limit. Safe to ignore until the
-    # Operator ships `spec.python.volume.size`.
+    # The Operator warns that this field (Go name "volumeSizeLimit") is deprecated in favor of
+    # `volume.size`, but as of Operator 0.159.0 / chart 0.24.2 the CRD schema lacks that field.
+    # Ignore the warning until the Operator ships `spec.python.volume.size`.
     volumeLimitSize: 500Mi
