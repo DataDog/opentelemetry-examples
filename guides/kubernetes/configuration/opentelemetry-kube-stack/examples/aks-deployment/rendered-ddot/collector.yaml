@@ -141,9 +141,14 @@ spec:
             k8s.cluster.name:
               enabled: true
         detectors:
+        - system
         - aks
         - k8s_api
         override: false
+        system:
+          resource_attributes:
+            host.name:
+              enabled: false
       transform/ksm_to_dd:
         metric_statements:
         - context: datapoint
@@ -608,9 +613,14 @@ spec:
             k8s.cluster.name:
               enabled: true
         detectors:
+        - system
         - aks
         - k8s_api
         override: false
+        system:
+          resource_attributes:
+            host.name:
+              enabled: false
       transform/cadvisor_labels:
         metric_statements:
         - context: datapoint

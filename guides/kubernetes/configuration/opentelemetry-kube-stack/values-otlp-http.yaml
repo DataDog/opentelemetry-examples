@@ -63,7 +63,12 @@ defaultCRConfig:
     processors:
       cumulative_to_delta: {}
       resource_detection/env:
+        detectors: [system]
         override: false
+        system:
+          resource_attributes:
+            host.name:
+              enabled: false
     exporters:
       otlp_http:
         endpoint: https://otlp.${env:DD_SITE:-datadoghq.com}

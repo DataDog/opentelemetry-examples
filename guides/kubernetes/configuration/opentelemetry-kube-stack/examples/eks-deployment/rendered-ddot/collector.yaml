@@ -137,6 +137,7 @@ spec:
           value: production
       resource_detection/env:
         detectors:
+        - system
         - eks
         - k8s_api
         eks:
@@ -145,6 +146,10 @@ spec:
             k8s.cluster.name:
               enabled: true
         override: false
+        system:
+          resource_attributes:
+            host.name:
+              enabled: false
         timeout: 15s
       transform/ksm_to_dd:
         metric_statements:
@@ -606,6 +611,7 @@ spec:
           key: host.name
       resource_detection/env:
         detectors:
+        - system
         - eks
         - k8s_api
         eks:
@@ -614,6 +620,10 @@ spec:
             k8s.cluster.name:
               enabled: true
         override: false
+        system:
+          resource_attributes:
+            host.name:
+              enabled: false
         timeout: 15s
       transform/cadvisor_labels:
         metric_statements:
