@@ -1,0 +1,3 @@
+extraEnvs:
+  - name: DD_AGENT_HOST
+    value: ddagent-kube-stack-datadog.opentelemetry-operator-system.svc.cluster.local
