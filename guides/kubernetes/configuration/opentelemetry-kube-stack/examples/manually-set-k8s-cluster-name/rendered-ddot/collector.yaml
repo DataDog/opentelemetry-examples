@@ -497,7 +497,11 @@ spec:
   mode: daemonset
   config:
     connectors:
-      datadog/connector: {}
+      datadog/connector:
+        traces:
+          compute_stats_by_span_kind: true
+          compute_top_level_by_span_kind: true
+          peer_tags_aggregation: true
     exporters:
       datadog/exporter:
         api:
