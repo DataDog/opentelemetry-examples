@@ -35,6 +35,8 @@ defaultCRConfig:
       valueFrom:
         fieldRef:
           fieldPath: spec.nodeName
+    - name: DD_OTELCOLLECTOR_CONVERTER_FEATURES
+      value: datadog,pprof,zpages,infraattributes
 
   # Starting-point resource allocation. Scale up for large clusters.
   resources:
