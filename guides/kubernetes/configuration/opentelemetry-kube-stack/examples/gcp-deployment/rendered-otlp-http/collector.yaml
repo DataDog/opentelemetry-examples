@@ -89,7 +89,7 @@ spec:
           site: ${env:DD_SITE:-datadoghq.com}
         deployment_type: gateway
       health_check:
-        endpoint: 0.0.0.0:13133
+        endpoint: ${env:OTEL_K8S_POD_IP}:13133
       k8s_leader_elector/k8s_cluster:
         auth_type: serviceAccount
         lease_name: k8s.cluster.receiver.opentelemetry.io
@@ -125,6 +125,7 @@ spec:
           - k8s.cronjob.name
           - k8s.statefulset.name
           - k8s.statefulset.uid
+          - container.id
           - container.image.tag
           - container.image.name
           - k8s.cluster.uid
@@ -145,6 +146,7 @@ spec:
           value: production
       resource_detection/env:
         detectors:
+        - system
         - gcp
         - k8s_api
         gcp:
@@ -152,6 +154,10 @@ spec:
             k8s.cluster.name:
               enabled: true
         override: false
+        system:
+          resource_attributes:
+            host.name:
+              enabled: false
       transform/ksm_to_dd:
         metric_statements:
         - context: datapoint
@@ -543,7 +549,6 @@ spec:
           exponential: {}
           unit: s
     exporters:
-      debug: {}
       otlp_http:
         compression: zstd
         compression_params:
@@ -565,12 +570,8 @@ spec:
           site: ${env:DD_SITE:-datadoghq.com}
         deployment_type: daemonset
       health_check:
-        endpoint: 0.0.0.0:13133
+        endpoint: ${env:OTEL_K8S_POD_IP}:13133
     processors:
-      batch:
-        send_batch_max_size: 1500
-        send_batch_size: 1000
-        timeout: 1s
       cumulative_to_delta: {}
       delta_to_rate:
         metrics:
@@ -618,6 +619,7 @@ spec:
           - k8s.cronjob.name
           - k8s.statefulset.name
           - k8s.statefulset.uid
+          - container.id
           - container.image.tag
           - container.image.name
           - k8s.cluster.uid
@@ -655,13 +657,9 @@ spec:
         - action: upsert
           key: deployment.environment.name
           value: production
-      resource/hostname:
-        attributes:
-        - action: insert
-          from_attribute: k8s.node.name
-          key: host.name
       resource_detection/env:
         detectors:
+        - system
         - gcp
         - k8s_api
         gcp:
@@ -669,6 +667,10 @@ spec:
             k8s.cluster.name:
               enabled: true
         override: false
+        system:
+          resource_attributes:
+            host.name:
+              enabled: false
       transform/cadvisor_labels:
         metric_statements:
         - context: datapoint
@@ -713,7 +715,11 @@ spec:
         scrapers:
           cpu:
             metrics:
+              system.cpu.frequency:
+                enabled: true
               system.cpu.logical.count:
+                enabled: true
+              system.cpu.physical.count:
                 enabled: true
               system.cpu.utilization:
                 enabled: true
@@ -770,6 +776,9 @@ spec:
             metrics:
               system.paging.usage:
                 enabled: true
+              system.paging.utilization:
+                enabled: true
+          processes: {}
           system:
             metrics:
               system.uptime:
@@ -800,6 +809,7 @@ spec:
             enabled: true
           k8s.pod.uptime:
             enabled: true
+        node: ${env:K8S_NODE_NAME}
       otlp:
         protocols:
           grpc:
