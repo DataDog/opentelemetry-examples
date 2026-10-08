@@ -50,15 +50,19 @@ opentelemetry-collector:
         enabled: false
 
   extraEnvs:
+    - name: K8S_NODE_NAME
+      valueFrom:
+        fieldRef:
+          fieldPath: spec.nodeName
     - name: DD_SITE
-      value: datadoghq.com # Update if necessary
+      value: datadoghq.com
     - name: DD_API_KEY
       valueFrom:
         secretKeyRef:
           name: datadog-secrets
           key: api-key
     - name: DD_SITE_DUAL_SHIP
-      value: datadoghq.com # Update if necessary
+      value: datadoghq.com
     - name: DD_API_KEY_DUAL_SHIP
       valueFrom:
         secretKeyRef:
@@ -77,7 +81,7 @@ opentelemetry-collector:
   resources:
     requests:
       cpu: 500m
-      memory: 512Mi
+      memory: 200Mi
   
   # Service account for the k8s_attributes processor
   serviceAccount:
@@ -86,7 +90,7 @@ opentelemetry-collector:
     create: true
     rules:
       - apiGroups: [""]
-        resources: ["pods", "namespaces"]
+        resources: ["pods", "namespaces", "nodes"]
         verbs: ["get", "watch", "list"]
       - apiGroups: ["apps"]
         resources: ["replicasets"]
@@ -171,11 +175,138 @@ opentelemetry-collector:
           load: {}
           network: {}
           processes: {}
+      k8s_objects:
+        interval: 3m
+        objects:
+        - mode: pull
+          name: namespaces
+        - mode: watch
+          name: namespaces
+        - mode: pull
+          name: pods
+        - mode: watch
+          name: pods
+        - mode: pull
+          name: nodes
+        - mode: watch
+          name: nodes
+        - mode: pull
+          name: services
+        - mode: watch
+          name: services
+        - mode: pull
+          name: serviceaccounts
+        - mode: watch
+          name: serviceaccounts
+        - group: apps
+          mode: pull
+          name: deployments
+        - group: apps
+          mode: watch
+          name: deployments
+        - group: apps
+          mode: pull
+          name: replicasets
+        - group: apps
+          mode: watch
+          name: replicasets
+        - group: apps
+          mode: pull
+          name: daemonsets
+        - group: apps
+          mode: watch
+          name: daemonsets
+        - group: apps
+          mode: pull
+          name: statefulsets
+        - group: apps
+          mode: watch
+          name: statefulsets
+        - group: batch
+          mode: pull
+          name: jobs
+        - group: batch
+          mode: watch
+          name: jobs
+        - group: batch
+          mode: pull
+          name: cronjobs
+        - group: batch
+          mode: watch
+          name: cronjobs
+        - group: rbac.authorization.k8s.io
+          mode: pull
+          name: roles
+        - group: rbac.authorization.k8s.io
+          mode: watch
+          name: roles
+        - group: rbac.authorization.k8s.io
+          mode: pull
+          name: rolebindings
+        - group: rbac.authorization.k8s.io
+          mode: watch
+          name: rolebindings
+        - group: rbac.authorization.k8s.io
+          mode: pull
+          name: clusterroles
+        - group: rbac.authorization.k8s.io
+          mode: watch
+          name: clusterroles
+        - group: rbac.authorization.k8s.io
+          mode: pull
+          name: clusterrolebindings
+        - group: rbac.authorization.k8s.io
+          mode: watch
+          name: clusterrolebindings
+        - group: storage.k8s.io
+          mode: pull
+          name: storageclasses
+        - group: storage.k8s.io
+          mode: watch
+          name: storageclasses
+        - mode: pull
+          name: persistentvolumes
+        - mode: watch
+          name: persistentvolumes
+        - mode: pull
+          name: persistentvolumeclaims
+        - mode: watch
+          name: persistentvolumeclaims
+        - group: networking.k8s.io
+          mode: pull
+          name: ingresses
+        - group: networking.k8s.io
+          mode: watch
+          name: ingresses
+        - group: networking.k8s.io
+          mode: pull
+          name: networkpolicies
+        - group: networking.k8s.io
+          mode: watch
+          name: networkpolicies
+        - group: autoscaling
+          mode: pull
+          name: horizontalpodautoscalers
+        - group: autoscaling
+          mode: watch
+          name: horizontalpodautoscalers
+        - group: policy
+          mode: pull
+          name: poddisruptionbudgets
+        - group: policy
+          mode: watch
+          name: poddisruptionbudgets
+        - group: apiextensions.k8s.io
+          mode: pull
+          name: customresourcedefinitions
+        - group: apiextensions.k8s.io
+          mode: watch
+          name: customresourcedefinitions
     
     processors:
       # Detect host and cloud metadata for hostname resolution and tagging
       resource_detection:
-        detectors: [eks, ec2, env, system]
+        detectors: [k8s_api, eks, ec2, env, system]
         timeout: 15s
         override: true # Disable if incoming attributes (especially host.name) are verified correct
         eks:
@@ -437,6 +568,11 @@ opentelemetry-collector:
             - k8s_attributes
             - resource_detection
           exporters: [otlp_http, otlp_http/dual_ship]
+
+        logs/k8s_objects:
+          receivers: [k8s_objects]
+          processors: [resource_detection]
+          exporters: [otlp_http]
         
         metrics:
           receivers: [otlp, host_metrics]
