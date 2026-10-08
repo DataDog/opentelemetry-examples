@@ -258,54 +258,6 @@ else
       || echo "WARNING: Could not install cert-manager (insufficient permissions?). Continuing..."
 fi
 
-echo "Installing OpenTelemetry Kube Stack Helm Chart..."
-
-# FIXME use deployment.environment.name, it's a workaround for https://github.com/DataDog/dd-trace-java/pull/12324
-HELM_SET_ARGS=(
-    --set-string "resourceAttributes.deployment\.environment=$DEPLOYMENT_ENVIRONMENT_NAME"
-    --set-string "resourceAttributes.deployment\.environment\.name=$DEPLOYMENT_ENVIRONMENT_NAME"
-)
-
-# The eks, aks and gcp presets are disabled by default in the chart: enable the cluster's one.
-if [[ -n "$K8S_MANAGED_SERVICE_DETECTOR" ]]; then
-    HELM_SET_ARGS+=(--set "defaultCRConfig.presets.resourceDetection.${K8S_MANAGED_SERVICE_DETECTOR}.enabled=true")
-fi
-
-if [[ -n "$K8S_CLUSTER_NAME" ]]; then
-    HELM_SET_ARGS+=(--set-string "resourceAttributes.k8s\.cluster\.name=$K8S_CLUSTER_NAME")
-fi
-
-helm upgrade opentelemetry-kube-stack \
-    open-telemetry/opentelemetry-kube-stack \
-    --version 0.24.2 \
-    --install \
-    --namespace opentelemetry-operator-system \
-    "${HELM_SET_ARGS[@]}" \
-    -f "$CONFIG_DIR/values.yaml" \
-    ${HOST_PROFILER_ENABLED_ARGS[@]+"${HOST_PROFILER_ENABLED_ARGS[@]}"} \
-    ${OVERLAY_VALUES_ARGS[@]+"${OVERLAY_VALUES_ARGS[@]}"}
-
-# The standard and Cilium policies select the same pods and Kubernetes
-# NetworkPolicies are additive: remove both NetworkPolicy before applying
-# the selected one (or none), so a policy from a previous run cannot widen
-# the requested egress.
-kubectl delete networkpolicy \
-  --namespace opentelemetry-operator-system \
-  --ignore-not-found=true \
-  opentelemetry-kube-stack-host-profiler-egress \
-  || echo "WARNING: Could not delete the host-profiler NetworkPolicy. Continuing..."
-kubectl delete ciliumnetworkpolicy \
-  --namespace opentelemetry-operator-system \
-  --ignore-not-found=true \
-  opentelemetry-kube-stack-host-profiler-egress \
-  || echo "WARNING: CiliumNetworkPolicy CRD not installed. Continuing..."
-
-if [[ -n "$HOST_PROFILER_NETWORK_POLICY_FILE" ]]; then
-    echo "Applying the host-profiler egress NetworkPolicy..."
-    kubectl apply -f "$HOST_PROFILER_NETWORK_POLICY_FILE" \
-      || echo "WARNING: Could not apply the host-profiler egress NetworkPolicy (is Cilium installed if you chose the Cilium policy?). Continuing..."
-fi
-
 echo "Installing Datadog Operator..."
 
 # The Operator's own identity (API key, site and cluster name), used for its telemetry and
@@ -370,3 +322,53 @@ sed \
   -e "s|<DD_SITE>|${DD_SITE:-datadoghq.com}|" \
   "$CONFIG_DIR/datadog-agent.yaml" \
   | kubectl apply --namespace datadog -f -
+
+# The standard and Cilium policies select the same pods and Kubernetes
+# NetworkPolicies are additive: remove both NetworkPolicy before applying
+# the selected one (or none), so a policy from a previous run cannot widen
+# the requested egress.
+kubectl delete networkpolicy \
+  --namespace opentelemetry-operator-system \
+  --ignore-not-found=true \
+  opentelemetry-kube-stack-host-profiler-egress \
+  || echo "WARNING: Could not delete the host-profiler NetworkPolicy. Continuing..."
+kubectl delete ciliumnetworkpolicy \
+  --namespace opentelemetry-operator-system \
+  --ignore-not-found=true \
+  opentelemetry-kube-stack-host-profiler-egress \
+  || echo "WARNING: CiliumNetworkPolicy CRD not installed. Continuing..."
+
+if [[ -n "$HOST_PROFILER_NETWORK_POLICY_FILE" ]]; then
+    echo "Applying the host-profiler egress NetworkPolicy..."
+    kubectl apply -f "$HOST_PROFILER_NETWORK_POLICY_FILE" \
+      || echo "WARNING: Could not apply the host-profiler egress NetworkPolicy (is Cilium installed if you chose the Cilium policy?). Continuing..."
+fi
+
+# Install the OpenTelemetry Kube Stack Helm chart last: its output (release status and notes) is the
+# most important one for the user to read.
+echo "Installing OpenTelemetry Kube Stack Helm Chart..."
+
+# FIXME use deployment.environment.name, it's a workaround for https://github.com/DataDog/dd-trace-java/pull/12324
+HELM_SET_ARGS=(
+    --set-string "resourceAttributes.deployment\.environment=$DEPLOYMENT_ENVIRONMENT_NAME"
+    --set-string "resourceAttributes.deployment\.environment\.name=$DEPLOYMENT_ENVIRONMENT_NAME"
+)
+
+# The eks, aks and gcp presets are disabled by default in the chart: enable the cluster's one.
+if [[ -n "$K8S_MANAGED_SERVICE_DETECTOR" ]]; then
+    HELM_SET_ARGS+=(--set "defaultCRConfig.presets.resourceDetection.${K8S_MANAGED_SERVICE_DETECTOR}.enabled=true")
+fi
+
+if [[ -n "$K8S_CLUSTER_NAME" ]]; then
+    HELM_SET_ARGS+=(--set-string "resourceAttributes.k8s\.cluster\.name=$K8S_CLUSTER_NAME")
+fi
+
+helm upgrade opentelemetry-kube-stack \
+    open-telemetry/opentelemetry-kube-stack \
+    --version 0.24.2 \
+    --install \
+    --namespace opentelemetry-operator-system \
+    "${HELM_SET_ARGS[@]}" \
+    -f "$CONFIG_DIR/values.yaml" \
+    ${HOST_PROFILER_ENABLED_ARGS[@]+"${HOST_PROFILER_ENABLED_ARGS[@]}"} \
+    ${OVERLAY_VALUES_ARGS[@]+"${OVERLAY_VALUES_ARGS[@]}"}

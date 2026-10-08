@@ -98,12 +98,12 @@ It then:
 - creates the `opentelemetry-operator-system` and `datadog` namespaces;
 - creates the `datadog-secret` secret in both namespaces;
 - installs cert-manager, unless it's already installed (detected by its `certificates.cert-manager.io` CRD);
-- installs or upgrades the OpenTelemetry Kube Stack Helm chart, optionally enabling the `host-profiler` collector in the
-  same release;
 - installs or upgrades the Datadog Operator (`datadog/datadog-operator` chart) in the `datadog` namespace,
   with [Fleet Automation](README.md#fleet-automation-optional) enabled when an application key is provided;
 - applies the `datadog-agent.yaml` `DatadogAgent` custom resource to the `datadog` namespace, substituting the
-  Kubernetes cluster name and site into it.
+  Kubernetes cluster name and site into it;
+- installs or upgrades the OpenTelemetry Kube Stack Helm chart, optionally enabling the `host-profiler` collector in the
+  same release. This is the last step, so that the chart's output, at the end of the script's output, is easy to read.
 
 Some `WARNING` lines are expected and harmless, for example when a namespace already exists.
 
