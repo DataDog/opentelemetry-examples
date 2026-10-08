@@ -55,14 +55,14 @@ opentelemetry-collector:
         fieldRef:
           fieldPath: spec.nodeName
     - name: DD_SITE
-      value: datadoghq.com
+      value: datadoghq.com # Update if necessary
     - name: DD_API_KEY
       valueFrom:
         secretKeyRef:
           name: datadog-secrets
           key: api-key
     - name: DD_SITE_DUAL_SHIP
-      value: datadoghq.com
+      value: datadoghq.com # Update if necessary
     - name: DD_API_KEY_DUAL_SHIP
       valueFrom:
         secretKeyRef:
