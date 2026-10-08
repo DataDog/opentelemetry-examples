@@ -749,6 +749,7 @@ instrumentation:
     - tracecontext
     - baggage
   dotnet:
+    # image: ghcr.io/open-telemetry/opentelemetry-operator/autoinstrumentation-dotnet:1.17.0
     image: ghcr.io/zacharycmontoya/dd-autoinstrumentation-dotnet:3.52.0
     # Unlike the other languages, .NET needs more setup to instrument an application:
     # - The CORECLR_PROFILER_PATH env variable must be set (matching other languages)
@@ -764,13 +765,13 @@ instrumentation:
       - name: DD_DOTNET_TRACER_HOME
         value: /otel-auto-instrumentation-dotnet
   java:
-    # image: ghcr.io/open-telemetry/opentelemetry-operator/autoinstrumentation-java:2.28.1
-    image: datadog/dd-otel-autoinstrumentation-java:1.67-preview
+    # image: ghcr.io/open-telemetry/opentelemetry-operator/autoinstrumentation-java:2.32.0
+    image: datadog/dd-otel-autoinstrumentation-java:1.67.1-preview
   nodejs:
-    # image: ghcr.io/open-telemetry/opentelemetry-operator/autoinstrumentation-nodejs:0.77.0
+    # image: ghcr.io/open-telemetry/opentelemetry-operator/autoinstrumentation-nodejs:0.78.0
     image: datadog/dd-otel-autoinstrumentation-js:6.20-preview
   python:
-    # image: ghcr.io/open-telemetry/opentelemetry-operator/autoinstrumentation-python:0.64b0
+    # image: ghcr.io/open-telemetry/opentelemetry-operator/autoinstrumentation-python:0.66b1
     image: ghcr.io/cyrille-leclerc/dd-autoinstrumentation-python:4.15.1
     # The auto-instrumentation init container bundles ddtrace native builds for every supported
     # Python version (3.9-3.14) x libc (glibc/musl) x arch (x86_64/aarch64), ~330MB total, which
