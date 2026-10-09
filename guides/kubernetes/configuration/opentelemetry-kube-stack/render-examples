@@ -18,11 +18,15 @@ for example in ${EXAMPLES}; do
 	for mode in "$@"; do
 		echo "Generating example: ${example} (mode: ${mode})"
 		rm -rf "${EXAMPLES_DIR}/${example}/rendered-${mode}"
+		MODE_VALUES_ARGS=()
+		if [ "${mode}" = "ddot" ]; then
+			MODE_VALUES_ARGS=(--values ./dd-agent-kube-stack-values.yaml)
+		fi
 		helm template opentelemetry-kube-stack \
 			open-telemetry/opentelemetry-kube-stack \
 			--namespace opentelemetry-operator-system \
 			--version "0.23.0" \
-			--values ./values-${mode}.yaml --values ${EXAMPLES_DIR}/${example}/values.yaml \
+			--values ./values-${mode}.yaml ${MODE_VALUES_ARGS[@]+"${MODE_VALUES_ARGS[@]}"} --values ${EXAMPLES_DIR}/${example}/values.yaml \
 			--output-dir "${EXAMPLES_DIR}/${example}/rendered-${mode}"
 		mv ${EXAMPLES_DIR}/${example}/rendered-${mode}/opentelemetry-kube-stack/templates/* "${EXAMPLES_DIR}/${example}/rendered-${mode}"
 		SUBCHARTS_DIR=${EXAMPLES_DIR}/${example}/rendered-${mode}/opentelemetry-kube-stack/charts
