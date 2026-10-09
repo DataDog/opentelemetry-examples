@@ -54,9 +54,9 @@ spec:
       deployment.environment.name: production
       k8s.cluster.name: my-k8s-cluster
   java:
-    image: ghcr.io/cyrille-leclerc/dd-autoinstrumentation-java:1.66.0
+    image: datadog/dd-otel-autoinstrumentation-java:1.67.1-preview
   nodejs:
-    image: datadog/dd-otel-autoinstrumentation-js:6.16.0
+    image: datadog/dd-otel-autoinstrumentation-js:6.20-preview
   python:
     image: ghcr.io/cyrille-leclerc/dd-autoinstrumentation-python:4.15.1
     volumeLimitSize: 500Mi
