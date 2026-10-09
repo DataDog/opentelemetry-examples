@@ -24,7 +24,7 @@ ERROR: Found the legacy 'ddagent-kube-stack' Helm release from a previous setup 
 Download and run the `upgrade` script, then re-run the `install` script:
 
 ```sh
-curl -fsSL -o upgrade https://raw.githubusercontent.com/DataDog/opentelemetry-examples/41bc132eb55f87c0fa9d3b630977ed9e1b04d2f0/guides/kubernetes/configuration/opentelemetry-kube-stack/upgrade
+curl -fsSL -o upgrade https://raw.githubusercontent.com/DataDog/opentelemetry-examples/62edd24473213e854ce34e993bc32a46f59ec42d/guides/kubernetes/configuration/opentelemetry-kube-stack/upgrade
 chmod +x upgrade
 ./upgrade
 ./install

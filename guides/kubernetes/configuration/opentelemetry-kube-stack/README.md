@@ -41,7 +41,7 @@ Download and run the `install` script, the recommended way to install. You don't
 default, the script downloads its configuration files (`values.yaml`, `datadog-agent.yaml`...) from GitHub:
 
 ```sh
-curl -fsSL -o install https://raw.githubusercontent.com/DataDog/opentelemetry-examples/41bc132eb55f87c0fa9d3b630977ed9e1b04d2f0/guides/kubernetes/configuration/opentelemetry-kube-stack/install
+curl -fsSL -o install https://raw.githubusercontent.com/DataDog/opentelemetry-examples/62edd24473213e854ce34e993bc32a46f59ec42d/guides/kubernetes/configuration/opentelemetry-kube-stack/install
 chmod +x install
 ./install
 ```
