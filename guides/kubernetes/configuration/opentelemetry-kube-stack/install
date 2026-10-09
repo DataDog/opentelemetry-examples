@@ -14,7 +14,7 @@ fi
 # Where the configuration files (values.yaml, datadog-agent.yaml...) are read from: by default
 # from GitHub, so that this script can be downloaded and run on its own. Accepts a GitHub folder
 # URL (https://github.com/<owner>/<repo>/tree/<branch>/<path>) or a raw base URL.
-DEFAULT_CONFIG_URL="https://github.com/DataDog/opentelemetry-examples/tree/236e080fcd7d549f93c9ffdac18bd5741b954762/guides/kubernetes/configuration/opentelemetry-kube-stack"
+DEFAULT_CONFIG_URL="https://github.com/DataDog/opentelemetry-examples/tree/41bc132eb55f87c0fa9d3b630977ed9e1b04d2f0/guides/kubernetes/configuration/opentelemetry-kube-stack"
 CONFIG_URL="$DEFAULT_CONFIG_URL"
 USE_LOCAL_CONFIG=false
 
@@ -197,10 +197,27 @@ if [[ "$ENABLE_HOST_PROFILER" == "y" || "$ENABLE_HOST_PROFILER" == "Y" ]]; then
     # Egress policy for the profiler, only useful on default-deny clusters
     # whose CNI enforces NetworkPolicy.
     read -p "Egress NetworkPolicy? (n)one / (s)tandard / (c)ilium (default: none): " HOST_PROFILER_NETWORK_POLICY
+    HOST_PROFILER_NETWORK_POLICY_KIND=""
     case "${HOST_PROFILER_NETWORK_POLICY:-n}" in
-        s*) HOST_PROFILER_NETWORK_POLICY_FILE="$CONFIG_DIR/host-profiler-network-policy.yaml" ;;
-        c*) HOST_PROFILER_NETWORK_POLICY_FILE="$CONFIG_DIR/host-profiler-cilium-network-policy.yaml" ;;
+        s*) HOST_PROFILER_NETWORK_POLICY_FILE="$CONFIG_DIR/host-profiler-network-policy.yaml"
+            HOST_PROFILER_NETWORK_POLICY_KIND=networkpolicy ;;
+        c*) HOST_PROFILER_NETWORK_POLICY_FILE="$CONFIG_DIR/host-profiler-cilium-network-policy.yaml"
+            HOST_PROFILER_NETWORK_POLICY_KIND=ciliumnetworkpolicy ;;
     esac
+    # The standard and Cilium policies select the same pods and Kubernetes NetworkPolicies are
+    # additive: a policy of another kind left by a previous run would change the requested
+    # egress, so fail rather than silently keep or delete it. The CiliumNetworkPolicy CRD only
+    # exists on Cilium clusters, hence the ignored errors.
+    for kind in networkpolicy ciliumnetworkpolicy; do
+        [[ "$kind" == "$HOST_PROFILER_NETWORK_POLICY_KIND" ]] && continue
+        if [[ -n "$(kubectl get "$kind" opentelemetry-kube-stack-host-profiler-egress \
+                      --namespace opentelemetry-operator-system \
+                      --ignore-not-found=true -o name 2>/dev/null)" ]]; then
+            error "A host-profiler egress $kind from a previous installation conflicts with the selected policy." \
+                  "Delete it and re-run this script:" \
+                  "kubectl delete $kind opentelemetry-kube-stack-host-profiler-egress --namespace opentelemetry-operator-system"
+        fi
+    done
     HOST_PROFILER_ENABLED_ARGS=(
         --set collectors.host-profiler.enabled=true
         -f "$CONFIG_DIR/host-profiler-rbac-values.yaml"
@@ -322,21 +339,6 @@ sed \
   -e "s|<DD_SITE>|${DD_SITE:-datadoghq.com}|" \
   "$CONFIG_DIR/datadog-agent.yaml" \
   | kubectl apply --namespace datadog -f -
-
-# The standard and Cilium policies select the same pods and Kubernetes
-# NetworkPolicies are additive: remove both NetworkPolicy before applying
-# the selected one (or none), so a policy from a previous run cannot widen
-# the requested egress.
-kubectl delete networkpolicy \
-  --namespace opentelemetry-operator-system \
-  --ignore-not-found=true \
-  opentelemetry-kube-stack-host-profiler-egress \
-  || echo "WARNING: Could not delete the host-profiler NetworkPolicy. Continuing..."
-kubectl delete ciliumnetworkpolicy \
-  --namespace opentelemetry-operator-system \
-  --ignore-not-found=true \
-  opentelemetry-kube-stack-host-profiler-egress \
-  || echo "WARNING: CiliumNetworkPolicy CRD not installed. Continuing..."
 
 if [[ -n "$HOST_PROFILER_NETWORK_POLICY_FILE" ]]; then
     echo "Applying the host-profiler egress NetworkPolicy..."
