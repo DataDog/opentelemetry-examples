@@ -28,6 +28,7 @@ Contents:
 - [3. Run the script](#3-run-the-script)
 - [4. Verify the installation](#4-verify-the-installation)
 - [5. Instrument your applications](#5-instrument-your-applications)
+  - [Go applications](#go-applications)
 - [Options](#options)
 - [Customize the installation](#customize-the-installation)
   - [Use an overlay values file for the OpenTelemetry Kube Stack Helm chart](#use-an-overlay-values-file-for-the-opentelemetry-kube-stack-helm-chart)
@@ -173,6 +174,35 @@ Operator's APM instrumentation is disabled by default (`features.apm.instrumenta
 `datadog-agent.yaml`): the label protects your pods if this configuration is later changed, for example to
 auto-instrument other workloads with Datadog's single-step APM instrumentation. See
 [Hybrid OTel + Datadog APM instrumentation](README.md#hybrid-otel--datadog-apm-instrumentation).
+
+### Go applications
+
+Go is compiled to native code, so it can't be auto-instrumented at runtime by injecting an agent the way Java or
+Node.js can. The best practice is **compile-time auto-instrumentation**: it instruments Go apps the same way as apps in
+other languages. Popular frameworks and libraries (`net/http`, gRPC, database drivers...) are auto-instrumented, and
+the application code uses only the OpenTelemetry APIs to enrich the auto-instrumentation, with custom spans,
+attributes, or metrics. It doesn't use the OpenTelemetry SDKs directly.
+
+Instrument at build time with the tool that matches your SDK:
+
+- **Upstream OpenTelemetry SDK for Go:** [OpenTelemetry Go compile-time instrumentation][otel-go-compile-time].
+- **DDOT SDK for Go**, the Datadog OpenTelemetry SDK for Go: [Orchestrion][orchestrion].
+
+Then add the `inject-sdk` annotation to the pod template. The OpenTelemetry Operator doesn't inject any SDK for this
+annotation: it only injects the OpenTelemetry configuration (`OTEL_*` environment variables, such as the `daemon`
+collector's endpoint and the resource attributes):
+
+```yaml
+spec:
+  template:
+    metadata:
+      annotations:
+        instrumentation.opentelemetry.io/inject-sdk: opentelemetry-operator-system/opentelemetry-kube-stack
+        resource.opentelemetry.io/service-name: my-service
+      labels:
+        # Prevent dual instrumentation by the Datadog Operator and the OpenTelemetry Operator.
+        admission.datadoghq.com/enabled: "false" # Label values are strings: keep the quotes.
+```
 
 ## Options
 
@@ -472,3 +502,5 @@ sed \
 [dd-app-keys]: https://docs.datadoghq.com/account_management/api-app-keys/#application-keys
 [dd-site]: https://docs.datadoghq.com/getting_started/site/
 [jaeger]: https://www.jaegertracing.io/
+[otel-go-compile-time]: https://opentelemetry.io/docs/zero-code/go/compile-time/
+[orchestrion]: https://github.com/DataDog/orchestrion
