@@ -29,7 +29,7 @@ Contents:
 - [4. Verify the installation](#4-verify-the-installation)
 - [5. Instrument your applications](#5-instrument-your-applications)
   - [Go applications](#go-applications)
-- [Options](#options)
+- [Options of the `install` script](#options-of-the-install-script)
 - [Customize the installation](#customize-the-installation)
   - [Use an overlay values file for the OpenTelemetry Kube Stack Helm chart](#use-an-overlay-values-file-for-the-opentelemetry-kube-stack-helm-chart)
   - [Copy the configuration files locally and use `--local`](#copy-the-configuration-files-locally-and-use---local)
@@ -204,9 +204,10 @@ spec:
         admission.datadoghq.com/enabled: "false" # Label values are strings: keep the quotes.
 ```
 
-## Options
+## Options of the `install` script
 
-Run `./install --help` for the full list.
+The `install` script accepts the following command-line options and argument. Run `./install --help` for the full
+list.
 
 | Option                  | Use                                                                                                                                     |
 |:------------------------|:----------------------------------------------------------------------------------------------------------------------------------------|
