@@ -48,6 +48,8 @@ chmod +x install
 
 See the [installation guide](INSTALL.md) for the prerequisites, the script's prompts and options, verification, and
 troubleshooting, and to [install without the `install` script](INSTALL.md#install-without-the-install-script).
+To export to another observability backend in addition to Datadog, or to modify the configuration files, see
+[Customize the installation](INSTALL.md#customize-the-installation).
 
 ### Instrument Kubernetes workloads with DDOT SDKs
 

@@ -167,11 +167,94 @@ Run `./install --help` for the full list.
 | `--config-url=<url>`    | Download the configuration files from another GitHub folder (`https://github.com/<owner>/<repo>/tree/<branch>/<path>`) or raw base URL. |
 | `<overlay-values.yaml>` | A values file merged on top of the `values.yaml` file of the OpenTelemetry Kube stack Helm chart: a local file, a URL, or a path relative to the configuration folder.                      |
 
-For advanced users only, for example to customize the configuration with your own values file:
+See [Customize the installation](#customize-the-installation) to use the `--local` option and overlay values files.
+
+## Customize the installation
+
+The `install` script installs a configuration that sends Kubernetes and application telemetry to Datadog. Customize it
+in one of two ways:
+
+- [**An overlay values file**](#use-an-overlay-values-file-for-the-opentelemetry-kube-stack-helm-chart) for the
+  OpenTelemetry Kube Stack Helm chart. Use it for targeted changes to the collectors, such as exporting to another
+  observability backend. You keep receiving the updates to the reference `values.yaml`.
+- [**Local copies of the configuration files**](#copy-the-configuration-files-locally-and-use---local), used with the
+  `--local` option. It gives full control, including over the `DatadogAgent` custom resource (`datadog-agent.yaml`),
+  but you have to maintain your copies yourself.
+
+### Use an overlay values file for the OpenTelemetry Kube Stack Helm chart
+
+The script passes the overlay values file to the `helm upgrade --install opentelemetry-kube-stack ...` command after
+the reference `values.yaml`, so its values take precedence. The overlay values file can be a local file, a URL, or a
+path relative to the configuration folder (by default, the folder of this guide on GitHub).
+
+For example, to export the traces of the `daemon` collector to a [Jaeger][jaeger] instance in addition to Datadog,
+use [`examples/export-to-datadog-and-jaeger/values.yaml`](examples/export-to-datadog-and-jaeger/values.yaml):
+
+```yaml
+collectors:
+  daemon:
+    config:
+      exporters:
+        otlp/jaeger:
+          endpoint: jaeger.jaeger.svc.cluster.local:4317
+          tls:
+            insecure: true
+
+      service:
+        pipelines:
+          traces:
+            exporters: [datadog/connector, otlp/jaeger]
+```
+
+Then pass it to the script, as a path relative to the configuration folder, or as your own local copy:
 
 ```sh
-./install path/to/my/overlay-values.yaml
+./install examples/export-to-datadog-and-jaeger/values.yaml
+# or
+./install my-overlay-values.yaml
 ```
+
+- Helm merges maps but **replaces lists**: the overlay's `exporters` list replaces the one of the reference
+  `values.yaml`, so it must repeat `datadog/connector`, or the traces stop flowing to Datadog. Check the current lists in
+  `values.yaml` (`collectors.daemon.config.service.pipelines`) before overriding one.
+- Adapt the endpoint and the TLS settings to your Jaeger instance: this example expects the OTLP gRPC endpoint of a
+  Jaeger instance in the `jaeger` namespace, without TLS.
+- The same pattern applies to any OTLP-compatible observability backend, and to the `logs` and `metrics` pipelines.
+
+### Copy the configuration files locally and use `--local`
+
+With `--local`, the script reads all its configuration files from its own folder instead of downloading them. Download
+the script and its configuration files, from the same commit, into one folder:
+
+```sh
+CONFIG_RAW_URL=https://raw.githubusercontent.com/DataDog/opentelemetry-examples/62edd24473213e854ce34e993bc32a46f59ec42d/guides/kubernetes/configuration/opentelemetry-kube-stack
+for file in install values.yaml datadog-agent.yaml host-profiler-rbac-values.yaml \
+    host-profiler-network-policy.yaml host-profiler-cilium-network-policy.yaml; do
+  curl -fsSL -o "$file" "$CONFIG_RAW_URL/$file"
+done
+chmod +x install
+```
+
+Modify the local files, mainly:
+
+- `values.yaml`, the values file of the OpenTelemetry Kube Stack Helm chart: the collectors, their pipelines and
+  resources, the `Instrumentation` custom resource...
+- `datadog-agent.yaml`, the `DatadogAgent` custom resource from which the Datadog Operator deploys the Datadog Agent: its
+  features, resources...
+
+Then run the script with `--local`, optionally with an overlay values file, resolved relative to the current directory:
+
+```sh
+./install --local
+# or
+./install --local my-overlay-values.yaml
+```
+
+- Keep the `<CLUSTER_NAME>` and `<DD_SITE>` placeholders of `datadog-agent.yaml`: the script substitutes them.
+- Keep the `opentelemetry-operator-system` and `datadog` namespaces: the script and the DDOT SDK instrumentation
+  annotations rely on them.
+- Your local copies don't receive the fixes and updates of this guide: compare them with the newer versions when you
+  upgrade.
 
 ## Changes to the Kubernetes cluster
 
@@ -371,3 +454,4 @@ sed \
 [dd-api-keys]: https://docs.datadoghq.com/account_management/api-app-keys/#api-keys
 [dd-app-keys]: https://docs.datadoghq.com/account_management/api-app-keys/#application-keys
 [dd-site]: https://docs.datadoghq.com/getting_started/site/
+[jaeger]: https://www.jaegertracing.io/
