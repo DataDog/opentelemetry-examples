@@ -27,6 +27,8 @@ Contents:
 - [2. Provide the Datadog credentials](#2-provide-the-datadog-credentials)
 - [3. Run the script](#3-run-the-script)
 - [4. Verify the installation](#4-verify-the-installation)
+  - [Verify on the Kubernetes cluster](#verify-on-the-kubernetes-cluster)
+  - [Verify in Datadog](#verify-in-datadog)
 - [5. Instrument your applications](#5-instrument-your-applications)
   - [Go applications](#go-applications)
 - [Options of the `install` script](#options-of-the-install-script)
@@ -129,6 +131,8 @@ See [Changes to the Kubernetes cluster](#changes-to-the-kubernetes-cluster) for 
 
 ## 4. Verify the installation
 
+### Verify on the Kubernetes cluster
+
 Check that the collectors, the OpenTelemetry Operator, and the Datadog Operator and Agent are running:
 
 ```sh
@@ -142,8 +146,22 @@ Expect a `cluster` OpenTelemetry Collector pod, one `daemon` OpenTelemetry Colle
 `host-profiler` pod per node when enabled), and one Datadog Agent pod per node next to the Datadog Operator and Cluster
 Agent.
 
-After a few minutes, the Kubernetes cluster shows up in Datadog's Kubernetes views, under the Kubernetes cluster name
-you entered (or the one detected on EKS, GKE, and AKS).
+### Verify in Datadog
+
+After a few minutes, the installation shows up in Datadog, under the Kubernetes cluster name you entered (or the one
+detected on EKS, GKE, and AKS):
+
+- **[Fleet Automation][dd-fleet-automation]** lists the Datadog Agents, and the `cluster` and `daemon` OpenTelemetry
+  Collectors, which report to it through their [Datadog extension][dd-otel-extension]. Filter for the OpenTelemetry
+  Collector hosts with the Collector facets, and check that each node runs one Datadog Agent and one `daemon`
+  OpenTelemetry Collector, plus one `cluster` OpenTelemetry Collector. Click a host to see the OpenTelemetry
+  Collector's version and build information in the **Info** tab, and its configuration, as YAML or as a pipeline
+  visualization, in the **Configurations** tab.
+- **The default OpenTelemetry Collector dashboard** (in **Dashboards**, search for `OpenTelemetry Collector`) shows
+  the [health metrics][dd-otel-collector-health] that the OpenTelemetry Collectors export to Datadog through their own
+  pipelines: accepted, refused, and sent telemetry, queue sizes, and resource usage. Check that the OpenTelemetry
+  Collectors receive and export telemetry without refused or failed data.
+- The Kubernetes cluster also shows up in Datadog's Kubernetes views.
 
 ## 5. Instrument your applications
 
@@ -505,3 +523,6 @@ sed \
 [jaeger]: https://www.jaegertracing.io/
 [otel-go-compile-time]: https://opentelemetry.io/docs/zero-code/go/compile-time/
 [orchestrion]: https://github.com/DataDog/orchestrion
+[dd-fleet-automation]: https://docs.datadoghq.com/agent/fleet_automation/
+[dd-otel-collector-health]: https://docs.datadoghq.com/opentelemetry/integrations/collector_health_metrics/
+[dd-otel-extension]: https://docs.datadoghq.com/opentelemetry/integrations/datadog_extension/
