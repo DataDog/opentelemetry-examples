@@ -20,6 +20,23 @@ See [What this deploys](README.md#what-this-deploys) for the architecture, and
 [Install without the `install` script](#install-without-the-install-script) to perform the same installation manually
 (not recommended).
 
+Contents:
+
+- [Before you begin](#before-you-begin)
+- [1. Download the script](#1-download-the-script)
+- [2. Provide the Datadog credentials](#2-provide-the-datadog-credentials)
+- [3. Run the script](#3-run-the-script)
+- [4. Verify the installation](#4-verify-the-installation)
+- [5. Instrument your applications](#5-instrument-your-applications)
+- [Options](#options)
+- [Customize the installation](#customize-the-installation)
+  - [Use an overlay values file for the OpenTelemetry Kube Stack Helm chart](#use-an-overlay-values-file-for-the-opentelemetry-kube-stack-helm-chart)
+  - [Copy the configuration files locally and use `--local`](#copy-the-configuration-files-locally-and-use---local)
+- [Changes to the Kubernetes cluster](#changes-to-the-kubernetes-cluster)
+- [Troubleshooting](#troubleshooting)
+- [Uninstalling](#uninstalling)
+- [Install without the `install` script](#install-without-the-install-script)
+
 ## Before you begin
 
 On the machine running the script:
