@@ -24,12 +24,28 @@ IMAGE_PREFIX="${IMAGE_PREFIX%/}"
 IMAGE_TAG="${IMAGE_TAG:-latest}"
 SERVICES=(ad checkout fraud-detection frontend product-catalog)
 
-# Git metadata baked into each image as build args, then surfaced as OTel vcs.* / Datadog DD_GIT_*
-# env vars inside the Dockerfiles. See the "VCS" ARG/ENV block near the end of each Dockerfile.
+# Git metadata baked into each image as build args, then surfaced as OCI image labels and Datadog
+# DD_GIT_* env vars inside the Dockerfiles. See the "VCS" ARG/LABEL/ENV block near the end of each
+# Dockerfile.
+# Datadog Source Code Integration and org.opencontainers.image.source both expect a browsable https URL,
+# so rewrite SSH remotes (git@github.com:org/repo.git, ssh://git@github.com/org/repo.git) to
+# https://github.com/org/repo.
 VCS_REPOSITORY_URL_FULL="$(git -C "${SCRIPT_DIR}" config --get remote.origin.url)"
+VCS_REPOSITORY_URL_FULL="${VCS_REPOSITORY_URL_FULL%.git}"
+if [[ "${VCS_REPOSITORY_URL_FULL}" =~ ^ssh://([^@/]+@)?([^/:]+)(:[0-9]+)?/(.+)$ ]]; then
+    VCS_REPOSITORY_URL_FULL="https://${BASH_REMATCH[2]}/${BASH_REMATCH[4]}"
+elif [[ "${VCS_REPOSITORY_URL_FULL}" =~ ^[^@/]+@([^:]+):(.+)$ ]]; then
+    VCS_REPOSITORY_URL_FULL="https://${BASH_REMATCH[1]}/${BASH_REMATCH[2]}"
+fi
 VCS_REF_HEAD_NAME="$(git -C "${SCRIPT_DIR}" rev-parse --abbrev-ref HEAD)"
 VCS_REF_TYPE="branch"
 VCS_REF_HEAD_REVISION="$(git -C "${SCRIPT_DIR}" rev-parse HEAD)"
+# org.opencontainers.image.version: the short commit SHA, as the image tag ("latest" by default) doesn't
+# identify the content.
+IMAGE_VERSION="$(git -C "${SCRIPT_DIR}" rev-parse --short HEAD)"
+# org.opencontainers.image.created: the commit date in UTC rather than the build time, so rebuilding the
+# same commit produces the same labels.
+IMAGE_CREATED="$(TZ=UTC git -C "${SCRIPT_DIR}" log -1 --date=format-local:%Y-%m-%dT%H:%M:%SZ --format=%cd)"
 
 for service in "${SERVICES[@]}"; do
     image="${IMAGE_PREFIX}/${service}:${IMAGE_TAG}"
@@ -39,6 +55,8 @@ for service in "${SERVICES[@]}"; do
         --build-arg VCS_REF_HEAD_NAME="${VCS_REF_HEAD_NAME}" \
         --build-arg VCS_REF_TYPE="${VCS_REF_TYPE}" \
         --build-arg VCS_REF_HEAD_REVISION="${VCS_REF_HEAD_REVISION}" \
+        --build-arg IMAGE_VERSION="${IMAGE_VERSION}" \
+        --build-arg IMAGE_CREATED="${IMAGE_CREATED}" \
         --tag "${image}" "${SCRIPT_DIR}/${service}"
 done
 
@@ -51,6 +69,8 @@ docker build \
     --build-arg VCS_REF_HEAD_NAME="${VCS_REF_HEAD_NAME}" \
     --build-arg VCS_REF_TYPE="${VCS_REF_TYPE}" \
     --build-arg VCS_REF_HEAD_REVISION="${VCS_REF_HEAD_REVISION}" \
+    --build-arg IMAGE_VERSION="${IMAGE_VERSION}" \
+    --build-arg IMAGE_CREATED="${IMAGE_CREATED}" \
     --file "${SCRIPT_DIR}/checkout/Dockerfile.upstream-otel" \
     --tag "${upstream_otel_image}" "${SCRIPT_DIR}/checkout"
 
