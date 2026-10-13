@@ -722,9 +722,6 @@ instrumentation:
     # but not yet supported by the DDOT SDKs
     # - name: "DD_OTEL_SDK_ENABLED"
     #  value: "true"
-    ## DDOT CONFIGURATION
-    - name: "DD_AGENT_HOST"
-      value: "ddagent-kube-stack-datadog.opentelemetry-operator-system.svc.cluster.local"
     # DBM SUPPORT
     - name: "DD_DBM_PROPAGATION_MODE"
       value: "full"

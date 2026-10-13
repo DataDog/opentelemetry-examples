@@ -3,6 +3,16 @@ set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
+require_bool() {
+    case "${!1}" in
+        true|false) ;;
+        *)
+            echo "ERROR: $1 must be one of: true, false (got '${!1}')" >&2
+            exit 1
+            ;;
+    esac
+}
+
 # Optional extra/overlay values.yaml merged on top of the base values file.
 OVERLAY_VALUES_FILE="${1:-}"
 OVERLAY_VALUES_ARGS=()
@@ -28,6 +38,13 @@ esac
 DD_SITE=${DD_SITE:-datadoghq.com}
 K8S_CLUSTER_TYPE=${K8S_CLUSTER_TYPE:-other}
 DEPLOYMENT_ENVIRONMENT_NAME=${DEPLOYMENT_ENVIRONMENT_NAME:-production}
+DD_AGENT_ENABLED=${DD_AGENT_ENABLED:-true}
+require_bool DD_AGENT_ENABLED
+
+DD_AGENT_VALUES_ARGS=()
+if [[ "$DD_INSTALL_FLOW" == "ddot" && "$DD_AGENT_ENABLED" == "true" ]]; then
+    DD_AGENT_VALUES_ARGS=(-f "$SCRIPT_DIR/dd-agent-kube-stack-values.yaml")
+fi
 
 case "$K8S_CLUSTER_TYPE" in
     eks|gcp|aks|other) ;;
@@ -45,13 +62,7 @@ DD_HOST_PROFILER_NETWORK_POLICY=${DD_HOST_PROFILER_NETWORK_POLICY:-none}
 HOST_PROFILER_NETWORK_POLICY_FILE=""
 HOST_PROFILER_ENABLED_ARGS=()
 
-case "$DD_HOST_PROFILER_ENABLED" in
-    true|false) ;;
-    *)
-        echo "ERROR: DD_HOST_PROFILER_ENABLED must be one of: true, false (got '$DD_HOST_PROFILER_ENABLED')" >&2
-        exit 1
-        ;;
-esac
+require_bool DD_HOST_PROFILER_ENABLED
 
 if [[ "$DD_HOST_PROFILER_ENABLED" == "true" ]]; then
     # Egress policy for the profiler, only useful on default-deny clusters
@@ -125,6 +136,7 @@ helm upgrade opentelemetry-kube-stack \
     --namespace opentelemetry-operator-system \
     "${HELM_SET_ARGS[@]}" \
     -f "$SCRIPT_DIR/$VALUES_FILE" \
+    ${DD_AGENT_VALUES_ARGS[@]+"${DD_AGENT_VALUES_ARGS[@]}"} \
     ${HOST_PROFILER_ENABLED_ARGS[@]+"${HOST_PROFILER_ENABLED_ARGS[@]}"} \
     ${OVERLAY_VALUES_ARGS[@]+"${OVERLAY_VALUES_ARGS[@]}"}
 
@@ -149,7 +161,7 @@ if [[ -n "$HOST_PROFILER_NETWORK_POLICY_FILE" ]]; then
       || echo "WARNING: Could not apply the host-profiler egress NetworkPolicy (is Cilium installed if you chose the Cilium policy?). Continuing..."
 fi
 
-if [[ "$DD_INSTALL_FLOW" == "ddot" ]]; then
+if [[ "$DD_INSTALL_FLOW" == "ddot" && "$DD_AGENT_ENABLED" == "true" ]]; then
     echo "Installing Datadog Agent"
 
     helm repo add datadog https://helm.datadoghq.com
