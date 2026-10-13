@@ -1,0 +1,5 @@
+resourceAttributes:
+  deployment.environment.name: "production"
+collectors:
+  host-profiler:
+    enabled: true
