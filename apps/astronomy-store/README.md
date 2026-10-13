@@ -13,7 +13,25 @@ The demo includes a single-node Kafka broker available to its workloads at
 Each service's `Dockerfile` accepts `VCS_REPOSITORY_URL_FULL`, `VCS_REF_HEAD_NAME`, `VCS_REF_TYPE`, and
 `VCS_REF_HEAD_REVISION` build args (populated by `build-images` from the local git checkout) and bakes them into
 the image as `DD_GIT_REPOSITORY_URL` and `DD_GIT_COMMIT_SHA` env vars, which Datadog tracers/agents use for
-Source Code Integration (linking traces/errors back to the exact commit).
+Source Code Integration (linking traces/errors back to the exact commit). `build-images` rewrites SSH remotes
+(`git@github.com:org/repo.git`) to https URLs (`https://github.com/org/repo`), as Source Code Integration expects.
+
+Each `Dockerfile` also sets [OCI image labels](https://specs.opencontainers.org/image-spec/annotations/), so an
+image's origin can be read from the registry or with `docker inspect` without running it:
+
+| Label | Value |
+|---|---|
+| `org.opencontainers.image.title` | `astronomy-store-<service>` |
+| `org.opencontainers.image.description` | One-line description of the service |
+| `org.opencontainers.image.source` | Repository https URL (`VCS_REPOSITORY_URL_FULL`) |
+| `org.opencontainers.image.revision` | Full commit SHA (`VCS_REF_HEAD_REVISION`) |
+| `org.opencontainers.image.version` | Short commit SHA (`IMAGE_VERSION`) |
+| `org.opencontainers.image.created` | Commit date in UTC (`IMAGE_CREATED`), not the build time, so rebuilding the same commit produces the same labels |
+
+Setting `title`, `version`, and `created` also overrides the labels inherited from base images (`eclipse-temurin`,
+used by `ad`, otherwise labels the image `ubuntu` version `26.04`). These labels describe the image, not the running
+workload: neither OpenTelemetry nor Datadog Source Code Integration reads them, which is why the `DD_GIT_*` env vars
+are still needed.
 
 We deliberately do **not** also set the OpenTelemetry [VCS semantic-convention resource attributes]
 (https://opentelemetry.io/docs/specs/semconv/registry/entities/vcs/) (`vcs.repository.url.full`,
