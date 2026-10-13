@@ -3,7 +3,7 @@
 # FOR INTERNAL TESTING PURPOSES ONLY
 {{end -}}
 # Recommended OpenTelemetry Collector configuration (Deployment mode)
-# Paired with {{- if .Testing}} otel-demo-datadog{{- else}} daemonset{{- end}}{{- if ne .CloudEnvironment ""}}-{{.CloudEnvironment}}{{- end}}.yaml to collect cluster level resources to support K8s Explorer
+# Paired with {{- if .Testing}} otel-demo{{- if .DatadogExporter}}-datadog{{- end}}{{- else}} daemonset{{- end}}{{- if ne .CloudEnvironment ""}}-{{.CloudEnvironment}}{{- end}}.yaml to collect cluster level resources to support K8s Explorer
 {{include "setup" .}}
 # Collector Contrib version: v{{.OtelcolVersion}}
 # Required environment variables:
@@ -73,8 +73,10 @@ connectors:
 exporters:
   debug:
     verbosity: detailed
+  {{- if .DatadogExporter}}
   datadog:
     {{include "datadog-exporter" . | indent 4}}
+  {{- end}}
   otlp_http:
     {{include "otlp-http-exporter" . | indent 4}}
 
@@ -90,7 +92,7 @@ service:
     logs/orchestrator:
       receivers: [k8s_objects]
       processors: [{{- if eq .CloudEnvironment ""}}resource/add-cluster-name, {{end}}resourcedetection]
-      exporters: [datadog]
+      exporters: [{{if .DatadogExporter}}datadog{{else}}otlp_http{{end}}]
 
     metrics/cluster:
       receivers: [k8s_cluster]

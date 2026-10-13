@@ -50,8 +50,6 @@ resources:
   requests:
     cpu: 500m
     memory: 512Mi
-  limits:
-    memory: 512Mi
 
 # Service account for the k8s_attributes processor
 serviceAccount:
@@ -60,7 +58,7 @@ clusterRole:
   create: true
   rules:
     - apiGroups: [""]
-      resources: ["pods", "namespaces"{{- if or .KubeletStats .K8sObjects}}, "nodes"{{- end}}{{- if .KubeletStats}}, "nodes/stats"{{- end}}]
+      resources: ["pods", "namespaces"{{- if .KubeletStats}}, "nodes", "nodes/stats"{{- end}}]
       verbs: ["get", "watch", "list"]
     - apiGroups: ["apps"]
       resources: ["replicasets"]
@@ -68,36 +66,6 @@ clusterRole:
     - apiGroups: ["extensions"]
       resources: ["replicasets"]
       verbs: ["get", "list", "watch"]
-    {{- if .K8sObjects}}
-    # Additional permissions for the k8s_objects receiver
-    - apiGroups: [""]
-      resources: ["services", "serviceaccounts", "persistentvolumes", "persistentvolumeclaims"]
-      verbs: ["get", "list", "watch"]
-    - apiGroups: ["apps"]
-      resources: ["daemonsets", "deployments", "statefulsets"]
-      verbs: ["get", "list", "watch"]
-    - apiGroups: ["batch"]
-      resources: ["jobs", "cronjobs"]
-      verbs: ["get", "list", "watch"]
-    - apiGroups: ["rbac.authorization.k8s.io"]
-      resources: ["roles", "rolebindings", "clusterroles", "clusterrolebindings"]
-      verbs: ["get", "list", "watch"]
-    - apiGroups: ["storage.k8s.io"]
-      resources: ["storageclasses"]
-      verbs: ["get", "list", "watch"]
-    - apiGroups: ["networking.k8s.io"]
-      resources: ["networkpolicies", "ingresses"]
-      verbs: ["get", "list", "watch"]
-    - apiGroups: ["autoscaling"]
-      resources: ["horizontalpodautoscalers"]
-      verbs: ["get", "list", "watch"]
-    - apiGroups: ["policy"]
-      resources: ["poddisruptionbudgets"]
-      verbs: ["get", "list", "watch"]
-    - apiGroups: ["apiextensions.k8s.io"]
-      resources: ["customresourcedefinitions"]
-      verbs: ["get", "list", "watch"]
-    {{- end}}
 
 {{- if not .NoHostMetrics}}
 

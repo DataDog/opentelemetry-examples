@@ -4,7 +4,7 @@
 # FOR INTERNAL TESTING PURPOSES ONLY
 {{end -}}
 # values.yaml for the OpenTelemetry Collector Helm Chart (Deployment mode)
-# Paired with {{- if .Testing}} otel-demo-datadog{{- else}} daemonset{{- end}}{{- if ne .CloudEnvironment ""}}-{{.CloudEnvironment}}{{- end}}.yaml to collect cluster level resources to support K8s Explorer
+# Paired with {{- if .Testing}} otel-demo{{- if .DatadogExporter}}-datadog{{- end}}{{- else}} daemonset{{- end}}{{- if ne .CloudEnvironment ""}}-{{.CloudEnvironment}}{{- end}}.yaml to collect cluster level resources to support K8s Explorer
 {{include "setup" .}}
 # Required secrets: datadog-secrets::api-key
 # Remember to modify DD_SITE if not using datadoghq.com
