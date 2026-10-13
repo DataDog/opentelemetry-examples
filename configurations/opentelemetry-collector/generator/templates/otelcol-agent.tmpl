@@ -47,6 +47,10 @@ receivers:
   kubelet_stats:
     {{include "kubelet-stats-receiver" . | indent 4}}
   {{- end}}
+  {{- if .K8sObjects}}
+  k8s_objects:
+    {{include "k8s-objects-receiver" . | indent 4}}
+  {{- end}}
 
 processors:
   # Detect host and cloud metadata for hostname resolution and tagging
@@ -183,6 +187,13 @@ service:
       {{- else}}
       exporters: [otlp_http]
       {{- end}}
+    {{- if .K8sObjects}}
+
+    logs/k8s_objects:
+      receivers: [k8s_objects]
+      processors: [resource_detection]
+      exporters: [otlp_http]
+    {{- end}}
     
     metrics:
       receivers: [otlp{{- if not .NoHostMetrics}}, host_metrics{{- end}}{{- if .KubeletStats}}, kubelet_stats{{- end}}]

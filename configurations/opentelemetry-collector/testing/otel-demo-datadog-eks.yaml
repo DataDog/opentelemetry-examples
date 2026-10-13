@@ -75,6 +75,8 @@ opentelemetry-collector:
     requests:
       cpu: 500m
       memory: 512Mi
+    limits:
+      memory: 512Mi
   
   # Service account for the k8s_attributes processor
   serviceAccount:
