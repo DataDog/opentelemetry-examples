@@ -56,8 +56,7 @@ spec:
   nodejs:
     image: datadog/dd-otel-autoinstrumentation-js:6.16.0
   python:
-    image: ghcr.io/cyrille-leclerc/dd-autoinstrumentation-python:4.15.1
-    volumeLimitSize: 500Mi
+    image: ghcr.io/cyrille-leclerc/dd-autoinstrumentation-python:4.16.0
   dotnet:
     env:
     - name: CORECLR_PROFILER
@@ -67,4 +66,3 @@ spec:
     - name: DD_DOTNET_TRACER_HOME
       value: /otel-auto-instrumentation-dotnet
     image: ghcr.io/zacharycmontoya/dd-autoinstrumentation-dotnet:3.52.0
-
