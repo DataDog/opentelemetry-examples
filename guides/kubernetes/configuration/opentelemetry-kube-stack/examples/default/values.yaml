@@ -1,1 +1,3 @@
-# default values
+resourceAttributes:
+  deployment.environment.name: "staging"
+  deployment.environment: "staging"

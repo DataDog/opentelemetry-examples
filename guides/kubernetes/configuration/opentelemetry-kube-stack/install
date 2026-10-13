@@ -350,7 +350,7 @@ fi
 # most important one for the user to read.
 echo "Installing OpenTelemetry Kube Stack Helm Chart..."
 
-# FIXME use deployment.environment.name, it's a workaround for https://github.com/DataDog/dd-trace-java/pull/12324
+# FIXME just use deployment.environment.name and remove deployment.environment after https://github.com/DataDog/dd-trace-go/pull/5285
 HELM_SET_ARGS=(
     --set-string "resourceAttributes.deployment\.environment=$DEPLOYMENT_ENVIRONMENT_NAME"
     --set-string "resourceAttributes.deployment\.environment\.name=$DEPLOYMENT_ENVIRONMENT_NAME"
