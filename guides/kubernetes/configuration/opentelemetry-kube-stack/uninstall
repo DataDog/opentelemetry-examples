@@ -5,19 +5,27 @@ cat <<'EOF'
 WARNING: This uninstall script is for development purposes only.
 
 It deletes:
+  - the opentelemetry-kube-stack Helm release in the
+    opentelemetry-operator-system namespace;
   - the cert-manager Helm release in the cert-manager namespace;
   - cert-manager CRDs: issuers, clusterissuers, certificates,
     certificaterequests, orders, and challenges;
-  - the opentelemetry-kube-stack Helm release in the
-    opentelemetry-operator-system namespace;
+  - the datadog DatadogAgent custom resource in the datadog namespace;
   - the ddagent-kube-stack Helm release in the
     opentelemetry-operator-system namespace (if installed);
+  - the datadog-operator Helm release in the datadog namespace;
+  - the datadog-webhook mutating and validating webhook configurations;
   - the host-profiler egress NetworkPolicy and CiliumNetworkPolicy in the
     opentelemetry-operator-system namespace (if installed);
   - the datadog-secret secret in the opentelemetry-operator-system namespace;
-  - OpenTelemetry CRDs: opentelemetrycollectors, instrumentations, and
-    opampbridges;
-  - the cert-manager and opentelemetry-operator-system namespaces.
+  - OpenTelemetry CRDs: opentelemetrycollectors, instrumentations,
+    opampbridges, and targetallocators;
+  - Datadog Operator CRDs: datadogagents, datadogagentprofiles,
+    datadogagentinternals, datadoginstrumentations, datadogmonitors,
+    datadogslos, datadogdashboards, datadogmetrics, datadogcsidrivers,
+    datadoggenericresources, datadogpodautoscalers, and
+    datadogpodautoscalerclusterprofiles;
+  - the cert-manager, opentelemetry-operator-system, and datadog namespaces.
 
 Deleting CRDs also deletes all corresponding custom resources in the cluster.
 EOF
@@ -27,18 +35,6 @@ if [[ "$confirmation" != "yes" ]]; then
   echo "Uninstall cancelled."
   exit 0
 fi
-
-helm uninstall cert-manager -n cert-manager \
-   || echo "WARNING: Could not uninstall cert-manager. Continuing..."
-
-kubectl delete crd \
-  issuers.cert-manager.io \
-  clusterissuers.cert-manager.io \
-  certificates.cert-manager.io \
-  certificaterequests.cert-manager.io \
-  orders.acme.cert-manager.io \
-  challenges.acme.cert-manager.io \
-|| echo "WARNING: Could not uninstall cert-manager CRDs. Continuing..."
 
 kubectl delete networkpolicy \
   --namespace opentelemetry-operator-system \
@@ -55,10 +51,40 @@ helm uninstall opentelemetry-kube-stack \
   --namespace opentelemetry-operator-system  \
   || echo "WARNING: Could not uninstall opentelemetry-kube-stack. Continuing..."
 
+helm uninstall cert-manager -n cert-manager \
+   || echo "WARNING: Could not uninstall cert-manager. Continuing..."
+
+kubectl delete crd \
+  issuers.cert-manager.io \
+  clusterissuers.cert-manager.io \
+  certificates.cert-manager.io \
+  certificaterequests.cert-manager.io \
+  orders.acme.cert-manager.io \
+  challenges.acme.cert-manager.io \
+|| echo "WARNING: Could not uninstall cert-manager CRDs. Continuing..."
+
+kubectl delete datadogagent \
+  --namespace datadog \
+  --ignore-not-found=true \
+  --cascade=foreground \
+  --timeout=5m \
+  datadog \
+  || echo "WARNING: Could not delete the datadog DatadogAgent. Continuing..."
+
 helm uninstall ddagent-kube-stack \
   --namespace opentelemetry-operator-system  \
   --ignore-not-found \
   || echo "WARNING: Could not uninstall ddagent-kube-stack. Continuing..."
+
+helm uninstall datadog-operator \
+  --namespace datadog \
+  --ignore-not-found \
+  || echo "WARNING: Could not uninstall datadog-operator. Continuing..."
+
+kubectl delete mutatingwebhookconfiguration,validatingwebhookconfiguration \
+  --ignore-not-found=true \
+  datadog-webhook \
+  || echo "WARNING: Could not delete the datadog-webhook webhook configurations. Continuing..."
 
 echo "Removing Datadog endpoint configuration..."
 kubectl delete secrets --namespace opentelemetry-operator-system  --ignore-not-found=true datadog-secret
@@ -66,9 +92,26 @@ kubectl delete secrets --namespace opentelemetry-operator-system  --ignore-not-f
 
 # Remove OpenTelemetry CRDs (optional - be careful as this affects all OpenTelemetry resources)
 echo "Delete CRDs"
-kubectl delete crd  --namespace opentelemetry-operator-system opentelemetrycollectors.opentelemetry.io
-kubectl delete crd  --namespace opentelemetry-operator-system instrumentations.opentelemetry.io
-kubectl delete crd  --namespace opentelemetry-operator-system opampbridges.opentelemetry.io
+kubectl delete crd --ignore-not-found=true \
+  opentelemetrycollectors.opentelemetry.io \
+  instrumentations.opentelemetry.io \
+  opampbridges.opentelemetry.io \
+  targetallocators.opentelemetry.io \
+  || echo "WARNING: Could not delete the OpenTelemetry Operator CRDs. Continuing..."
+kubectl delete crd --ignore-not-found=true \
+  datadogagents.datadoghq.com \
+  datadogagentprofiles.datadoghq.com \
+  datadogagentinternals.datadoghq.com \
+  datadoginstrumentations.datadoghq.com \
+  datadogmonitors.datadoghq.com \
+  datadogslos.datadoghq.com \
+  datadogdashboards.datadoghq.com \
+  datadogmetrics.datadoghq.com \
+  datadogcsidrivers.datadoghq.com \
+  datadoggenericresources.datadoghq.com \
+  datadogpodautoscalers.datadoghq.com \
+  datadogpodautoscalerclusterprofiles.datadoghq.com \
+  || echo "WARNING: Could not delete the Datadog Operator CRDs. Continuing..."
 
 echo "Removing namespaces..."
-kubectl delete namespace --ignore-not-found=true opentelemetry-operator-system cert-manager
+kubectl delete namespace --ignore-not-found=true opentelemetry-operator-system datadog cert-manager
