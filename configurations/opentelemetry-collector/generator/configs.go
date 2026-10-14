@@ -20,5 +20,5 @@ var configs = []config{
 	{"testing/helm-k8s-objects", "helm-k8s-objects", []string{"", "eks"}, map[string]any{"Container": true, "K8s": true, "Deployment": true, "KSM": true, "K8sObjects": true, "Testing": true}},
 	{"testing/daemonset-datadog", "otelcol-agent", []string{""}, map[string]any{"Container": true, "K8s": true, "DatadogExporter": true, "Testing": true}},
 	{"testing/otel-demo-datadog", "otel-demo", []string{"", "eks"}, map[string]any{"DatadogExporter": true, "Testing": true, "ExperimentalRuntimeMetrics": true, "MapEquivalentMetrics": true, "KubeletStats": true}},
-	{"testing/otel-demo", "otel-demo", []string{"", "eks"}, map[string]any{"Testing": true, "ExperimentalRuntimeMetrics": true, "MapEquivalentMetrics": true, "DualShip": true}},
+	{"testing/otel-demo", "otel-demo", []string{"", "eks"}, map[string]any{"Testing": true, "ExperimentalRuntimeMetrics": true, "MapEquivalentMetrics": true, "DualShip": true, "KubeletStats": true}},
 }
