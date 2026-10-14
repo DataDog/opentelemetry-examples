@@ -64,6 +64,10 @@ opentelemetry-collector:
         secretKeyRef:
           name: datadog-secrets-dual-ship
           key: api-key
+    - name: K8S_NODE_NAME
+      valueFrom:
+        fieldRef:
+          fieldPath: spec.nodeName
   
   mode: daemonset
   image:
@@ -86,7 +90,7 @@ opentelemetry-collector:
     create: true
     rules:
       - apiGroups: [""]
-        resources: ["pods", "namespaces"]
+        resources: ["pods", "namespaces", "nodes", "nodes/stats"]
         verbs: ["get", "watch", "list"]
       - apiGroups: ["apps"]
         resources: ["replicasets"]
@@ -171,6 +175,17 @@ opentelemetry-collector:
           load: {}
           network: {}
           processes: {}
+      kubelet_stats:
+        collection_interval: 15s
+        auth_type: "serviceAccount"
+        endpoint: "${env:K8S_NODE_NAME}:10250"
+        node: "${env:K8S_NODE_NAME}"
+        insecure_skip_verify: true
+        metric_groups:
+          - node
+          - pod
+          - container
+          - volume
     
     processors:
       # Detect host and cloud metadata for hostname resolution and tagging
@@ -262,6 +277,9 @@ opentelemetry-collector:
           - process.cpu.time
           # System metrics
           - system.network.io
+          # Kubelet stats metrics
+          - k8s.pod.network.io
+          - k8s.pod.network.errors
       transform/rate_to_gauge:
         error_mode: ignore
         metric_statements:
@@ -439,7 +457,7 @@ opentelemetry-collector:
           exporters: [otlp_http, otlp_http/dual_ship]
         
         metrics:
-          receivers: [otlp, host_metrics]
+          receivers: [otlp, host_metrics, kubelet_stats]
           processors:
             - k8s_attributes
             - resource_detection
