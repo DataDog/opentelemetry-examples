@@ -166,9 +166,14 @@ if [[ "$DD_INSTALL_FLOW" == "ddot" && "$DD_AGENT_ENABLED" == "true" ]]; then
 
     kubectl create namespace datadog || echo "WARNING: Could not create namespace 'datadog' (may already exist or insufficient permissions). Continuing..."
 
+    DD_APP_KEY_SECRET_ARGS=()
+    if [[ -n "${DD_APP_KEY:-}" ]]; then
+        DD_APP_KEY_SECRET_ARGS=(--from-literal="app-key=$DD_APP_KEY")
+    fi
     kubectl create secret generic datadog-secret \
       --namespace datadog \
       --from-literal="api-key=$DD_API_KEY" \
+      ${DD_APP_KEY_SECRET_ARGS[@]+"${DD_APP_KEY_SECRET_ARGS[@]}"} \
       --dry-run=client -o yaml | kubectl apply -f -
 
     helm repo add datadog https://helm.datadoghq.com
@@ -180,6 +185,18 @@ if [[ "$DD_INSTALL_FLOW" == "ddot" && "$DD_AGENT_ENABLED" == "true" ]]; then
     )
     if [[ -n "${K8S_CLUSTER_NAME:-}" ]]; then
         OPERATOR_HELM_ARGS+=(--set-string clusterName="$K8S_CLUSTER_NAME")
+    fi
+
+    if [[ -n "${DD_APP_KEY:-}" ]]; then
+        echo "Enabling Fleet Automation in the Datadog Operator..."
+        OPERATOR_HELM_ARGS+=(
+            --set appKeyExistingSecret=datadog-secret
+            --set remoteConfiguration.enabled=true
+            --set previewFleetRollouts=true
+        )
+        if [[ -z "${K8S_CLUSTER_NAME:-}" ]]; then
+            echo "WARNING: Fleet Automation requires a cluster name. Set K8S_CLUSTER_NAME and re-run this script."
+        fi
     fi
 
     helm upgrade datadog-operator \
