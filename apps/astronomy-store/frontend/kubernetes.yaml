@@ -21,6 +21,7 @@ spec:
         resource.opentelemetry.io/service-namespace: astronomy-store
       labels:
         app.kubernetes.io/name: frontend
+        admission.datadoghq.com/enabled: "false"
     spec:
       containers:
         - name: frontend
