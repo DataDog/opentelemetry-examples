@@ -41,6 +41,8 @@ defaultCRConfig:
       valueFrom:
         fieldRef:
           fieldPath: spec.nodeName
+    - name: DD_OTELCOLLECTOR_CONVERTER_FEATURES
+      value: datadog,pprof,zpages,infraattributes
 {{- end}}
 
   # Starting-point resource allocation. Scale up for large clusters.
@@ -511,7 +513,11 @@ collectors:
 
       connectors:
 {{- if .DDOT}}
-        datadog/connector: {}
+        datadog/connector:
+          traces:
+            compute_top_level_by_span_kind: true
+            peer_tags_aggregation: true
+            compute_stats_by_span_kind: true
 {{- else}}
         forward: {}
         # Generate RED (Rate, Error, Duration) metrics from traces for APM

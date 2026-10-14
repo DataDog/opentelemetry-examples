@@ -35,6 +35,8 @@ defaultCRConfig:
       valueFrom:
         fieldRef:
           fieldPath: spec.nodeName
+    - name: DD_OTELCOLLECTOR_CONVERTER_FEATURES
+      value: datadog,pprof,zpages,infraattributes
 
   # Starting-point resource allocation. Scale up for large clusters.
   resources:
@@ -480,7 +482,11 @@ collectors:
             - container.id
 
       connectors:
-        datadog/connector: {}
+        datadog/connector:
+          traces:
+            compute_top_level_by_span_kind: true
+            peer_tags_aggregation: true
+            compute_stats_by_span_kind: true
 
       exporters:
         debug: null

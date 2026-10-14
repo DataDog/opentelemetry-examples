@@ -468,6 +468,8 @@ spec:
   
   - name: DD_AGENT_HOST
     value: "ddagent-kube-stack-datadog.opentelemetry-operator-system.svc.cluster.local"
+  - name: DD_OTELCOLLECTOR_CONVERTER_FEATURES
+    value: "datadog,pprof,zpages,infraattributes"
   - name: DD_API_KEY
     valueFrom:
       secretKeyRef:
@@ -501,7 +503,11 @@ spec:
   mode: daemonset
   config:
     connectors:
-      datadog/connector: {}
+      datadog/connector:
+        traces:
+          compute_stats_by_span_kind: true
+          compute_top_level_by_span_kind: true
+          peer_tags_aggregation: true
     exporters:
       datadog/exporter:
         api:
@@ -950,6 +956,8 @@ spec:
   
   - name: DD_AGENT_HOST
     value: "ddagent-kube-stack-datadog.opentelemetry-operator-system.svc.cluster.local"
+  - name: DD_OTELCOLLECTOR_CONVERTER_FEATURES
+    value: "datadog,pprof,zpages,infraattributes"
   - name: DD_API_KEY
     valueFrom:
       secretKeyRef:
