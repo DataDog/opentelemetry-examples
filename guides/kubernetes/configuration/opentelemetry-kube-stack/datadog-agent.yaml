@@ -1,0 +1,46 @@
+kind: DatadogAgent
+apiVersion: datadoghq.com/v2alpha1
+metadata:
+  name: datadog
+  namespace: datadog
+spec:
+  global:
+    credentials:
+      apiSecret:
+        secretName: datadog-secret
+        keyName: api-key
+  features:
+    clusterChecks:
+      enabled: false
+    orchestratorExplorer:
+      enabled: false
+    kubeStateMetricsCore:
+      enabled: false
+    liveProcessCollection:
+      enabled: false
+    processDiscovery:
+      enabled: false
+    eventCollection:
+      collectKubernetesEvents: false
+    logCollection:
+      enabled: false
+    apm:
+      instrumentation:
+        enabled: false
+    dynamicInstrumentation:
+      enabled: true
+  override:
+    nodeAgent:
+      image:
+        tag: 7.83.2-jmx
+      containers:
+        agent:
+          env:
+            - name: DD_ORCHESTRATOR_EXPLORER_KUBELET_CONFIG_CHECK_ENABLED
+              value: "false"
+            - name: DD_DISCOVERY_ENABLED
+              value: "false"
+            - name: DD_APM_DEBUGGER_LOGS_ENABLED_OVERRIDE
+              value: "true"
+            - name: DD_IGNORE_AUTOCONF
+              value: kubernetes_state
