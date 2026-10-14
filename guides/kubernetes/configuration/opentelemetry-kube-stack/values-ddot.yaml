@@ -767,11 +767,10 @@ instrumentation:
         value: /otel-auto-instrumentation-dotnet
   java:
     # image: ghcr.io/open-telemetry/opentelemetry-operator/autoinstrumentation-java:2.28.1
-    # image: registry.ddbuild.io/ssi/dd-otel-autoinstrumentation-java:glci135938671 # ?
-    image: ghcr.io/cyrille-leclerc/dd-autoinstrumentation-java:1.66.0
+    image: datadog/dd-otel-autoinstrumentation-java:1.67.1-preview
   nodejs:
     # image: ghcr.io/open-telemetry/opentelemetry-operator/autoinstrumentation-nodejs:0.77.0
-    image: datadog/dd-otel-autoinstrumentation-js:6.16.0
+    image: datadog/dd-otel-autoinstrumentation-js:6.20-preview
   python:
     # image: ghcr.io/open-telemetry/opentelemetry-operator/autoinstrumentation-python:0.64b0
     image: ghcr.io/cyrille-leclerc/dd-autoinstrumentation-python:4.15.1
