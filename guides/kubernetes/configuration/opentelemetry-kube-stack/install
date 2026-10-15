@@ -44,6 +44,11 @@ require_bool DD_AGENT_ENABLED
 DD_AGENT_VALUES_ARGS=()
 if [[ "$DD_INSTALL_FLOW" == "ddot" && "$DD_AGENT_ENABLED" == "true" ]]; then
     DD_AGENT_VALUES_ARGS=(-f "$SCRIPT_DIR/dd-agent-kube-stack-values.yaml")
+
+    if [[ -n "${DD_APP_KEY:-}" && -z "${K8S_CLUSTER_NAME:-}" ]]; then
+        echo "ERROR: K8S_CLUSTER_NAME must be set when DD_APP_KEY is set (Fleet Automation requires a cluster name)" >&2
+        exit 1
+    fi
 fi
 
 case "$K8S_CLUSTER_TYPE" in
@@ -163,19 +168,56 @@ if [[ -n "$HOST_PROFILER_NETWORK_POLICY_FILE" ]]; then
 fi
 
 if [[ "$DD_INSTALL_FLOW" == "ddot" && "$DD_AGENT_ENABLED" == "true" ]]; then
-    echo "Installing Datadog Agent"
+    echo "Installing Datadog Operator..."
+
+    kubectl create namespace datadog || echo "WARNING: Could not create namespace 'datadog' (may already exist or insufficient permissions). Continuing..."
+
+    DD_APP_KEY_SECRET_ARGS=()
+    if [[ -n "${DD_APP_KEY:-}" ]]; then
+        DD_APP_KEY_SECRET_ARGS=(--from-literal="app-key=$DD_APP_KEY")
+    fi
+    kubectl create secret generic datadog-secret \
+      --namespace datadog \
+      --from-literal="api-key=$DD_API_KEY" \
+      ${DD_APP_KEY_SECRET_ARGS[@]+"${DD_APP_KEY_SECRET_ARGS[@]}"}
 
     helm repo add datadog https://helm.datadoghq.com
     helm repo update
 
-    helm upgrade ddagent-kube-stack \
-        datadog/datadog \
-        --version 3.240.0 \
+    OPERATOR_HELM_ARGS=(
+        --set apiKeyExistingSecret=datadog-secret
+        --set-string site="$DD_SITE"
+    )
+    if [[ -n "${K8S_CLUSTER_NAME:-}" ]]; then
+        OPERATOR_HELM_ARGS+=(--set-string clusterName="$K8S_CLUSTER_NAME")
+    fi
+
+    if [[ -n "${DD_APP_KEY:-}" ]]; then
+        echo "Enabling Fleet Automation in the Datadog Operator..."
+        OPERATOR_HELM_ARGS+=(
+            --set appKeyExistingSecret=datadog-secret
+            --set remoteConfiguration.enabled=true
+            --set previewFleetRollouts=true
+        )
+    fi
+
+    helm upgrade datadog-operator \
+        datadog/datadog-operator \
+        --version 2.28.1 \
         --install \
-        --namespace opentelemetry-operator-system \
-        --set-string datadog.clusterName=${K8S_CLUSTER_NAME:-} \
-        --set-string datadog.apiKeyExistingSecret='datadog-secret' \
-        --set-string datadog.site=$DD_SITE \
-        "${HELM_SET_ARGS[@]}" \
-        -f "$SCRIPT_DIR/dd-agent-values.yaml"
+        --namespace datadog \
+        "${OPERATOR_HELM_ARGS[@]}" \
+        --wait --timeout 5m
+
+    echo "Applying the DatadogAgent custom resource..."
+
+    GLOBAL_JSON="\"site\":\"$DD_SITE\",\"tags\":[\"env:$DEPLOYMENT_ENVIRONMENT_NAME\"]"
+    if [[ -n "${K8S_CLUSTER_NAME:-}" ]]; then
+        GLOBAL_JSON+=",\"clusterName\":\"$K8S_CLUSTER_NAME\""
+    fi
+    kubectl patch --local \
+      -f "$SCRIPT_DIR/datadog-agent.yaml" \
+      --type merge \
+      -p "{\"spec\":{\"global\":{$GLOBAL_JSON}}}" \
+      -o yaml | kubectl apply --namespace datadog -f -
 fi
