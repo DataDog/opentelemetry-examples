@@ -1,3 +1,26 @@
 extraEnvs:
   - name: DD_AGENT_HOST
     value: datadog-agent.datadog.svc.cluster.local
+
+collectors:
+  daemon:
+    config:
+      receivers:
+        file_log:
+          operators:
+            - type: container
+              id: container-parser
+              max_log_size: 102400
+            - type: json_parser
+              id: datadog-json-parser
+              if: 'resource["k8s.namespace.name"] == "datadog"'
+              severity:
+                parse_from: attributes.level
+                mapping:
+                  fatal: critical
+              on_error: send_quiet
+            - type: move
+              id: datadog-json-logger
+              if: 'attributes.logger != nil'
+              from: attributes.logger
+              to: attributes["logger.name"]

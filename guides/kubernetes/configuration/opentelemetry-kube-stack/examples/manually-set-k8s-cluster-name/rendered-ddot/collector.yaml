@@ -652,6 +652,19 @@ spec:
         - id: container-parser
           max_log_size: 102400
           type: container
+        - id: datadog-json-parser
+          if: resource["k8s.namespace.name"] == "datadog"
+          on_error: send_quiet
+          severity:
+            mapping:
+              fatal: critical
+            parse_from: attributes.level
+          type: json_parser
+        - from: attributes.logger
+          id: datadog-json-logger
+          if: attributes.logger != nil
+          to: attributes["logger.name"]
+          type: move
         retry_on_failure:
           enabled: true
         start_at: end
