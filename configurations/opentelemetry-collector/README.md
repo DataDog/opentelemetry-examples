@@ -63,7 +63,7 @@ A simple way to deploy the Collector in Kubernetes is to use [the official Helm 
 The following files are `values.yaml` files to be passed as a `--values` flag when deploying the Collector Helm chart.
 They are generated from the above raw Collector configurations and automate setting up some of the necessary feature gates / mounts.
 
-These files should be compatible with version 0.147.1 or higher of the Helm chart.
+These files should be compatible with version 0.156.2 or higher of the Helm chart.
 
 Example:
 ```sh
