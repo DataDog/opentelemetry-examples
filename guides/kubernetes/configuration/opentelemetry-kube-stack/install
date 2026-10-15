@@ -209,7 +209,7 @@ if [[ "$DD_INSTALL_FLOW" == "ddot" && "$DD_AGENT_ENABLED" == "true" ]]; then
 
     echo "Applying the DatadogAgent custom resource..."
 
-    GLOBAL_JSON="\"site\":\"$DD_SITE\""
+    GLOBAL_JSON="\"site\":\"$DD_SITE\",\"tags\":[\"env:$DEPLOYMENT_ENVIRONMENT_NAME\"]"
     if [[ -n "${K8S_CLUSTER_NAME:-}" ]]; then
         GLOBAL_JSON+=",\"clusterName\":\"$K8S_CLUSTER_NAME\""
     fi
