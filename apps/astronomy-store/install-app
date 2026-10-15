@@ -9,15 +9,21 @@ Usage:
   ./install-app
   ROLLOUT_TIMEOUT=5m ./install-app
   IMAGE_PREFIX=ghcr.io/example/astronomy-store IMAGE_TAG=v1.2.3 ./install-app
+  DD_INSTALL_FLOW=ddot ./install-app
 
 If IMAGE_PREFIX/IMAGE_TAG are not set, they default to the values in .image-env (written by
 `./build-images --push`), falling back to astronomy-store:latest.
+
+DD_INSTALL_FLOW selects the checkout image matching the OpenTelemetry Kube Stack install flow
+(same variable as guides/kubernetes/configuration/opentelemetry-kube-stack/install):
+  upstream (default)  checkout:<tag>-upstream-otel, OpenTelemetry Go compile-time instrumentation
+  ddot                checkout:<tag>, Datadog Orchestrion (DDOT SDK for Go)
 EOF
     exit 0
 fi
 
 if [[ $# -gt 0 ]]; then
-    echo "Usage: IMAGE_PREFIX=<prefix> IMAGE_TAG=<tag> ROLLOUT_TIMEOUT=<duration> $0" >&2
+    echo "Usage: IMAGE_PREFIX=<prefix> IMAGE_TAG=<tag> DD_INSTALL_FLOW=<upstream|ddot> ROLLOUT_TIMEOUT=<duration> $0" >&2
     exit 1
 fi
 
@@ -41,7 +47,17 @@ IMAGE_PREFIX="${IMAGE_PREFIX:-astronomy-store}"
 IMAGE_PREFIX="${IMAGE_PREFIX%/}"
 IMAGE_TAG="${IMAGE_TAG:-latest}"
 
-echo "Deploying images from ${IMAGE_PREFIX} with tag ${IMAGE_TAG}."
+DD_INSTALL_FLOW="${DD_INSTALL_FLOW:-upstream}"
+case "${DD_INSTALL_FLOW}" in
+    upstream) CHECKOUT_IMAGE_TAG="${IMAGE_TAG}-upstream-otel" ;;
+    ddot) CHECKOUT_IMAGE_TAG="${IMAGE_TAG}" ;;
+    *)
+        echo "ERROR: DD_INSTALL_FLOW must be one of: upstream, ddot (got '${DD_INSTALL_FLOW}')" >&2
+        exit 1
+        ;;
+esac
+
+echo "Deploying images from ${IMAGE_PREFIX} with tag ${IMAGE_TAG} (checkout: ${CHECKOUT_IMAGE_TAG}, ${DD_INSTALL_FLOW} flow)."
 
 SERVICE_MANIFESTS=(
     astronomy-db/kubernetes.yaml
@@ -63,6 +79,10 @@ apply_service_manifest() {
     local manifest="$1"
     local service="${manifest%/kubernetes.yaml}"
     local service_overlay="${OVERLAY_DIR}/${service}"
+    local tag="${IMAGE_TAG}"
+    if [[ "${service}" == "checkout" ]]; then
+        tag="${CHECKOUT_IMAGE_TAG}"
+    fi
 
     mkdir -p "${service_overlay}"
     cp "${SCRIPT_DIR}/${manifest}" "${service_overlay}/kubernetes.yaml"
@@ -74,7 +94,7 @@ resources:
 images:
   - name: astronomy-store/${service}
     newName: ${IMAGE_PREFIX}/${service}
-    newTag: ${IMAGE_TAG}
+    newTag: ${tag}
 EOF
 
     kubectl apply -k "${service_overlay}"
