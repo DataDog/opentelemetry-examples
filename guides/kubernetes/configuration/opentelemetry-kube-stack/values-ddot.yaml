@@ -766,7 +766,7 @@ instrumentation:
         value: /otel-auto-instrumentation-dotnet/linux/Datadog.Trace.ClrProfiler.Native.so
       # If the application container is running on musl/Alpine, use the linux-musl subdirectory
       # - name: CORECLR_PROFILER_PATH
-      #  value: /otel-auto-instrumentation-dotnet/linux-musl/Datadog.Trace.ClrProfiler.Native.so
+      #   value: /otel-auto-instrumentation-dotnet/linux-musl/Datadog.Trace.ClrProfiler.Native.so
       - name: DD_DOTNET_TRACER_HOME
         value: /otel-auto-instrumentation-dotnet
   java:
