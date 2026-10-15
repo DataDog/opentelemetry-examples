@@ -10,3 +10,6 @@ defaultCRConfig:
       resource_detection/env:
         eks:
           node_from_env_var: K8S_NODE_NAME
+          resource_attributes:
+            host.id:
+              enabled: true

@@ -144,6 +144,8 @@ spec:
         eks:
           node_from_env_var: K8S_NODE_NAME
           resource_attributes:
+            host.id:
+              enabled: true
             k8s.cluster.name:
               enabled: true
         override: false
@@ -617,6 +619,8 @@ spec:
         eks:
           node_from_env_var: K8S_NODE_NAME
           resource_attributes:
+            host.id:
+              enabled: true
             k8s.cluster.name:
               enabled: true
         override: false
