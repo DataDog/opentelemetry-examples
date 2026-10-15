@@ -20,10 +20,9 @@ It deletes:
   - the datadog-secret secret in the opentelemetry-operator-system namespace;
   - OpenTelemetry CRDs: opentelemetrycollectors, instrumentations,
     opampbridges, and targetallocators;
-  - Datadog Operator CRDs: datadogagents, datadogagentprofiles,
-    datadogagentinternals, datadoginstrumentations, datadogmonitors,
-    datadogslos, datadogdashboards, datadogmetrics, datadogcsidrivers,
-    datadoggenericresources, datadogpodautoscalers, and
+  - Datadog Operator CRDs: datadogagents, datadogagentinternals,
+    datadoginstrumentations, datadogmonitors, datadogmetrics,
+    datadogcsidrivers, datadogpodautoscalers, and
     datadogpodautoscalerclusterprofiles;
   - the cert-manager, opentelemetry-operator-system, and datadog namespaces.
 
@@ -98,20 +97,6 @@ kubectl delete crd --ignore-not-found=true \
   opampbridges.opentelemetry.io \
   targetallocators.opentelemetry.io \
   || echo "WARNING: Could not delete the OpenTelemetry Operator CRDs. Continuing..."
-kubectl delete crd --ignore-not-found=true \
-  datadogagents.datadoghq.com \
-  datadogagentprofiles.datadoghq.com \
-  datadogagentinternals.datadoghq.com \
-  datadoginstrumentations.datadoghq.com \
-  datadogmonitors.datadoghq.com \
-  datadogslos.datadoghq.com \
-  datadogdashboards.datadoghq.com \
-  datadogmetrics.datadoghq.com \
-  datadogcsidrivers.datadoghq.com \
-  datadoggenericresources.datadoghq.com \
-  datadogpodautoscalers.datadoghq.com \
-  datadogpodautoscalerclusterprofiles.datadoghq.com \
-  || echo "WARNING: Could not delete the Datadog Operator CRDs. Continuing..."
 
 echo "Removing namespaces..."
 kubectl delete namespace --ignore-not-found=true opentelemetry-operator-system datadog cert-manager
