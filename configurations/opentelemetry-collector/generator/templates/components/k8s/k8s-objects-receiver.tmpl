@@ -1,3 +1,12 @@
+{{- if .HelmPreset}}
+interval: 3m
+{{- if and .Testing (eq .CloudEnvironment "eks")}}
+# Don't fail on startup if some custom resources aren't installed in the cluster
+error_mode: ignore
+objects:
+{{- end}}
+{{- /* Built-in Kubernetes resources are added by the Helm chart's kubernetesObjects preset */}}
+{{- else}}
 auth_type: serviceAccount
 objects:
   - name: namespaces
@@ -139,3 +148,49 @@ objects:
   - name: customresourcedefinitions
     mode: watch
     group: apiextensions.k8s.io
+{{- end}}
+{{- if and .Testing (eq .CloudEnvironment "eks")}}
+  # AWS custom resources (VPC CNI, network policies, security groups for pods)
+  - name: applicationnetworkpolicies
+    mode: pull
+    group: networking.k8s.aws
+  - name: applicationnetworkpolicies
+    mode: watch
+    group: networking.k8s.aws
+  - name: clusternetworkpolicies
+    mode: pull
+    group: networking.k8s.aws
+  - name: clusternetworkpolicies
+    mode: watch
+    group: networking.k8s.aws
+  - name: clusterpolicyendpoints
+    mode: pull
+    group: networking.k8s.aws
+  - name: clusterpolicyendpoints
+    mode: watch
+    group: networking.k8s.aws
+  - name: policyendpoints
+    mode: pull
+    group: networking.k8s.aws
+  - name: policyendpoints
+    mode: watch
+    group: networking.k8s.aws
+  - name: cninodes
+    mode: pull
+    group: vpcresources.k8s.aws
+  - name: cninodes
+    mode: watch
+    group: vpcresources.k8s.aws
+  - name: securitygrouppolicies
+    mode: pull
+    group: vpcresources.k8s.aws
+  - name: securitygrouppolicies
+    mode: watch
+    group: vpcresources.k8s.aws
+  - name: eniconfigs
+    mode: pull
+    group: crd.k8s.amazonaws.com
+  - name: eniconfigs
+    mode: watch
+    group: crd.k8s.amazonaws.com
+{{- end}}

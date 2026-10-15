@@ -348,18 +348,6 @@ connectors:
 exporters:
   debug:
     verbosity: detailed
-  datadog:
-    api:
-      key: ${env:DD_API_KEY}
-      site: ${env:DD_SITE}
-    hostname_detection_timeout: 5s
-    metrics:
-      resource_attributes_as_tags: true
-      instrumentation_scope_metadata_as_tags: true
-    sending_queue:
-      batch: {} # Default batch settings
-    orchestrator_explorer:
-      enabled: true
   otlp_http:
     endpoint: https://otlp.${env:DD_SITE}
     headers:
@@ -388,12 +376,12 @@ service:
     - health_check
 
   pipelines:
-    logs/orchestrator:
+    logs:
       receivers: [k8s_objects]
       processors: [resource/add-cluster-name, resourcedetection]
-      exporters: [datadog]
+      exporters: [otlp_http]
 
-    metrics/cluster:
+    metrics:
       receivers: [k8s_cluster]
       processors: [resource/add-cluster-name, resourcedetection]
       exporters: [otlp_http]

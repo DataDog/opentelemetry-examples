@@ -51,10 +51,10 @@ Files:
 - `daemonset-eks-auto.yaml`: Kubernetes Daemonset in an EKS Auto Mode environment
 - `daemonset-gke.yaml`: Kubernetes Daemonset in a GKE environment
 - `daemonset-gke-autopilot.yaml`: Kubernetes Daemonset in a GKE Autopilot environment
-- `k8s-objects-datadog.yaml`: Kubernetes per-cluster Deployment (k8s_objects) in a non-cloud environment using the Datadog exporter
-- `k8s-objects-datadog-aks.yaml`: Kubernetes per-cluster Deployment (k8s_objects) in an AKS environment using the Datadog exporter
-- `k8s-objects-datadog-eks.yaml`: Kubernetes per-cluster Deployment (k8s_objects) in an EKS environment using the Datadog exporter
-- `k8s-objects-datadog-gke.yaml`: Kubernetes per-cluster Deployment (k8s_objects) in a GKE environment using the Datadog exporter
+- `k8s-objects.yaml`: Kubernetes per-cluster Deployment (k8s_objects) in a non-cloud environment using the OTLP exporter
+- `k8s-objects-aks.yaml`: Kubernetes per-cluster Deployment (k8s_objects) in an AKS environment using the OTLP exporter
+- `k8s-objects-eks.yaml`: Kubernetes per-cluster Deployment (k8s_objects) in an EKS environment using the OTLP exporter
+- `k8s-objects-gke.yaml`: Kubernetes per-cluster Deployment (k8s_objects) in a GKE environment using the OTLP exporter
 
 ## Values files for the Collector Helm chart
 
@@ -81,7 +81,7 @@ Files:
 - `helm-values/daemonset-eks-auto.yaml`: Kubernetes Daemonset in an EKS Auto Mode environment
 - `helm-values/daemonset-gke.yaml`: Kubernetes Daemonset in a GKE Standard environment
 - `helm-values/daemonset-gke-autopilot.yaml`: Kubernetes Daemonset in a GKE Autopilot environment
-- `helm-values/k8s-objects-datadog.yaml`: Kubernetes per-cluster Deployment (k8s_objects) in a non-cloud environment using the Datadog exporter
-- `helm-values/k8s-objects-datadog-aks.yaml`: Kubernetes per-cluster Deployment (k8s_objects) in an AKS environment using the Datadog exporter
-- `helm-values/k8s-objects-datadog-eks.yaml`: Kubernetes per-cluster Deployment (k8s_objects) in an EKS environment using the Datadog exporter
-- `helm-values/k8s-objects-datadog-gke.yaml`: Kubernetes per-cluster Deployment (k8s_objects) in a GKE environment using the Datadog exporter
+- `helm-values/k8s-objects.yaml`: Kubernetes per-cluster Deployment (k8s_objects) in a non-cloud environment using the OTLP exporter
+- `helm-values/k8s-objects-aks.yaml`: Kubernetes per-cluster Deployment (k8s_objects) in an AKS environment using the OTLP exporter
+- `helm-values/k8s-objects-eks.yaml`: Kubernetes per-cluster Deployment (k8s_objects) in an EKS environment using the OTLP exporter
+- `helm-values/k8s-objects-gke.yaml`: Kubernetes per-cluster Deployment (k8s_objects) in a GKE environment using the OTLP exporter
