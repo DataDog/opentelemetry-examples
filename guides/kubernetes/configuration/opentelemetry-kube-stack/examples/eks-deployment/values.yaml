@@ -13,3 +13,7 @@ defaultCRConfig:
           resource_attributes:
             host.id:
               enabled: true
+            cloud.region:
+              enabled: true
+            cloud.availability_zone:
+              enabled: true

@@ -152,6 +152,10 @@ spec:
         eks:
           node_from_env_var: K8S_NODE_NAME
           resource_attributes:
+            cloud.availability_zone:
+              enabled: true
+            cloud.region:
+              enabled: true
             host.id:
               enabled: true
             k8s.cluster.name:
@@ -669,6 +673,10 @@ spec:
         eks:
           node_from_env_var: K8S_NODE_NAME
           resource_attributes:
+            cloud.availability_zone:
+              enabled: true
+            cloud.region:
+              enabled: true
             host.id:
               enabled: true
             k8s.cluster.name:
