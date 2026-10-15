@@ -173,8 +173,7 @@ if [[ "$DD_INSTALL_FLOW" == "ddot" && "$DD_AGENT_ENABLED" == "true" ]]; then
     kubectl create secret generic datadog-secret \
       --namespace datadog \
       --from-literal="api-key=$DD_API_KEY" \
-      ${DD_APP_KEY_SECRET_ARGS[@]+"${DD_APP_KEY_SECRET_ARGS[@]}"} \
-      --dry-run=client -o yaml | kubectl apply -f -
+      ${DD_APP_KEY_SECRET_ARGS[@]+"${DD_APP_KEY_SECRET_ARGS[@]}"}
 
     helm repo add datadog https://helm.datadoghq.com
     helm repo update
