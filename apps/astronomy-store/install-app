@@ -45,6 +45,7 @@ echo "Deploying images from ${IMAGE_PREFIX} with tag ${IMAGE_TAG}."
 
 SERVICE_MANIFESTS=(
     astronomy-db/kubernetes.yaml
+    kafka/kubernetes.yaml
     ad/kubernetes.yaml
     product-catalog/kubernetes.yaml
     fraud-detection/kubernetes.yaml
@@ -85,7 +86,7 @@ for manifest in "${SERVICE_MANIFESTS[@]}"; do
     apply_service_manifest "${manifest}"
 done
 
-for deployment in astronomy-db ad product-catalog fraud-detection checkout frontend; do
+for deployment in astronomy-db kafka ad product-catalog fraud-detection checkout frontend; do
     kubectl rollout status "deployment/${deployment}" \
         --namespace "${NAMESPACE}" \
         --timeout="${ROLLOUT_TIMEOUT}"
