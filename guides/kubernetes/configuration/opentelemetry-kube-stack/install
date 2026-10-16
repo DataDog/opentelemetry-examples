@@ -103,48 +103,19 @@ kubectl create secret generic datadog-secret \
   --from-literal="dd-site=$DD_SITE" \
   --dry-run=client -o yaml | kubectl apply -f -
 
-echo "Installing cert-manager (if not already installed)..."
+if kubectl get crd certificates.cert-manager.io >/dev/null 2>&1; then
+    echo "cert-manager is already installed, skipping its installation."
+else
+    echo "Installing cert-manager..."
 
-helm repo add jetstack https://charts.jetstack.io
-helm repo update
-helm install cert-manager jetstack/cert-manager \
-  --namespace cert-manager --create-namespace \
-  --set crds.enabled=true  \
-  --wait --timeout 5m \
-  || echo "WARNING: Could not install cert-manager (may already exist or insufficient permissions). Continuing..."
-
-echo "Installing OpenTelemetry Kube Stack Helm Chart..."
-
-helm repo add open-telemetry https://open-telemetry.github.io/opentelemetry-helm-charts
-helm repo update
-
-HELM_SET_ARGS=(
-    --set-string "resourceAttributes.deployment\.environment\.name=$DEPLOYMENT_ENVIRONMENT_NAME"
-)
-
-if [[ "$K8S_CLUSTER_TYPE" != "other" ]]; then
-    HELM_SET_ARGS+=(--set "defaultCRConfig.presets.resourceDetection.$K8S_CLUSTER_TYPE.enabled=true")
+    helm repo add jetstack https://charts.jetstack.io
+    helm repo update
+    helm install cert-manager jetstack/cert-manager \
+      --namespace cert-manager --create-namespace \
+      --set crds.enabled=true  \
+      --wait --timeout 5m \
+      || echo "WARNING: Could not install cert-manager (insufficient permissions?). Continuing..."
 fi
-
-if [[ "$K8S_CLUSTER_TYPE" == "eks" ]]; then
-    HELM_SET_ARGS+=(--set "defaultCRConfig.config.processors.resource_detection/env.eks.node_from_env_var=K8S_NODE_NAME")
-    HELM_SET_ARGS+=(--set "defaultCRConfig.config.processors.resource_detection/env.eks.resource_attributes.host\.id.enabled=true")
-fi
-
-if [[ -n "${K8S_CLUSTER_NAME:-}" ]]; then
-    HELM_SET_ARGS+=(--set-string "resourceAttributes.k8s\.cluster\.name=$K8S_CLUSTER_NAME")
-fi
-
-helm upgrade opentelemetry-kube-stack \
-    open-telemetry/opentelemetry-kube-stack \
-    --version 0.23.0 \
-    --install \
-    --namespace opentelemetry-operator-system \
-    "${HELM_SET_ARGS[@]}" \
-    -f "$SCRIPT_DIR/$VALUES_FILE" \
-    ${DD_AGENT_VALUES_ARGS[@]+"${DD_AGENT_VALUES_ARGS[@]}"} \
-    ${HOST_PROFILER_ENABLED_ARGS[@]+"${HOST_PROFILER_ENABLED_ARGS[@]}"} \
-    ${OVERLAY_VALUES_ARGS[@]+"${OVERLAY_VALUES_ARGS[@]}"}
 
 # The standard and Cilium policies select the same pods and Kubernetes
 # NetworkPolicies are additive: remove both NetworkPolicy before applying
@@ -221,3 +192,36 @@ if [[ "$DD_INSTALL_FLOW" == "ddot" && "$DD_AGENT_ENABLED" == "true" ]]; then
       -p "{\"spec\":{\"global\":{$GLOBAL_JSON}}}" \
       -o yaml | kubectl apply --namespace datadog -f -
 fi
+
+echo "Installing OpenTelemetry Kube Stack Helm Chart..."
+
+helm repo add open-telemetry https://open-telemetry.github.io/opentelemetry-helm-charts
+helm repo update
+
+HELM_SET_ARGS=(
+    --set-string "resourceAttributes.deployment\.environment\.name=$DEPLOYMENT_ENVIRONMENT_NAME"
+)
+
+if [[ "$K8S_CLUSTER_TYPE" != "other" ]]; then
+    HELM_SET_ARGS+=(--set "defaultCRConfig.presets.resourceDetection.$K8S_CLUSTER_TYPE.enabled=true")
+fi
+
+if [[ "$K8S_CLUSTER_TYPE" == "eks" ]]; then
+    HELM_SET_ARGS+=(--set "defaultCRConfig.config.processors.resource_detection/env.eks.node_from_env_var=K8S_NODE_NAME")
+    HELM_SET_ARGS+=(--set "defaultCRConfig.config.processors.resource_detection/env.eks.resource_attributes.host\.id.enabled=true")
+fi
+
+if [[ -n "${K8S_CLUSTER_NAME:-}" ]]; then
+    HELM_SET_ARGS+=(--set-string "resourceAttributes.k8s\.cluster\.name=$K8S_CLUSTER_NAME")
+fi
+
+helm upgrade opentelemetry-kube-stack \
+    open-telemetry/opentelemetry-kube-stack \
+    --version 0.23.0 \
+    --install \
+    --namespace opentelemetry-operator-system \
+    "${HELM_SET_ARGS[@]}" \
+    -f "$SCRIPT_DIR/$VALUES_FILE" \
+    ${DD_AGENT_VALUES_ARGS[@]+"${DD_AGENT_VALUES_ARGS[@]}"} \
+    ${HOST_PROFILER_ENABLED_ARGS[@]+"${HOST_PROFILER_ENABLED_ARGS[@]}"} \
+    ${OVERLAY_VALUES_ARGS[@]+"${OVERLAY_VALUES_ARGS[@]}"}
