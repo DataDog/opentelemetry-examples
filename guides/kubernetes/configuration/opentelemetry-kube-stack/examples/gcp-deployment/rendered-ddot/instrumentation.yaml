@@ -20,7 +20,7 @@ spec:
     type: parentbased_always_on
   env:
     - name: DD_AGENT_HOST
-      value: "ddagent-kube-stack-datadog.opentelemetry-operator-system.svc.cluster.local"
+      value: "datadog-agent.datadog.svc.cluster.local"
     - name: DD_DATA_STREAMS_ENABLED
       value: "true"
     - name: DD_DBM_PROPAGATION_MODE
@@ -47,14 +47,16 @@ spec:
       value: "http,database,rpc,messaging"
     - name: OTEL_TRACES_EXPORTER
       value: "otlp"
+    - name: OTEL_TRACES_SPAN_METRICS_ENABLED
+      value: "false"
   resource:
     addK8sUIDAttributes: true
     resourceAttributes:
       deployment.environment.name: production
   java:
-    image: gcr.io/datadoghq/dd-otel-autoinstrumentation-java:1.67.1-preview
+    image: datadog/dd-otel-autoinstrumentation-java:1.67.1-preview
   nodejs:
-    image: datadog/dd-otel-autoinstrumentation-js:6.16.0
+    image: datadog/dd-otel-autoinstrumentation-js:6.20-preview
   python:
     image: gcr.io/datadoghq/dd-otel-autoinstrumentation-python:4.16.0-preview
   dotnet:
@@ -62,7 +64,7 @@ spec:
     - name: CORECLR_PROFILER
       value: '{846F5F1C-F9AE-4B07-969E-05C26BC060D8}'
     - name: CORECLR_PROFILER_PATH
-      value: /otel-auto-instrumentation-dotnet/linux/Datadog.Tracer.Native.so
+      value: /otel-auto-instrumentation-dotnet/linux/Datadog.Trace.ClrProfiler.Native.so
     - name: DD_DOTNET_TRACER_HOME
       value: /otel-auto-instrumentation-dotnet
     image: ghcr.io/zacharycmontoya/dd-autoinstrumentation-dotnet:3.52.0

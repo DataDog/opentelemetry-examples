@@ -3,6 +3,16 @@ set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
+require_bool() {
+    case "${!1}" in
+        true|false) ;;
+        *)
+            echo "ERROR: $1 must be one of: true, false (got '${!1}')" >&2
+            exit 1
+            ;;
+    esac
+}
+
 # Optional extra/overlay values.yaml merged on top of the base values file.
 OVERLAY_VALUES_FILE="${1:-}"
 OVERLAY_VALUES_ARGS=()
@@ -28,6 +38,18 @@ esac
 DD_SITE=${DD_SITE:-datadoghq.com}
 K8S_CLUSTER_TYPE=${K8S_CLUSTER_TYPE:-other}
 DEPLOYMENT_ENVIRONMENT_NAME=${DEPLOYMENT_ENVIRONMENT_NAME:-production}
+DD_AGENT_ENABLED=${DD_AGENT_ENABLED:-true}
+require_bool DD_AGENT_ENABLED
+
+DD_AGENT_VALUES_ARGS=()
+if [[ "$DD_INSTALL_FLOW" == "ddot" && "$DD_AGENT_ENABLED" == "true" ]]; then
+    DD_AGENT_VALUES_ARGS=(-f "$SCRIPT_DIR/dd-agent-kube-stack-values.yaml")
+
+    if [[ -n "${DD_APP_KEY:-}" && -z "${K8S_CLUSTER_NAME:-}" ]]; then
+        echo "ERROR: K8S_CLUSTER_NAME must be set when DD_APP_KEY is set (Fleet Automation requires a cluster name)" >&2
+        exit 1
+    fi
+fi
 
 case "$K8S_CLUSTER_TYPE" in
     eks|gcp|aks|other) ;;
@@ -45,13 +67,7 @@ DD_HOST_PROFILER_NETWORK_POLICY=${DD_HOST_PROFILER_NETWORK_POLICY:-none}
 HOST_PROFILER_NETWORK_POLICY_FILE=""
 HOST_PROFILER_ENABLED_ARGS=()
 
-case "$DD_HOST_PROFILER_ENABLED" in
-    true|false) ;;
-    *)
-        echo "ERROR: DD_HOST_PROFILER_ENABLED must be one of: true, false (got '$DD_HOST_PROFILER_ENABLED')" >&2
-        exit 1
-        ;;
-esac
+require_bool DD_HOST_PROFILER_ENABLED
 
 if [[ "$DD_HOST_PROFILER_ENABLED" == "true" ]]; then
     # Egress policy for the profiler, only useful on default-deny clusters
@@ -112,6 +128,14 @@ fi
 
 if [[ "$K8S_CLUSTER_TYPE" == "eks" ]]; then
     HELM_SET_ARGS+=(--set "defaultCRConfig.config.processors.resource_detection/env.eks.node_from_env_var=K8S_NODE_NAME")
+    HELM_SET_ARGS+=(--set "defaultCRConfig.config.processors.resource_detection/env.eks.resource_attributes.host\.id.enabled=true")
+    HELM_SET_ARGS+=(--set "defaultCRConfig.config.processors.resource_detection/env.eks.resource_attributes.cloud\.region.enabled=true")
+    HELM_SET_ARGS+=(--set "defaultCRConfig.config.processors.resource_detection/env.eks.resource_attributes.cloud\.availability_zone.enabled=true")
+    HELM_SET_ARGS+=(--set "defaultCRConfig.config.processors.resource_detection/env.eks.resource_attributes.cloud\.account\.id.enabled=true")
+    HELM_SET_ARGS+=(--set "defaultCRConfig.config.processors.resource_detection/env.eks.resource_attributes.host\.image\.id.enabled=true")
+    HELM_SET_ARGS+=(--set "defaultCRConfig.config.processors.resource_detection/env.eks.resource_attributes.host\.type.enabled=true")
+    HELM_SET_ARGS+=(--set "collectors.daemon.config.processors.resource_detection/env.override=true")
+    HELM_SET_ARGS+=(--set "collectors.daemon.config.processors.resource_detection/env.eks.resource_attributes.host\.name.enabled=true")
 fi
 
 if [[ -n "${K8S_CLUSTER_NAME:-}" ]]; then
@@ -125,6 +149,7 @@ helm upgrade opentelemetry-kube-stack \
     --namespace opentelemetry-operator-system \
     "${HELM_SET_ARGS[@]}" \
     -f "$SCRIPT_DIR/$VALUES_FILE" \
+    ${DD_AGENT_VALUES_ARGS[@]+"${DD_AGENT_VALUES_ARGS[@]}"} \
     ${HOST_PROFILER_ENABLED_ARGS[@]+"${HOST_PROFILER_ENABLED_ARGS[@]}"} \
     ${OVERLAY_VALUES_ARGS[@]+"${OVERLAY_VALUES_ARGS[@]}"}
 
@@ -149,20 +174,57 @@ if [[ -n "$HOST_PROFILER_NETWORK_POLICY_FILE" ]]; then
       || echo "WARNING: Could not apply the host-profiler egress NetworkPolicy (is Cilium installed if you chose the Cilium policy?). Continuing..."
 fi
 
-if [[ "$DD_INSTALL_FLOW" == "ddot" ]]; then
-    echo "Installing Datadog Agent"
+if [[ "$DD_INSTALL_FLOW" == "ddot" && "$DD_AGENT_ENABLED" == "true" ]]; then
+    echo "Installing Datadog Operator..."
+
+    kubectl create namespace datadog || echo "WARNING: Could not create namespace 'datadog' (may already exist or insufficient permissions). Continuing..."
+
+    DD_APP_KEY_SECRET_ARGS=()
+    if [[ -n "${DD_APP_KEY:-}" ]]; then
+        DD_APP_KEY_SECRET_ARGS=(--from-literal="app-key=$DD_APP_KEY")
+    fi
+    kubectl create secret generic datadog-secret \
+      --namespace datadog \
+      --from-literal="api-key=$DD_API_KEY" \
+      ${DD_APP_KEY_SECRET_ARGS[@]+"${DD_APP_KEY_SECRET_ARGS[@]}"}
 
     helm repo add datadog https://helm.datadoghq.com
     helm repo update
 
-    helm upgrade ddagent-kube-stack \
-        datadog/datadog \
-        --version 3.240.0 \
+    OPERATOR_HELM_ARGS=(
+        --set apiKeyExistingSecret=datadog-secret
+        --set-string site="$DD_SITE"
+    )
+    if [[ -n "${K8S_CLUSTER_NAME:-}" ]]; then
+        OPERATOR_HELM_ARGS+=(--set-string clusterName="$K8S_CLUSTER_NAME")
+    fi
+
+    if [[ -n "${DD_APP_KEY:-}" ]]; then
+        echo "Enabling Fleet Automation in the Datadog Operator..."
+        OPERATOR_HELM_ARGS+=(
+            --set appKeyExistingSecret=datadog-secret
+            --set remoteConfiguration.enabled=true
+            --set previewFleetRollouts=true
+        )
+    fi
+
+    helm upgrade datadog-operator \
+        datadog/datadog-operator \
+        --version 2.28.1 \
         --install \
-        --namespace opentelemetry-operator-system \
-        --set-string datadog.clusterName=${K8S_CLUSTER_NAME:-} \
-        --set-string datadog.apiKeyExistingSecret='datadog-secret' \
-        --set-string datadog.site=$DD_SITE \
-        "${HELM_SET_ARGS[@]}" \
-        -f "$SCRIPT_DIR/dd-agent-values.yaml"
+        --namespace datadog \
+        "${OPERATOR_HELM_ARGS[@]}" \
+        --wait --timeout 5m
+
+    echo "Applying the DatadogAgent custom resource..."
+
+    GLOBAL_JSON="\"site\":\"$DD_SITE\",\"tags\":[\"env:$DEPLOYMENT_ENVIRONMENT_NAME\"]"
+    if [[ -n "${K8S_CLUSTER_NAME:-}" ]]; then
+        GLOBAL_JSON+=",\"clusterName\":\"$K8S_CLUSTER_NAME\""
+    fi
+    kubectl patch --local \
+      -f "$SCRIPT_DIR/datadog-agent.yaml" \
+      --type merge \
+      -p "{\"spec\":{\"global\":{$GLOBAL_JSON}}}" \
+      -o yaml | kubectl apply --namespace datadog -f -
 fi

@@ -21,6 +21,7 @@ spec:
         resource.opentelemetry.io/service-namespace: astronomy-store
       labels:
         app.kubernetes.io/name: ad
+        admission.datadoghq.com/enabled: "false"
     spec:
       containers:
         - name: ad
@@ -36,6 +37,12 @@ spec:
               value: astronomy_user
             - name: DB_PASSWORD
               value: astronomy_password
+          startupProbe:
+            httpGet:
+              path: /ad/health
+              port: http
+            periodSeconds: 5
+            failureThreshold: 30
           readinessProbe:
             httpGet:
               path: /ad/health

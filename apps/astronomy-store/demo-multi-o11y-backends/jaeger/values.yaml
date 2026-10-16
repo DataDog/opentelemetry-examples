@@ -8,6 +8,9 @@ jaeger:
   # Service already exposes otlp-grpc (4317), otlp-http (4318), http-query (16686),
   # and grpc-query (16685) by default.
 
+uiconfig:
+  useOpenTelemetryTerms: true
+
 # Full override of the Jaeger v2 config (otherwise the chart assumes Elasticsearch).
 # See https://github.com/jaegertracing/jaeger/tree/main/cmd/jaeger for config examples.
 userconfig:
@@ -29,6 +32,8 @@ userconfig:
         endpoint: 0.0.0.0:16686
       grpc:
         endpoint: 0.0.0.0:16685
+      ui:
+        config_file: /etc/jaeger/ui-config.json
 
   receivers:
     otlp:

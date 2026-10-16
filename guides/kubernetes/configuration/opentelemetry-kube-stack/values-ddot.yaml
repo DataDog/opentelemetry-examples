@@ -35,6 +35,8 @@ defaultCRConfig:
       valueFrom:
         fieldRef:
           fieldPath: spec.nodeName
+    - name: DD_OTELCOLLECTOR_CONVERTER_FEATURES
+      value: datadog,pprof,zpages,infraattributes
 
   # Starting-point resource allocation. Scale up for large clusters.
   resources:
@@ -480,7 +482,11 @@ collectors:
             - container.id
 
       connectors:
-        datadog/connector: {}
+        datadog/connector:
+          traces:
+            compute_top_level_by_span_kind: true
+            peer_tags_aggregation: true
+            compute_stats_by_span_kind: true
 
       exporters:
         debug: null
@@ -718,13 +724,13 @@ instrumentation:
       value: "true"
     - name: "DD_TRACE_OTEL_SEMANTICS_ENABLED"
       value: "true"
+    # Let the collector compute span stats so every service gets trace.* metrics.
+    - name: "OTEL_TRACES_SPAN_METRICS_ENABLED"
+      value: "false"
     # DD_OTEL_SDK_ENABLED: Candidate new env var to enable OTel mode on DDOT SDKs, replacing all the previous ones,
     # but not yet supported by the DDOT SDKs
     # - name: "DD_OTEL_SDK_ENABLED"
     #  value: "true"
-    ## DDOT CONFIGURATION
-    - name: "DD_AGENT_HOST"
-      value: "ddagent-kube-stack-datadog.opentelemetry-operator-system.svc.cluster.local"
     # DBM SUPPORT
     - name: "DD_DBM_PROPAGATION_MODE"
       value: "full"
@@ -748,11 +754,6 @@ instrumentation:
   propagators:
     - tracecontext
     - baggage
-    # - b3 # disabled FIXME https://datadoghq.atlassian.net/browse/OTEL-3268
-    # - b3multi # disabled FIXME https://datadoghq.atlassian.net/browse/OTEL-3268
-  # The opentelemetry-kube-stack Helm chart renders language sections even when empty, preventing the
-  # Operator from falling back to its default agent image and yielding invalid init containers.
-  # TODO: File an issue against the opentelemetry-kube-stack Helm chart for this behavior.
   dotnet:
     image: ghcr.io/zacharycmontoya/dd-autoinstrumentation-dotnet:3.52.0
     # Unlike the other languages, .NET needs more setup to instrument an application:
@@ -765,15 +766,16 @@ instrumentation:
       - name: CORECLR_PROFILER
         value: "{846F5F1C-F9AE-4B07-969E-05C26BC060D8}"
       - name: CORECLR_PROFILER_PATH
-        value: /otel-auto-instrumentation-dotnet/linux/Datadog.Tracer.Native.so
+        value: /otel-auto-instrumentation-dotnet/linux/Datadog.Trace.ClrProfiler.Native.so
+      # If the application container is running on musl/Alpine, use the linux-musl subdirectory
+      # - name: CORECLR_PROFILER_PATH
+      #   value: /otel-auto-instrumentation-dotnet/linux-musl/Datadog.Trace.ClrProfiler.Native.so
       - name: DD_DOTNET_TRACER_HOME
         value: /otel-auto-instrumentation-dotnet
   java:
-    # image: ghcr.io/open-telemetry/opentelemetry-operator/autoinstrumentation-java:2.28.1
-    image: gcr.io/datadoghq/dd-otel-autoinstrumentation-java:1.67.1-preview
+    image: datadog/dd-otel-autoinstrumentation-java:1.67.1-preview
   nodejs:
-    # image: ghcr.io/open-telemetry/opentelemetry-operator/autoinstrumentation-nodejs:0.77.0
-    image: datadog/dd-otel-autoinstrumentation-js:6.16.0
+    image: datadog/dd-otel-autoinstrumentation-js:6.20-preview
   python:
     # image: ghcr.io/open-telemetry/opentelemetry-operator/autoinstrumentation-python:0.64b0
     image: gcr.io/datadoghq/dd-otel-autoinstrumentation-python:4.16.0-preview

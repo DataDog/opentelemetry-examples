@@ -17,4 +17,3 @@ generate-base-values:
 .PHONY: generate-examples
 generate-examples:
 	@./render-examples $(EXPORTER_MODES)
-	@./render-datadog-agent-examples

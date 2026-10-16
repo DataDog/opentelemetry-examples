@@ -1,0 +1,3 @@
+extraEnvs:
+  - name: DD_AGENT_HOST
+    value: datadog-agent.datadog.svc.cluster.local
