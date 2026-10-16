@@ -34,5 +34,5 @@ The image is built with [Datadog Orchestrion](https://github.com/DataDog/orchest
 
 [`Dockerfile.upstream-otel`](Dockerfile.upstream-otel) builds the same code with the upstream [`otelc`](https://github.com/open-telemetry/opentelemetry-go-compile-instrumentation) compiler, which instruments it with the OpenTelemetry Go SDK instead. `./build-images` publishes this image with a `-upstream-otel` tag suffix, for example `astronomy-store/checkout:latest-upstream-otel`. `../install-app` deploys the image that matches `DD_INSTALL_FLOW`, the same variable the OpenTelemetry Kube Stack `install` script uses:
 
-- `upstream` (default): the `-upstream-otel` image.
+- `upstream`: the `-upstream-otel` image.
 - `ddot`: the Orchestrion image.
