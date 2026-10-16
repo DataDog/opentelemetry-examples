@@ -23,3 +23,13 @@ defaultCRConfig:
               enabled: true
             host.type:
               enabled: true
+collectors:
+  daemon:
+    config:
+      processors:
+        resource_detection/env:
+          override: true
+          eks:
+            resource_attributes:
+              host.name:
+                enabled: true
