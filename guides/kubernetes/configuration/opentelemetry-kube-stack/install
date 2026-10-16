@@ -129,6 +129,11 @@ fi
 if [[ "$K8S_CLUSTER_TYPE" == "eks" ]]; then
     HELM_SET_ARGS+=(--set "defaultCRConfig.config.processors.resource_detection/env.eks.node_from_env_var=K8S_NODE_NAME")
     HELM_SET_ARGS+=(--set "defaultCRConfig.config.processors.resource_detection/env.eks.resource_attributes.host\.id.enabled=true")
+    HELM_SET_ARGS+=(--set "defaultCRConfig.config.processors.resource_detection/env.eks.resource_attributes.cloud\.region.enabled=true")
+    HELM_SET_ARGS+=(--set "defaultCRConfig.config.processors.resource_detection/env.eks.resource_attributes.cloud\.availability_zone.enabled=true")
+    HELM_SET_ARGS+=(--set "defaultCRConfig.config.processors.resource_detection/env.eks.resource_attributes.cloud\.account\.id.enabled=true")
+    HELM_SET_ARGS+=(--set "defaultCRConfig.config.processors.resource_detection/env.eks.resource_attributes.host\.image\.id.enabled=true")
+    HELM_SET_ARGS+=(--set "defaultCRConfig.config.processors.resource_detection/env.eks.resource_attributes.host\.type.enabled=true")
 fi
 
 if [[ -n "${K8S_CLUSTER_NAME:-}" ]]; then
