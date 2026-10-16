@@ -1,3 +1,10 @@
 resourceAttributes:
   k8s.cluster.name: "my_k8s_cluster"
   deployment.environment.name: "production"
+defaultCRConfig:
+  config:
+    service:
+      telemetry:
+        resource:
+          k8s.cluster.name: "my_k8s_cluster"
+          deployment.environment.name: "production"

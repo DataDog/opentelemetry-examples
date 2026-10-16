@@ -120,6 +120,7 @@ helm repo update
 
 HELM_SET_ARGS=(
     --set-string "resourceAttributes.deployment\.environment\.name=$DEPLOYMENT_ENVIRONMENT_NAME"
+    --set-string "defaultCRConfig.config.service.telemetry.resource.deployment\.environment\.name=$DEPLOYMENT_ENVIRONMENT_NAME"
 )
 
 if [[ "$K8S_CLUSTER_TYPE" != "other" ]]; then
@@ -137,7 +138,10 @@ if [[ "$K8S_CLUSTER_TYPE" == "eks" ]]; then
 fi
 
 if [[ -n "${K8S_CLUSTER_NAME:-}" ]]; then
-    HELM_SET_ARGS+=(--set-string "resourceAttributes.k8s\.cluster\.name=$K8S_CLUSTER_NAME")
+    HELM_SET_ARGS+=(
+        --set-string "resourceAttributes.k8s\.cluster\.name=$K8S_CLUSTER_NAME"
+        --set-string "defaultCRConfig.config.service.telemetry.resource.k8s\.cluster\.name=$K8S_CLUSTER_NAME"
+    )
 fi
 
 helm upgrade opentelemetry-kube-stack \
