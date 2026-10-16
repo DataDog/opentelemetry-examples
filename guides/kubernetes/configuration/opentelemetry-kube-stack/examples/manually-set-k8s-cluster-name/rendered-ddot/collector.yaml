@@ -420,6 +420,9 @@ spec:
                 otlp:
                   endpoint: http://localhost:4318
                   protocol: http/protobuf
+        resource:
+          deployment.environment.name: production
+          k8s.cluster.name: my_k8s_cluster
   replicas: 1
   imagePullPolicy: IfNotPresent
   upgradeStrategy: automatic
@@ -896,6 +899,9 @@ spec:
                 otlp:
                   endpoint: http://localhost:4318
                   protocol: http/protobuf
+        resource:
+          deployment.environment.name: production
+          k8s.cluster.name: my_k8s_cluster
   imagePullPolicy: IfNotPresent
   upgradeStrategy: automatic
   terminationGracePeriodSeconds: 30
