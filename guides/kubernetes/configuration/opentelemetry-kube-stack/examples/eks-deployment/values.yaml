@@ -17,3 +17,9 @@ defaultCRConfig:
               enabled: true
             cloud.availability_zone:
               enabled: true
+            cloud.account.id:
+              enabled: true
+            host.image.id:
+              enabled: true
+            host.type:
+              enabled: true
