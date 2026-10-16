@@ -724,6 +724,9 @@ instrumentation:
       value: "true"
     - name: "DD_TRACE_OTEL_SEMANTICS_ENABLED"
       value: "true"
+    # Let the collector compute span stats so every service gets trace.* metrics.
+    - name: "OTEL_TRACES_SPAN_METRICS_ENABLED"
+      value: "false"
     # DD_OTEL_SDK_ENABLED: Candidate new env var to enable OTel mode on DDOT SDKs, replacing all the previous ones,
     # but not yet supported by the DDOT SDKs
     # - name: "DD_OTEL_SDK_ENABLED"

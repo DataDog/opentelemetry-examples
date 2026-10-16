@@ -47,6 +47,8 @@ spec:
       value: "http,database,rpc,messaging"
     - name: OTEL_TRACES_EXPORTER
       value: "otlp"
+    - name: OTEL_TRACES_SPAN_METRICS_ENABLED
+      value: "false"
   resource:
     addK8sUIDAttributes: true
     resourceAttributes:
