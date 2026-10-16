@@ -1,6 +1,6 @@
 # Recommended OpenTelemetry Collector configuration (Deployment mode)
-# Paired with daemonset-gke.yaml to collect cluster level resources to support K8s Explorer
-# Setup: Kubernetes per-cluster Deployment (k8s_objects) in a GKE environment
+# Paired with daemonset-aks.yaml to collect cluster level resources to support K8s Explorer
+# Setup: Kubernetes per-cluster Deployment (k8s_objects) in an AKS environment
 # Collector Contrib version: v0.154.0
 # Required environment variables:
 # - DD_SITE: Datadog site for your region, e.g. datadog.com
@@ -272,8 +272,7 @@ processors:
       metric:
         - metric.name == "kube_service_spec_type"
   resourcedetection:
-    detectors: [gcp, env, kubeadm, system]
-    # If using older unsupported versions of GKE, you may need to supply the node name as `host.name` in `OTEL_RESOURCE_ATTRIBUTES`
+    detectors: [aks, azure, env, kubeadm, system]
     timeout: 2s
     override: true # Disable if incoming attributes (especially host.name) are verified correct
     # kubeadm detector is required by the k8s_objects receiver to add k8s.cluster.uid into attributes
@@ -281,6 +280,9 @@ processors:
       resource_attributes:
         k8s.cluster.name:
           enabled: false
+    aks:
+      resource_attributes:
+        k8s.cluster.name: { enabled: true }
     system:
       resource_attributes:
         host.name:
@@ -341,18 +343,6 @@ connectors:
 exporters:
   debug:
     verbosity: detailed
-  datadog:
-    api:
-      key: ${env:DD_API_KEY}
-      site: ${env:DD_SITE}
-    hostname_detection_timeout: 5s
-    metrics:
-      resource_attributes_as_tags: true
-      instrumentation_scope_metadata_as_tags: true
-    sending_queue:
-      batch: {} # Default batch settings
-    orchestrator_explorer:
-      enabled: true
   otlp_http:
     endpoint: https://otlp.${env:DD_SITE}
     headers:
@@ -381,12 +371,12 @@ service:
     - health_check
 
   pipelines:
-    logs/orchestrator:
+    logs:
       receivers: [k8s_objects]
       processors: [resourcedetection]
-      exporters: [datadog]
+      exporters: [otlp_http]
 
-    metrics/cluster:
+    metrics:
       receivers: [k8s_cluster]
       processors: [resourcedetection]
       exporters: [otlp_http]

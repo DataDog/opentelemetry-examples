@@ -23,7 +23,12 @@ receivers:
     {{include "prometheus-receiver" . | indent 4}}
   {{- end}}
   # k8s_objects receiver for orchestrator check
+  {{- if .HelmPreset}}
+  # Uses the legacy "k8sobjects" name so objects below are merged with the kubernetesObjects preset's
+  k8sobjects:
+  {{- else}}
   k8s_objects:
+  {{- end}}
     {{include "k8s-objects-receiver" . | indent 4}}
 
 processors:
@@ -89,12 +94,12 @@ service:
     - health_check
 
   pipelines:
-    logs/orchestrator:
-      receivers: [k8s_objects]
+    logs:
+      receivers: [{{if .HelmPreset}}k8sobjects{{else}}k8s_objects{{end}}]
       processors: [{{- if eq .CloudEnvironment ""}}resource/add-cluster-name, {{end}}resourcedetection]
       exporters: [{{if .DatadogExporter}}datadog{{else}}otlp_http{{end}}]
 
-    metrics/cluster:
+    metrics:
       receivers: [k8s_cluster]
       processors: [{{- if eq .CloudEnvironment ""}}resource/add-cluster-name, {{end}}resourcedetection]
       exporters: [otlp_http]
