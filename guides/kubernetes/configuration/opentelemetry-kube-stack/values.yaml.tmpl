@@ -906,17 +906,20 @@ instrumentation:
   nodejs:
     image: datadog/dd-otel-autoinstrumentation-js:6.20-preview
   python:
-    image: ghcr.io/cyrille-leclerc/dd-autoinstrumentation-python:4.15.1
-    # The auto-instrumentation init container bundles ddtrace native builds for every supported
-    # Python version (3.9-3.14) x libc (glibc/musl) x arch (x86_64/aarch64), ~330MB total, which
-    # exceeds the Operator's 200Mi default EmptyDir limit and gets the pod evicted.
+    # image: ghcr.io/open-telemetry/opentelemetry-operator/autoinstrumentation-python:0.64b0
+    image: gcr.io/datadoghq/dd-otel-autoinstrumentation-python:4.16.0-preview
+    # The Operator defaults to glibc. For Alpine or another musl-based workload, add
+    # `instrumentation.opentelemetry.io/otel-python-platform: "musl"` to its pod template annotations.
+    # https://opentelemetry.io/docs/platforms/kubernetes/operator/automatic/#auto-instrumenting-a-python-musl-based-container
     #
+    # For dd-trace-py < 4.16.0, volumeLimitSize: 500Mi is required because the image exceeds the
+    # Operator's 200Mi default. Starting with 4.16.0, the selected libc payload fits under that limit.
     # The Operator warns that this field ("volumeSizeLimit" in the warning is the Go field name;
     # "volumeLimitSize" here is its JSON/YAML tag) is deprecated in favor of `volume.size`, but as
     # of Operator 0.154.0 / chart 0.20.6 that replacement field doesn't exist in the CRD schema
     # yet, so this is the only working way to raise the volume limit. Safe to ignore until the
     # Operator ships `spec.python.volume.size`.
-    volumeLimitSize: 500Mi
+    # volumeLimitSize: 500Mi # Uncomment when using dd-trace-py < 4.16.0.
 {{- else}}
   dotnet:
     image: ghcr.io/open-telemetry/opentelemetry-operator/autoinstrumentation-dotnet:1.17.0
