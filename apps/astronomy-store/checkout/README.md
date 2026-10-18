@@ -42,11 +42,20 @@ The image is built with [Datadog Orchestrion](https://github.com/DataDog/orchest
 `dd-trace-go/v2` instrumentation during compilation via `orchestrion go build` in place of `go build`. The service uses
 only libraries supported by Orchestrion: standard-library `net/http` for server spans, `log/slog` for log records, and [
 `kafka-go`](https://github.com/segmentio/kafka-go) for Kafka producer spans and trace-context propagation. The service
-doesn't create SDK providers or instrumentation wrappers itself. It adds domain-specific attributes (`user.id`,
-`store.checkout.order.id`...) to the active HTTP span with the OpenTelemetry API (`trace.SpanFromContext(ctx).SetAttributes(...)`).
+doesn't create SDK providers or instrumentation wrappers itself. It adds domain-specific attributes to the active HTTP
+span with the OpenTelemetry API (`trace.SpanFromContext(ctx).SetAttributes(...)`):
+
+- [semantic conventions](https://opentelemetry.io/docs/specs/semconv/registry/attributes/user/) attributes `user.id`
+  and `user.email`;
+- custom attributes, prefixed with `store.checkout.` like the other services' `store.<service.name>.` attributes:
+  `store.checkout.user_context.selected_currency`, `store.checkout.payment.card_cvv`, `store.checkout.order.id` and
+  `store.checkout.shipping.tracking.id`.
+
+`store.checkout.order.id` and `store.checkout.shipping.tracking.id` are also used as attribute keys in the `log/slog`
+records.
 
 > [!WARNING]
-> In the Orchestrion-built image, these custom attributes never reach the backend
+> In the Orchestrion-built image, these span attributes never reach the backend (the `log/slog` attributes do)
 > ([DataDog/orchestrion#936](https://github.com/DataDog/orchestrion/issues/936)). Orchestrion doesn't bridge the
 > OpenTelemetry API to `dd-trace-go`: `trace.SpanFromContext` returns a no-op span, because the HTTP server span is a
 > `dd-trace-go` span the OpenTelemetry API can't see. And `otel.GetTracerProvider()` isn't backed by `dd-trace-go`, so
