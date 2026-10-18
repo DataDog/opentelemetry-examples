@@ -22,6 +22,7 @@ spec:
         # cluster checks are disabled in the DatadogAgent CR. A single instance monitors the
         # whole cluster: don't configure it on several brokers/clients.
         # See https://docs.datadoghq.com/integrations/kafka-consumer/
+        # use enable_cluster_monitoring: true waiting for https://github.com/DataDog/integrations-core/issues/25679
         ad.datadoghq.com/kafka.checks: |
           {
             "kafka_consumer": {
@@ -35,7 +36,8 @@ spec:
                   "tags": [
                     "kafka_cluster_name:astronomy-store"
                   ],
-                  "enable_kafka_console": true
+                  "enable_kafka_console": true,
+                  "enable_cluster_monitoring": true
                 }
               ]
             },
