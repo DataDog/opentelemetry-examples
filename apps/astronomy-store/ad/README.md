@@ -1,6 +1,6 @@
 # Ad
 
-This Spring Boot service accepts `GET /ad/get-ads?context_keys=<key>&context_keys=<key>...`. Its request/response shape mirrors the OpenTelemetry Demo [`AdService`](https://github.com/open-telemetry/opentelemetry-demo/blob/main/pb/demo.proto#L256-L262):
+This Spring Boot service accepts `GET /ad/get-ads?context_keys=<key>&context_keys=<key>...&user_id=<id>&user_email=<email>`. Its request/response shape mirrors the OpenTelemetry Demo [`AdService`](https://github.com/open-telemetry/opentelemetry-demo/blob/main/pb/demo.proto#L256-L262):
 
 ```proto
 service AdService {
@@ -55,3 +55,15 @@ curl -u frontend.astronomy-store:changeme "http://ad:8080/ad/get-ads?context_key
 ```
 
 Authentication goes through Spring Security, so [Datadog App & API Protection](https://docs.datadoghq.com/security/application_security/) can automatically track login success and failure events (user activity, account takeover detection). App & API Protection is enabled with `DD_APPSEC_ENABLED=true` in `kubernetes.yaml`. Requests with wrong credentials get a `401 Unauthorized`.
+
+## Sensitive Data Scanner demo
+
+To demo [Datadog Sensitive Data Scanner](https://docs.datadoghq.com/security/sensitive_data_scanner/), the `frontend`
+passes the (simulated) signed-in user's ID and email to `GET /ad/get-ads` as the optional `user_id` and `user_email`
+query parameters. `AdController#getAds` records them as `user.id` and `user.email` span attributes and logs them. So the
+email address shows up in the URL of the `frontend` HTTP client span and of the `ad` server span, in the `ad` span
+attributes, and in the `ad` logs. Passing and logging personal data like this is a bad practice, done on purpose here.
+The users are fake, with `example.com` addresses.
+
+To see it in Datadog, enable a Sensitive Data Scanner scanning group covering APM spans and logs of the
+`astronomy-store` services, with the "Email Address Scanner" library rule.

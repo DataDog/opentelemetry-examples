@@ -5,14 +5,33 @@ const adUsername = process.env.AD_USERNAME ?? "frontend.astronomy-store";
 const adPassword = process.env.AD_PASSWORD ?? "changeme";
 const adAuthorization = `Basic ${Buffer.from(`${adUsername}:${adPassword}`).toString("base64")}`;
 
+// Fake demo users (RFC 2606 example.com addresses), standing in for the signed-in user a real frontend would read from
+// its session.
+const demoUsers = [
+  { id: "user-1001", email: "ada.lovelace@example.com" },
+  { id: "user-1002", email: "carl.sagan@example.com" },
+  { id: "user-1003", email: "vera.rubin@example.com" },
+  { id: "user-1004", email: "edwin.hubble@example.com" },
+];
+
+function getCurrentUser() {
+  return demoUsers[Math.floor(Math.random() * demoUsers.length)];
+}
+
 export async function GET(request) {
   const { searchParams } = new URL(request.url);
   const contextKeys = searchParams.getAll("context_keys");
+  const user = getCurrentUser();
 
   const target = new URL("/ad/get-ads", adUrl);
   for (const contextKey of contextKeys) {
     target.searchParams.append("context_keys", contextKey);
   }
+  // Passing personal data as query parameters is a bad practice, done on purpose to demo Datadog Sensitive Data
+  // Scanner: the email address ends up in the URL of the frontend's outgoing HTTP request span and of the ad server
+  // span, in the ad span attributes, and in the ad logs.
+  target.searchParams.set("user_id", user.id);
+  target.searchParams.set("user_email", user.email);
 
   const response = await fetch(target, {
     cache: "no-store",

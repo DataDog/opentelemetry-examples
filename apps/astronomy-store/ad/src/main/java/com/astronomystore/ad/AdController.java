@@ -13,6 +13,7 @@ import org.springframework.web.bind.annotation.RestController;
 
 import io.opentelemetry.api.common.AttributeKey;
 import io.opentelemetry.api.trace.Span;
+import io.opentelemetry.semconv.incubating.UserIncubatingAttributes;
 
 @RestController
 @RequestMapping("/ad")
@@ -35,9 +36,12 @@ public class AdController {
     }
 
     @GetMapping("/get-ads")
-    public List<Ad> getAds(@RequestParam(value = "context_keys", required = false) String[] contextKeys) {
+    public List<Ad> getAds(@RequestParam(value = "context_keys", required = false) String[] contextKeys,
+            @RequestParam(value = "user_id", required = false) String userId,
+            @RequestParam(value = "user_email", required = false) String userEmail) {
         String[] keys = contextKeys != null ? contextKeys : new String[0];
-        LOGGER.info("getAds invoked with context_keys={}", List.of(keys));
+        // Logging the user's email is a bad practice, done on purpose to demo Datadog Sensitive Data Scanner.
+        LOGGER.info("getAds invoked with context_keys={} user.id={} user.email={}", List.of(keys), userId, userEmail);
 
         List<Ad> ads = new ArrayList<>();
         for (String key : keys) {
@@ -53,6 +57,12 @@ public class AdController {
         Span span = Span.current();
         span.setAttribute(AttributeKey.stringArrayKey("app.ads.context_keys"), List.of(keys));
         span.setAttribute(AttributeKey.longKey("app.ads.count"), (long) ads.size());
+        if (userId != null) {
+            span.setAttribute(UserIncubatingAttributes.USER_ID, userId);
+        }
+        if (userEmail != null) {
+            span.setAttribute(UserIncubatingAttributes.USER_EMAIL, userEmail);
+        }
 
         return ads;
     }

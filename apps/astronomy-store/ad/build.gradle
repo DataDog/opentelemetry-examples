@@ -23,6 +23,8 @@ dependencies {
     implementation 'org.springframework.boot:spring-boot-starter-jdbc'
     implementation 'org.springframework.boot:spring-boot-starter-security'
     implementation 'io.opentelemetry:opentelemetry-api'
+    // user.id and user.email are still "Development" semantic conventions, hence the incubating artifact.
+    implementation 'io.opentelemetry.semconv:opentelemetry-semconv-incubating:1.44.0-alpha'
     runtimeOnly 'org.postgresql:postgresql'
     testImplementation 'org.springframework.boot:spring-boot-starter-test'
 }
