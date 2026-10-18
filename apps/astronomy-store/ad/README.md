@@ -45,3 +45,13 @@ kubectl apply -f kubernetes.yaml
 The Deployment uses the OpenTelemetry Operator's Java auto-instrumentation annotation, so Spring MVC HTTP requests are instrumented automatically. On top of that, the application depends directly on `io.opentelemetry:opentelemetry-api` and uses it in `AdController` to add `app.ads.context_keys` and `app.ads.count` attributes to the current span, and logs an info-level message for every `getAds` invocation. Logs are written to stdout as one [Logstash-format](https://docs.spring.io/spring-boot/reference/features/logging.html#features.logging.structured) JSON object per line (`logging.structured.format.console=logstash` in `application.properties`), including the `dd.trace_id` and `dd.span_id` that `dd-java-agent` injects into the MDC.
 
 The service connects to `astronomy-db` (see `../astronomy-db`) via `DB_URL`, `DB_USERNAME`, and `DB_PASSWORD` environment variables, set in `kubernetes.yaml`.
+
+## Authentication
+
+`GET /ad/get-ads` requires [HTTP Basic authentication](https://docs.spring.io/spring-security/reference/servlet/authentication/passwords/basic.html) with a single hardcoded user, `frontend.astronomy-store` / `changeme`, declared with `spring.security.user.name` and `spring.security.user.password` in `application.properties`. The `frontend` service sends these credentials. `GET /ad/health` stays anonymous for the Kubernetes probes. See `SecurityConfig`.
+
+```sh
+curl -u frontend.astronomy-store:changeme "http://ad:8080/ad/get-ads?context_keys=telescopes"
+```
+
+Authentication goes through Spring Security, so [Datadog App & API Protection](https://docs.datadoghq.com/security/application_security/) can automatically track login success and failure events (user activity, account takeover detection). App & API Protection is enabled with `DD_APPSEC_ENABLED=true` in `kubernetes.yaml`. Requests with wrong credentials get a `401 Unauthorized`.
