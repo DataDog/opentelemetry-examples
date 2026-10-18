@@ -400,7 +400,7 @@ subjects:
 ---
 apiVersion: v1
 data:
-  token: VHhuV29ERm9VaWRFTFNIeVpRVHpweG9yZGxySnBDa2Y=
+  token: cndpRnZZd2FJblNuZWdocFNseXJ2ZmNRSnlET2FDeUE=
 kind: Secret
 metadata:
   labels:
@@ -608,7 +608,7 @@ apiVersion: datadoghq.com/v1alpha1
 kind: DatadogAgentInternal
 metadata:
   annotations:
-    agent.datadoghq.com/ddaispechash: 1f3a036abe8917be70a0b9b5b99c57e1
+    agent.datadoghq.com/ddaispechash: bac0eab40be7ba0502da8172750eac50
   finalizers:
   - finalizer.datadoghq.com/datadogagentinternal
   labels:
@@ -781,13 +781,13 @@ spec:
       - name: DD_HOSTNAME
         value: $(K8S_NODE_NAME)-$(K8S_CLUSTER_NAME)
       image:
-        tag: 7.83.2-jmx
+        tag: 7.84.3-jmx
 ---
 apiVersion: apps/v1
 kind: DaemonSet
 metadata:
   annotations:
-    agent.datadoghq.com/agentspechash: bf539b3212ff5b96db9fca62ae268873
+    agent.datadoghq.com/agentspechash: 9cbdaad82895ccf587a240493f55c93a
   labels:
     agent.datadoghq.com/component: agent
     agent.datadoghq.com/name: datadog
@@ -909,7 +909,7 @@ spec:
           value: "true"
         - name: DD_IGNORE_AUTOCONF
           value: kubernetes_state
-        image: registry.datadoghq.com/agent:7.83.2-jmx
+        image: registry.datadoghq.com/agent:7.84.3-jmx
         livenessProbe:
           failureThreshold: 6
           httpGet:
@@ -1047,7 +1047,7 @@ spec:
           value: my-k8s-cluster
         - name: DD_HOSTNAME
           value: $(K8S_NODE_NAME)-$(K8S_CLUSTER_NAME)
-        image: registry.datadoghq.com/agent:7.83.2-jmx
+        image: registry.datadoghq.com/agent:7.84.3-jmx
         livenessProbe:
           initialDelaySeconds: 15
           periodSeconds: 15
@@ -1143,7 +1143,7 @@ spec:
           value: my-k8s-cluster
         - name: DD_HOSTNAME
           value: $(K8S_NODE_NAME)-$(K8S_CLUSTER_NAME)
-        image: registry.datadoghq.com/agent:7.83.2-jmx
+        image: registry.datadoghq.com/agent:7.84.3-jmx
         name: system-probe
         resources: {}
         securityContext:
@@ -1195,7 +1195,7 @@ spec:
         command:
         - bash
         - -c
-        image: registry.datadoghq.com/agent:7.83.2-jmx
+        image: registry.datadoghq.com/agent:7.84.3-jmx
         name: init-volume
         resources: {}
         volumeMounts:
@@ -1232,7 +1232,7 @@ spec:
               fieldPath: status.hostIP
         - name: DD_DISCOVERY_ENABLED
           value: "true"
-        image: registry.datadoghq.com/agent:7.83.2-jmx
+        image: registry.datadoghq.com/agent:7.84.3-jmx
         name: init-config
         resources: {}
         volumeMounts:
@@ -1258,7 +1258,7 @@ spec:
         - cp
         - /etc/config/system-probe-seccomp.json
         - /host/var/lib/kubelet/seccomp/system-probe
-        image: registry.datadoghq.com/agent:7.83.2-jmx
+        image: registry.datadoghq.com/agent:7.84.3-jmx
         name: seccomp-setup
         resources: {}
         volumeMounts:

@@ -129,7 +129,9 @@ Go requires compile-time instrumentation, demoed at build time in the `checkout`
 * **Datadog Data Streams Monitoring (DSM)**: the Kafka broker [`kafka`](kafka/kubernetes.yaml) is monitored by the
   Datadog Agent, configured with the `ad.datadoghq.com/kafka.checks` pod annotation. Kafka is used by the `checkout`
   (producer) and `fraud-detection` (consumer) services, which report data streams through `DD_DATA_STREAMS_ENABLED`
-  set in the `Instrumentation` CR.
+  set in the `Instrumentation` CR. The same annotation configures the `kafka_consumer` check with
+  `enable_kafka_console` for [Datadog Kafka Console](https://docs.datadoghq.com/integrations/kafka-consumer/)
+  (requires Datadog Agent >= 7.84.0).
 * **Datadog Source Code Integration**: each `Dockerfile` sets the `DD_GIT_REPOSITORY_URL` and `DD_GIT_COMMIT_SHA`
   env vars (see [Git/VCS metadata](#gitvcs-metadata)). Source Code Integration is typically used to demo the DDOT
   Full Host Profiler, Datadog Live Debugger, and Datadog Dynamic Instrumentation.

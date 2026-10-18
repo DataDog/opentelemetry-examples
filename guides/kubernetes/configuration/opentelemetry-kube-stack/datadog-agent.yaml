@@ -81,8 +81,9 @@ spec:
   override:
     nodeAgent:
       # -jmx variant bundles a JRE so JMXFetch can run JMX checks (e.g. Kafka `ad.datadoghq.com/kafka.checks`).
+      # >= 7.84.0 required by the `kafka_consumer` check's Kafka Console (`enable_kafka_console`).
       image:
-        tag: "7.83.2-jmx"
+        tag: "7.84.3-jmx"
       # Applied to all the node Agent containers (agent, trace-agent, system-probe).
       env:
         # JSON logs, easier to parse for the OTel collector tailing the container logs.
