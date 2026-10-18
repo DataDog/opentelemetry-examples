@@ -19,7 +19,7 @@ class CheckOrderTest(unittest.TestCase):
         self.assertEqual(fraud_score, 42)
         self.assertEqual(logs.records[0].msg["order_id"], "abc-123")
         self.assertEqual(logs.records[0].msg["fraud_score"], 42)
-        span.set_attribute.assert_called_once_with("astronomystore.fraud_score", 42)
+        span.set_attribute.assert_called_once_with("store.fraud_detection.fraud_score", 42)
 
 
 if __name__ == "__main__":

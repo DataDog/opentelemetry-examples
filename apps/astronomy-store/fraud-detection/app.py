@@ -59,7 +59,7 @@ def _extract_context(message) -> otel_context.Context:
 
 def check_order(order: dict) -> int:
     fraud_score = random.randrange(100)
-    trace.get_current_span().set_attribute("astronomystore.fraud_score", fraud_score)
+    trace.get_current_span().set_attribute("store.fraud_detection.fraud_score", fraud_score)
     logger.info(
         "check_order",
         order_id=order.get("order_id"),

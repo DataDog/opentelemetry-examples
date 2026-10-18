@@ -55,8 +55,8 @@ public class AdController {
         }
 
         Span span = Span.current();
-        span.setAttribute(AttributeKey.stringArrayKey("app.ads.context_keys"), List.of(keys));
-        span.setAttribute(AttributeKey.longKey("app.ads.count"), (long) ads.size());
+        span.setAttribute(AttributeKey.stringArrayKey("store.ad.context_keys"), List.of(keys));
+        span.setAttribute(AttributeKey.longKey("store.ad.count"), (long) ads.size());
         if (userId != null) {
             span.setAttribute(UserIncubatingAttributes.USER_ID, userId);
         }

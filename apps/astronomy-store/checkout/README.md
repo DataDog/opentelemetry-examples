@@ -43,7 +43,7 @@ The image is built with [Datadog Orchestrion](https://github.com/DataDog/orchest
 only libraries supported by Orchestrion: standard-library `net/http` for server spans, `log/slog` for log records, and [
 `kafka-go`](https://github.com/segmentio/kafka-go) for Kafka producer spans and trace-context propagation. The service
 doesn't create SDK providers or instrumentation wrappers itself. It adds domain-specific attributes (`user.id`,
-`demo.order.id`...) to the active HTTP span with the OpenTelemetry API (`trace.SpanFromContext(ctx).SetAttributes(...)`).
+`store.checkout.order.id`...) to the active HTTP span with the OpenTelemetry API (`trace.SpanFromContext(ctx).SetAttributes(...)`).
 
 > [!WARNING]
 > In the Orchestrion-built image, these custom attributes never reach the backend

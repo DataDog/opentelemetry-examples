@@ -13,7 +13,7 @@ kubectl apply -f kubernetes.yaml
 
 The Deployment uses the OpenTelemetry Operator's Python auto-instrumentation annotation. It does not configure an
 SDK in the application; the active Kafka consumer span created by auto-instrumentation is enriched with
-`astronomystore.fraud_score`. Logs are emitted as JSON through `structlog`'s standard-library logging integration,
+`store.fraud_detection.fraud_score`. Logs are emitted as JSON through `structlog`'s standard-library logging integration,
 which is compatible with OpenTelemetry's logging instrumentation.
 
 The consumer uses the `confluent-kafka` client so that auto-instrumentation traces message consumption and links it
