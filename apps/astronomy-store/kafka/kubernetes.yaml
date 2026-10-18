@@ -31,6 +31,7 @@ spec:
               "instances": [
                 {
                   "kafka_connect_str": "%%host%%:9092",
+                  "monitor_unlisted_consumer_groups": true,
                   "tags": [
                     "kafka_cluster_name:astronomy-store"
                   ],
