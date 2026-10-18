@@ -1,4 +1,6 @@
-FROM golang:1.25 AS build
+# Go 1.26: required by the dd-trace-go version that `orchestrion pin` resolves. Debian 12 (bookworm), as the
+# runtime image, for a matching glibc.
+FROM golang:1.26-bookworm AS build
 
 WORKDIR /src
 COPY go.mod go.sum ./
@@ -7,9 +9,12 @@ RUN go mod download
 COPY *.go ./
 RUN go install github.com/DataDog/orchestrion@v1.13.1
 RUN orchestrion pin
-RUN CGO_ENABLED=0 orchestrion go build -o /checkout .
+# CGO_ENABLED=1: dd-trace-go App & API Protection links libddwaf against glibc, it cannot find libdl in a
+# distroless image otherwise.
+RUN CGO_ENABLED=1 orchestrion go build -o /checkout .
 
-FROM gcr.io/distroless/static-debian12
+# distroless/base rather than distroless/static: the cgo binary needs glibc.
+FROM gcr.io/distroless/base-debian12
 
 COPY --from=build /checkout /checkout
 

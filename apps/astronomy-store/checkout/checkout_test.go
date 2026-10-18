@@ -81,3 +81,36 @@ func TestPlaceOrderPublishesOrderToKafka(t *testing.T) {
 		t.Error("published order is missing shipping_tracking_id")
 	}
 }
+
+func TestRequireBasicAuth(t *testing.T) {
+	logger = slog.New(slog.NewTextHandler(io.Discard, nil))
+	handler := requireBasicAuth(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusCreated)
+	})
+
+	tests := []struct {
+		name               string
+		username, password string
+		withCredentials    bool
+		want               int
+	}{
+		{name: "no credentials", want: http.StatusUnauthorized},
+		{name: "wrong password", username: "frontend.astronomy-store", password: "wrong", withCredentials: true, want: http.StatusUnauthorized},
+		{name: "valid credentials", username: "frontend.astronomy-store", password: "changeme", withCredentials: true, want: http.StatusCreated},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			request := httptest.NewRequest(http.MethodPost, "/checkout/place-order", nil)
+			if tt.withCredentials {
+				request.SetBasicAuth(tt.username, tt.password)
+			}
+			response := httptest.NewRecorder()
+
+			handler(response, request)
+
+			if response.Code != tt.want {
+				t.Fatalf("status = %d, want %d", response.Code, tt.want)
+			}
+		})
+	}
+}

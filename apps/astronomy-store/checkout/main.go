@@ -52,7 +52,7 @@ func run() error {
 	}
 
 	mux := http.NewServeMux()
-	mux.HandleFunc("POST /checkout/place-order", cs.placeOrder)
+	mux.HandleFunc("POST /checkout/place-order", requireBasicAuth(cs.placeOrder))
 	mux.HandleFunc("/checkout/health", cs.health)
 
 	addr := ":" + getEnv("PORT", defaultPort)
