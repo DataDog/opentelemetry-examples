@@ -8,7 +8,7 @@ opentelemetry-operator:
   manager:
     collectorImage:
       repository: otel/opentelemetry-collector-contrib
-      tag: "0.161.0"
+      tag: "0.163.1"
       #repository: datadog/ddot-collector
       #tag: "7.85.0-rc.2"
       #repository: datadog/otel-agent-dev
