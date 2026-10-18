@@ -11,9 +11,13 @@ metadata:
 data:
   load-test.js: |
     import http from "k6/http";
+    import encoding from "k6/encoding";
     import { check, sleep } from "k6";
 
     const frontendUrl = __ENV.FRONTEND_URL || "http://frontend:8080";
+    const adUrl = __ENV.AD_URL || "http://ad:8080";
+    const adUsername = __ENV.AD_USERNAME || "frontend.astronomy-store";
+    const adPassword = __ENV.AD_PASSWORD || "changeme";
 
     export const options = {
       scenarios: {
@@ -23,10 +27,22 @@ data:
           duration: "24h",
           gracefulStop: "1m",
         },
+        // Low-rate simulated suspicious traffic sent straight to the ad service, to showcase Datadog App & API
+        // Protection detections. See suspiciousAdTraffic below.
+        suspicious_ad_traffic: {
+          executor: "constant-arrival-rate",
+          exec: "suspiciousAdTraffic",
+          rate: 6,
+          timeUnit: "1m",
+          duration: "24h",
+          preAllocatedVUs: 1,
+          gracefulStop: "1m",
+        },
       },
+      // Only the regular shopper traffic is expected to succeed.
       thresholds: {
-        http_req_failed: ["rate<0.01"],
-        http_req_duration: ["p(95)<1000"],
+        "http_req_failed{scenario:astronomy_store}": ["rate<0.01"],
+        "http_req_duration{scenario:astronomy_store}": ["p(95)<1000"],
       },
     };
 
@@ -74,6 +90,37 @@ data:
 
       sleep(1);
     }
+
+    function basicAuth(username, password) {
+      return `Basic ${encoding.b64encode(`${username}:${password}`)}`;
+    }
+
+    // Harmless test requests that match App & API Protection's built-in detection rules: a known scanner
+    // user agent and a benign "<script>alert(1)</script>" string in a query parameter (attack_attempt.attack_tool
+    // and attack_attempt.xss), plus requests with a wrong Basic auth password (failed logins).
+    export function suspiciousAdTraffic() {
+      if (Math.random() < 0.5) {
+        http.get(
+          `${adUrl}/ad/get-ads?context_keys=telescopes&q=${encodeURIComponent("<script>alert(1)</script>")}`,
+          {
+            headers: {
+              authorization: basicAuth(adUsername, adPassword),
+              "user-agent": "sqlmap/1.7",
+            },
+            tags: { traffic: "suspicious" },
+          },
+        );
+      } else {
+        const response = http.get(`${adUrl}/ad/get-ads?context_keys=books`, {
+          headers: { authorization: basicAuth(adUsername, "wrong-password") },
+          responseCallback: http.expectedStatuses(401),
+          tags: { traffic: "suspicious" },
+        });
+        check(response, {
+          "ad rejects wrong password": (r) => r.status === 401,
+        });
+      }
+    }
 ---
 apiVersion: apps/v1
 kind: Deployment
@@ -100,6 +147,12 @@ spec:
           env:
             - name: FRONTEND_URL
               value: http://frontend:8080
+            - name: AD_URL
+              value: http://ad:8080
+            - name: AD_USERNAME
+              value: frontend.astronomy-store
+            - name: AD_PASSWORD
+              value: changeme
           volumeMounts:
             - name: script
               mountPath: /scripts
