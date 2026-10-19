@@ -33,7 +33,7 @@ ENV DD_GIT_COMMIT_SHA=${VCS_REF_HEAD_REVISION}
 ## Read at container start by otel-env.sh, which adds them to OTEL_RESOURCE_ATTRIBUTES.
 ENV VCS_REPOSITORY_URL_FULL=${VCS_REPOSITORY_URL_FULL}
 ENV VCS_REF_HEAD_REVISION=${VCS_REF_HEAD_REVISION}
-COPY otel-env.sh /usr/local/bin/otel-env.sh
+COPY --from=shared otel-env.sh /usr/local/bin/otel-env.sh
 ## --- END OpenTelemetry vcs.* resource attributes ---
 
 EXPOSE 8080

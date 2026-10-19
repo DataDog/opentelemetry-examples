@@ -10,8 +10,8 @@
 # left unchanged. Does nothing in the ddot flow (DD_TRACE_OTEL_ENABLED=true), where the Datadog SDKs read
 # DD_GIT_* instead.
 #
-# The same file is copied into each service directory because each image is built with its own directory
-# as the build context. Keep the copies identical.
+# Shared by several service images. Each Dockerfile copies it from the `shared` named build context
+# (`COPY --from=shared`), which build-images sets with `--build-context shared=<this directory>`.
 set -e
 
 add_attr() {

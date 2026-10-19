@@ -30,8 +30,10 @@ when the container starts, after the Operator's injection, appends the two `vcs.
   `DD_GIT_*` instead.
 - A Deployment that sets `command:` replaces the image `ENTRYPOINT`, so it must start with
   `/usr/local/bin/otel-env.sh` to keep the `vcs.*` attributes. Setting only `args:` keeps it.
-- Each service directory has its own copy of `otel-env.sh` because each image is built with its service
-  directory as the build context. Keep the copies identical.
+- `otel-env.sh` lives in `shared/`. Each image is built with its service directory as the build context, so
+  the Dockerfiles copy the script from a `shared` named build context (`COPY --from=shared`), which
+  `./build-images` passes with `--build-context shared=shared`. To build an image by hand, pass
+  `--build-context shared=../shared` from its service directory.
 
 `checkout` doesn't report `vcs.*`: its runtime image (`gcr.io/distroless/static-debian12`) has no shell to run
 `otel-env.sh`.

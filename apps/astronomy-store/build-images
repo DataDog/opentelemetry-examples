@@ -72,12 +72,14 @@ VCS_BUILD_ARGS=(
     --build-arg "VCS_REF_TYPE=${VCS_REF_TYPE}"
     --build-arg "VCS_REF_HEAD_REVISION=${VCS_REF_HEAD_REVISION}"
 )
+# Files shared by several images (e.g. otel-env.sh), copied in the Dockerfiles with `COPY --from=shared`.
+SHARED_BUILD_CONTEXT=(--build-context "shared=${SCRIPT_DIR}/shared")
 
 if [[ "${PUSH}" -eq 0 ]]; then
     IMAGE_TAG="${IMAGE_TAG:-latest}"
 
     for service in "${SERVICES[@]}"; do
-        docker build "${VCS_BUILD_ARGS[@]}" --tag "${IMAGE_PREFIX}/${service}:${IMAGE_TAG}" "${SCRIPT_DIR}/${service}"
+        docker build "${VCS_BUILD_ARGS[@]}" "${SHARED_BUILD_CONTEXT[@]}" --tag "${IMAGE_PREFIX}/${service}:${IMAGE_TAG}" "${SCRIPT_DIR}/${service}"
     done
 
     exit 0
@@ -105,6 +107,7 @@ for service in "${SERVICES[@]}"; do
         --builder "${BUILDER}" \
         --platform linux/amd64 \
         "${VCS_BUILD_ARGS[@]}" \
+        "${SHARED_BUILD_CONTEXT[@]}" \
         --tag "${IMAGE_PREFIX}/${service}:${IMAGE_TAG}" \
         --push \
         "${SCRIPT_DIR}/${service}"

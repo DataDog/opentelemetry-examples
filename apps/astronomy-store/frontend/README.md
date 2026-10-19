@@ -9,7 +9,7 @@ It also proxies `POST /api/checkout` to `POST /checkout/place-order` on the `che
 Build and deploy it with:
 
 ```sh
-docker build -t astronomy-store/frontend:latest .
+docker build --build-context shared=../shared -t astronomy-store/frontend:latest .
 kubectl apply -f kubernetes.yaml
 ```
 

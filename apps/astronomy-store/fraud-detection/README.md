@@ -5,7 +5,7 @@ This demo accepts order checks at `POST /fraud-detection/check-order` and return
 Build and deploy it with:
 
 ```sh
-docker build -t astronomy-store/fraud-detection:latest .
+docker build --build-context shared=../shared -t astronomy-store/fraud-detection:latest .
 kubectl apply -f kubernetes.yaml
 ```
 
