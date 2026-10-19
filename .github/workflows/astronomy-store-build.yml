@@ -24,3 +24,48 @@ jobs:
 
       - name: Build all service images
         run: ./build-images
+
+  deploy-kind:
+    name: Deploy to a kind cluster (${{ matrix.flow }})
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        flow: [upstream, ddot]
+    defaults:
+      run:
+        working-directory: apps/astronomy-store
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          persist-credentials: false
+
+      - name: Create cluster
+        uses: helm/kind-action@06c1ae10762d3b9c1644e7fe69596ae519e015a2 # v1.15.0
+        with:
+          cluster_name: astronomy-store
+
+      - name: Build all service images
+        run: ./build-images
+
+      - name: Load images into the cluster
+        run: kind load docker-image --name astronomy-store $(docker images --format '{{.Repository}}:{{.Tag}}' --filter 'reference=astronomy-store/*')
+
+      - name: Install Astronomy Store
+        env:
+          DD_INSTALL_FLOW: ${{ matrix.flow }}
+          ROLLOUT_TIMEOUT: 5m
+        run: ./install-app
+
+      - name: Wait for fraud-detection to consume orders
+        run: timeout 3m bash -c 'until kubectl logs deployment/fraud-detection --namespace astronomy-store | grep -q check_order; do sleep 5; done'
+
+      - name: Diagnostics on failure
+        if: failure()
+        run: |
+          kubectl get pods --namespace astronomy-store -o wide
+          for deployment in kafka checkout fraud-detection; do
+            echo "--- ${deployment} logs ---"
+            kubectl logs "deployment/${deployment}" --namespace astronomy-store --all-containers --tail=-1 || true
+          done

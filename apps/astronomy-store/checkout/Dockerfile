@@ -1,11 +1,13 @@
-FROM golang:1.25 AS build
+FROM golang:1.26 AS build
 
 WORKDIR /src
 COPY go.mod go.sum ./
 RUN go mod download
 
 COPY *.go ./
-RUN CGO_ENABLED=0 go build -o /checkout .
+RUN go install github.com/DataDog/orchestrion@v1.13.1
+RUN orchestrion pin
+RUN CGO_ENABLED=0 orchestrion go build -o /checkout .
 
 FROM gcr.io/distroless/static-debian12
 
