@@ -45,9 +45,30 @@ SERVICES=(ad checkout fraud-detection frontend product-catalog)
 CHECKOUT_UPSTREAM_OTEL_TAG_SUFFIX="-upstream-otel"
 CHECKOUT_UPSTREAM_OTEL_DOCKERFILE="${SCRIPT_DIR}/checkout/Dockerfile.upstream-otel"
 
-# Git metadata baked into each image as build args, then surfaced as OTel vcs.* / Datadog DD_GIT_*
-# env vars inside the Dockerfiles. See the "VCS" ARG/ENV block near the end of each Dockerfile.
-VCS_REPOSITORY_URL_FULL="$(git -C "${SCRIPT_DIR}" config --get remote.origin.url)"
+# Converts a git remote URL to https://<host>/<path>, without credentials, port, or ".git" suffix: the form
+# expected by the OTel vcs.repository.url.full attribute. Handles scp-like SSH (git@host:org/repo.git),
+# ssh://, git://, and http(s):// URLs. Anything else (e.g. a local path) is returned unchanged.
+to_https_url() {
+    local url="${1%/}" host path
+    url="${url%.git}"
+    case "${url}" in
+        *://*)  # scheme://[user[:password]@]host[:port]/path
+            url="${url#*://}"
+            host="${url%%/*}" path="${url#*/}"
+            ;;
+        *:*)  # scp-like: [user@]host:path
+            host="${url%%:*}" path="${url#*:}"
+            ;;
+        *) echo "$1"; return ;;
+    esac
+    host="${host##*@}"  # drop the user and credentials
+    host="${host%%:*}"  # drop the port
+    echo "https://${host}/${path}"
+}
+
+# Git metadata baked into each image as build args, then surfaced as Datadog DD_GIT_* env vars and, through
+# otel-env.sh, as OTel vcs.* resource attributes. See the VCS ARG/ENV blocks near the end of each Dockerfile.
+VCS_REPOSITORY_URL_FULL="$(to_https_url "$(git -C "${SCRIPT_DIR}" config --get remote.origin.url)")"
 VCS_REF_HEAD_NAME="$(git -C "${SCRIPT_DIR}" rev-parse --abbrev-ref HEAD)"
 VCS_REF_TYPE="branch"
 VCS_REF_HEAD_REVISION="$(git -C "${SCRIPT_DIR}" rev-parse HEAD)"
@@ -57,12 +78,14 @@ VCS_BUILD_ARGS=(
     --build-arg "VCS_REF_TYPE=${VCS_REF_TYPE}"
     --build-arg "VCS_REF_HEAD_REVISION=${VCS_REF_HEAD_REVISION}"
 )
+# Files shared by several images (e.g. otel-env.sh), copied in the Dockerfiles with `COPY --from=shared`.
+SHARED_BUILD_CONTEXT=(--build-context "shared=${SCRIPT_DIR}/shared")
 
 if [[ "${PUSH}" -eq 0 ]]; then
     IMAGE_TAG="${IMAGE_TAG:-latest}"
 
     for service in "${SERVICES[@]}"; do
-        docker build "${VCS_BUILD_ARGS[@]}" --tag "${IMAGE_PREFIX}/${service}:${IMAGE_TAG}" "${SCRIPT_DIR}/${service}"
+        docker build "${VCS_BUILD_ARGS[@]}" "${SHARED_BUILD_CONTEXT[@]}" --tag "${IMAGE_PREFIX}/${service}:${IMAGE_TAG}" "${SCRIPT_DIR}/${service}"
     done
     docker build "${VCS_BUILD_ARGS[@]}" \
         --file "${CHECKOUT_UPSTREAM_OTEL_DOCKERFILE}" \
@@ -94,6 +117,7 @@ for service in "${SERVICES[@]}"; do
         --builder "${BUILDER}" \
         --platform linux/amd64 \
         "${VCS_BUILD_ARGS[@]}" \
+        "${SHARED_BUILD_CONTEXT[@]}" \
         --tag "${IMAGE_PREFIX}/${service}:${IMAGE_TAG}" \
         --push \
         "${SCRIPT_DIR}/${service}"
