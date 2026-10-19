@@ -23,11 +23,16 @@ This Go service accepts a checkout request at `POST /checkout/place-order`, mirr
 }
 ```
 
-The service returns `201 Created` with a JSON body mirroring `PlaceOrderResponse.order` (`order_id`, `shipping_tracking_id`, `shipping_cost`, `shipping_address`). This demo does not run separate cart/shipping/payment services, so checkout charges a flat shipping rate and does not call out to any downstream service. Build and deploy it with:
+The service returns `201 Created` with a JSON body mirroring `PlaceOrderResponse.order` (`order_id`, `shipping_tracking_id`, `shipping_cost`, `shipping_address`). It also publishes the order to the `orders` Kafka topic, with the request's trace context in the message headers. This demo does not run separate cart/shipping/payment services, so checkout charges a flat shipping rate and does not call HTTP services downstream. Build and deploy it with:
 
 ```sh
 docker build -t astronomy-store/checkout:latest .
 kubectl apply -f kubernetes.yaml
 ```
 
-Unlike Java, Go has no bytecode-injected auto-instrumentation, so the service embeds the OpenTelemetry Go SDK directly (traces and OTLP-bridged logs, see `main.go`) and configures it entirely from `OTEL_*` environment variables (exporter endpoint/protocol, resource attributes, service name). The Deployment uses the OpenTelemetry Operator's `instrumentation.opentelemetry.io/inject-sdk` annotation, which injects those environment variables without a language agent. The annotation points at the `Instrumentation` custom resource by `namespace/name` (`opentelemetry-operator-system/opentelemetry-kube-stack`), matching the other astronomy-store services' `inject-java`/`inject-dotnet` annotations — the bare `"true"` value only works when a default `Instrumentation` resource exists in the pod's own namespace, which is not the case here. Application logs are emitted through [`zap`](https://pkg.go.dev/go.uber.org/zap), bridged to the OTel SDK via [`otelzap`](https://pkg.go.dev/go.opentelemetry.io/contrib/bridges/otelzap), so they are exported as OTLP logs.
+The image is built with [Datadog Orchestrion](https://github.com/DataDog/orchestrion), which injects `dd-trace-go/v2` instrumentation at compile time. Orchestrion instruments the `net/http` server, `log/slog` logs, and the [`kafka-go`](https://github.com/segmentio/kafka-go) producer, including trace-context propagation. The application creates no SDK providers and only adds its domain-specific attributes to the active HTTP span. The Deployment's `instrumentation.opentelemetry.io/inject-sdk` annotation supplies the standard `OTEL_*` exporter and resource environment variables, which `dd-trace-go` reads in its OpenTelemetry-compatible ("DDOT") mode.
+
+[`Dockerfile.upstream-otel`](Dockerfile.upstream-otel) builds the same code with the upstream [`otelc`](https://github.com/open-telemetry/opentelemetry-go-compile-instrumentation) compiler, which instruments it with the OpenTelemetry Go SDK instead. `./build-images` publishes this image with a `-upstream-otel` tag suffix, for example `astronomy-store/checkout:latest-upstream-otel`. `../install-app` deploys the image that matches `DD_INSTALL_FLOW`, the same variable the OpenTelemetry Kube Stack `install` script uses:
+
+- `upstream`: the `-upstream-otel` image.
+- `ddot`: the Orchestrion image.

@@ -25,7 +25,5 @@ ENV VCS_REF_HEAD_REVISION=${VCS_REF_HEAD_REVISION}
 COPY --from=shared otel-env.sh /usr/local/bin/otel-env.sh
 ## --- END OpenTelemetry vcs.* resource attributes ---
 
-EXPOSE 8080
-
 ENTRYPOINT ["/usr/local/bin/otel-env.sh"]
-CMD ["gunicorn", "--bind", "0.0.0.0:8080", "--workers", "1", "app:app"]
+CMD ["python", "app.py"]

@@ -58,7 +58,7 @@ spec:
   nodejs:
     image: datadog/dd-otel-autoinstrumentation-js:6.20-preview
   python:
-    image: ghcr.io/cyrille-leclerc/dd-autoinstrumentation-python:4.15.1
+    image: datadog/dd-otel-autoinstrumentation-python:v4.16.0-preview
     volumeLimitSize: 500Mi
   dotnet:
     env:
