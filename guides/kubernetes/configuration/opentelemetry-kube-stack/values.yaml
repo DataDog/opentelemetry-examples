@@ -718,31 +718,38 @@ instrumentation:
       value: "true"
     - name: "DD_TRACE_OTEL_SEMANTICS_ENABLED"
       value: "true"
-    # DD_OTEL_SDK_ENABLED: Candidate new env var to enable OTel mode on DDOT SDKs, replacing all the previous ones,
-    # but not yet supported by the DDOT SDKs
-    # - name: "DD_OTEL_SDK_ENABLED"
-    #  value: "true"
     ## DDOT CONFIGURATION
     - name: "DD_AGENT_HOST"
       value: "datadog-agent.datadog.svc.cluster.local"
-    # DBM SUPPORT
-    - name: "DD_DBM_PROPAGATION_MODE" # full, service, disabled
-      value: "full"
-    - name: "DD_DBM_TRACE_PREPARED_STATEMENTS"
-      value: "true"
-    # DSM SUPPORT
-    - name: "DD_DATA_STREAMS_ENABLED"
-      value: "true"
-    - name: "DD_TRACE_REMOVE_INTEGRATION_SERVICE_NAMES_ENABLED"
-      value: "true"
 
-    #  Datadog App & API & Code Protection
-    - name: DD_APPSEC_ENABLED
-      value: "true"
-    - name: DD_IAST_ENABLED
-      value: "true"
-    - name: DD_APPSEC_SCA_ENABLED
-      value: "true"
+    ## Optional Datadog features of the DDOT SDKs, disabled by default. Uncomment them below to configure them
+    ## for every instrumented workload, or set them in the env of a workload's containers to configure them
+    ## for that workload only (container env takes precedence over this list).
+
+    # Datadog DBM (Database Monitoring). See https://docs.datadoghq.com/database_monitoring/ .
+    # - name: "DD_DBM_PROPAGATION_MODE" # full, service, disabled
+    #   value: "full"
+    # - name: "DD_DBM_TRACE_PREPARED_STATEMENTS"
+    #   value: "true"
+    # Datadog DSM (Data Streams Monitoring). See https://docs.datadoghq.com/data_streams/ .
+    # - name: "DD_DATA_STREAMS_ENABLED"
+    #   value: "true"
+    # - name: "DD_TRACE_REMOVE_INTEGRATION_SERVICE_NAMES_ENABLED"
+    #   value: "true"
+    # Datadog App & API Protection: threat detection and blocking.
+    # See https://docs.datadoghq.com/security/application_security/ .
+    # - name: DD_APPSEC_ENABLED
+    #   value: "true"
+    # Datadog Code Security IAST (Interactive Application Security Testing): detects code-level
+    # vulnerabilities (SQL injection, SSRF...) in the running service.
+    # See https://docs.datadoghq.com/security/code_security/iast/ .
+    # - name: DD_IAST_ENABLED
+    #   value: "true"
+    # Datadog Code Security SCA (Software Composition Analysis): detects vulnerable open source
+    # libraries loaded at runtime.
+    # See https://docs.datadoghq.com/security/code_security/software_composition_analysis/ .
+    # - name: DD_APPSEC_SCA_ENABLED
+    #   value: "true"
 
     ## WORKAROUND: DDOT SDK GO LANG ignores OTEL_EXPORTER_OTLP_ENDPOINT, it's a bug
     ## https://github.com/DataDog/dd-trace-go/pull/5407

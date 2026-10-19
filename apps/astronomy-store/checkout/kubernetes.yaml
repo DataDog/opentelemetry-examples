@@ -34,9 +34,33 @@ spec:
               value: kafka:9092
             - name: KAFKA_TOPIC
               value: orders
-            # Enable Datadog App & API Protection in dd-trace-go, compiled in by Orchestrion: threat detection on
-            # the net/http server. Ignored by the upstream otelc build (Dockerfile.upstream-otel).
+            # dd-trace-go is compiled in by Orchestrion; these settings are ignored by the upstream otelc build
+            # (Dockerfile.upstream-otel). dd-trace-go doesn't support IAST, DD_IAST_ENABLED is a no-op here.
+            # Datadog features of the DDOT SDKs, enabled per service. They can also be enabled globally in the
+            # `instrumentation.env` of the opentelemetry-kube-stack Helm values.
+            # Datadog DBM (Database Monitoring). See https://docs.datadoghq.com/database_monitoring/ .
+            - name: DD_DBM_PROPAGATION_MODE # full, service, disabled
+              value: "full"
+            - name: DD_DBM_TRACE_PREPARED_STATEMENTS
+              value: "true"
+            # Datadog DSM (Data Streams Monitoring). See https://docs.datadoghq.com/data_streams/ .
+            - name: DD_DATA_STREAMS_ENABLED
+              value: "true"
+            - name: DD_TRACE_REMOVE_INTEGRATION_SERVICE_NAMES_ENABLED
+              value: "true"
+            # Datadog App & API Protection: threat detection and blocking.
+            # See https://docs.datadoghq.com/security/application_security/ .
             - name: DD_APPSEC_ENABLED
+              value: "true"
+            # Datadog Code Security IAST (Interactive Application Security Testing): detects code-level
+            # vulnerabilities (SQL injection, SSRF...) in the running service.
+            # See https://docs.datadoghq.com/security/code_security/iast/ .
+            - name: DD_IAST_ENABLED
+              value: "true"
+            # Datadog Code Security SCA (Software Composition Analysis): detects vulnerable open source
+            # libraries loaded at runtime.
+            # See https://docs.datadoghq.com/security/code_security/software_composition_analysis/ .
+            - name: DD_APPSEC_SCA_ENABLED
               value: "true"
           ports:
             - name: http
