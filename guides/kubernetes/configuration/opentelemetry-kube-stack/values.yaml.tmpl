@@ -906,7 +906,7 @@ instrumentation:
   nodejs:
     image: datadog/dd-otel-autoinstrumentation-js:6.20-preview
   python:
-    image: ghcr.io/cyrille-leclerc/dd-autoinstrumentation-python:4.15.1
+    image: datadog/dd-otel-autoinstrumentation-python:v4.16.0-preview
     # The auto-instrumentation init container bundles ddtrace native builds for every supported
     # Python version (3.9-3.14) x libc (glibc/musl) x arch (x86_64/aarch64), ~330MB total, which
     # exceeds the Operator's 200Mi default EmptyDir limit and gets the pod evicted.
