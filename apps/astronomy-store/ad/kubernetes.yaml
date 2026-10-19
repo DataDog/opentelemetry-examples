@@ -39,10 +39,6 @@ spec:
               value: astronomy_user
             - name: DB_PASSWORD
               value: astronomy_password
-            # Enable Datadog App & API Protection in the DDOT Java SDK injected by the OpenTelemetry Operator:
-            # threat detection and Spring Security login success/failure tracking.
-            - name: DD_APPSEC_ENABLED
-              value: "true"
           readinessProbe:
             httpGet:
               path: /ad/health
