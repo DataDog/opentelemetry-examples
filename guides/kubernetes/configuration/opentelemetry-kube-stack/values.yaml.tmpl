@@ -884,7 +884,7 @@ instrumentation:
     - tracecontext
     - baggage
   dotnet:
-    image: ghcr.io/zacharycmontoya/dd-autoinstrumentation-dotnet:3.52.0
+    image: datadog/dd-otel-autoinstrumentation-dotnet:3.56.0-preview
     # Unlike the other languages, .NET needs more setup to instrument an application:
     # - The CORECLR_PROFILER_PATH env variable must be set (matching other languages)
     # - The .NET Tracer's DD_DOTNET_TRACER_HOME env variable must be set
