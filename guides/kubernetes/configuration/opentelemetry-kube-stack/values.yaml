@@ -669,13 +669,6 @@ collectors:
 
       exporters:
         # Export profiles and metrics to Datadog through OTLP HTTP.
-        # FIXME the host profiler's self-telemetry metrics (received by `otlp`, exported here to
-        # Datadog's OTLP intake) show up in Datadog under the host "otelcol-helm" instead of the
-        # node's host "<node name>-<cluster name>" used by the Datadog Agent and the other collectors.
-        # "otelcol-helm" isn't set in this configuration nor in the pod environment, whose
-        # OTEL_RESOURCE_ATTRIBUTES sets host.name and k8s.node.name to the node name: its origin
-        # (Datadog's OTLP intake host resolution or the host profiler distribution) is unconfirmed.
-        # To investigate, e.g. by setting the `datadog.host.name` resource attribute.
         otlp_http:
           endpoint: https://otlp.${env:DD_SITE:-datadoghq.com}
           headers:
@@ -766,7 +759,7 @@ instrumentation:
     - baggage
   dotnet:
     # image: otel/autoinstrumentation-dotnet:1.17.0
-    image: ghcr.io/zacharycmontoya/dd-autoinstrumentation-dotnet:3.52.0
+    image: datadog/dd-otel-autoinstrumentation-dotnet:3.56.0-preview
     # Unlike the other languages, .NET needs more setup to instrument an application:
     # - The CORECLR_PROFILER_PATH env variable must be set (matching other languages)
     # - The .NET Tracer's DD_DOTNET_TRACER_HOME env variable must be set
