@@ -688,7 +688,14 @@ collectors:
           # pipeline.
           profiles:
             exporters: [otlp_http]
-
+        telemetry:
+          metrics:
+            readers:
+              - periodic:
+                  exporter:
+                    otlp:
+                      endpoint: http://localhost:4318
+                      protocol: http/protobuf
 instrumentation:
   enabled: true
   env:

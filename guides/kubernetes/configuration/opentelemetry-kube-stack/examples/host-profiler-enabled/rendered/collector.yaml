@@ -1128,6 +1128,14 @@ spec:
           - resource/global
           receivers:
           - profiling
+      telemetry:
+        metrics:
+          readers:
+          - periodic:
+              exporter:
+                otlp:
+                  endpoint: http://localhost:4318
+                  protocol: http/protobuf
   image: "datadog/ddot-ebpf-dev:mackjmr-hp-preview-v2"
   imagePullPolicy: IfNotPresent
   upgradeStrategy: automatic

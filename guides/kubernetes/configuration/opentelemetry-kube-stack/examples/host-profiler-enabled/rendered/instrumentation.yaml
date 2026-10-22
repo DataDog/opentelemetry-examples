@@ -21,12 +21,6 @@ spec:
   env:
     - name: DD_AGENT_HOST
       value: "datadog-agent.datadog.svc.cluster.local"
-    - name: DD_DATA_STREAMS_ENABLED
-      value: "true"
-    - name: DD_DBM_PROPAGATION_MODE
-      value: "full"
-    - name: DD_DBM_TRACE_PREPARED_STATEMENTS
-      value: "true"
     - name: DD_LOGS_OTEL_ENABLED
       value: "true"
     - name: DD_METRICS_OTEL_ENABLED
@@ -34,8 +28,6 @@ spec:
     - name: DD_TRACE_OTEL_ENABLED
       value: "true"
     - name: DD_TRACE_OTEL_SEMANTICS_ENABLED
-      value: "true"
-    - name: DD_TRACE_REMOVE_INTEGRATION_SERVICE_NAMES_ENABLED
       value: "true"
     - name: OTEL_EXPORTER_OTLP_METRICS_TEMPORALITY_PREFERENCE
       value: "delta"
@@ -55,9 +47,9 @@ spec:
   java:
     image: datadog/dd-otel-autoinstrumentation-java:1.67.1-preview
   nodejs:
-    image: datadog/dd-otel-autoinstrumentation-js:6.20-preview
+    image: datadog/dd-otel-autoinstrumentation-js:6.21-preview
   python:
-    image: ghcr.io/cyrille-leclerc/dd-autoinstrumentation-python:4.15.1
+    image: datadog/dd-otel-autoinstrumentation-python:4.16.0-preview
     volumeLimitSize: 500Mi
   dotnet:
     env:
@@ -67,5 +59,5 @@ spec:
       value: /otel-auto-instrumentation-dotnet/linux/Datadog.Tracer.Native.so
     - name: DD_DOTNET_TRACER_HOME
       value: /otel-auto-instrumentation-dotnet
-    image: ghcr.io/zacharycmontoya/dd-autoinstrumentation-dotnet:3.52.0
+    image: datadog/dd-otel-autoinstrumentation-dotnet:3.56.0-preview
 
