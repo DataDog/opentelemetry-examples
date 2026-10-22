@@ -322,6 +322,42 @@ configures one collector.
   Kubernetes objects) and the middleware running outside the Kubernetes cluster, such as managed cloud databases,
   which has no Kubernetes node: don't set `host.name` on its telemetry from the Collector's node.
 
+### C-13: Keep the `daemon` collector's Service node-local
+
+- **Requirement:** the `daemon` collector's Service, the one the SDKs export to
+  ([O-04](#o-04-point-the-sdks-at-the-daemon-collector)), has `internalTrafficPolicy: Local`, so that each pod's
+  telemetry always reaches the `daemon` collector running on its own Kubernetes node.
+- **Why:** with `internalTrafficPolicy: Cluster`, the Service load balances each connection across the `daemon`
+  collectors of all the nodes:
+  - the points of a time series can reach different Collector instances, which breaks the stateful `cumulativetodelta`
+    conversion ([S-04](#s-04-export-delta-metrics));
+  - the telemetry crosses nodes, and availability zones, for nothing;
+  - the load of a `daemon` collector no longer depends on the workloads of its node, so its resource allocation no
+    longer matches it.
+- **Detect:**
+
+  ```sh
+  kubectl get service <helm-release-name>-daemon-collector --namespace <namespace> \
+    -o jsonpath='{.spec.internalTrafficPolicy}'   # expected: Local
+  ```
+
+- **Fix:** the OpenTelemetry Operator already sets `internalTrafficPolicy: Local` on the Services of the collectors in
+  `daemonset` mode, and so does the `opentelemetry-collector` Helm chart in `daemonset` mode, unless
+  `service.internalTrafficPolicy` is set: remove any explicit `internalTrafficPolicy: Cluster` override. For a Collector
+  DaemonSet deployed with plain manifests, set it on its Service:
+
+  ```yaml
+  apiVersion: v1
+  kind: Service
+  spec:
+    internalTrafficPolicy: Local
+  ```
+
+- **Conflicts:** with `Local`, there's no fallback to another node: the telemetry of a pod running on a node without a
+  ready `daemon` collector is dropped. Make the `daemon` collector run on every node running instrumented workloads,
+  with the `tolerations` and `nodeSelector` matching the nodes' taints and labels. Don't apply this rule to the
+  `cluster` collector, a Deployment.
+
 ## OpenTelemetry Operator and `Instrumentation` rules
 
 ### O-01: Use the DDOT SDK images in the `Instrumentation` custom resource
@@ -370,7 +406,8 @@ configures one collector.
 ### O-04: Point the SDKs at the `daemon` collector
 
 - **Requirement:** `spec.exporter.endpoint` is the `daemon` collector Service's OTLP HTTP endpoint,
-  `http://<helm-release-name>-daemon-collector.<namespace>.svc.cluster.local:4318`.
+  `http://<helm-release-name>-daemon-collector.<namespace>.svc.cluster.local:4318`. This Service must be node-local
+  ([C-13](#c-13-keep-the-daemon-collectors-service-node-local)).
 - **Requirement:** `spec.sampler.type: parentbased_always_on` and `spec.propagators: [tracecontext, baggage]`. Sample
   in the Collector instead ([C-02](#c-02-compute-apm-trace-metrics-with-the-datadog-connector-before-any-sampling)).
 - **Conflicts:** if the user samples in the SDKs on purpose, keep their sampler and say so in the report: the APM trace
@@ -475,8 +512,9 @@ without the OpenTelemetry Operator, set them in their environment instead.
   - Set `max_staleness` on `cumulativetodelta`, for example `max_staleness: 1h`, so that the time series that stop
     reporting, such as the ones of deleted pods, are evicted from memory.
   - All the points of a time series must reach the same Collector instance for the conversion to be correct: keep the
-    conversion in the `daemon` collector receiving the workload's telemetry, not in a Collector Deployment with
-    several replicas behind a load-balanced Service.
+    conversion in the `daemon` collector receiving the workload's telemetry, behind a node-local Service
+    ([C-13](#c-13-keep-the-daemon-collectors-service-node-local)), not in a Collector Deployment with several replicas
+    behind a load-balanced Service.
 - FIXME call out that DDOT SDKs only support delta temporality for now, so the user must use delta metrics for now and the cumulative to delta processor in the collector
 
 ### S-05: Use the stable semantic conventions
@@ -666,7 +704,7 @@ See [TROUBLESHOOTING.md][troubleshooting] when something doesn't show up.
 [dd-sca]: https://docs.datadoghq.com/security/code_security/software_composition_analysis/
 [orchestrion]: https://github.com/DataDog/orchestrion
 [orchestrion-936]: https://github.com/DataDog/orchestrion/issues/936
-[dd-trace-go-5407]: https://github.com/DataDog/dd-trace-go/pull/5407
+[dd-trace-go-5407]: https://github.com/DataDog/dd-trace-go/pull/5407  
 [dd-trace-java-12324]: https://github.com/DataDog/dd-trace-java/pull/12324
 [dd-operator-3521]: https://github.com/DataDog/datadog-operator/issues/3521
 [dd-agent-57314]: https://github.com/DataDog/datadog-agent/issues/57314
