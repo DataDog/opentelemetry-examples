@@ -20,6 +20,9 @@ See [What this deploys](README.md#what-this-deploys) for the architecture, and
 [Install without the `install` script](#install-without-the-install-script) to perform the same installation manually
 (not recommended).
 
+Already running an OpenTelemetry Collector, the OpenTelemetry Operator, OpenTelemetry SDKs, or a Datadog Agent? See
+[Adapt an existing configuration for DDOT](ADAPT-EXISTING-CONFIG.md) to adapt them instead of reinstalling.
+
 Contents:
 
 - [Before you begin](#before-you-begin)
