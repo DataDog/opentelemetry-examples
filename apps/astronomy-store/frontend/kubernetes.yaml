@@ -17,8 +17,8 @@ spec:
     metadata:
       annotations:
         instrumentation.opentelemetry.io/inject-nodejs: opentelemetry-operator-system/opentelemetry-kube-stack
-        resource.opentelemetry.io/service-name: frontend
-        resource.opentelemetry.io/service-namespace: astronomy-store
+        resource.opentelemetry.io/service.name: frontend
+        resource.opentelemetry.io/service.namespace: astronomy-store
       labels:
         app.kubernetes.io/name: frontend
         # Skip Datadog Single Step Instrumentation if enabled cluster-wide: this pod is

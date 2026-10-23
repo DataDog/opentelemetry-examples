@@ -181,7 +181,7 @@ spec:
     metadata:
       annotations:
         instrumentation.opentelemetry.io/inject-java: opentelemetry-operator-system/opentelemetry-kube-stack
-        resource.opentelemetry.io/service-name: my-service
+        resource.opentelemetry.io/service.name: my-service
       labels:
         # Prevent dual instrumentation by the Datadog Operator and the OpenTelemetry Operator.
         admission.datadoghq.com/enabled: "false" # Label values are strings: keep the quotes.
@@ -219,7 +219,7 @@ spec:
     metadata:
       annotations:
         instrumentation.opentelemetry.io/inject-sdk: opentelemetry-operator-system/opentelemetry-kube-stack
-        resource.opentelemetry.io/service-name: my-service
+        resource.opentelemetry.io/service.name: my-service
       labels:
         # Prevent dual instrumentation by the Datadog Operator and the OpenTelemetry Operator.
         admission.datadoghq.com/enabled: "false" # Label values are strings: keep the quotes.
