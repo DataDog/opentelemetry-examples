@@ -14,7 +14,7 @@ guide and those files disagree, the files are right.
 >
 > ```text
 > Adapt the OpenTelemetry and Datadog configuration of this repository for DDOT, following
-> https://raw.githubusercontent.com/DataDog/opentelemetry-examples/main/guides/kubernetes/configuration/opentelemetry-kube-stack/ADAPT-EXISTING-CONFIG.md
+> https://raw.githubusercontent.com/DataDog/opentelemetry-examples/feat/otel-kube-stack-ddot-installer/guides/kubernetes/configuration/opentelemetry-kube-stack/ADAPT-EXISTING-CONFIG.md
 > ```
 
 Contents:
@@ -687,14 +687,14 @@ Report these as `blocked` when the user's setup depends on them:
 
 See [TROUBLESHOOTING.md][troubleshooting] when something doesn't show up.
 
-[install]: https://github.com/DataDog/opentelemetry-examples/blob/main/guides/kubernetes/configuration/opentelemetry-kube-stack/INSTALL.md
-[values]: https://raw.githubusercontent.com/DataDog/opentelemetry-examples/main/guides/kubernetes/configuration/opentelemetry-kube-stack/values.yaml
-[dd-agent-yaml]: https://raw.githubusercontent.com/DataDog/opentelemetry-examples/main/guides/kubernetes/configuration/opentelemetry-kube-stack/datadog-agent.yaml
-[examples-rendered]: https://github.com/DataDog/opentelemetry-examples/tree/main/guides/kubernetes/configuration/opentelemetry-kube-stack/examples/default/rendered
-[troubleshooting]: https://github.com/DataDog/opentelemetry-examples/blob/main/guides/kubernetes/configuration/opentelemetry-kube-stack/TROUBLESHOOTING.md
-[architecture]: https://raw.githubusercontent.com/DataDog/opentelemetry-examples/main/guides/kubernetes/configuration/opentelemetry-kube-stack/assets/deployment-architecture_otel-kube-stack-ddot.svg.png
-[cluster-name]: https://github.com/DataDog/opentelemetry-examples/blob/main/guides/kubernetes/configuration/opentelemetry-kube-stack/README.md#kubernetes-cluster-name-constraints
-[fleet-automation]: https://github.com/DataDog/opentelemetry-examples/blob/main/guides/kubernetes/configuration/opentelemetry-kube-stack/README.md#fleet-automation-optional
+[install]: https://github.com/DataDog/opentelemetry-examples/blob/feat/otel-kube-stack-ddot-installer/guides/kubernetes/configuration/opentelemetry-kube-stack/INSTALL.md
+[values]: https://raw.githubusercontent.com/DataDog/opentelemetry-examples/feat/otel-kube-stack-ddot-installer/guides/kubernetes/configuration/opentelemetry-kube-stack/values.yaml
+[dd-agent-yaml]: https://raw.githubusercontent.com/DataDog/opentelemetry-examples/feat/otel-kube-stack-ddot-installer/guides/kubernetes/configuration/opentelemetry-kube-stack/datadog-agent.yaml
+[examples-rendered]: https://github.com/DataDog/opentelemetry-examples/tree/feat/otel-kube-stack-ddot-installer/guides/kubernetes/configuration/opentelemetry-kube-stack/examples/default/rendered
+[troubleshooting]: https://github.com/DataDog/opentelemetry-examples/blob/feat/otel-kube-stack-ddot-installer/guides/kubernetes/configuration/opentelemetry-kube-stack/TROUBLESHOOTING.md
+[architecture]: https://raw.githubusercontent.com/DataDog/opentelemetry-examples/feat/otel-kube-stack-ddot-installer/guides/kubernetes/configuration/opentelemetry-kube-stack/assets/deployment-architecture_otel-kube-stack-ddot.svg.png
+[cluster-name]: https://github.com/DataDog/opentelemetry-examples/blob/feat/otel-kube-stack-ddot-installer/guides/kubernetes/configuration/opentelemetry-kube-stack/README.md#kubernetes-cluster-name-constraints
+[fleet-automation]: https://github.com/DataDog/opentelemetry-examples/blob/feat/otel-kube-stack-ddot-installer/guides/kubernetes/configuration/opentelemetry-kube-stack/README.md#fleet-automation-optional
 [dd-fleet-automation]: https://docs.datadoghq.com/agent/fleet_automation/
 [dd-live-debugger-go]: https://docs.datadoghq.com/tracing/live_debugger/?prog_lang=go
 [dd-dbm]: https://docs.datadoghq.com/database_monitoring/
