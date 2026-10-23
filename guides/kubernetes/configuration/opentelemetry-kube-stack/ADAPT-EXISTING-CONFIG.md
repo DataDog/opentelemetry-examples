@@ -535,6 +535,27 @@ workload's container `env` for that workload only:
 | [Code Security SCA][dd-sca]                | `DD_APPSEC_SCA_ENABLED=true`                                                           |
 
 - **Conflicts:** if the user's workloads already set any of these, keep their values.
+- **Precedence:** the same environment variable can be set in several places. Before changing one, find all the places
+  it's set for the workload, to know which value applies. From the highest to the lowest precedence:
+  1. the `env` of the container in the pod manifest: the OpenTelemetry Operator doesn't inject a variable the
+     container's `env` already defines;
+  2. the language section of the `Instrumentation` custom resource, for example `spec.java.env`;
+  3. the `spec.env` of the `Instrumentation` custom resource;
+  4. the container's `envFrom` (ConfigMaps, Secrets): the OpenTelemetry Operator only checks the container's `env`,
+     so it injects the variable even when `envFrom` defines it, and the injected value wins;
+  5. the `ENV` instructions of the image's `Dockerfile`, overridden by any of the above.
+
+  For example, `DD_DATA_STREAMS_ENABLED=true` in the `Instrumentation`'s `spec.env` has no effect on a workload whose
+  container `env` sets `DD_DATA_STREAMS_ENABLED=false`, but overrides `ENV DD_DATA_STREAMS_ENABLED=false` in its
+  `Dockerfile`. The OpenTelemetry Operator injects the variables when the pod is created: restart the workloads after
+  changing the `Instrumentation`. Check the effective values on a running pod:
+
+  ```sh
+  kubectl exec <pod> --namespace <namespace> -- env | grep -E '^(DD|OTEL)_'
+  ```
+
+  The pod spec shows the variables set in the manifest and injected by the OpenTelemetry Operator, but not those of
+  the `Dockerfile` or `envFrom`: `kubectl exec ... env` is the only way to see the value the application gets.
 
 ## Datadog Agent and Datadog Operator rules
 
