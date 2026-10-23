@@ -539,7 +539,8 @@ workload's container `env` for that workload only:
   it's set for the workload, to know which value applies. From the highest to the lowest precedence:
   1. the `env` of the container in the pod manifest: the OpenTelemetry Operator doesn't inject a variable the
      container's `env` already defines;
-  2. the language section of the `Instrumentation` custom resource, for example `spec.java.env`;
+  2. the language section of the `Instrumentation` custom resource, for example `spec.java.env`, only applied with the
+     `inject-<language>` annotations: the `inject-sdk` annotation, used for Go, ignores it;
   3. the `spec.env` of the `Instrumentation` custom resource;
   4. the container's `envFrom` (ConfigMaps, Secrets): the OpenTelemetry Operator only checks the container's `env`,
      so it injects the variable even when `envFrom` defines it, and the injected value wins;
@@ -556,6 +557,13 @@ workload's container `env` for that workload only:
 
   The pod spec shows the variables set in the manifest and injected by the OpenTelemetry Operator, but not those of
   the `Dockerfile` or `envFrom`: `kubectl exec ... env` is the only way to see the value the application gets.
+
+  This order applies to the `DD_*` variables of this table and to the `OTEL_*` variables of the `Instrumentation`. The
+  OpenTelemetry Operator handles a few variables differently: it appends its agent to `JAVA_TOOL_OPTIONS`,
+  `NODE_OPTIONS`, and `PYTHONPATH`, and merges its resource attributes into `OTEL_RESOURCE_ATTRIBUTES`, instead of
+  skipping them when the container's `env` sets them. It skips the injection of a language's SDK altogether when the
+  container sets `JAVA_TOOL_OPTIONS`, `NODE_OPTIONS`, or `PYTHONPATH` with `valueFrom`. See `injectCommonEnvVar` and
+  `appendIfNotSet` in the OpenTelemetry Operator's [`internal/instrumentation/sdk.go`][otel-operator-sdk-go].
 
 ## Datadog Agent and Datadog Operator rules
 
@@ -729,3 +737,4 @@ See [TROUBLESHOOTING.md][troubleshooting] when something doesn't show up.
 [dd-trace-java-12324]: https://github.com/DataDog/dd-trace-java/pull/12324
 [dd-operator-3521]: https://github.com/DataDog/datadog-operator/issues/3521
 [dd-agent-57314]: https://github.com/DataDog/datadog-agent/issues/57314
+[otel-operator-sdk-go]: https://github.com/open-telemetry/opentelemetry-operator/blob/v0.159.0/internal/instrumentation/sdk.go
