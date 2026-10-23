@@ -120,11 +120,136 @@ configures one collector.
 - **Conflicts:** move any existing `tail_sampling` or `probabilistic_sampler` processor from the `traces` pipeline to
   `traces/sampling`. Exporters to other observability backends can stay in the `traces` pipeline.
 
-### C-03: Add Kubernetes metadata to application telemetry
+### C-03: Enrich the telemetry with the resource attributes Datadog needs
 
-- **Requirement:** the `k8s_attributes` processor in every pipeline that receives OTLP from the applications.
-- **Fix:** `presets.kubernetesAttributes.enabled: true` with the kube-stack chart, or the `k8s_attributes` processor
-  and its RBAC otherwise.
+- **Requirement:** the traces, metrics, and logs of a workload carry the same values of the following resource
+  attributes: Datadog correlates the telemetry on them, and can't link the signals of a workload when they differ.
+
+  | Resource attribute                                                                                                                                                                                                                  | Datadog use                                                                                           | Set by, in the reference configuration                                                                                                                                   |
+  |-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|-------------------------------------------------------------------------------------------------------|--------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
+  | `service.name`                                                                                                                                                                                                                      | `service` tag, needed for any correlation                                                             | OpenTelemetry Operator and `k8s_attributes`, following the [OpenTelemetry Kubernetes conventions][otel-semconv-k8s-attributes]: annotations, labels, workload names      |
+  | `service.namespace`                                                                                                                                                                                                                 | Groups the services of an application                                                                 | OpenTelemetry Operator and `k8s_attributes`, following the [OpenTelemetry Kubernetes conventions][otel-semconv-k8s-attributes]: annotations, Kubernetes namespace        |
+  | `deployment.environment.name`                                                                                                                                                                                                       | `env` tag                                                                                             | OpenTelemetry Operator and `resourceAttributes` of the kube-stack chart ([C-11](#c-11-set-the-deployment-environment)): annotations, OTel Collector pipeline             |
+  | `service.version`                                                                                                                                                                                                                   | `version` tag                                                                                         | OpenTelemetry Operator and `k8s_attributes`, following the [OpenTelemetry Kubernetes conventions][otel-semconv-k8s-attributes]: annotations, labels, container image tag |
+  | `container.id`                                                                                                                                                                                                                      | Links spans to the container metrics: without it, APM doesn't show the container metrics of a service | The SDK's container resource detector: not extracted by `k8s_attributes` in the reference                                                                                |
+  | `host.name`                                                                                                                                                                                                                         | Links to the host metrics                                                                             | `resource/hostname`, from `k8s.node.name` ([C-05](#c-05-set-hostname-from-the-kubernetes-node-name))                                                                     |
+  | `host.id`, `cloud.provider`, `cloud.account.id`                                                                                                                                                                                     | Datadog hostname of cloud hosts, cloud context                                                        | `resource_detection` with the cloud provider's detector                                                                                                                  |
+  | `datadog.host.name`                                                                                                                                                                                                                 | Datadog hostname, when `host.id` can't be reliably discovered                                         | Not set in the reference as `k8s.cluster.name` is set when it can't be discovered                                                                                        |
+  | `k8s.pod.name`                                                                                                                                                                                                                      | Links the pod and container views                                                                     | OpenTelemetry Operator and OpenTelemetry Operator, `k8s_attributes`                                                                                                      |
+  | `k8s.container.name`                                                                                                                                                                                                                | Container name displayed in Datadog                                                                   | OpenTelemetry Operator and OpenTelemetry Operator, `k8s_attributes`                                                                                                      |
+  | `k8s.cluster.name`                                                                                                                                                                                                                  | Kubernetes Explorer, Kubernetes dashboards                                                            | `resource_detection` (EKS, GKE, AKS) or `resourceAttributes` ([C-10](#c-10-use-the-same-kubernetes-cluster-name-everywhere))                                             |
+  | `k8s.namespace.name`, `k8s.node.name`, `k8s.pod.uid`, `k8s.deployment.name`, `k8s.replicaset.name`, `k8s.daemonset.name`, `k8s.statefulset.name`, `k8s.job.name`, `k8s.cronjob.name`, `container.image.name`, `container.image.tag` | Kubernetes context of the telemetry                                                                   | `k8s_attributes`                                                                                                                                                         |
+
+- **Fix:** enrich the telemetry in the Collector with the `k8s_attributes` processor, in every pipeline that receives
+  telemetry from the workloads, rather than setting these attributes by hand in each application:
+  - with the kube-stack chart, `presets.kubernetesAttributes.enabled: true`. It extracts the attributes above, except
+    `container.id` and `k8s.cluster.name`, and sets `otel_annotations: true`;
+  - otherwise, the `k8s_attributes` processor with its RBAC (`get`, `list`, and `watch` on pods, namespaces, nodes, and
+    replica sets), and the `metadata` to extract:
+
+    ```yaml
+    processors:
+      k8s_attributes:
+        passthrough: false
+        filter:
+          node_from_env_var: K8S_NODE_NAME   # on a DaemonSet: only watch the pods of its node
+        extract:
+          otel_annotations: true             # strongly recommended: resource.opentelemetry.io/<attribute> annotations
+          metadata:
+            - k8s.namespace.name
+            - k8s.pod.name
+            - k8s.pod.uid
+            - k8s.node.name
+            - k8s.deployment.name
+            - k8s.replicaset.name
+            - k8s.daemonset.name
+            - k8s.statefulset.name
+            - k8s.job.name
+            - k8s.cronjob.name
+            - k8s.container.name
+            - container.image.name
+            - container.image.tag
+            - service.name
+            - service.namespace
+            - service.version
+            - service.instance.id
+        pod_association:
+          - sources: [{ from: resource_attribute, name: k8s.pod.uid }]
+          - sources: [{ from: resource_attribute, name: k8s.pod.ip }]
+          - sources: [{ from: connection }]
+    ```
+
+- **Recommendations for the resource attributes on Kubernetes:**
+  - **All attributes:** follow the OpenTelemetry [Specify resource attributes using Kubernetes
+    annotations][otel-semconv-k8s-attributes] conventions, which `k8s_attributes` and the OpenTelemetry Operator
+    implement.
+  - **`k8s_attributes`:** strongly recommended, set `extract.otel_annotations: true`, so that the processor adds the
+    `resource.opentelemetry.io/<attribute>` pod annotations to all the telemetry of the pod, including the container
+    metrics and logs that the Collectors collect.
+  - **`service.name` and `service.namespace`:** set them with the `resource.opentelemetry.io/service.name` and
+    `resource.opentelemetry.io/service.namespace` annotations of the pod template:
+
+    ```yaml
+    spec:
+      template:
+        metadata:
+          annotations:
+            resource.opentelemetry.io/service.name: my-service
+            resource.opentelemetry.io/service.namespace: my-application
+    ```
+
+  - **`service.version`:** rely on the [OpenTelemetry conventions][otel-semconv-k8s-attributes], which derive it from
+    the container image tag: tag the images with the application version. The `app.kubernetes.io/version` pod label
+    and the `resource.opentelemetry.io/service.version` pod annotation also work, but require a more sophisticated
+    software delivery pipeline, which updates them on every release.
+  - **`deployment.environment.name`:** don't set it in the application's deployment manifests, so that the same
+    deployment pipeline and manifests serve all the environments. Set it in the Collector pipeline instead, typically
+    with the `resourceAttributes` of the kube-stack chart ([C-11](#c-11-set-the-deployment-environment)).
+  - **`k8s.node.name`:** set it with the `k8s_attributes` processor, from the pod the telemetry comes from.
+  - **`host.id`, `cloud.provider`, and `cloud.account.id`:** set them whenever the Collector can discover them,
+    typically with the `resource_detection` processor and the cloud provider's detector (`eks`, `aks`, `gke`...), so
+    that Datadog attaches the telemetry to the right host
+    ([hostname mapping][dd-hostname-mapping]). Check that the detector enables these attributes in its
+    `resource_attributes`, and only set `host.id` on the telemetry of the Collector's own node, that is, in the
+    `daemon` collector behind a node-local Service ([C-13](#c-13-keep-the-daemon-collectors-service-node-local)): not
+    on the cluster-scope telemetry of the `cluster` collector, which describes other nodes.
+  - **`datadog.host.name`:** don't set it where`k8s.cluster.name`, `k8s.node.name`, `host.id`, and the `cloud.*`
+    attributes can be reliably discovered, such as on EKS, AKS, and GKE: Datadog then derives the hostname from them.
+    Only set `datadog.host.name` when those can't be reliably discovered, for example on non-cloud Kubernetes clusters, set
+    `datadog.host.name` to `<node name>-<cluster name>` in the `daemon` collector, the same value as the Datadog
+    Agent's hostname ([A-06](#a-06-use-the-same-kubernetes-cluster-name-as-the-opentelemetry-collectors)), so that the 
+    Agent and the Collectors report the same host:
+
+    ```yaml
+    env:
+      - name: K8S_NODE_NAME
+        valueFrom:
+          fieldRef: { fieldPath: spec.nodeName }
+      - name: K8S_CLUSTER_NAME
+        value: "<CLUSTER_NAME>"
+    config:
+      processors:
+        resource/datadog_hostname:
+          attributes:
+            # only set datadog.host.name when k8s.*, host.id, and cloud.* can't be reliably discovered
+            - action: upsert
+              key: datadog.host.name
+              value:` ${env:K8S_NODE_NAME}-${env:K8S_CLUSTER_NAME}`
+    ```
+
+- **`container.id`:** check that the application traces carry it. If they don't, add `container.id` to the
+  `k8s_attributes` processor's `extract.metadata`: the processor then looks up the container ID from the pod's status,
+  using the `k8s.container.name` that the OpenTelemetry Operator injects in `OTEL_RESOURCE_ATTRIBUTES`.
+- **Conflicts:** `k8s_attributes` doesn't overwrite attributes the telemetry already has. Remove the hand-set values
+  that differ from the Kubernetes metadata, such as a `host.name` set to the container's hostname by the SDK's host
+  detector, rather than keeping two sources of truth.
+- **Docs:** [Correlate OpenTelemetry traces and metrics][dd-correlate-metrics-traces],
+  [correlate traces with container metrics][dd-docker-metrics-correlate],
+  [Monitor Kubernetes with OpenTelemetry][dd-k8s-otel], the [Collector's Kubernetes manifest
+  reference][dd-collector-k8s-manifest], and [Unified Service Tagging][dd-unified-service-tagging].
+
+FIXME verify that the Datadog OTel Contrib exporter and extension can discover `datadog.host.name` passed as an
+environment variable, typically through `OTEL_RESOURCE_ATTRIBUTES=datadog.host.name=<node name>-<cluster name>`.
 
 ### C-04: Don't stamp the Collector's own identity on incoming telemetry
 
@@ -158,6 +283,13 @@ configures one collector.
           key: host.name
           from_attribute: k8s.node.name
   ```
+
+- **Why `k8s.node.name`:** setting `host.name` to the Kubernetes node name aligns with the upstream OpenTelemetry
+  practices, such as the OpenTelemetry Collector Helm chart. Datadog prefers `<k8s.node.name>-<k8s.cluster.name>` as
+  the canonical hostname, unique across Kubernetes clusters: this guide handles it by setting `datadog.host.name`
+  alongside `host.name`, on the Kubernetes clusters where `host.id` and the `cloud.*` attributes can't be reliably
+  discovered ([C-03](#c-03-enrich-the-telemetry-with-the-resource-attributes-datadog-needs)). `host.name` keeps the
+  upstream value for the other observability backends.
 
 ### C-06: Convert cumulative metrics to delta
 
@@ -244,7 +376,7 @@ configures one collector.
 ### C-10: Use the same Kubernetes cluster name everywhere
 
 - **Requirement:** the `k8s.cluster.name` resource attribute of the Collectors equals the Datadog Agent's
-  `clusterName` ([A-06](#a-06-use-the-same-kubernetes-cluster-name-as-the-collectors)).
+  `clusterName` ([A-06](#a-06-use-the-same-kubernetes-cluster-name-as-the-opentelemetry-collectors)).
 - **Fix:** on EKS, GKE, and AKS, enable the cloud provider's resource detection preset, which discovers it.
 - **Fix:** on other platforms, where `k8s.cluster.name` is set manually instead of discovered, pass it to the
   Collectors through the `OTEL_RESOURCE_ATTRIBUTES` environment variable, in addition to setting it on the telemetry
@@ -279,7 +411,7 @@ configures one collector.
   pod. Not with the `cluster` collector, a standalone Collector Deployment, or a `daemon` collector on another node.
 - **Why:** the Collector enriches the telemetry it collects with the resource attributes of the observed pod, and
   `host.name` comes from that pod's `k8s.node.name`
-  ([C-05](#c-05-set-host-name-from-the-kubernetes-node-name)). Collected from another node, or through a Kubernetes
+  ([C-05](#c-05-set-hostname-from-the-kubernetes-node-name)). Collected from another node, or through a Kubernetes
   Service that load balances across pods, the telemetry gets the wrong resource attributes, for example the
   Collector's `host.name` or another replica's `k8s.pod.name`, and is attached to the wrong host in Datadog.
 - **Fix:** in the `daemon` collector, discover the middleware pods of its own node with the `k8s_observer` extension,
@@ -749,3 +881,10 @@ See [TROUBLESHOOTING.md][troubleshooting] when something doesn't show up.
 [dd-operator-3521]: https://github.com/DataDog/datadog-operator/issues/3521
 [dd-agent-57314]: https://github.com/DataDog/datadog-agent/issues/57314
 [otel-operator-sdk-go]: https://github.com/open-telemetry/opentelemetry-operator/blob/v0.159.0/internal/instrumentation/sdk.go
+[dd-correlate-metrics-traces]: https://docs.datadoghq.com/opentelemetry/correlate/metrics_and_traces/
+[dd-docker-metrics-correlate]: https://docs.datadoghq.com/opentelemetry/integrations/docker_metrics/#correlate-traces-with-container-metrics
+[dd-k8s-otel]: https://docs.datadoghq.com/containers/kubernetes/opentelemetry/
+[dd-collector-k8s-manifest]: https://docs.datadoghq.com/opentelemetry/setup/collector_exporter/?tab=kubernetesmanifestreference#2-configure-and-deploy-the-collector
+[dd-unified-service-tagging]: https://docs.datadoghq.com/getting_started/tagging/unified_service_tagging/?tab=kubernetes#configuration
+[otel-semconv-k8s-attributes]: https://opentelemetry.io/docs/specs/semconv/non-normative/k8s-attributes/
+[dd-hostname-mapping]: https://docs.datadoghq.com/opentelemetry/mapping/hostname/?tab=datadogexporter
