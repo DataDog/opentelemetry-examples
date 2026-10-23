@@ -574,21 +574,24 @@ values: this guide doesn't list them, and they aren't tested in this repository.
 ### A-01: Disable the features that duplicate the OpenTelemetry Collectors
 
 - **Requirement:** disable a Datadog Agent feature only when its equivalent is enabled in the OpenTelemetry Collectors,
-  to avoid collecting the same telemetry twice. The reference [`values.yaml`][values] enables all these equivalents, but
-  the user may have changed the installer's defaults, or configured their own Collectors without some of them: check
-  each equivalent in the user's Collector configuration before disabling the Agent feature, and keep the Agent feature
-  when its equivalent isn't enabled.
+  to avoid collecting the same telemetry twice. The reference [`values.yaml`][values] enables all these equivalents
+  except the Kubernetes events one, but the user may have changed the installer's defaults, or configured their own
+  Collectors without some of them: check each equivalent in the user's Collector configuration before disabling the
+  Agent feature, and keep the Agent feature when its equivalent isn't enabled. The presets add their receivers to the
+  pipelines: check the receivers in the rendered `OpenTelemetryCollector` custom resources, not only in the values.
 
-  | Datadog Agent feature                                                              | OpenTelemetry Collector equivalent, in the reference `values.yaml`                                                  |
-  |------------------------------------------------------------------------------------|---------------------------------------------------------------------------------------------------------------------|
-  | `kubeStateMetricsCore`, and the legacy `kubernetes_state` check (`DD_IGNORE_AUTOCONF`) | `cluster` collector scraping kube-state-metrics (`prometheus/ksm` receiver), and the `clusterMetrics` preset    |
-  | `orchestratorExplorer`, `DD_ORCHESTRATOR_EXPLORER_KUBELET_CONFIG_CHECK_ENABLED`     | `cluster` collector's `kubernetesObjects` preset, and `orchestrator_explorer.enabled: true` on its Datadog exporter |
-  | `eventCollection.collectKubernetesEvents`                                          | `cluster` collector's `kubernetesObjects` preset (`k8s_objects` receiver)                                           |
-  | `logCollection`                                                                    | `daemon` collector's `file_log` receiver, tailing the container logs                                                |
-  | `clusterChecks`                                                                    | Collector receivers for the cluster-level services, such as the middleware of [C-12](#c-12-collect-middleware-telemetry-from-the-daemon-collector-on-the-same-node) |
-  | `liveProcessCollection`, `processDiscovery`, `DD_DISCOVERY_ENABLED`                 | No exact equivalent: disabled in the reference to keep the Agent to its enabler role. Keep them if the user uses them |
+  | Datadog Agent feature                                                                  | OpenTelemetry Collector equivalent, in the `opentelemetry-kube-stack` chart                                                                                                                                          |
+  |----------------------------------------------------------------------------------------|----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
+  | `kubeStateMetricsCore`, and the legacy `kubernetes_state` check (`DD_IGNORE_AUTOCONF`) | `cluster` collector scraping kube-state-metrics (`prometheus/ksm` receiver), and its `clusterMetrics` preset (`k8s_cluster` receiver)                                                                                |
+  | `orchestratorExplorer`, `DD_ORCHESTRATOR_EXPLORER_KUBELET_CONFIG_CHECK_ENABLED`        | `cluster` collector's `kubernetesObjects` preset (`k8s_objects` receiver), and `orchestrator_explorer.enabled: true` on its Datadog exporter                                                                         |
+  | `eventCollection.collectKubernetesEvents`                                              | `kubernetesEvents` preset (`k8s_objects` receiver watching the `events.k8s.io` events), on one collector only. The `kubernetesObjects` preset doesn't collect events. **Not enabled in the reference `values.yaml`** |
+  | `logCollection`                                                                        | `daemon` collector's `logsCollection` preset (`file_log` receiver), tailing the container logs, enabled by the chart's `daemon` defaults                                                                             |
+  | `clusterChecks`                                                                        | Collector receivers for the cluster-level services, such as the middleware of [C-12](#c-12-collect-middleware-telemetry-from-the-daemon-collector-on-the-same-node)                                                  |
+  | `liveProcessCollection`, `processDiscovery`, `DD_DISCOVERY_ENABLED`                    | No exact equivalent: disabled in the reference to keep the Agent to its enabler role. Keep them if the user uses them                                                                                                |
 
-  The reference configuration, with every equivalent enabled in the Collectors:
+  The reference configuration, which disables the Agent's Kubernetes events collection although the Collectors don't
+  collect them: to collect the Kubernetes events, enable the `kubernetesEvents` preset on the `cluster` collector, or
+  keep `eventCollection.collectKubernetesEvents` enabled in the Agent:
 
   ```yaml
   spec:
@@ -618,6 +621,14 @@ values: this guide doesn't list them, and they aren't tested in this repository.
   keep it, and say so in the report. If the user prefers to keep an Agent feature, disable its equivalent in the
   Collectors instead, rather than collecting the telemetry twice. If `DD_IGNORE_AUTOCONF` is already set, append `kubernetes_state` to its space-separated
   list.
+- FIXME misalignment to check: with the reference configuration, no component collects the Kubernetes events.
+  `datadog-agent.yaml` disables the Agent's `eventCollection.collectKubernetesEvents`, but the Collectors don't
+  collect them either: `values.yaml` disables the `kubernetesEvents` preset on the `daemon` collector and doesn't enable
+  it on the `cluster` collector, and the `kubernetesObjects` preset doesn't collect events (verified against
+  `opentelemetry-kube-stack` chart 0.24.2 and `examples/default/rendered/collector.yaml`). Decide which component
+  collects them: enable `collectors.cluster.presets.kubernetesEvents` in `values.yaml` and re-render the examples, or
+  re-enable `eventCollection.collectKubernetesEvents` in `datadog-agent.yaml`. Then simplify the events row of the table
+  and the sentence introducing the reference configuration.
 
 ### A-02: Keep the Cluster Agent
 
