@@ -5,10 +5,11 @@ import org.slf4j.LoggerFactory;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 
+import datadog.trace.api.openfeature.Provider;
 import dev.openfeature.contrib.hooks.otel.TracesHook;
 import dev.openfeature.sdk.Client;
 import dev.openfeature.sdk.OpenFeatureAPI;
-import dev.openfeature.sdk.ProviderEvent;
+import dev.openfeature.sdk.exceptions.OpenFeatureError;
 
 @Configuration
 public class FeatureFlagsConfig {
@@ -16,8 +17,8 @@ public class FeatureFlagsConfig {
 
     private static final String AD_SERVICE_NAME = "ad";
 
-    // The application code only uses the vendor-neutral OpenFeature API. Until a provider is registered, OpenFeature
-    // uses a no-op provider and evaluations return their default values.
+    // The application code only uses the vendor-neutral OpenFeature API, this configuration plugs in the Datadog
+    // OpenFeature provider. Swapping the provider (e.g. for flagd, as in the OpenTelemetry Demo) needs no other change.
     @Bean
     public Client featureFlagsClient() {
         OpenFeatureAPI api = OpenFeatureAPI.getInstance();
@@ -25,19 +26,16 @@ public class FeatureFlagsConfig {
         // `feature_flag` event on the current span, with the `feature_flag.key`, `feature_flag.variant`, and
         // `feature_flag.provider_name` OTel semantic conventions attributes.
         api.addHooks(new TracesHook());
-        Client client = api.getClient(AD_SERVICE_NAME);
-        client.on(ProviderEvent.PROVIDER_READY, event -> LOGGER.info(
-                "Feature flags provider ready: provider={} domain={} message={}",
-                event.getProviderName(), event.getDomain(), event.getMessage()));
-        client.on(ProviderEvent.PROVIDER_CONFIGURATION_CHANGED, event -> LOGGER.info(
-                "Feature flags configuration changed: provider={} domain={} flags_changed={} message={}",
-                event.getProviderName(), event.getDomain(), event.getFlagsChanged(), event.getMessage()));
-        client.on(ProviderEvent.PROVIDER_STALE, event -> LOGGER.warn(
-                "Feature flags provider stale, using cached flag values: provider={} domain={} message={}",
-                event.getProviderName(), event.getDomain(), event.getMessage()));
-        client.on(ProviderEvent.PROVIDER_ERROR, event -> LOGGER.error(
-                "Feature flags provider error: provider={} domain={} error_code={} message={}",
-                event.getProviderName(), event.getDomain(), event.getErrorCode(), event.getMessage()));
-        return client;
+
+        try {
+            // Set provider and wait for initial configuration (recommended). The injected dd-java-agent doesn't register
+            // the Datadog provider automatically. See https://docs.datadoghq.com/feature_flags/server/java/ .
+            api.setProviderAndWait(new Provider());
+        } catch (OpenFeatureError e) {
+            // Keep starting the application: evaluations return their default values until the provider gets its
+            // configuration.
+            LOGGER.warn("Feature flags provider not ready, using the default flag values: {}", e.getMessage());
+        }
+        return api.getClient(AD_SERVICE_NAME);
     }
 }

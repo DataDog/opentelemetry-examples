@@ -65,8 +65,8 @@ spec:
             # See https://docs.datadoghq.com/security/code_security/software_composition_analysis/ .
             - name: DD_APPSEC_SCA_ENABLED
               value: "true"
-            # Datadog Feature Flags, evaluated through OpenFeature. Requires registering the Datadog OpenFeature
-            # provider, see the README. See https://docs.datadoghq.com/feature_flags/server/java/ .
+            # Datadog Feature Flags, evaluated through OpenFeature with the Datadog OpenFeature provider (see
+            # FeatureFlagsConfig). See https://docs.datadoghq.com/feature_flags/server/java/ .
             # Get the flag configurations through the Datadog Agent's Remote Configuration, which holds the API key,
             # instead of the default agentless delivery, which needs DD_API_KEY in this pod.
             - name: DD_FEATURE_FLAGS_CONFIGURATION_SOURCE # agentless, remote_config

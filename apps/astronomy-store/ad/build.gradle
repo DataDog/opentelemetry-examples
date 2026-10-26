@@ -23,8 +23,11 @@ dependencies {
     implementation 'org.springframework.boot:spring-boot-starter-jdbc'
     implementation 'org.springframework.boot:spring-boot-starter-security'
     implementation 'io.opentelemetry:opentelemetry-api'
-    // Feature flags, through the vendor-neutral OpenFeature API. See the README to plug in a provider such as Datadog's.
+    // Feature flags, through the vendor-neutral OpenFeature API.
     implementation 'dev.openfeature:sdk:1.20.1'
+    // Datadog OpenFeature Provider. Must have the same version as the dd-java-agent injected by the OpenTelemetry
+    // Operator (opentelemetry-kube-stack `instrumentation.java.image`).
+    implementation 'com.datadoghq:dd-openfeature:1.67.1'
     // OpenFeature OpenTelemetry hook, so the flag evaluations show as span events in Jaeger and any observability
     // backend not integrated with OpenFeature. Its OTel dependencies are excluded to keep the versions of the
     // opentelemetry-bom above instead of upgrading them.
