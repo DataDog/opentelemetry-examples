@@ -23,6 +23,15 @@ dependencies {
     implementation 'org.springframework.boot:spring-boot-starter-jdbc'
     implementation 'org.springframework.boot:spring-boot-starter-security'
     implementation 'io.opentelemetry:opentelemetry-api'
+    // Feature flags, through the vendor-neutral OpenFeature API. See the README to plug in a provider such as Datadog's.
+    implementation 'dev.openfeature:sdk:1.20.1'
+    // OpenFeature OpenTelemetry hook, so the flag evaluations show as span events in Jaeger and any observability
+    // backend not integrated with OpenFeature. Its OTel dependencies are excluded to keep the versions of the
+    // opentelemetry-bom above instead of upgrading them.
+    implementation('dev.openfeature.contrib.hooks:otel:3.3.1') {
+        exclude group: 'io.opentelemetry'
+        exclude group: 'io.opentelemetry.semconv'
+    }
     // user.id and user.email are still "Development" semantic conventions, hence the incubating artifact.
     implementation 'io.opentelemetry.semconv:opentelemetry-semconv-incubating:1.44.0-alpha'
     runtimeOnly 'org.postgresql:postgresql'

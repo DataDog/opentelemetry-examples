@@ -67,3 +67,72 @@ The users are fake, with `example.com` addresses.
 
 To see it in Datadog, enable a Sensitive Data Scanner scanning group covering APM spans and logs of the
 `astronomy-store` services, with the "Email Address Scanner" library rule.
+
+## Feature flags demo
+
+`AdController#getAds` evaluates the `ad-failure` boolean feature flag, modeled on the OpenTelemetry Demo's `adFailure`
+flag: when it evaluates to `true`, the request fails with a `503 Service Unavailable`. The user ID is the targeting key,
+so a user always gets the same variant.
+
+The code uses only the vendor-neutral [OpenFeature](https://openfeature.dev/) API (`dev.openfeature:sdk`), see
+`FeatureFlagsConfig`. No provider is registered, so OpenFeature uses its no-op provider and the flag always evaluates
+to its default value, `false`. Plug in a provider to manage the flag, such as Datadog's, see
+[Enable the feature flag with Datadog](#enable-the-feature-flag-with-datadog).
+
+`FeatureFlagsConfig` registers the OpenFeature OpenTelemetry hook
+([`dev.openfeature.contrib.hooks:otel`](https://github.com/open-feature/java-sdk-contrib/tree/main/hooks/open-telemetry))
+for Jaeger and any observability backend not integrated with OpenFeature: each flag evaluation is recorded as a
+`feature_flag` event on the current `ad` span, with the `feature_flag.key`, `feature_flag.variant`, and
+`feature_flag.provider_name` attributes. In Jaeger, it shows in the Logs section of the span.
+
+### Enable the feature flag with Datadog
+
+[Datadog Feature Flags](https://docs.datadoghq.com/feature_flags/) provides an OpenFeature provider. The injected
+`dd-java-agent` doesn't register it automatically: the application registers it.
+
+1. Add the Datadog OpenFeature provider to `build.gradle`, with the same version as the `dd-java-agent` injected by the
+   OpenTelemetry Operator (the `instrumentation.java.image` of the opentelemetry-kube-stack Helm values, 1.67.1 as of
+   2026-10):
+
+   ```groovy
+   implementation 'com.datadoghq:dd-openfeature:1.67.1'
+   ```
+
+2. Register the provider in `FeatureFlagsConfig#featureFlagsClient`, before `api.getClient(...)`. If Datadog can't be
+   reached within the timeout, evaluations return their default values:
+
+   ```java
+   import java.util.concurrent.TimeUnit;
+
+   import datadog.trace.api.openfeature.Provider;
+   import dev.openfeature.sdk.exceptions.ProviderNotReadyError;
+
+   try {
+       api.setProviderAndWait(new Provider(new Provider.Options().initTimeout(5, TimeUnit.SECONDS)));
+   } catch (ProviderNotReadyError e) {
+       // Datadog feature flags provider not ready, continue with the default flag values.
+   }
+   ```
+
+3. `kubernetes.yaml` already configures the provider, these env vars have no effect until it's registered:
+   - `DD_FEATURE_FLAGS_CONFIGURATION_SOURCE=remote_config`: the flag configurations come through the Datadog Agent's
+     Remote Configuration, which holds the API key. The default, agentless delivery would need `DD_API_KEY` and
+     `DD_SITE` in the pod.
+   - `DD_EXPERIMENTAL_FLAGGING_PROVIDER_SPAN_ENRICHMENT_ENABLED=true`: the traces are tagged with the flags evaluated
+     in each request, searchable as `@feature_flags.ad-failure`. See
+     [APM trace enrichment](https://docs.datadoghq.com/feature_flags/guide/apm_trace_enrichment/).
+
+4. Rebuild the image (`../build-images`) and redeploy (`kubectl apply -f kubernetes.yaml`).
+
+To run the demo:
+
+1. In Datadog, go to **Feature Flags** and create a boolean flag with the key `ad-failure`, in the environment of the
+   `ad` service, serving `false` by default. Enable the flag in that environment: a disabled flag isn't delivered to
+   the service, whose evaluations then fail with `FlagNotFoundError` and return the default value.
+2. Roll `true` out to some users, e.g. a targeting rule "`user_id` is one of `user-1001`", or a percentage rollout,
+   which buckets users by the targeting key, also the user ID. The `frontend` picks one of 4 demo users, `user-1001`
+   to `user-1004`, per request.
+3. Watch the error rate of the `ad` service rise, and filter its traces with `@feature_flags.ad-failure:true`.
+4. Turn the flag off: the errors stop, with no redeploy.
+
+The load generator's `http_req_failed` threshold fails while the flag is on, which is expected.
