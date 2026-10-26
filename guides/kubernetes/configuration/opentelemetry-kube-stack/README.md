@@ -6,7 +6,7 @@ reference `values.yaml` for the chart, configured to send Kubernetes and applica
 
 ## What this deploys
 
-![Deployment architecture: the OpenTelemetry Kube Stack deploys the DDOT SDKs, Collectors, and host profiler, next to a Datadog Agent acting as an enabler of the DDOT SDKs](assets/deployment-architecture_otel-kube-stack-ddot.svg.png)
+![Deployment architecture: the OpenTelemetry Kube Stack deploys the DDOT SDKs, Collectors, and host profiler, next to a Datadog Agent acting as an enabler of the DDOT SDKs](assets/deployment-architecture-diagram_k8s_ddot-with-dd-agent.svg.png)
 
 The `opentelemetry-kube-stack` chart installs the OpenTelemetry Operator and renders one `OpenTelemetryCollector` CR for
 each entry under `collectors:`. This values file configures two of them:

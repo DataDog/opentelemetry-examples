@@ -14,7 +14,7 @@ monitoring for Datadog in one go. It installs:
   OpenTelemetry capabilities. The Datadog Agent neither collects the Kubernetes telemetry nor instruments the
   applications: the OpenTelemetry collectors and the OpenTelemetry Operator do.
 
-![Deployment architecture: the OpenTelemetry Kube Stack deploys the DDOT SDKs, Collectors, and host profiler, next to a Datadog Agent acting as an enabler of the DDOT SDKs](assets/deployment-architecture_otel-kube-stack-ddot.svg.png)
+![Deployment architecture: the OpenTelemetry Kube Stack deploys the DDOT SDKs, Collectors, and host profiler, next to a Datadog Agent acting as an enabler of the DDOT SDKs](assets/deployment-architecture-diagram_k8s_ddot-with-dd-agent.svg.png)
 
 See [What this deploys](README.md#what-this-deploys) for the architecture, and
 [Install without the `install` script](#install-without-the-install-script) to perform the same installation manually
