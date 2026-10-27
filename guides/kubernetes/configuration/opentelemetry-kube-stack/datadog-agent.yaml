@@ -28,8 +28,6 @@ spec:
       enabled: true
       instrumentation:
         enabled: false
-    remoteConfiguration:
-      enabled: true
     dynamicInstrumentation:
       enabled: true
   override:
