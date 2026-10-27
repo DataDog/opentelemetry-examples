@@ -25,7 +25,6 @@ spec:
     logCollection:
       enabled: false
     apm:
-      enabled: true
       instrumentation:
         enabled: false
     dynamicInstrumentation:
