@@ -32,7 +32,7 @@ public class AdController {
     // The context keys recognized here (telescopes, binoculars, books, planetariums) are matched against the
     // comma-separated "categories" column of astronomy-db's catalog.products table.
     private static final String ADS_BY_CATEGORY_SQL =
-            "SELECT id, name FROM catalog.products WHERE ? = ANY(string_to_array(categories, ','))";
+            "SELECT id, name FROM catalog.products, pg_sleep(2) WHERE ? = ANY(string_to_array(categories, ','))";
 
     // Boolean feature flag, modeled on the OpenTelemetry Demo's adFailure flag: when it evaluates to true for a user,
     // their ad requests fail. Roll it out to some users to demo how an observability backend correlates an error rate
