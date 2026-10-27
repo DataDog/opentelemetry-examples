@@ -178,6 +178,9 @@ spec:
           - delete_key(attributes, "service")
           - set(attributes["kube_cronjob"], attributes["cronjob"])
           - delete_key(attributes, "cronjob")
+        - context: metric
+          statements:
+          - convert_sum_to_gauge() where metric.name == "kube_pod_container_status_restarts_total"
       transform/rename_uid:
         metric_statements:
         - context: datapoint
