@@ -63,26 +63,18 @@ It then:
 
 ## Dynamic Instrumentation with DDOT SDKs
 
-The DDOT flow enables Dynamic Instrumentation in the application SDKs and retains their Remote Configuration and symbol upload defaults.
-Python injection uses `datadog/dd-otel-autoinstrumentation-python:v4.16.0-preview`, which contains ddtrace 4.16.0.
-Application traces continue to use the DDOT Collector's OTLP endpoint.
+The `ddot` flow enables Dynamic Instrumentation (DI) and pins Python to ddtrace 4.16.0.
+Traces use the Collector through `OTEL_TRACES_EXPORTER=otlp` and an explicit OTLP endpoint.
 
-With the Agent enabled, SDKs reach `datadog-agent.datadog.svc.cluster.local:8126` for probe configuration and uploads.
-The Agent enables APM, Remote Configuration, and the Go Dynamic Instrumentation system-probe module.
-The trace-agent container permits debugger uploads even though Agent log collection is disabled.
+| Setup | DI configuration |
+|---|---|
+| Plus (`DD_AGENT_ENABLED=true`) | Uses the Agent, with Remote Configuration, debugger forwarding, and Go system-probe enabled. |
+| Minus (`DD_AGENT_ENABLED=false`) | Enables agentless DI for Python only. Other languages still need an Agent. |
 
-With `DD_AGENT_ENABLED=false`, the installer adds `dd-agentless-python-kube-stack-values.yaml`.
-Only Python gets `DD_AGENTLESS_ENABLED=true`. The shared `OTEL_TRACES_EXPORTER=otlp` and explicit
-`OTEL_EXPORTER_OTLP_TRACES_ENDPOINT` keep APM traces on DDOT; in ddtrace 4.16.0, that endpoint takes precedence over agentless trace delivery.
-Debugger data, symbols, and Remote Configuration use direct Datadog connections authenticated with `DD_API_KEY`.
+For Minus, create a `datadog-agentless-python` Secret with `api-key` and `dd-site` in each application namespace.
+Astronomy Store's `install-app` does this automatically when run with the same Minus settings.
 
-Before starting Python workloads in this mode, create a Secret named `datadog-agentless-python` with `api-key` and `dd-site`
-in each application namespace. Secret references injected by the Operator resolve in the workload's namespace.
-The Astronomy Store `install-app` script creates this Secret when run with `DD_INSTALL_FLOW=ddot DD_AGENT_ENABLED=false`.
-
-Restart application pods after changing the `Instrumentation` resource so they receive the updated injection settings.
-Verify `ddtrace.__version__` in the Python container and install a probe through the UI to check delivery and upload.
-Other languages still require their supported Agent path; this Python overlay does not supply it in DDOT Minus.
+Restart application pods after configuration changes, confirm Python's loaded version, and create a UI probe to verify captured data.
 
 ## Install with values files
 

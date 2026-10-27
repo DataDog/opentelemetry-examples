@@ -9,17 +9,17 @@ The demo includes a single-node Kafka broker at `kafka:9092`.
 
 ## Dynamic Instrumentation
 
-The DDOT stack enables Dynamic Instrumentation for the demo SDKs and pins Python to ddtrace 4.16.0 through the
-Operator's injection image. Java `ad`, Node.js `frontend`, .NET `product-catalog`, and Python `fraud-detection`
-use SDK injection; Go `checkout` uses Orchestrion at build time and needs the Agent's system-probe for DI.
+DDOT Plus uses the Agent for DI. For Python-only agentless DI, run both the stack installer and `./install-app`
+with `DD_INSTALL_FLOW=ddot DD_AGENT_ENABLED=false`. The app installer creates the required credential Secret;
+traces continue through DDOT. See the [stack setup](../../guides/kubernetes/configuration/opentelemetry-kube-stack/README.md#dynamic-instrumentation-with-ddot-sdks).
 
-For DDOT Minus, use `DD_INSTALL_FLOW=ddot DD_AGENT_ENABLED=false` for both the stack installer and `./install-app`.
-The app installer copies only `api-key` and `dd-site` from the collector's `datadog-secret` into the
-`astronomy-store/datadog-agentless-python` Secret before deploying Python, enabling agentless DI while traces stay on DDOT.
+After configuration changes, run `./restart-app` and confirm Python reports `4.16.0`:
 
-After updating the stack's injection configuration, restart the demo pods with `./restart-app`.
-Check Python's loaded version with `kubectl exec -n astronomy-store deployment/fraud-detection -- python -c 'import ddtrace; print(ddtrace.__version__)'`.
-Use a probe on `check_order` while placing orders to verify probe installation and captured data.
+```sh
+kubectl exec -n astronomy-store deployment/fraud-detection -- python -c 'import ddtrace; print(ddtrace.__version__)'
+```
+
+Create a UI probe on `check_order`, then place an order and confirm captured data appears.
 
 ## Git/VCS metadata
 
