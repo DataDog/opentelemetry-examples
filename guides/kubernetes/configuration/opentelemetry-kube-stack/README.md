@@ -61,14 +61,6 @@ It then:
 - installs or upgrades the OpenTelemetry Kube Stack Helm chart with `values-otlp-http.yaml` (`upstream`) or `values-ddot.yaml` (`ddot`), and optionally enables the host profiler; and
 - for `ddot`, unless `DD_AGENT_ENABLED=false`, installs or upgrades the Datadog Agent.
 
-## Dynamic Instrumentation with DDOT SDKs
-
-DDOT Plus uses the Agent for DI. Minus enables agentless DI for Python 4.16.0 only; traces stay on the Collector.
-For Minus, set `DD_INSTALL_FLOW=ddot DD_AGENT_ENABLED=false` on both installers. Astronomy Store's `install-app`
-creates the required `datadog-agentless-python` Secret (`api-key`, `dd-site`); other apps need it in their own namespace.
-
-Restart application pods after configuration changes and create a UI probe to verify captured data.
-
 ## Install with values files
 
 To perform the same installation without the interactive script, create a Kubernetes secret for the Datadog credentials,

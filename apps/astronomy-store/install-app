@@ -8,7 +8,6 @@ Deploy all Astronomy Store workloads to Kubernetes.
 Usage:
   DD_INSTALL_FLOW=upstream ./install-app
   DD_INSTALL_FLOW=ddot ROLLOUT_TIMEOUT=5m ./install-app
-  DD_INSTALL_FLOW=ddot DD_AGENT_ENABLED=false ./install-app
   DD_INSTALL_FLOW=ddot IMAGE_PREFIX=ghcr.io/example/astronomy-store IMAGE_TAG=v1.2.3 ./install-app
 
 If IMAGE_PREFIX/IMAGE_TAG are not set, they default to the values in .image-env (written by
@@ -56,12 +55,6 @@ case "${DD_INSTALL_FLOW:-}" in
         ;;
 esac
 
-DD_AGENT_ENABLED="${DD_AGENT_ENABLED:-true}"
-case "$DD_AGENT_ENABLED" in
-    true|false) ;;
-    *) echo "ERROR: DD_AGENT_ENABLED must be true or false" >&2; exit 1 ;;
-esac
-
 echo "Deploying images from ${IMAGE_PREFIX} with tag ${IMAGE_TAG} (checkout: ${CHECKOUT_IMAGE_TAG}, ${DD_INSTALL_FLOW} flow)."
 
 SERVICE_MANIFESTS=(
@@ -106,20 +99,6 @@ EOF
 }
 
 kubectl create namespace "${NAMESPACE}" --dry-run=client -o yaml | kubectl apply -f -
-
-if [[ "$DD_INSTALL_FLOW" == "ddot" && "$DD_AGENT_ENABLED" == "false" ]]; then
-    kubectl get secret datadog-secret --namespace opentelemetry-operator-system \
-      -o go-template='apiVersion: v1
-kind: Secret
-metadata:
-  name: datadog-agentless-python
-  namespace: astronomy-store
-type: Opaque
-data:
-  api-key: {{index .data "api-key"}}
-  dd-site: {{index .data "dd-site"}}
-' | kubectl apply -f -
-fi
 
 for manifest in "${SERVICE_MANIFESTS[@]}"; do
     apply_service_manifest "${manifest}"
