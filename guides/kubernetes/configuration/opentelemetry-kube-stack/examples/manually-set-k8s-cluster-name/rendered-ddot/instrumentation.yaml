@@ -33,10 +33,6 @@ spec:
       value: "true"
     - name: DD_METRICS_OTEL_ENABLED
       value: "true"
-    - name: DD_REMOTE_CONFIGURATION_ENABLED
-      value: "true"
-    - name: DD_SYMBOL_DATABASE_UPLOAD_ENABLED
-      value: "true"
     - name: DD_TRACE_OTEL_ENABLED
       value: "true"
     - name: DD_TRACE_OTEL_SEMANTICS_ENABLED

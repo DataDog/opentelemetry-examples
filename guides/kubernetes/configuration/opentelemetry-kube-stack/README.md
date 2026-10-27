@@ -63,7 +63,7 @@ It then:
 
 ## Dynamic Instrumentation with DDOT SDKs
 
-The DDOT flow enables Dynamic Instrumentation, Remote Configuration, and symbol upload in the application SDKs.
+The DDOT flow enables Dynamic Instrumentation in the application SDKs and retains their Remote Configuration and symbol upload defaults.
 Python injection uses `datadog/dd-otel-autoinstrumentation-python:v4.16.0-preview`, which contains ddtrace 4.16.0.
 Application traces continue to use the DDOT Collector's OTLP endpoint.
 
@@ -72,7 +72,8 @@ The Agent enables APM, Remote Configuration, and the Go Dynamic Instrumentation 
 The trace-agent container permits debugger uploads even though Agent log collection is disabled.
 
 With `DD_AGENT_ENABLED=false`, the installer adds `dd-agentless-python-kube-stack-values.yaml`.
-Only Python gets `DD_AGENTLESS_ENABLED=true`; `_DD_APM_TRACING_AGENTLESS_ENABLED=false` keeps APM traces on DDOT.
+Only Python gets `DD_AGENTLESS_ENABLED=true`. The shared `OTEL_TRACES_EXPORTER=otlp` and explicit
+`OTEL_EXPORTER_OTLP_TRACES_ENDPOINT` keep APM traces on DDOT; in ddtrace 4.16.0, that endpoint takes precedence over agentless trace delivery.
 Debugger data, symbols, and Remote Configuration use direct Datadog connections authenticated with `DD_API_KEY`.
 
 Before starting Python workloads in this mode, create a Secret named `datadog-agentless-python` with `api-key` and `dd-site`
