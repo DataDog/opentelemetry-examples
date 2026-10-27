@@ -18,9 +18,6 @@ DD_INSTALL_FLOW selects the checkout image matching the OpenTelemetry Kube Stack
 (same variable as guides/kubernetes/configuration/opentelemetry-kube-stack/install):
   upstream  checkout:<tag>-upstream-otel, OpenTelemetry Go compile-time instrumentation
   ddot      checkout:<tag>, Datadog Orchestrion (DDOT SDK for Go)
-
-Set DD_AGENT_ENABLED=false for DDOT Minus, matching the stack installer. This copies the
-collector's Datadog credentials into the application namespace for Python agentless DI.
 EOF
     exit 0
 fi

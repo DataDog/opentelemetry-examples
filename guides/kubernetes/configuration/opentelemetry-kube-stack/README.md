@@ -63,18 +63,11 @@ It then:
 
 ## Dynamic Instrumentation with DDOT SDKs
 
-The `ddot` flow enables Dynamic Instrumentation (DI) and pins Python to ddtrace 4.16.0.
-Traces use the Collector through `OTEL_TRACES_EXPORTER=otlp` and an explicit OTLP endpoint.
+DDOT Plus uses the Agent for DI. Minus enables agentless DI for Python 4.16.0 only; traces stay on the Collector.
+For Minus, set `DD_INSTALL_FLOW=ddot DD_AGENT_ENABLED=false` on both installers. Astronomy Store's `install-app`
+creates the required `datadog-agentless-python` Secret (`api-key`, `dd-site`); other apps need it in their own namespace.
 
-| Setup | DI configuration |
-|---|---|
-| Plus (`DD_AGENT_ENABLED=true`) | Uses the Agent, with Remote Configuration, debugger forwarding, and Go system-probe enabled. |
-| Minus (`DD_AGENT_ENABLED=false`) | Enables agentless DI for Python only. Other languages still need an Agent. |
-
-For Minus, create a `datadog-agentless-python` Secret with `api-key` and `dd-site` in each application namespace.
-Astronomy Store's `install-app` does this automatically when run with the same Minus settings.
-
-Restart application pods after configuration changes, confirm Python's loaded version, and create a UI probe to verify captured data.
+Restart application pods after configuration changes and create a UI probe to verify captured data.
 
 ## Install with values files
 
@@ -232,3 +225,4 @@ self-signed serving certificate isn't in the scraper's trust store.
 [kubebuilder-metrics]: https://book.kubebuilder.io/reference/metrics-reference
 [kube-rbac-proxy]: https://github.com/brancz/kube-rbac-proxy
 [kube-rbac-proxy-auth]: https://github.com/brancz/kube-rbac-proxy#authentication--authorization
+

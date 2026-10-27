@@ -7,20 +7,6 @@ app that is part of the OpenTelemetry Demo while being similar.
 
 The demo includes a single-node Kafka broker at `kafka:9092`.
 
-## Dynamic Instrumentation
-
-DDOT Plus uses the Agent for DI. For Python-only agentless DI, run both the stack installer and `./install-app`
-with `DD_INSTALL_FLOW=ddot DD_AGENT_ENABLED=false`. The app installer creates the required credential Secret;
-traces continue through DDOT. See the [stack setup](../../guides/kubernetes/configuration/opentelemetry-kube-stack/README.md#dynamic-instrumentation-with-ddot-sdks).
-
-After configuration changes, run `./restart-app` and confirm Python reports `4.16.0`:
-
-```sh
-kubectl exec -n astronomy-store deployment/fraud-detection -- python -c 'import ddtrace; print(ddtrace.__version__)'
-```
-
-Create a UI probe on `check_order`, then place an order and confirm captured data appears.
-
 ## Git/VCS metadata
 
 Each service's `Dockerfile` accepts `VCS_REPOSITORY_URL_FULL`, `VCS_REF_HEAD_NAME`, `VCS_REF_TYPE`, and
