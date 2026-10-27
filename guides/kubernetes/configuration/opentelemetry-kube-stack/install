@@ -42,12 +42,16 @@ DD_AGENT_ENABLED=${DD_AGENT_ENABLED:-true}
 require_bool DD_AGENT_ENABLED
 
 DD_AGENT_VALUES_ARGS=()
-if [[ "$DD_INSTALL_FLOW" == "ddot" && "$DD_AGENT_ENABLED" == "true" ]]; then
-    DD_AGENT_VALUES_ARGS=(-f "$SCRIPT_DIR/dd-agent-kube-stack-values.yaml")
+if [[ "$DD_INSTALL_FLOW" == "ddot" ]]; then
+    if [[ "$DD_AGENT_ENABLED" == "true" ]]; then
+        DD_AGENT_VALUES_ARGS=(-f "$SCRIPT_DIR/dd-agent-kube-stack-values.yaml")
 
-    if [[ -n "${DD_APP_KEY:-}" && -z "${K8S_CLUSTER_NAME:-}" ]]; then
-        echo "ERROR: K8S_CLUSTER_NAME must be set when DD_APP_KEY is set (Fleet Automation requires a cluster name)" >&2
-        exit 1
+        if [[ -n "${DD_APP_KEY:-}" && -z "${K8S_CLUSTER_NAME:-}" ]]; then
+            echo "ERROR: K8S_CLUSTER_NAME must be set when DD_APP_KEY is set (Fleet Automation requires a cluster name)" >&2
+            exit 1
+        fi
+    else
+        DD_AGENT_VALUES_ARGS=(-f "$SCRIPT_DIR/dd-agentless-python-kube-stack-values.yaml")
     fi
 fi
 

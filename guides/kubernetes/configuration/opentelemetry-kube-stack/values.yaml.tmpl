@@ -873,6 +873,12 @@ instrumentation:
       value: "true"
     - name: "DD_TRACE_REMOVE_INTEGRATION_SERVICE_NAMES_ENABLED"
       value: "true"
+    - name: "DD_DYNAMIC_INSTRUMENTATION_ENABLED"
+      value: "true"
+    - name: "DD_REMOTE_CONFIGURATION_ENABLED"
+      value: "true"
+    - name: "DD_SYMBOL_DATABASE_UPLOAD_ENABLED"
+      value: "true"
     ## WORKAROUND: DDOT SDK GO LANG ignores OTEL_EXPORTER_OTLP_ENDPOINT, it's a bug
     ## https://github.com/DataDog/dd-trace-go/pull/5407
     - name: "OTEL_EXPORTER_OTLP_TRACES_ENDPOINT"

@@ -8,6 +8,7 @@ Deploy all Astronomy Store workloads to Kubernetes.
 Usage:
   DD_INSTALL_FLOW=upstream ./install-app
   DD_INSTALL_FLOW=ddot ROLLOUT_TIMEOUT=5m ./install-app
+  DD_INSTALL_FLOW=ddot DD_AGENT_ENABLED=false ./install-app
   DD_INSTALL_FLOW=ddot IMAGE_PREFIX=ghcr.io/example/astronomy-store IMAGE_TAG=v1.2.3 ./install-app
 
 If IMAGE_PREFIX/IMAGE_TAG are not set, they default to the values in .image-env (written by
@@ -17,6 +18,9 @@ DD_INSTALL_FLOW selects the checkout image matching the OpenTelemetry Kube Stack
 (same variable as guides/kubernetes/configuration/opentelemetry-kube-stack/install):
   upstream  checkout:<tag>-upstream-otel, OpenTelemetry Go compile-time instrumentation
   ddot      checkout:<tag>, Datadog Orchestrion (DDOT SDK for Go)
+
+Set DD_AGENT_ENABLED=false for DDOT Minus, matching the stack installer. This copies the
+collector's Datadog credentials into the application namespace for Python agentless DI.
 EOF
     exit 0
 fi
@@ -53,6 +57,12 @@ case "${DD_INSTALL_FLOW:-}" in
         echo "ERROR: DD_INSTALL_FLOW must be one of: upstream, ddot (got '${DD_INSTALL_FLOW:-}')" >&2
         exit 1
         ;;
+esac
+
+DD_AGENT_ENABLED="${DD_AGENT_ENABLED:-true}"
+case "$DD_AGENT_ENABLED" in
+    true|false) ;;
+    *) echo "ERROR: DD_AGENT_ENABLED must be true or false" >&2; exit 1 ;;
 esac
 
 echo "Deploying images from ${IMAGE_PREFIX} with tag ${IMAGE_TAG} (checkout: ${CHECKOUT_IMAGE_TAG}, ${DD_INSTALL_FLOW} flow)."
@@ -99,6 +109,20 @@ EOF
 }
 
 kubectl create namespace "${NAMESPACE}" --dry-run=client -o yaml | kubectl apply -f -
+
+if [[ "$DD_INSTALL_FLOW" == "ddot" && "$DD_AGENT_ENABLED" == "false" ]]; then
+    kubectl get secret datadog-secret --namespace opentelemetry-operator-system \
+      -o go-template='apiVersion: v1
+kind: Secret
+metadata:
+  name: datadog-agentless-python
+  namespace: astronomy-store
+type: Opaque
+data:
+  api-key: {{index .data "api-key"}}
+  dd-site: {{index .data "dd-site"}}
+' | kubectl apply -f -
+fi
 
 for manifest in "${SERVICE_MANIFESTS[@]}"; do
     apply_service_manifest "${manifest}"

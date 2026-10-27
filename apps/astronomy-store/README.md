@@ -7,6 +7,20 @@ app that is part of the OpenTelemetry Demo while being similar.
 
 The demo includes a single-node Kafka broker at `kafka:9092`.
 
+## Dynamic Instrumentation
+
+The DDOT stack enables Dynamic Instrumentation for the demo SDKs and pins Python to ddtrace 4.16.0 through the
+Operator's injection image. Java `ad`, Node.js `frontend`, .NET `product-catalog`, and Python `fraud-detection`
+use SDK injection; Go `checkout` uses Orchestrion at build time and needs the Agent's system-probe for DI.
+
+For DDOT Minus, use `DD_INSTALL_FLOW=ddot DD_AGENT_ENABLED=false` for both the stack installer and `./install-app`.
+The app installer copies only `api-key` and `dd-site` from the collector's `datadog-secret` into the
+`astronomy-store/datadog-agentless-python` Secret before deploying Python, enabling agentless DI while traces stay on DDOT.
+
+After updating the stack's injection configuration, restart the demo pods with `./restart-app`.
+Check Python's loaded version with `kubectl exec -n astronomy-store deployment/fraud-detection -- python -c 'import ddtrace; print(ddtrace.__version__)'`.
+Use a probe on `check_order` while placing orders to verify probe installation and captured data.
+
 ## Git/VCS metadata
 
 Each service's `Dockerfile` accepts `VCS_REPOSITORY_URL_FULL`, `VCS_REF_HEAD_NAME`, `VCS_REF_TYPE`, and

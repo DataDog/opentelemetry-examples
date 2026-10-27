@@ -61,6 +61,28 @@ It then:
 - installs or upgrades the OpenTelemetry Kube Stack Helm chart with `values-otlp-http.yaml` (`upstream`) or `values-ddot.yaml` (`ddot`), and optionally enables the host profiler; and
 - for `ddot`, unless `DD_AGENT_ENABLED=false`, installs or upgrades the Datadog Agent.
 
+## Dynamic Instrumentation with DDOT SDKs
+
+The DDOT flow enables Dynamic Instrumentation, Remote Configuration, and symbol upload in the application SDKs.
+Python injection uses `datadog/dd-otel-autoinstrumentation-python:v4.16.0-preview`, which contains ddtrace 4.16.0.
+Application traces continue to use the DDOT Collector's OTLP endpoint.
+
+With the Agent enabled, SDKs reach `datadog-agent.datadog.svc.cluster.local:8126` for probe configuration and uploads.
+The Agent enables APM, Remote Configuration, and the Go Dynamic Instrumentation system-probe module.
+The trace-agent container permits debugger uploads even though Agent log collection is disabled.
+
+With `DD_AGENT_ENABLED=false`, the installer adds `dd-agentless-python-kube-stack-values.yaml`.
+Only Python gets `DD_AGENTLESS_ENABLED=true`; `_DD_APM_TRACING_AGENTLESS_ENABLED=false` keeps APM traces on DDOT.
+Debugger data, symbols, and Remote Configuration use direct Datadog connections authenticated with `DD_API_KEY`.
+
+Before starting Python workloads in this mode, create a Secret named `datadog-agentless-python` with `api-key` and `dd-site`
+in each application namespace. Secret references injected by the Operator resolve in the workload's namespace.
+The Astronomy Store `install-app` script creates this Secret when run with `DD_INSTALL_FLOW=ddot DD_AGENT_ENABLED=false`.
+
+Restart application pods after changing the `Instrumentation` resource so they receive the updated injection settings.
+Verify `ddtrace.__version__` in the Python container and install a probe through the UI to check delivery and upload.
+Other languages still require their supported Agent path; this Python overlay does not supply it in DDOT Minus.
+
 ## Install with values files
 
 To perform the same installation without the interactive script, create a Kubernetes secret for the Datadog credentials,
@@ -217,4 +239,3 @@ self-signed serving certificate isn't in the scraper's trust store.
 [kubebuilder-metrics]: https://book.kubebuilder.io/reference/metrics-reference
 [kube-rbac-proxy]: https://github.com/brancz/kube-rbac-proxy
 [kube-rbac-proxy-auth]: https://github.com/brancz/kube-rbac-proxy#authentication--authorization
-

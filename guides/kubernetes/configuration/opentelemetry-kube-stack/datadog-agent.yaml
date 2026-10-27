@@ -25,8 +25,11 @@ spec:
     logCollection:
       enabled: false
     apm:
+      enabled: true
       instrumentation:
         enabled: false
+    remoteConfiguration:
+      enabled: true
     dynamicInstrumentation:
       enabled: true
   override:
@@ -43,10 +46,14 @@ spec:
               value: "false"
             - name: DD_DISCOVERY_ENABLED
               value: "false"
-            - name: DD_APM_DEBUGGER_LOGS_ENABLED_OVERRIDE
-              value: "true"
             - name: DD_IGNORE_AUTOCONF
               value: kubernetes_state
+        trace-agent:
+          env:
+            - name: DD_APM_NON_LOCAL_TRAFFIC
+              value: "true"
+            - name: DD_APM_DEBUGGER_LOGS_ENABLED_OVERRIDE
+              value: "true"
     clusterAgent:
       env:
         - name: DD_LOG_FORMAT_JSON
