@@ -783,7 +783,7 @@ instrumentation:
         value: /otel-auto-instrumentation-dotnet
   java:
     # image: otel/autoinstrumentation-java:2.32.0
-    image: datadog/dd-otel-autoinstrumentation-java:1.67.1-preview
+    image: datadog/dd-otel-autoinstrumentation-java:1.68.0-preview
   nodejs:
     # image: otel/autoinstrumentation-nodejs:0.78.0
     image: datadog/dd-otel-autoinstrumentation-js:6.20-preview
