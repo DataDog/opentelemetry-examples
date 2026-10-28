@@ -508,14 +508,17 @@ environment variable, typically through `OTEL_RESOURCE_ATTRIBUTES=datadog.host.n
 
 - FIXME Link to a github issue on the DDOT SDK .Net repository, id dd-trace-dotnet#issue-number, that tracks the fix.
 - 
-### O-03: Raise the Python auto-instrumentation volume size
+### O-03: Size the Python auto-instrumentation volume
 
-- **Requirement:** `python.volumeLimitSize: 500Mi`.
-- **Why:** the DDOT SDK for Python image bundles native builds for every supported Python version, libc, and CPU
-  architecture, about 330 MB, more than the OpenTelemetry Operator's 200 Mi default: the pod would be evicted.
-- **Conflicts:** the OpenTelemetry Operator warns that the field is deprecated in favor of `volume.size`, which isn't
-  in its CRD schema yet: keep `volumeLimitSize`.
-- FIXME indicate when the fix will be rolled out on the DDOT Python SDK image, so the user can revert to the default 200 Mi and this rule can be removed.
+- **Requirement:** use the DDOT SDK for Python image `4.16.1-preview` or later, which fits the OpenTelemetry Operator's
+  200 Mi default volume. With `4.16.0` or earlier, set `python.volumeLimitSize: 500Mi`.
+- **Why:** up to `4.16.0`, the DDOT SDK for Python image exceeds 200 Mi once copied into the auto-instrumentation
+  volume: the pod would be evicted.
+- **Conflicts:** the OpenTelemetry Operator warns that `volumeLimitSize` is deprecated in favor of `volume.size`, which
+  isn't in its CRD schema yet: keep `volumeLimitSize` if you need it.
+- **Alpine/musl workloads:** add the pod-template annotation
+  `instrumentation.opentelemetry.io/otel-python-platform: "musl"` (glibc is the default). See
+  [Auto-instrumenting a Python musl based container](https://opentelemetry.io/docs/platforms/kubernetes/operator/automatic/#auto-instrumenting-a-python-musl-based-container).
 
 ### O-04: Point the SDKs at the `daemon` collector
 

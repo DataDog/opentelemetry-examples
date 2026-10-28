@@ -49,8 +49,7 @@ spec:
   nodejs:
     image: datadog/dd-otel-autoinstrumentation-js:6.21-preview
   python:
-    image: datadog/dd-otel-autoinstrumentation-python:4.16.0-preview
-    volumeLimitSize: 500Mi
+    image: datadog/dd-otel-autoinstrumentation-python:4.16.1-preview
   dotnet:
     env:
     - name: CORECLR_PROFILER
