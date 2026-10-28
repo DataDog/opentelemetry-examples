@@ -19,10 +19,7 @@
   },
   "overrides": {
     "express": {
-      "qs": "^6.16.0",
-      "body-parser": {
-        "qs": "^6.16.0"
-      }
+      "qs": "^6.16.0"
     },
     "@opentelemetry/sdk-node": {
       "@opentelemetry/exporter-logs-otlp-grpc": {

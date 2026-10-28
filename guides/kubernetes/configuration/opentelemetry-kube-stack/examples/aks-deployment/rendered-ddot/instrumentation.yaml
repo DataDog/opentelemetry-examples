@@ -27,6 +27,8 @@ spec:
       value: "full"
     - name: DD_DBM_TRACE_PREPARED_STATEMENTS
       value: "true"
+    - name: DD_DYNAMIC_INSTRUMENTATION_ENABLED
+      value: "true"
     - name: DD_LOGS_OTEL_ENABLED
       value: "true"
     - name: DD_METRICS_OTEL_ENABLED
@@ -67,4 +69,5 @@ spec:
       value: /otel-auto-instrumentation-dotnet/linux/Datadog.Trace.ClrProfiler.Native.so
     - name: DD_DOTNET_TRACER_HOME
       value: /otel-auto-instrumentation-dotnet
-    image: ghcr.io/zacharycmontoya/dd-autoinstrumentation-dotnet:3.52.0
+    image: datadog/dd-otel-autoinstrumentation-dotnet:3.56.0-preview
+
