@@ -727,6 +727,9 @@ instrumentation:
     ## for every instrumented workload, or set them in the env of a workload's containers to configure them
     ## for that workload only (container env takes precedence over this list).
 
+    # Datadog Dynamic Instrumentation (DDI). See https://docs.datadoghq.com/tracing/dd_instrumentation/ .
+    # - name: "DD_DYNAMIC_INSTRUMENTATION_ENABLED"
+    #   value: "true"
     # Datadog DBM (Database Monitoring). See https://docs.datadoghq.com/database_monitoring/ .
     # - name: "DD_DBM_PROPAGATION_MODE" # full, service, disabled
     #   value: "full"

@@ -49,6 +49,9 @@ spec:
               value: changeme
             # Datadog features of the DDOT SDKs, enabled per service. They can also be enabled globally in the
             # `instrumentation.env` of the opentelemetry-kube-stack Helm values.
+            # Datadog Dynamic Instrumentation (DDI). See https://docs.datadoghq.com/tracing/dd_instrumentation/ .
+            - name: DD_DYNAMIC_INSTRUMENTATION_ENABLED
+              value: "true"
             # Datadog DBM (Database Monitoring). See https://docs.datadoghq.com/database_monitoring/ .
             - name: DD_DBM_PROPAGATION_MODE # full, service, disabled
               value: "full"
