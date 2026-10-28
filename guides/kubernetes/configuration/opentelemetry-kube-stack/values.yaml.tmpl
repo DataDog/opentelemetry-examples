@@ -913,7 +913,7 @@ instrumentation:
   nodejs:
     image: datadog/dd-otel-autoinstrumentation-js:6.20-preview
   python:
-    image: gcr.io/datadoghq/dd-otel-autoinstrumentation-python:4.16.1-preview
+    image: datadog/dd-otel-autoinstrumentation-python:4.16.1-preview
     # For Alpine/musl workloads, add this pod-template annotation (glibc is the default):
     # instrumentation.opentelemetry.io/otel-python-platform: "musl"
     # https://opentelemetry.io/docs/platforms/kubernetes/operator/automatic/#auto-instrumenting-a-python-musl-based-container

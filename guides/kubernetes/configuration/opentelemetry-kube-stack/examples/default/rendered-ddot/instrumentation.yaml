@@ -60,7 +60,7 @@ spec:
   nodejs:
     image: datadog/dd-otel-autoinstrumentation-js:6.20-preview
   python:
-    image: gcr.io/datadoghq/dd-otel-autoinstrumentation-python:4.16.1-preview
+    image: datadog/dd-otel-autoinstrumentation-python:4.16.1-preview
   dotnet:
     env:
     - name: CORECLR_PROFILER
