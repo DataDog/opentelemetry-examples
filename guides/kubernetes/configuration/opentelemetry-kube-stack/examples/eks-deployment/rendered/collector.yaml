@@ -143,7 +143,20 @@ spec:
         - eks
         - k8s_api
         eks:
+          node_from_env_var: K8S_NODE_NAME
           resource_attributes:
+            cloud.account.id:
+              enabled: true
+            cloud.availability_zone:
+              enabled: true
+            cloud.region:
+              enabled: true
+            host.id:
+              enabled: true
+            host.image.id:
+              enabled: true
+            host.type:
+              enabled: true
             k8s.cluster.name:
               enabled: true
         override: false
@@ -610,10 +623,25 @@ spec:
         - eks
         - k8s_api
         eks:
+          node_from_env_var: K8S_NODE_NAME
           resource_attributes:
+            cloud.account.id:
+              enabled: true
+            cloud.availability_zone:
+              enabled: true
+            cloud.region:
+              enabled: true
+            host.id:
+              enabled: true
+            host.image.id:
+              enabled: true
+            host.name:
+              enabled: true
+            host.type:
+              enabled: true
             k8s.cluster.name:
               enabled: true
-        override: false
+        override: true
         timeout: 15s
       transform/cadvisor_labels:
         metric_statements:

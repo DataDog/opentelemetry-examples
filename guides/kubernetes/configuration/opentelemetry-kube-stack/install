@@ -361,6 +361,22 @@ if [[ -n "$K8S_MANAGED_SERVICE_DETECTOR" ]]; then
     HELM_SET_ARGS+=(--set "defaultCRConfig.presets.resourceDetection.${K8S_MANAGED_SERVICE_DETECTOR}.enabled=true")
 fi
 
+# On EKS, also detect the EC2 instance attributes of the node, and use the EC2 hostname as host.name on the daemon
+# collector, like the Datadog Agent does on EKS.
+if [[ "$K8S_MANAGED_SERVICE_DETECTOR" == "eks" ]]; then
+    HELM_SET_ARGS+=(
+        --set "defaultCRConfig.config.processors.resource_detection/env.eks.node_from_env_var=K8S_NODE_NAME"
+        --set "defaultCRConfig.config.processors.resource_detection/env.eks.resource_attributes.host\.id.enabled=true"
+        --set "defaultCRConfig.config.processors.resource_detection/env.eks.resource_attributes.cloud\.region.enabled=true"
+        --set "defaultCRConfig.config.processors.resource_detection/env.eks.resource_attributes.cloud\.availability_zone.enabled=true"
+        --set "defaultCRConfig.config.processors.resource_detection/env.eks.resource_attributes.cloud\.account\.id.enabled=true"
+        --set "defaultCRConfig.config.processors.resource_detection/env.eks.resource_attributes.host\.image\.id.enabled=true"
+        --set "defaultCRConfig.config.processors.resource_detection/env.eks.resource_attributes.host\.type.enabled=true"
+        --set "collectors.daemon.config.processors.resource_detection/env.override=true"
+        --set "collectors.daemon.config.processors.resource_detection/env.eks.resource_attributes.host\.name.enabled=true"
+    )
+fi
+
 if [[ -n "$K8S_CLUSTER_NAME" ]]; then
     HELM_SET_ARGS+=(--set-string "resourceAttributes.k8s\.cluster\.name=$K8S_CLUSTER_NAME")
 fi

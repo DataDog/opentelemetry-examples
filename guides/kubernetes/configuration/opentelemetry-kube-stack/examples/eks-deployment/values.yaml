@@ -5,3 +5,31 @@ defaultCRConfig:
     resourceDetection:
       eks:
         enabled: true
+  config:
+    processors:
+      resource_detection/env:
+        eks:
+          node_from_env_var: K8S_NODE_NAME
+          resource_attributes:
+            host.id:
+              enabled: true
+            cloud.region:
+              enabled: true
+            cloud.availability_zone:
+              enabled: true
+            cloud.account.id:
+              enabled: true
+            host.image.id:
+              enabled: true
+            host.type:
+              enabled: true
+collectors:
+  daemon:
+    config:
+      processors:
+        resource_detection/env:
+          override: true
+          eks:
+            resource_attributes:
+              host.name:
+                enabled: true
