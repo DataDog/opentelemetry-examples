@@ -107,31 +107,6 @@ metadata:
 
 That label makes Datadog's admission controller skip the pod outright — no `podSelector` needed.
 
-## Fleet Automation (optional)
-
-To manage the Datadog Agent from [Fleet Automation][dd-fleet-automation], give the installer a
-Datadog [application key][dd-app-keys]: it prompts for one during the interactive setup, or add it to `.env` and re-run
-`./install`:
-
-```sh
-export DD_APP_KEY="<your-datadog-application-key>"
-```
-
-The installer always gives the Datadog Operator its own API key, site, and Kubernetes cluster name. With an application
-key, it also stores it as `app-key` in the `datadog` namespace's `datadog-secret`, and installs the Datadog Operator
-with it and with Remote Configuration enabled (`appKeyExistingSecret`, `remoteConfiguration.enabled=true` and
-`previewFleetRollouts=true` Helm values). Without an application key, the Operator is installed without Remote
-Configuration.
-
-- Remote configuration of Agents running on Kubernetes is in Preview: [request access][dd-fleet-k8s-preview] for your
-  Datadog organization.
-- The Operator's Remote Configuration requires a Kubernetes cluster name, even on EKS, GKE, and AKS where the Datadog
-  Agent and the OpenTelemetry Collector auto-detect it: the Operator only reads its `clusterName` Helm value. So with an
-  application key, the installer also prompts for the Kubernetes cluster name on EKS, GKE, and AKS, defaulting to the
-  name in the current `kubectl` context, and uses it for the Operator, the Datadog Agent, and the collectors'
-  `k8s.cluster.name`.
-- The application key acts with the permissions of the user who created it: prefer a dedicated, scoped application key.
-
 ## Host profiler (optional)
 
 The host profiler runs the [Datadog host profiler][dd-host-profiler] (Datadog's own distribution of
@@ -147,9 +122,8 @@ which is why it is opt-in.
 For EKS, AKS, and GKE, the installer enables the corresponding resource-detection preset in both collectors. The
 OpenTelemetry Collector then automatically populates `k8s.cluster.name`.
 
-For other Kubernetes platforms, and on EKS, GKE, and AKS when a Kubernetes cluster name is entered for
-[Fleet Automation](#fleet-automation-optional), the installer sets `resourceAttributes.k8s.cluster.name` to the supplied
-Kubernetes cluster name, which overrides the detected one.
+For other Kubernetes platforms, the installer sets `resourceAttributes.k8s.cluster.name` to the supplied Kubernetes
+cluster name.
 
 ### Kubernetes cluster name constraints
 
@@ -198,10 +172,7 @@ For operator metrics troubleshooting, see [TROUBLESHOOTING.md](TROUBLESHOOTING.m
 [chart]: https://github.com/open-telemetry/opentelemetry-helm-charts/tree/main/charts/opentelemetry-kube-stack
 [dd-operator]: https://github.com/DataDog/datadog-operator
 [dd-live-debugger-go]: https://docs.datadoghq.com/tracing/live_debugger/?prog_lang=go
-[dd-fleet-automation]: https://docs.datadoghq.com/agent/fleet_automation/
-[dd-app-keys]: https://docs.datadoghq.com/account_management/api-app-keys/#application-keys
 [dd-cluster-name]: https://docs.datadoghq.com/containers/kubernetes/installation/
-[dd-fleet-k8s-preview]: https://www.datadoghq.com/product-preview/configure-agent-kubernetes-operator/
 
 [ebpf-profiler]: https://github.com/open-telemetry/opentelemetry-ebpf-profiler
 [dd-host-profiler]: https://github.com/DataDog/datadog-agent/tree/main/cmd/host-profiler

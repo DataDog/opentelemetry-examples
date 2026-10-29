@@ -57,13 +57,11 @@ From Datadog:
 
 - A Datadog [API key][dd-api-keys] and your [Datadog site][dd-site] (`datadoghq.com`, `datadoghq.eu`,
   `us3.datadoghq.com`...).
-- A Datadog [application key][dd-app-keys], optional but strongly recommended: it lets you manage the Datadog Agent
-  from [Fleet Automation](README.md#fleet-automation-optional).
 
 On the Kubernetes cluster:
 
 - Linux nodes with kernel >= 5.10 and Kubernetes >= 1.30, only if you enable the optional eBPF host profiler.
-- On platforms other than EKS, GKE, and AKS, or with an application key, a Kubernetes cluster name that follows the
+- On platforms other than EKS, GKE, and AKS, a Kubernetes cluster name that follows the
   [Kubernetes cluster name constraints](README.md#kubernetes-cluster-name-constraints) (lowercase letters, digits, `-`
   and `.`).
 
@@ -88,8 +86,6 @@ To skip the credential prompts, create the `.env` file beforehand:
 cat > .env <<'EOF'
 export DD_SITE="datadoghq.com"
 export DD_API_KEY="<your-datadog-api-key>"
-# Optional but strongly recommended, enables Fleet Automation:
-# export DD_APP_KEY="<your-datadog-application-key>"
 EOF
 chmod 600 .env
 ```
@@ -109,9 +105,8 @@ The script asks the following questions:
 |:-------------------------------|:---------------------------------------------------------------------------------------------------------------------------|
 | Datadog Site                   | Your Datadog site, e.g. `datadoghq.eu`. Required. Only asked without a `.env` file.                                        |
 | Datadog API Key                | Your API key (input hidden). Required. Only asked without a `.env` file.                                                   |
-| Datadog Application Key        | Optional but strongly recommended (input hidden): enables Fleet Automation. Only asked without a `.env` file.              |
 | Kubernetes cluster type        | `EKS`, `GKE`, or `AKS` to auto-detect the cluster name from the cloud provider, `Other` otherwise.                         |
-| Kubernetes Cluster Name        | Asked for `Other`, defaults to `unknown-k8s-cluster`. Also asked on `EKS`, `GKE`, and `AKS` with an application key, for Fleet Automation, defaulting to the name in the `kubectl` context. Uppercase letters are lowercased and `_` replaced with `-`. |
+| Kubernetes Cluster Name        | Only asked for `Other`, defaults to `unknown-k8s-cluster`. Uppercase letters are lowercased and `_` replaced with `-`.      |
 | Deployment Environment Name    | Sets `deployment.environment.name` on all telemetry. Defaults to `production`.                                             |
 | Enable the eBPF host profiler? | `y` to deploy the host profiler on every node. Defaults to `N`: its pods need eBPF privileges.                             |
 | Egress NetworkPolicy?          | Only asked with the host profiler: `s`tandard or `c`ilium on Kubernetes clusters enforcing NetworkPolicy, `n`one otherwise (default). |
@@ -121,8 +116,7 @@ It then:
 - creates the `opentelemetry-operator-system` and `datadog` namespaces;
 - creates the `datadog-secret` secret in both namespaces;
 - installs cert-manager, unless it's already installed (detected by its `certificates.cert-manager.io` CRD);
-- installs or upgrades the Datadog Operator (`datadog/datadog-operator` chart) in the `datadog` namespace,
-  with [Fleet Automation](README.md#fleet-automation-optional) enabled when an application key is provided;
+- installs or upgrades the Datadog Operator (`datadog/datadog-operator` chart) in the `datadog` namespace;
 - applies the `datadog-agent.yaml` `DatadogAgent` custom resource to the `datadog` namespace, substituting the
   Kubernetes cluster name and site into it;
 - installs or upgrades the OpenTelemetry Kube Stack Helm chart, optionally enabling the `host-profiler` collector in the
@@ -334,9 +328,9 @@ update resources: the script never deletes anything from the Kubernetes cluster,
 |:--|:-----------------------------------------------------------------------------------------------------------------------------------------------------|:----------------------------------------------------------------------------------------|:-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
 | 1 | `kubectl create namespace opentelemetry-operator-system`                                                                                             | Always (warns and continues on failure)                                                 | Creates the namespace of the OpenTelemetry Kube Stack.                                                                                                                       |
 | 2 | `kubectl create namespace datadog`                                                                                                                   | Always (warns and continues on failure)                                                 | Creates the namespace of the Datadog Operator and Agent.                                                                                                                     |
-| 3 | `kubectl create secret generic datadog-secret ... --dry-run=client -o yaml \| kubectl apply -f -`                                                    | Always, once per namespace                                                              | Creates or updates the `datadog-secret` secret with `api-key` and `dd-site`, plus `app-key` in the `datadog` namespace only, when an application key is provided.            |
+| 3 | `kubectl create secret generic datadog-secret ... --dry-run=client -o yaml \| kubectl apply -f -`                                                    | Always, once per namespace                                                              | Creates or updates the `datadog-secret` secret with `api-key` and `dd-site`.                                                                                                 |
 | 4 | `helm install cert-manager jetstack/cert-manager --namespace cert-manager --create-namespace --set crds.enabled=true`                                | Only when the `certificates.cert-manager.io` CRD is missing (warns and continues on failure) | Installs cert-manager and its CRDs in the `cert-manager` namespace.                                                                                                     |
-| 5 | `helm upgrade --install datadog-operator datadog/datadog-operator --namespace datadog ...`                                                           | Always                                                                                  | Installs or upgrades the Datadog Operator and its CRDs, with Fleet Automation enabled when an application key is provided.                                                   |
+| 5 | `helm upgrade --install datadog-operator datadog/datadog-operator --namespace datadog ...`                                                           | Always                                                                                  | Installs or upgrades the Datadog Operator and its CRDs.                                                                                                                      |
 | 6 | `kubectl apply --namespace datadog -f -` (`datadog-agent.yaml`, with the Kubernetes cluster name and site substituted)                               | Always                                                                                  | Creates or updates the `DatadogAgent` custom resource, from which the Datadog Operator deploys the Datadog Agent DaemonSet and the Cluster Agent.                           |
 | 7 | `kubectl apply -f host-profiler-network-policy.yaml` or `kubectl apply -f host-profiler-cilium-network-policy.yaml`                                  | Only with the host profiler and a `s`tandard or `c`ilium egress NetworkPolicy (warns and continues on failure) | Creates or updates the `opentelemetry-kube-stack-host-profiler-egress` NetworkPolicy or CiliumNetworkPolicy in the `opentelemetry-operator-system` namespace. |
 | 8 | `helm upgrade --install opentelemetry-kube-stack open-telemetry/opentelemetry-kube-stack --version 0.24.2 --namespace opentelemetry-operator-system ...` | Always                                                                                  | Installs or upgrades the OpenTelemetry Operator and its CRDs, the `cluster` and `daemon` collectors, and the `Instrumentation` custom resource, plus the `host-profiler` collector and its RBAC (`host-profiler-rbac-values.yaml`) when enabled. |
@@ -357,9 +351,6 @@ runs `helm repo update`, and downloads the configuration files to a temporary di
 
 - **`Could not download ...`**: the configuration files couldn't be fetched from GitHub. Check the network access and
   the `--config-url`, or run from a clone of this repository with `--local`.
-- **`No cluster name set: the Datadog Operator's Remote Configuration requires one`**: Fleet Automation needs an
-  explicit Kubernetes cluster name, and none was entered (the Kubernetes cluster name couldn't be derived from the
-  `kubectl` context). Re-run and enter the Kubernetes cluster name.
 - **`Using cluster name '...' instead of '...'`**: the Kubernetes cluster name you entered was normalized to satisfy the
   Datadog Agent's constraints. Use the normalized name when looking for the Kubernetes cluster in Datadog.
 - **`A host-profiler egress ... from a previous installation conflicts with the selected policy`**: a previous run
@@ -521,7 +512,6 @@ sed \
 [cm]: https://cert-manager.io/docs/installation/
 [dd-operator]: https://github.com/DataDog/datadog-operator
 [dd-api-keys]: https://docs.datadoghq.com/account_management/api-app-keys/#api-keys
-[dd-app-keys]: https://docs.datadoghq.com/account_management/api-app-keys/#application-keys
 [dd-site]: https://docs.datadoghq.com/getting_started/site/
 [jaeger]: https://www.jaegertracing.io/
 [otel-go-compile-time]: https://opentelemetry.io/docs/zero-code/go/compile-time/
