@@ -214,6 +214,30 @@ configures one collector.
     `resource_attributes`, and only set `host.id` on the telemetry of the Collector's own node, that is, in the
     `daemon` collector behind a node-local Service ([C-13](#c-13-keep-the-daemon-collectors-service-node-local)): not
     on the cluster-scope telemetry of the `cluster` collector, which describes other nodes.
+  - **On EKS:** enable these resource attributes of the `eks` detector, because several of them are disabled by
+    default. The kube-stack preset (`presets.resourceDetection.eks.enabled: true`) only enables the detector, so the
+    [`install`][install] script also sets these attributes with `--set` flags on `defaultCRConfig` when the cluster is
+    EKS:
+
+    ```yaml
+    processors:
+      resource_detection/env:
+        eks:
+          node_from_env_var: K8S_NODE_NAME   # the node to read the EC2 instance attributes from
+          resource_attributes:
+            host.id:
+              enabled: true
+            cloud.region:
+              enabled: true
+            cloud.availability_zone:
+              enabled: true
+            cloud.account.id:
+              enabled: true
+            host.image.id:
+              enabled: true
+            host.type:
+              enabled: true
+    ```
   - **`datadog.host.name`:** don't set it where`k8s.cluster.name`, `k8s.node.name`, `host.id`, and the `cloud.*`
     attributes can be reliably discovered, such as on EKS, AKS, and GKE: Datadog then derives the hostname from them.
     Only set `datadog.host.name` when those can't be reliably discovered, for example on non-cloud Kubernetes clusters, set
