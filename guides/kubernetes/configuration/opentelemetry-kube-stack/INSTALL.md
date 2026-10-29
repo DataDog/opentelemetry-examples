@@ -71,7 +71,7 @@ You don't need to clone the repository: by default, the script downloads its con
 `datadog-agent.yaml`...) from GitHub.
 
 ```sh
-curl -fsSL -o install https://raw.githubusercontent.com/DataDog/opentelemetry-examples/3644f115f8d41a6efa546312365104abd10e2a18/guides/kubernetes/configuration/opentelemetry-kube-stack/install
+curl -fsSL -o install https://raw.githubusercontent.com/DataDog/opentelemetry-examples/bb0d2c786490d5caf5d5c78fe927eb78c795c17b/guides/kubernetes/configuration/opentelemetry-kube-stack/install
 chmod +x install
 ```
 
@@ -290,7 +290,7 @@ With `--local`, the script reads all its configuration files from its own folder
 the script and its configuration files, from the same commit, into one folder:
 
 ```sh
-CONFIG_RAW_URL=https://raw.githubusercontent.com/DataDog/opentelemetry-examples/3644f115f8d41a6efa546312365104abd10e2a18/guides/kubernetes/configuration/opentelemetry-kube-stack
+CONFIG_RAW_URL=https://raw.githubusercontent.com/DataDog/opentelemetry-examples/bb0d2c786490d5caf5d5c78fe927eb78c795c17b/guides/kubernetes/configuration/opentelemetry-kube-stack
 for file in install values.yaml datadog-agent.yaml host-profiler-rbac-values.yaml \
     host-profiler-network-policy.yaml host-profiler-cilium-network-policy.yaml; do
   curl -fsSL -o "$file" "$CONFIG_RAW_URL/$file"
@@ -365,7 +365,7 @@ deletes all their custom resources cluster-wide, including ones the `install` sc
 deletes and asks for confirmation:
 
 ```sh
-curl -fsSL -o uninstall https://raw.githubusercontent.com/DataDog/opentelemetry-examples/3644f115f8d41a6efa546312365104abd10e2a18/guides/kubernetes/configuration/opentelemetry-kube-stack/uninstall
+curl -fsSL -o uninstall https://raw.githubusercontent.com/DataDog/opentelemetry-examples/bb0d2c786490d5caf5d5c78fe927eb78c795c17b/guides/kubernetes/configuration/opentelemetry-kube-stack/uninstall
 chmod +x uninstall
 ./uninstall
 ```
