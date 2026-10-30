@@ -127,7 +127,7 @@ else
     echo "Installing cert-manager..."
 
     helm repo add jetstack https://charts.jetstack.io
-    helm repo update
+    helm repo update jetstack
     helm install cert-manager jetstack/cert-manager \
       --version v1.21.3 \
       --namespace cert-manager --create-namespace \
@@ -138,7 +138,7 @@ fi
 echo "Installing OpenTelemetry Kube Stack Helm Chart..."
 
 helm repo add open-telemetry https://open-telemetry.github.io/opentelemetry-helm-charts
-helm repo update
+helm repo update open-telemetry
 
 HELM_SET_ARGS=(
     --set-string "resourceAttributes.deployment\.environment\.name=$DEPLOYMENT_ENVIRONMENT_NAME"
@@ -195,7 +195,7 @@ if [[ "$DD_INSTALL_FLOW" == "ddot" && "$DD_AGENT_ENABLED" == "true" ]]; then
       ${DD_APP_KEY_SECRET_ARGS[@]+"${DD_APP_KEY_SECRET_ARGS[@]}"}
 
     helm repo add datadog https://helm.datadoghq.com
-    helm repo update
+    helm repo update datadog
 
     OPERATOR_HELM_ARGS=(
         --set apiKeyExistingSecret=datadog-secret
