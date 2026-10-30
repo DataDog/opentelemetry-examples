@@ -536,6 +536,8 @@ spec:
           key: ${env:DD_API_KEY}
           site: ${env:DD_SITE:-datadoghq.com}
         deployment_type: daemonset
+      file_storage:
+        directory: /var/lib/otelcol
       health_check:
         endpoint: ${env:OTEL_K8S_POD_IP}:13133
     processors:
@@ -692,6 +694,7 @@ spec:
         retry_on_failure:
           enabled: true
         start_at: end
+        storage: file_storage
       host_metrics:
         collection_interval: 10s
         root_path: /hostfs
@@ -865,6 +868,7 @@ spec:
       extensions:
       - health_check
       - datadog
+      - file_storage
       pipelines:
         logs:
           exporters:
@@ -944,7 +948,8 @@ spec:
       cpu: 200m
       memory: 500Mi
   securityContext:
-    {}
+    runAsUser: 0
+    runAsGroup: 0
   volumeMounts:
   - name: varlogpods
     mountPath: /var/log/pods
@@ -952,6 +957,8 @@ spec:
   - name: varlibdockercontainers
     mountPath: /var/lib/docker/containers
     readOnly: true
+  - name: varlibotelcol
+    mountPath: /var/lib/otelcol
   - name: hostfs
     mountPath: /hostfs
     readOnly: true
@@ -1010,6 +1017,10 @@ spec:
   - name: varlogpods
     hostPath:
       path: /var/log/pods
+  - name: varlibotelcol
+    hostPath:
+      path: /var/lib/otelcol
+      type: DirectoryOrCreate
   - name: varlibdockercontainers
     hostPath:
       path: /var/lib/docker/containers

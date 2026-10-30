@@ -359,6 +359,9 @@ collectors:
       resourceDetection:
         env:
           enabled: false
+      logsCollection:
+        enabled: true
+        storeCheckpoints: true
 
     config:
       receivers:
