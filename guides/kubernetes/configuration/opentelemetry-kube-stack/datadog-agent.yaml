@@ -32,7 +32,7 @@ spec:
   override:
     nodeAgent:
       image:
-        tag: 7.83.2-jmx
+        tag: 7.84.3-jmx
       env:
         - name: DD_LOG_FORMAT_JSON
           value: "true"
