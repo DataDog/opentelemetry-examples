@@ -117,9 +117,11 @@ echo "Creating or updating Datadog secret..."
 
 kubectl create secret generic datadog-secret \
   --namespace opentelemetry-operator-system  \
-  --from-literal="api-key=$DD_API_KEY" \
-  --from-literal="dd-site=$DD_SITE" \
-  --dry-run=client -o yaml | kubectl apply -f -
+  --from-env-file=/dev/stdin \
+  --dry-run=client -o yaml <<EOF | kubectl apply -f -
+api-key=$DD_API_KEY
+dd-site=$DD_SITE
+EOF
 
 if kubectl get crd certificates.cert-manager.io >/dev/null 2>&1; then
     echo "cert-manager is already installed, skipping its installation."
@@ -185,14 +187,12 @@ if [[ "$DD_INSTALL_FLOW" == "ddot" && "$DD_AGENT_ENABLED" == "true" ]]; then
 
     kubectl create namespace datadog
 
-    DD_APP_KEY_SECRET_ARGS=()
-    if [[ -n "${DD_APP_KEY:-}" ]]; then
-        DD_APP_KEY_SECRET_ARGS=(--from-literal="app-key=$DD_APP_KEY")
-    fi
     kubectl create secret generic datadog-secret \
       --namespace datadog \
-      --from-literal="api-key=$DD_API_KEY" \
-      ${DD_APP_KEY_SECRET_ARGS[@]+"${DD_APP_KEY_SECRET_ARGS[@]}"}
+      --from-env-file=/dev/stdin <<EOF
+api-key=$DD_API_KEY
+${DD_APP_KEY:+app-key=$DD_APP_KEY}
+EOF
 
     helm repo add datadog https://helm.datadoghq.com
     helm repo update datadog
