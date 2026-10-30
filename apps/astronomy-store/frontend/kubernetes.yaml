@@ -41,6 +41,10 @@ spec:
               value: changeme
             - name: CHECKOUT_URL
               value: http://checkout:8080
+            - name: CHECKOUT_USERNAME
+              value: frontend.astronomy-store
+            - name: CHECKOUT_PASSWORD
+              value: changeme
           readinessProbe:
             httpGet:
               path: /api/products
