@@ -111,7 +111,7 @@ fi
 
 echo "Creating Kubernetes namespace..."
 
-kubectl create namespace opentelemetry-operator-system || echo "WARNING: Could not create namespace 'opentelemetry-operator-system' (may already exist or insufficient permissions). Continuing..."
+kubectl create namespace opentelemetry-operator-system
 
 echo "Creating or updating Datadog secret..."
 
@@ -183,7 +183,7 @@ fi
 if [[ "$DD_INSTALL_FLOW" == "ddot" && "$DD_AGENT_ENABLED" == "true" ]]; then
     echo "Installing Datadog Operator..."
 
-    kubectl create namespace datadog || echo "WARNING: Could not create namespace 'datadog' (may already exist or insufficient permissions). Continuing..."
+    kubectl create namespace datadog
 
     DD_APP_KEY_SECRET_ARGS=()
     if [[ -n "${DD_APP_KEY:-}" ]]; then
