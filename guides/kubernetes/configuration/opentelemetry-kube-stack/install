@@ -87,6 +87,24 @@ if [[ "$DD_HOST_PROFILER_ENABLED" == "true" ]]; then
     )
 fi
 
+existing_install() {
+    echo "ERROR: Found $1 from a previous installation. Run ./uninstall, then run this script again." >&2
+    exit 1
+}
+
+if helm status opentelemetry-kube-stack --namespace opentelemetry-operator-system >/dev/null 2>&1; then
+    existing_install "the opentelemetry-kube-stack Helm release"
+fi
+if helm status datadog-operator --namespace datadog >/dev/null 2>&1; then
+    existing_install "the datadog-operator Helm release"
+fi
+if kubectl get namespace opentelemetry-operator-system >/dev/null 2>&1; then
+    existing_install "the opentelemetry-operator-system namespace"
+fi
+if [[ "$DD_INSTALL_FLOW" == "ddot" && "$DD_AGENT_ENABLED" == "true" ]] && kubectl get namespace datadog >/dev/null 2>&1; then
+    existing_install "the datadog namespace"
+fi
+
 #### BEGINNING OF INSTALLATION SCRIPT
 
 # WARNING: dont change "namespace=opentelemetry-operator-system" as it is used in the 'instrumentation' CRD defined in values-otlp-http.yaml and values-ddot.yaml
@@ -142,31 +160,15 @@ if [[ -n "${K8S_CLUSTER_NAME:-}" ]]; then
     HELM_SET_ARGS+=(--set-string "resourceAttributes.k8s\.cluster\.name=$K8S_CLUSTER_NAME")
 fi
 
-helm upgrade opentelemetry-kube-stack \
+helm install opentelemetry-kube-stack \
     open-telemetry/opentelemetry-kube-stack \
     --version 0.26.1 \
-    --install \
     --namespace opentelemetry-operator-system \
     "${HELM_SET_ARGS[@]}" \
     -f "$SCRIPT_DIR/$VALUES_FILE" \
     ${DD_AGENT_VALUES_ARGS[@]+"${DD_AGENT_VALUES_ARGS[@]}"} \
     ${HOST_PROFILER_ENABLED_ARGS[@]+"${HOST_PROFILER_ENABLED_ARGS[@]}"} \
     ${OVERLAY_VALUES_ARGS[@]+"${OVERLAY_VALUES_ARGS[@]}"}
-
-# The standard and Cilium policies select the same pods and Kubernetes
-# NetworkPolicies are additive: remove both NetworkPolicy before applying
-# the selected one (or none), so a policy from a previous run cannot widen
-# the requested egress.
-kubectl delete networkpolicy \
-  --namespace opentelemetry-operator-system \
-  --ignore-not-found=true \
-  opentelemetry-kube-stack-host-profiler-egress \
-  || echo "WARNING: Could not delete the host-profiler NetworkPolicy. Continuing..."
-kubectl delete ciliumnetworkpolicy \
-  --namespace opentelemetry-operator-system \
-  --ignore-not-found=true \
-  opentelemetry-kube-stack-host-profiler-egress \
-  || echo "WARNING: CiliumNetworkPolicy CRD not installed. Continuing..."
 
 if [[ -n "$HOST_PROFILER_NETWORK_POLICY_FILE" ]]; then
     echo "Applying the host-profiler egress NetworkPolicy..."
@@ -208,10 +210,9 @@ if [[ "$DD_INSTALL_FLOW" == "ddot" && "$DD_AGENT_ENABLED" == "true" ]]; then
         )
     fi
 
-    helm upgrade datadog-operator \
+    helm install datadog-operator \
         datadog/datadog-operator \
         --version 2.28.1 \
-        --install \
         --namespace datadog \
         "${OPERATOR_HELM_ARGS[@]}" \
         --wait --timeout 5m
