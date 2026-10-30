@@ -37,6 +37,10 @@ spec:
               value: astronomy_user
             - name: DB_PASSWORD
               value: astronomy_password
+            - name: DD_FEATURE_FLAGS_CONFIGURATION_SOURCE
+              value: "remote_config"
+            - name: DD_EXPERIMENTAL_FLAGGING_PROVIDER_SPAN_ENRICHMENT_ENABLED
+              value: "true"
           startupProbe:
             httpGet:
               path: /ad/health

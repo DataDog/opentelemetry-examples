@@ -24,6 +24,12 @@ dependencies {
     implementation 'org.springframework.boot:spring-boot-starter-security'
     implementation 'io.opentelemetry:opentelemetry-api'
     implementation 'io.opentelemetry.semconv:opentelemetry-semconv-incubating:1.44.0-alpha'
+    implementation 'dev.openfeature:sdk:1.20.1'
+    implementation 'com.datadoghq:dd-openfeature:1.67.1'
+    implementation('dev.openfeature.contrib.hooks:otel:3.3.1') {
+        exclude group: 'io.opentelemetry'
+        exclude group: 'io.opentelemetry.semconv'
+    }
     runtimeOnly 'org.postgresql:postgresql'
     testImplementation 'org.springframework.boot:spring-boot-starter-test'
 }

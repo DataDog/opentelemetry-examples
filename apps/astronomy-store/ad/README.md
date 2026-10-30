@@ -67,3 +67,35 @@ fake, with `example.com` addresses.
 
 To see the demo in Datadog, enable a Sensitive Data Scanner scanning group that covers APM spans and logs of the
 `astronomy-store` services, with the "Email Address Scanner" library rule.
+
+## Feature flags demo
+
+`GET /ad/get-ads` evaluates the `ad-failure` boolean feature flag, modeled on the OpenTelemetry Demo's `adFailure` flag.
+When the flag evaluates to `true`, the request fails with a `503 Service Unavailable`. The user ID is the targeting key,
+so a user always gets the same variant.
+
+The service uses the vendor-neutral [OpenFeature](https://openfeature.dev/) API with the
+[Datadog Feature Flags](https://docs.datadoghq.com/feature_flags/) OpenFeature provider. The
+[OpenFeature OpenTelemetry hook](https://github.com/open-feature/java-sdk-contrib/tree/main/hooks/open-telemetry) also
+records each flag evaluation as a `feature_flag` event on the current `ad` span, shown in the Logs section of the span
+in Jaeger.
+
+### Datadog OpenFeature provider
+
+- The provider gets the flag configurations through the Datadog Agent's Remote Configuration.
+- `dd-openfeature` must have the same version as the `dd-java-agent` injected by the OpenTelemetry Operator, the
+  `instrumentation.java.image` of the opentelemetry-kube-stack Helm values (1.67.1 as of 2026-10). Bump both together.
+
+To run the demo:
+
+1. In Datadog, go to **Feature Flags** and create a boolean flag with the key `ad-failure` in the environment of the
+   `ad` service, serving `false` by default. Enable the flag in that environment. The service doesn't receive disabled
+   flags and returns the default value for them.
+2. Roll `true` out to some users, for example with a targeting rule "`user_id` is one of `user-1001`" or a percentage
+   rollout, which buckets users by user ID. The `frontend` picks one of 4 demo users, `user-1001` to `user-1004`, per
+   request.
+3. Watch the error rate of the `ad` service rise, and filter its traces with `@feature_flags.ad-failure:true`. See
+   [APM trace enrichment](https://docs.datadoghq.com/feature_flags/guide/apm_trace_enrichment/).
+4. Turn the flag off. The errors stop with no redeploy.
+
+The load generator's `http_req_failed` threshold is expected to fail while the flag is on.
