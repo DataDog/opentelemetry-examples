@@ -26,17 +26,17 @@ for example in ${EXAMPLES}; do
 			open-telemetry/opentelemetry-kube-stack \
 			--namespace opentelemetry-operator-system \
 			--version "0.26.1" \
-			--values ./values-${mode}.yaml ${MODE_VALUES_ARGS[@]+"${MODE_VALUES_ARGS[@]}"} --values ${EXAMPLES_DIR}/${example}/values.yaml \
+			--values "./values-${mode}.yaml" ${MODE_VALUES_ARGS[@]+"${MODE_VALUES_ARGS[@]}"} --values "${EXAMPLES_DIR}/${example}/values.yaml" \
 			--output-dir "${EXAMPLES_DIR}/${example}/rendered-${mode}"
-		mv ${EXAMPLES_DIR}/${example}/rendered-${mode}/opentelemetry-kube-stack/templates/* "${EXAMPLES_DIR}/${example}/rendered-${mode}"
+		mv "${EXAMPLES_DIR}/${example}/rendered-${mode}/opentelemetry-kube-stack/templates/"* "${EXAMPLES_DIR}/${example}/rendered-${mode}"
 		SUBCHARTS_DIR=${EXAMPLES_DIR}/${example}/rendered-${mode}/opentelemetry-kube-stack/charts
 		if [ -d "${SUBCHARTS_DIR}" ]; then
-			SUBCHARTS=$(find ${SUBCHARTS_DIR} -maxdepth 1 -mindepth 1 -type d -exec basename {} \;)
+			SUBCHARTS=$(find "${SUBCHARTS_DIR}" -maxdepth 1 -mindepth 1 -type d -exec basename {} \;)
 			for subchart in ${SUBCHARTS}; do
 				mkdir -p "${EXAMPLES_DIR}/${example}/rendered-${mode}/${subchart}"
-				mv ${SUBCHARTS_DIR}/${subchart}/templates/* "${EXAMPLES_DIR}/${example}/rendered-${mode}/${subchart}"
+				mv "${SUBCHARTS_DIR}/${subchart}/templates/"* "${EXAMPLES_DIR}/${example}/rendered-${mode}/${subchart}"
 			done
-			rm -rf ${EXAMPLES_DIR}/${example}/rendered-${mode}/opentelemetry-kube-stack
+			rm -rf "${EXAMPLES_DIR}/${example}/rendered-${mode}/opentelemetry-kube-stack"
 		fi
 	done
 done
