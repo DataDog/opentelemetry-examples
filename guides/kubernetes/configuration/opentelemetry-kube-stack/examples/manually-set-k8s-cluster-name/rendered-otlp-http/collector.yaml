@@ -709,7 +709,7 @@ spec:
           type: container
         retry_on_failure:
           enabled: true
-        start_at: end
+        start_at: beginning
         storage: file_storage
       host_metrics:
         collection_interval: 10s

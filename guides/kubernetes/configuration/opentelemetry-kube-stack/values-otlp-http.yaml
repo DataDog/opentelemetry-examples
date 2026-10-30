@@ -365,6 +365,9 @@ collectors:
 
     config:
       receivers:
+        file_log:
+          start_at: beginning
+
         host_metrics:
           scrapers:
             cpu:
