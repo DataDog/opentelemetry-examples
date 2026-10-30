@@ -17,8 +17,8 @@ spec:
     metadata:
       annotations:
         instrumentation.opentelemetry.io/inject-sdk: opentelemetry-operator-system/opentelemetry-kube-stack
-        resource.opentelemetry.io/service-name: checkout
-        resource.opentelemetry.io/service-namespace: astronomy-store
+        resource.opentelemetry.io/service.name: checkout
+        resource.opentelemetry.io/service.namespace: astronomy-store
       labels:
         app.kubernetes.io/name: checkout
         admission.datadoghq.com/enabled: "false"
