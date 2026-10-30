@@ -84,6 +84,11 @@ spec:
               containerPort: 9092
             - name: jmx
               containerPort: 9999
+          startupProbe:
+            tcpSocket:
+              port: plaintext
+            periodSeconds: 5
+            failureThreshold: 30
           readinessProbe:
             tcpSocket:
               port: plaintext
