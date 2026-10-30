@@ -1,6 +1,9 @@
 import { logger } from "../../../lib/logger";
 
 const adUrl = process.env.AD_URL ?? "http://ad:8080";
+const adUsername = process.env.AD_USERNAME ?? "frontend.astronomy-store";
+const adPassword = process.env.AD_PASSWORD ?? "changeme";
+const adAuthorization = `Basic ${Buffer.from(`${adUsername}:${adPassword}`).toString("base64")}`;
 
 export async function GET(request) {
   const { searchParams } = new URL(request.url);
@@ -13,6 +16,7 @@ export async function GET(request) {
 
   const response = await fetch(target, {
     cache: "no-store",
+    headers: { authorization: adAuthorization },
   });
 
   logger.info(

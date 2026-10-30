@@ -45,3 +45,13 @@ kubectl apply -f kubernetes.yaml
 The Deployment uses the OpenTelemetry Operator's Java auto-instrumentation annotation, so Spring MVC HTTP requests are instrumented automatically. On top of that, the application depends directly on `io.opentelemetry:opentelemetry-api` and uses it in `AdController` to add `app.ads.context_keys` and `app.ads.count` attributes to the current span, and logs an info-level message for every `getAds` invocation.
 
 The service connects to `astronomy-db` (see `../astronomy-db`) via `DB_URL`, `DB_USERNAME`, and `DB_PASSWORD` environment variables, set in `kubernetes.yaml`.
+
+## Authentication
+
+`GET /ad/get-ads` requires [HTTP Basic authentication](https://docs.spring.io/spring-security/reference/servlet/authentication/passwords/basic.html) with a single hardcoded user, `frontend.astronomy-store` / `changeme`, which the `frontend` service sends. `GET /ad/health` stays anonymous for the Kubernetes probes.
+
+```sh
+curl -u frontend.astronomy-store:changeme "http://ad:8080/ad/get-ads?context_keys=telescopes"
+```
+
+Requests with wrong credentials get a `401 Unauthorized`.
