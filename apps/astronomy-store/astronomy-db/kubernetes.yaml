@@ -208,9 +208,9 @@ spec:
                     ]
                   },
                   "reported_hostname": "astronomy-db",
+                  "propagate_agent_tags": true,
                   "tags": [
-                    "service:astronomy-db",
-                    "env:production"
+                    "service:astronomy-db"
                   ]
                 }
               ]
