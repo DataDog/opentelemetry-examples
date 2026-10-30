@@ -6,8 +6,8 @@ metadata:
   name: opentelemetry-kube-stack
   namespace: opentelemetry-operator-system
   labels:
-    helm.sh/chart: opentelemetry-kube-stack-0.23.0
-    app.kubernetes.io/version: "0.159.0"
+    helm.sh/chart: opentelemetry-kube-stack-0.26.1
+    app.kubernetes.io/version: "0.162.0"
     app.kubernetes.io/managed-by: Helm
     release: "opentelemetry-kube-stack"    
 spec:
@@ -56,7 +56,7 @@ spec:
     resourceAttributes:
       deployment.environment.name: production
   java:
-    image: datadog/dd-otel-autoinstrumentation-java:1.67.1-preview
+    image: datadog/dd-otel-autoinstrumentation-java:1.68.0-preview
   nodejs:
     image: datadog/dd-otel-autoinstrumentation-js:6.20-preview
   python:

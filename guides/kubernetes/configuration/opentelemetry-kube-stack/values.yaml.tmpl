@@ -11,7 +11,7 @@ opentelemetry-operator:
       tag: agagniere-nodefilter-7
 {{- else}}
       repository: otel/opentelemetry-collector-contrib
-      tag: "0.161.0"
+      tag: "0.163.1"
 {{- end}}
 
 kubeStateMetrics:
@@ -909,7 +909,7 @@ instrumentation:
       - name: DD_DOTNET_TRACER_HOME
         value: /otel-auto-instrumentation-dotnet
   java:
-    image: datadog/dd-otel-autoinstrumentation-java:1.67.1-preview
+    image: datadog/dd-otel-autoinstrumentation-java:1.68.0-preview
   nodejs:
     image: datadog/dd-otel-autoinstrumentation-js:6.20-preview
   python:

@@ -6,8 +6,8 @@ metadata:
   name: opentelemetry-kube-stack-cluster
   namespace: opentelemetry-operator-system
   labels:
-    helm.sh/chart: opentelemetry-kube-stack-0.23.0
-    app.kubernetes.io/version: "0.159.0"
+    helm.sh/chart: opentelemetry-kube-stack-0.26.1
+    app.kubernetes.io/version: "0.162.0"
     app.kubernetes.io/managed-by: Helm
     release: "opentelemetry-kube-stack"        
 spec:
@@ -465,7 +465,7 @@ spec:
         apiVersion: v1
         fieldPath: status.podIP
   - name: OTEL_RESOURCE_ATTRIBUTES
-    value: "k8s.pod.name=$(OTEL_K8S_POD_NAME),k8s.namespace.name=$(OTEL_K8S_NAMESPACE),k8s.node.name=$(OTEL_K8S_NODE_NAME),host.name=$(OTEL_K8S_NODE_NAME),k8s.node.ip=$(OTEL_K8S_NODE_IP),k8s.pod.ip=$(OTEL_K8S_POD_IP)"
+    value: "k8s.pod.name=$(OTEL_K8S_POD_NAME),k8s.namespace.name=$(OTEL_K8S_NAMESPACE),k8s.node.name=$(OTEL_K8S_NODE_NAME),host.name=$(OTEL_K8S_NODE_NAME),k8s.node.ip=$(OTEL_K8S_NODE_IP),k8s.pod.ip=$(OTEL_K8S_POD_IP),deployment.environment.name=production,k8s.cluster.name=my_k8s_cluster"
   
   - name: DD_AGENT_HOST
     value: "datadog-agent.datadog.svc.cluster.local"
@@ -495,8 +495,8 @@ metadata:
   name: opentelemetry-kube-stack-daemon
   namespace: opentelemetry-operator-system
   labels:
-    helm.sh/chart: opentelemetry-kube-stack-0.23.0
-    app.kubernetes.io/version: "0.159.0"
+    helm.sh/chart: opentelemetry-kube-stack-0.26.1
+    app.kubernetes.io/version: "0.162.0"
     app.kubernetes.io/managed-by: Helm
     release: "opentelemetry-kube-stack"        
 spec:
@@ -951,7 +951,7 @@ spec:
         apiVersion: v1
         fieldPath: status.podIP
   - name: OTEL_RESOURCE_ATTRIBUTES
-    value: "k8s.pod.name=$(OTEL_K8S_POD_NAME),k8s.namespace.name=$(OTEL_K8S_NAMESPACE),k8s.node.name=$(OTEL_K8S_NODE_NAME),host.name=$(OTEL_K8S_NODE_NAME),k8s.node.ip=$(OTEL_K8S_NODE_IP),k8s.pod.ip=$(OTEL_K8S_POD_IP)"
+    value: "k8s.pod.name=$(OTEL_K8S_POD_NAME),k8s.namespace.name=$(OTEL_K8S_NAMESPACE),k8s.node.name=$(OTEL_K8S_NODE_NAME),host.name=$(OTEL_K8S_NODE_NAME),k8s.node.ip=$(OTEL_K8S_NODE_IP),k8s.pod.ip=$(OTEL_K8S_POD_IP),deployment.environment.name=production,k8s.cluster.name=my_k8s_cluster"
   
   - name: DD_AGENT_HOST
     value: "datadog-agent.datadog.svc.cluster.local"
