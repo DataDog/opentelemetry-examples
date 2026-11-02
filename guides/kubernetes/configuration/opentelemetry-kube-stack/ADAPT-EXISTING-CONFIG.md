@@ -613,31 +613,19 @@ without the OpenTelemetry Operator, set them in their environment instead.
     alone keeps Datadog trace export by default; it does not select OTLP. Keep `OTEL_TRACES_EXPORTER=otlp` explicitly
     set to select OTLP trace export. See [Export traces from Datadog SDKs in OTLP format][dd-otlp-trace-export] for
     supported versions and configuration, and check the SDK versions pinned in [`values.yaml`][values].
-  - For the pinned SDK versions, `DD_LOGS_OTEL_ENABLED=true` and `DD_METRICS_OTEL_ENABLED=true` also initialize
-    their OTel logs and metrics pipelines with OTLP export. This depends on each SDK's supported integrations,
-    dependencies, existing providers, exporter settings, and configuration precedence. For example, Python requires
-    compatible OTel API and exporter packages and skips provider setup if the application already configured one.
-    Do not infer working logs or metrics export from the flags alone.
+  - `DD_LOGS_OTEL_ENABLED=true` and `DD_METRICS_OTEL_ENABLED=true` also initialize their OTel logs and metrics
+    pipelines with OTLP export.
   - `DD_TRACE_OTEL_SEMANTICS_ENABLED=true` selects OTel trace semantic conventions, such as span names and
-    attributes. OTLP describes the export format and transport; selecting OTLP does not by itself select OTel
-    semantics. Some SDK versions couple these settings: [the pinned Java SDK also forces OTLP export when you enable
-    OTel trace semantics][java-otel-semantics]. Keep the explicit exporter setting for a consistent configuration
-    across languages. See [S-03](#s-03-export-over-otlphttp) for the OTLP protocol and
-    [S-05](#s-05-use-the-stable-semantic-conventions) for stable semantic conventions.
+    attributes, and is intended to enforce OTLP trace export. The reverse does not apply:
+    `OTEL_TRACES_EXPORTER=otlp` does not by itself enable OTel semantics. Keep both settings explicit, and verify
+    that the pinned SDK version supports them and that workload-specific overrides do not disable either behavior.
 - **Fix:** merge the variables above into the `Instrumentation` configuration, preserving existing list entries.
-  Before reporting `already satisfied` or `applied`, check every affected workload's selected `Instrumentation`,
-  language-specific `env`, container `env` and `envFrom`, and SDK configuration files or application settings
-  (including Java system properties). Resolve their precedence for the SDK version the workload actually runs.
-  Verify that tracing support, OTLP trace export, and OTel trace semantics are effective, and check the logs and
-  metrics pipelines for each signal being migrated. A trace-support flag without the required explicit
-  `OTEL_TRACES_EXPORTER=otlp`, or with OTLP export overridden, does **not** satisfy S-01. For example,
-  `DD_TRACE_AGENT_PROTOCOL_VERSION` disables OTLP trace export in the pinned Node.js and Python SDKs.
+  Before reporting `already satisfied` or `applied`, check that each workload uses this configuration and that its
+  container, language-specific, or application settings do not override it. Keep `OTEL_TRACES_EXPORTER=otlp`
+  explicitly set; `DD_TRACE_OTEL_ENABLED=true` alone does not satisfy this rule.
 - **Conflicts:** preserve explicitly disabled signals (`DD_*_OTEL_ENABLED=false`, `OTEL_SDK_DISABLED=true`, or
-  `OTEL_*_EXPORTER=none`) and alternative exporters until the user confirms the intended migration. Do not assume
-  these settings have identical precedence across SDKs, or add flags that would override an intentional disable.
-  Report S-01 as `blocked` for affected workloads and identify the conflicting setting and its source. After the
-  user confirms the migration, update the effective override as well as the shared configuration; adding the flags
-  only to `spec.env` is insufficient when a container or language-specific setting wins.
+  `OTEL_*_EXPORTER=none`) and alternative exporters until the user confirms the intended migration.
+  Report the conflict and ask whether to keep the existing setting or migrate to DDOT with OTLP export.
 
 ### S-02: Point the DDOT SDKs at the Datadog Agent
 
@@ -655,12 +643,11 @@ without the OpenTelemetry Operator, set them in their environment instead.
     value: http/protobuf
   ```
 
-- **Why:** OTLP protocol support and defaults differ by SDK and version. The pinned Node.js image
-  `6.20-preview` contains SDK 6.20.1, whose trace exporter [supports only `http/json`][nodejs-otlp-trace-protocol]
-  and falls back to it when the shared protocol is `http/protobuf`. Both HTTP encodings use the same `daemon`
-  collector port, 4318, the one of the `Instrumentation`'s endpoint
-  ([O-04](#o-04-point-the-sdks-at-the-daemon-collector)). The shared setting remains appropriate for the other
-  pinned SDKs; do not assume every signal uses the same encoding or supports gRPC.
+- **Why:** these settings direct the SDKs to the `daemon` collector's OTLP/HTTP endpoint on port 4318
+  ([O-04](#o-04-point-the-sdks-at-the-daemon-collector)). Check which HTTP encodings each pinned SDK version
+  supports. If a signal does not support the shared `http/protobuf` setting, configure a supported HTTP encoding
+  for that signal without changing the others. For example, if the pinned Node.js trace exporter supports only
+  `http/json`, use `OTEL_EXPORTER_OTLP_TRACES_PROTOCOL=http/json` in `instrumentation.nodejs.env`.
 - **Conflicts:** check signal-specific protocol and endpoint overrides as well as the shared settings. If the user's
   endpoint is the gRPC port 4317, change it to 4318 together with the protocol. Use the
   [OTLP trace export guide][dd-otlp-trace-export] and the installed SDK version to check supported protocols.
@@ -934,5 +921,3 @@ See [TROUBLESHOOTING.md][troubleshooting] when something doesn't show up.
 [otel-semconv-k8s-attributes]: https://opentelemetry.io/docs/specs/semconv/non-normative/k8s-attributes/
 [dd-hostname-mapping]: https://docs.datadoghq.com/opentelemetry/mapping/hostname/?tab=datadogexporter
 [dd-otlp-trace-export]: https://docs.datadoghq.com/opentelemetry/instrument/dd_sdks/otlp_trace_export/
-[java-otel-semantics]: https://github.com/DataDog/dd-trace-java/blob/36cefc772b4f54d5fb00f6324ba6819841fe0dfb/internal-api/src/main/java/datadog/trace/api/Config.java#L1565
-[nodejs-otlp-trace-protocol]: https://github.com/DataDog/dd-trace-js/blob/f3517f33400a7e5cce8f1c691fd54355ed63c206/packages/dd-trace/src/config/supported-configurations.json#L4380
