@@ -1,6 +1,6 @@
 Inspired by the OpenTelemetry Demo. Demonstrates OpenTelemetry automatic instrumentation.
 
-Intended to be used with the `guides/kubernetes/configuration/opentelemetry-kube-stack/install`
+Intended to be used with the `guides/kubernetes/configuration/opentelemetry-kube-stack/ddot/install`
 
 This demo app is called `astronomy-store` instead of `astronomy-shop` to avoid confusion with the `astronomy-shop` demo
 app that is part of the OpenTelemetry Demo while being similar.
@@ -19,8 +19,8 @@ with the ones installed in the next step.
 ### 2. Install OpenTelemetry monitoring
 
 We recommend installing Datadog's version of OpenTelemetry with the installer of the
-[Datadog OTel Kube Stack](../../guides/kubernetes/configuration/opentelemetry-kube-stack) (see its
-[installation guide](../../guides/kubernetes/configuration/opentelemetry-kube-stack/INSTALL.md)). Upstream
+[Datadog OTel Kube Stack](../../guides/kubernetes/configuration/opentelemetry-kube-stack/ddot) (see its
+[installation guide](../../guides/kubernetes/configuration/opentelemetry-kube-stack/ddot/INSTALL.md)). Upstream
 OpenTelemetry also works: the services are instrumented with vendor-neutral OpenTelemetry, so any OpenTelemetry Operator
 `Instrumentation` named `opentelemetry-kube-stack` in the `opentelemetry-operator-system` namespace, and any collector
 receiving OTLP, works.
@@ -35,11 +35,11 @@ that the same telemetry works with any backend:
    ```
 
 2. Install the Datadog OTel Kube Stack with the
-   [`export-to-datadog-and-jaeger`](../../guides/kubernetes/configuration/opentelemetry-kube-stack/examples/export-to-datadog-and-jaeger/values.yaml)
+   [`export-to-datadog-and-jaeger`](../../guides/kubernetes/configuration/opentelemetry-kube-stack/ddot/examples/export-to-datadog-and-jaeger/values.yaml)
    overlay, which adds Jaeger (`jaeger.jaeger.svc.cluster.local:4317`) to the `daemon` collector's trace exporters:
 
    ```sh
-   cd ../../guides/kubernetes/configuration/opentelemetry-kube-stack
+   cd ../../guides/kubernetes/configuration/opentelemetry-kube-stack/ddot
    ./install examples/export-to-datadog-and-jaeger/values.yaml
    ```
 
