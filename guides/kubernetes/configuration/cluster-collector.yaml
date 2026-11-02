@@ -118,6 +118,12 @@ config:
             - set(attributes["kube_cronjob"], attributes["cronjob"])
             - delete_key(attributes, "cronjob")
 
+        # Report the running restart total as a gauge, matching the Agent's
+        # kubernetes_state.container.restarts. Must run before cumulativetodelta.
+        - context: metric
+          statements:
+            - convert_sum_to_gauge() where metric.name == "kube_pod_container_status_restarts_total"
+
     # k8s_attributesprocessor is used to enrich metrics with additional metadata, namely, service.
     k8s_attributes:
       auth_type: "serviceAccount"

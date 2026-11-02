@@ -1,5 +1,5 @@
-# Use OpenJDK 17 as the base image
-FROM openjdk:17-jdk-slim
+# Use OpenJDK 25 as the base image
+FROM eclipse-temurin:25-jdk-jammy
 
 # Set the working directory
 WORKDIR /game_controller

@@ -1,0 +1,5 @@
+.gradle/
+build/
+bin/
+opentelemetry-javaagent.jar
+dd-java-agent.jar

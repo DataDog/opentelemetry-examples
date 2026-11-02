@@ -78,6 +78,12 @@ spec:
             # See https://docs.datadoghq.com/feature_flags/guide/apm_trace_enrichment/ .
             - name: DD_EXPERIMENTAL_FLAGGING_PROVIDER_SPAN_ENRICHMENT_ENABLED
               value: "true"
+          startupProbe:
+            httpGet:
+              path: /ad/health
+              port: http
+            periodSeconds: 5
+            failureThreshold: 30
           readinessProbe:
             httpGet:
               path: /ad/health

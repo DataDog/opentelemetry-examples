@@ -1,0 +1,114 @@
+name: opentelemetry-kube-stack rendered examples
+
+on:
+  pull_request:
+    branches: [ "main" ]
+    paths:
+      - "guides/kubernetes/configuration/opentelemetry-kube-stack/**"
+      - ".github/workflows/kube-stack-examples.yml"
+      - ".github/workflows/scripts/**"
+  push:
+    branches: [ "main" ]
+    paths:
+      - "guides/kubernetes/configuration/opentelemetry-kube-stack/**"
+      - ".github/workflows/kube-stack-examples.yml"
+      - ".github/workflows/scripts/**"
+
+jobs:
+  check-rendered-examples:
+    runs-on: ubuntu-latest
+    env:
+      HELM_VERSION: v4.3.0
+    defaults:
+      run:
+        working-directory: guides/kubernetes/configuration/opentelemetry-kube-stack
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+
+      - name: Install pinned Helm version
+        run: |
+          curl -fsLO "https://get.helm.sh/helm-${HELM_VERSION}-linux-amd64.tar.gz"
+          curl -fsLO "https://get.helm.sh/helm-${HELM_VERSION}-linux-amd64.tar.gz.sha256sum"
+          sha256sum -c "helm-${HELM_VERSION}-linux-amd64.tar.gz.sha256sum"
+          tar xzf "helm-${HELM_VERSION}-linux-amd64.tar.gz"
+          echo "$PWD/linux-amd64" >> "$GITHUB_PATH"
+
+      - name: Add Helm repos
+        run: |
+          helm repo add open-telemetry https://open-telemetry.github.io/opentelemetry-helm-charts
+          helm repo update open-telemetry
+
+      - name: Regenerate examples
+        run: make generate-examples
+
+      - name: Fail if rendered examples are out of date
+        run: |
+          if [ -n "$(git status --porcelain -- examples/)" ]; then
+            echo "::error::examples/*/rendered-* is out of date. Run make generate-examples locally with Helm ${HELM_VERSION}."
+            exit 1
+          fi
+
+  validate:
+    name: Validate collector configs and manifests
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: guides/kubernetes/configuration/opentelemetry-kube-stack
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          persist-credentials: false
+
+      - name: Validate collector configs and manifests
+        run: make validate
+
+  deploy-kind:
+    name: Deploy to a kind cluster (${{ matrix.flow }})
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        flow: [upstream, ddot]
+    defaults:
+      run:
+        working-directory: guides/kubernetes/configuration/opentelemetry-kube-stack
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          persist-credentials: false
+
+      - name: Create cluster
+        uses: helm/kind-action@06c1ae10762d3b9c1644e7fe69596ae519e015a2 # v1.15.0
+
+      - name: Set default namespace
+        run: kubectl config set-context --current --namespace=opentelemetry-operator-system
+
+      - name: Install opentelemetry-kube-stack
+        env:
+          DD_API_KEY: "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+          DD_INSTALL_FLOW: ${{ matrix.flow }}
+        run: ./install
+
+      - name: Wait for the collectors to roll out
+        run: |
+          kubectl wait --for=create --timeout=2m deployment/opentelemetry-kube-stack-cluster-collector
+          kubectl wait --for=create --timeout=2m daemonset/opentelemetry-kube-stack-daemon-collector
+          kubectl rollout status --timeout=5m deployment/opentelemetry-kube-stack-cluster-collector
+          kubectl rollout status --timeout=5m daemonset/opentelemetry-kube-stack-daemon-collector
+
+      - name: Run chart tests
+        run: helm test opentelemetry-kube-stack
+
+      - name: Diagnostics on failure
+        if: failure()
+        run: |
+          kubectl get pods -A
+          echo "--- operator logs ---"
+          kubectl logs deployment/opentelemetry-kube-stack-opentelemetry-operator --all-containers || true
+          echo "--- cluster collector logs ---"
+          kubectl logs deployment/opentelemetry-kube-stack-cluster-collector --all-containers --tail=-1 || true
+          echo "--- daemon collector logs ---"
+          kubectl logs daemonset/opentelemetry-kube-stack-daemon-collector --all-containers --tail=-1 || true

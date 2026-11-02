@@ -5,7 +5,7 @@ This .NET 8 API returns the [OpenTelemetry Demo product catalog data](https://gi
 Build and deploy it with:
 
 ```sh
-docker build -t astronomy-store/product-catalog:latest .
+docker build --build-context shared=../shared -t astronomy-store/product-catalog:latest .
 kubectl apply -f kubernetes.yaml
 ```
 

@@ -1,0 +1,7 @@
+resourceAttributes:
+  deployment.environment.name: "production"
+defaultCRConfig:
+  presets:
+    resourceDetection:
+      aks:
+        enabled: true

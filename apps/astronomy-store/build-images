@@ -7,36 +7,69 @@ Build all Astronomy Store service images.
 
 Usage:
   ./build-images
-  IMAGE_TAG=v1.2.3 ./build-images
-  IMAGE_PREFIX=ghcr.io/example/astronomy-store IMAGE_TAG=v1.2.3 ./build-images
+  ./build-images --push
+  IMAGE_PREFIX=ghcr.io/example/astronomy-store IMAGE_TAG=v1.2.3 ./build-images --push
+
+Without --push, builds locally with `docker build`.
+With --push, builds with `docker buildx` and pushes to IMAGE_PREFIX.
+
+Images are built for linux/amd64 only.
+
+checkout is built twice, once per OpenTelemetry Kube Stack install flow (DD_INSTALL_FLOW):
+  checkout:<tag>                 ddot flow: Datadog Orchestrion compile-time instrumentation
+  checkout:<tag>-upstream-otel   upstream flow: OpenTelemetry Go compile-time instrumentation (otelc)
+
+Env vars:
+  IMAGE_PREFIX  Image name prefix (default: astronomy-store)
+  IMAGE_TAG     Image tag (default: latest; git-sha based when pushing)
+  BUILDER       buildx builder name, push only (default: astronomy-store)
 EOF
     exit 0
 fi
 
+PUSH=0
+if [[ "${1:-}" == "--push" ]]; then
+    PUSH=1
+    shift
+fi
+
 if [[ $# -gt 0 ]]; then
-    echo "Usage: IMAGE_PREFIX=<prefix> IMAGE_TAG=<tag> $0" >&2
+    echo "Usage: IMAGE_PREFIX=<prefix> IMAGE_TAG=<tag> $0 [--push]" >&2
     exit 1
 fi
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 IMAGE_PREFIX="${IMAGE_PREFIX:-astronomy-store}"
 IMAGE_PREFIX="${IMAGE_PREFIX%/}"
-IMAGE_TAG="${IMAGE_TAG:-latest}"
 SERVICES=(ad checkout fraud-detection frontend product-catalog)
+CHECKOUT_UPSTREAM_OTEL_TAG_SUFFIX="-upstream-otel"
+CHECKOUT_UPSTREAM_OTEL_DOCKERFILE="${SCRIPT_DIR}/checkout/Dockerfile.upstream-otel"
 
-# Git metadata baked into each image as build args, then surfaced as OCI image labels and Datadog
-# DD_GIT_* env vars inside the Dockerfiles. See the "VCS" ARG/LABEL/ENV block near the end of each
-# Dockerfile.
-# Datadog Source Code Integration and org.opencontainers.image.source both expect a browsable https URL,
-# so rewrite SSH remotes (git@github.com:org/repo.git, ssh://git@github.com/org/repo.git) to
-# https://github.com/org/repo.
-VCS_REPOSITORY_URL_FULL="$(git -C "${SCRIPT_DIR}" config --get remote.origin.url)"
-VCS_REPOSITORY_URL_FULL="${VCS_REPOSITORY_URL_FULL%.git}"
-if [[ "${VCS_REPOSITORY_URL_FULL}" =~ ^ssh://([^@/]+@)?([^/:]+)(:[0-9]+)?/(.+)$ ]]; then
-    VCS_REPOSITORY_URL_FULL="https://${BASH_REMATCH[2]}/${BASH_REMATCH[4]}"
-elif [[ "${VCS_REPOSITORY_URL_FULL}" =~ ^[^@/]+@([^:]+):(.+)$ ]]; then
-    VCS_REPOSITORY_URL_FULL="https://${BASH_REMATCH[1]}/${BASH_REMATCH[2]}"
-fi
+# Converts a git remote URL to https://<host>/<path>, without credentials, port, or ".git" suffix: the form
+# expected by the OTel vcs.repository.url.full attribute. Handles scp-like SSH (git@host:org/repo.git),
+# ssh://, git://, and http(s):// URLs. Anything else (e.g. a local path) is returned unchanged.
+to_https_url() {
+    local url="${1%/}" host path
+    url="${url%.git}"
+    case "${url}" in
+        *://*)  # scheme://[user[:password]@]host[:port]/path
+            url="${url#*://}"
+            host="${url%%/*}" path="${url#*/}"
+            ;;
+        *:*)  # scp-like: [user@]host:path
+            host="${url%%:*}" path="${url#*:}"
+            ;;
+        *) echo "$1"; return ;;
+    esac
+    host="${host##*@}"  # drop the user and credentials
+    host="${host%%:*}"  # drop the port
+    echo "https://${host}/${path}"
+}
+
+# Git metadata baked into each image as build args, then surfaced as OCI image labels, Datadog DD_GIT_* env
+# vars and, through otel-env.sh, OTel vcs.* resource attributes. See the VCS ARG/LABEL/ENV blocks near the end
+# of each Dockerfile.
+VCS_REPOSITORY_URL_FULL="$(to_https_url "$(git -C "${SCRIPT_DIR}" config --get remote.origin.url)")"
 VCS_REF_HEAD_NAME="$(git -C "${SCRIPT_DIR}" rev-parse --abbrev-ref HEAD)"
 VCS_REF_TYPE="branch"
 VCS_REF_HEAD_REVISION="$(git -C "${SCRIPT_DIR}" rev-parse HEAD)"
@@ -46,32 +79,69 @@ IMAGE_VERSION="$(git -C "${SCRIPT_DIR}" rev-parse --short HEAD)"
 # org.opencontainers.image.created: the commit date in UTC rather than the build time, so rebuilding the
 # same commit produces the same labels.
 IMAGE_CREATED="$(TZ=UTC git -C "${SCRIPT_DIR}" log -1 --date=format-local:%Y-%m-%dT%H:%M:%SZ --format=%cd)"
+VCS_BUILD_ARGS=(
+    --build-arg "VCS_REPOSITORY_URL_FULL=${VCS_REPOSITORY_URL_FULL}"
+    --build-arg "VCS_REF_HEAD_NAME=${VCS_REF_HEAD_NAME}"
+    --build-arg "VCS_REF_TYPE=${VCS_REF_TYPE}"
+    --build-arg "VCS_REF_HEAD_REVISION=${VCS_REF_HEAD_REVISION}"
+    --build-arg "IMAGE_VERSION=${IMAGE_VERSION}"
+    --build-arg "IMAGE_CREATED=${IMAGE_CREATED}"
+)
+# Files shared by several images (e.g. otel-env.sh), copied in the Dockerfiles with `COPY --from=shared`.
+SHARED_BUILD_CONTEXT=(--build-context "shared=${SCRIPT_DIR}/shared")
+
+if [[ "${PUSH}" -eq 0 ]]; then
+    IMAGE_TAG="${IMAGE_TAG:-latest}"
+
+    for service in "${SERVICES[@]}"; do
+        docker build "${VCS_BUILD_ARGS[@]}" "${SHARED_BUILD_CONTEXT[@]}" --tag "${IMAGE_PREFIX}/${service}:${IMAGE_TAG}" "${SCRIPT_DIR}/${service}"
+    done
+    docker build "${VCS_BUILD_ARGS[@]}" \
+        --file "${CHECKOUT_UPSTREAM_OTEL_DOCKERFILE}" \
+        --tag "${IMAGE_PREFIX}/checkout:${IMAGE_TAG}${CHECKOUT_UPSTREAM_OTEL_TAG_SUFFIX}" \
+        "${SCRIPT_DIR}/checkout"
+
+    exit 0
+fi
+
+# --push path.
+
+BUILDER="${BUILDER:-astronomy-store}"
+
+if [[ -z "${IMAGE_TAG:-}" ]]; then
+    if git -C "${SCRIPT_DIR}" rev-parse --short HEAD >/dev/null 2>&1; then
+        IMAGE_TAG="$(git -C "${SCRIPT_DIR}" rev-parse --short HEAD)"
+        if [[ -n "$(git -C "${SCRIPT_DIR}" status --porcelain -- "${SCRIPT_DIR}")" ]]; then
+            IMAGE_TAG="${IMAGE_TAG}-dirty.$(date -u +%Y%m%d%H%M%S)"
+        fi
+    else
+        IMAGE_TAG="$(date -u +%Y%m%d%H%M%S)"
+    fi
+fi
+
+docker buildx inspect "${BUILDER}" >/dev/null 2>&1 || docker buildx create --name "${BUILDER}" --driver docker-container --bootstrap
 
 for service in "${SERVICES[@]}"; do
-    image="${IMAGE_PREFIX}/${service}:${IMAGE_TAG}"
-    echo "Building ${image}..."
-    docker build \
-        --build-arg VCS_REPOSITORY_URL_FULL="${VCS_REPOSITORY_URL_FULL}" \
-        --build-arg VCS_REF_HEAD_NAME="${VCS_REF_HEAD_NAME}" \
-        --build-arg VCS_REF_TYPE="${VCS_REF_TYPE}" \
-        --build-arg VCS_REF_HEAD_REVISION="${VCS_REF_HEAD_REVISION}" \
-        --build-arg IMAGE_VERSION="${IMAGE_VERSION}" \
-        --build-arg IMAGE_CREATED="${IMAGE_CREATED}" \
-        --tag "${image}" "${SCRIPT_DIR}/${service}"
+    docker buildx build \
+        --builder "${BUILDER}" \
+        --platform linux/amd64 \
+        "${VCS_BUILD_ARGS[@]}" \
+        "${SHARED_BUILD_CONTEXT[@]}" \
+        --tag "${IMAGE_PREFIX}/${service}:${IMAGE_TAG}" \
+        --push \
+        "${SCRIPT_DIR}/${service}"
 done
+docker buildx build \
+    --builder "${BUILDER}" \
+    --platform linux/amd64 \
+    "${VCS_BUILD_ARGS[@]}" \
+    --file "${CHECKOUT_UPSTREAM_OTEL_DOCKERFILE}" \
+    --tag "${IMAGE_PREFIX}/checkout:${IMAGE_TAG}${CHECKOUT_UPSTREAM_OTEL_TAG_SUFFIX}" \
+    --push \
+    "${SCRIPT_DIR}/checkout"
 
-# checkout also has an alternate build using the upstream OTel otelc compiler instead of Datadog
-# Orchestrion, published under the same image name with a "-upstream-otel" tag suffix.
-upstream_otel_image="${IMAGE_PREFIX}/checkout:${IMAGE_TAG}-upstream-otel"
-echo "Building ${upstream_otel_image}..."
-docker build \
-    --build-arg VCS_REPOSITORY_URL_FULL="${VCS_REPOSITORY_URL_FULL}" \
-    --build-arg VCS_REF_HEAD_NAME="${VCS_REF_HEAD_NAME}" \
-    --build-arg VCS_REF_TYPE="${VCS_REF_TYPE}" \
-    --build-arg VCS_REF_HEAD_REVISION="${VCS_REF_HEAD_REVISION}" \
-    --build-arg IMAGE_VERSION="${IMAGE_VERSION}" \
-    --build-arg IMAGE_CREATED="${IMAGE_CREATED}" \
-    --file "${SCRIPT_DIR}/checkout/Dockerfile.upstream-otel" \
-    --tag "${upstream_otel_image}" "${SCRIPT_DIR}/checkout"
-
-echo "Built ${#SERVICES[@]} images with tag ${IMAGE_TAG}, plus ${upstream_otel_image}."
+cat > "${SCRIPT_DIR}/.image-env" <<EOF
+# Generated by ./build-images --push. Consumed by ./install-app. Do not commit.
+IMAGE_PREFIX=${IMAGE_PREFIX}
+IMAGE_TAG=${IMAGE_TAG}
+EOF

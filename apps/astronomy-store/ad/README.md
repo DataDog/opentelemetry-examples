@@ -38,7 +38,7 @@ The seed data in `astronomy-db`'s `init.sql` covers the `telescopes`, `binocular
 Build and deploy it with:
 
 ```sh
-docker build -t astronomy-store/ad:latest .
+docker build --build-context shared=../shared -t astronomy-store/ad:latest .
 kubectl apply -f kubernetes.yaml
 ```
 
