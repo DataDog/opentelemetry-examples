@@ -78,4 +78,8 @@ generate-datadog-operator-examples:
 		> $${EXAMPLE_DIR}/datadog-agent.yaml; \
 	$${OPERATOR_RENDER_BIN} \
 		--dda $${EXAMPLE_DIR}/datadog-agent.yaml \
-		--output $${EXAMPLE_DIR}/rendered/datadog-agent.yaml
+		--output $${EXAMPLE_DIR}/rendered/datadog-agent.yaml; \
+	echo "Normalizing the auto-generated Cluster Agent token"; \
+	sed -e 's/^\(  token:\) [A-Za-z0-9+/=]\{16,\}$$/\1 AUTO_GENERATED/' \
+		$${EXAMPLE_DIR}/rendered/datadog-agent.yaml > $${EXAMPLE_DIR}/rendered/datadog-agent.yaml.tmp; \
+	mv $${EXAMPLE_DIR}/rendered/datadog-agent.yaml.tmp $${EXAMPLE_DIR}/rendered/datadog-agent.yaml
