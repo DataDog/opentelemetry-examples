@@ -613,8 +613,9 @@ without the OpenTelemetry Operator, set them in their environment instead.
     alone keeps Datadog trace export by default; it does not select OTLP. Keep `OTEL_TRACES_EXPORTER=otlp` explicitly
     set to select OTLP trace export. See [Export traces from Datadog SDKs in OTLP format][dd-otlp-trace-export] for
     supported versions and configuration, and check the SDK versions pinned in [`values.yaml`][values].
-  - `DD_LOGS_OTEL_ENABLED=true` and `DD_METRICS_OTEL_ENABLED=true` also initialize their OTel logs and metrics
-    pipelines with OTLP export.
+  - `DD_LOGS_OTEL_ENABLED=true` and `DD_METRICS_OTEL_ENABLED=true` enable the SDK's OTel logs and metrics
+    pipelines with OTLP export. If the application already configures these pipelines, check their exporters
+    separately: the flags may leave the existing setup unchanged.
   - `DD_TRACE_OTEL_SEMANTICS_ENABLED=true` selects OTel trace semantic conventions, such as span names and
     attributes, and is intended to enforce OTLP trace export. The reverse does not apply:
     `OTEL_TRACES_EXPORTER=otlp` does not by itself enable OTel semantics. Keep both settings explicit, and verify
@@ -623,6 +624,8 @@ without the OpenTelemetry Operator, set them in their environment instead.
   Before reporting `already satisfied` or `applied`, check that each workload uses this configuration and that its
   container, language-specific, or application settings do not override it. Keep `OTEL_TRACES_EXPORTER=otlp`
   explicitly set; `DD_TRACE_OTEL_ENABLED=true` alone does not satisfy this rule.
+  For logs and metrics, verify that the pinned SDK's required OTel packages are available and that each enabled
+  signal's pipeline exports to the intended collector before reporting the rule as satisfied.
 - **Conflicts:** preserve explicitly disabled signals (`DD_*_OTEL_ENABLED=false`, `OTEL_SDK_DISABLED=true`, or
   `OTEL_*_EXPORTER=none`) and alternative exporters until the user confirms the intended migration.
   Report the conflict and ask whether to keep the existing setting or migrate to DDOT with OTLP export.
