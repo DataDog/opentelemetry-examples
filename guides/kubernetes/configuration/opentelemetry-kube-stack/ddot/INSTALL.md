@@ -85,7 +85,7 @@ unattended, for example in CI:
 | `DD_API_KEY`                      | Datadog API key.                                                                                                                    | None (required)                                             |
 | `DD_SITE`                         | Datadog site, for example `datadoghq.eu`.                                                                                           | `datadoghq.com`                                             |
 | `K8S_CLUSTER_TYPE`                | Kubernetes platform: `eks` (EKS), `gcp` (GKE), `aks` (AKS), or `other`. `eks`, `gcp`, and `aks` auto-detect the cluster name from the cloud provider. | `other`                                                     |
-| `K8S_CLUSTER_NAME`                | Kubernetes cluster name. For `eks`, `gcp`, and `aks`, overrides the auto-detected name. Uppercase letters are lowercased and `_` replaced with `-`, see [Kubernetes cluster name constraints](README.md#kubernetes-cluster-name-constraints). | Auto-detected for `eks`, `gcp`, and `aks`; `unknown-k8s-cluster` for `other` |
+| `K8S_CLUSTER_NAME`                | Kubernetes cluster name. For `eks`, `gcp`, and `aks`, overrides the auto-detected name. Must follow the [Kubernetes cluster name constraints](README.md#kubernetes-cluster-name-constraints). | Auto-detected for `eks`, `gcp`, and `aks`; `unknown-k8s-cluster` for `other` |
 | `DEPLOYMENT_ENVIRONMENT_NAME`     | Value of the `deployment.environment.name` resource attribute, set on all telemetry.                                               | `production`                                                |
 | `DD_HOST_PROFILER_ENABLED`        | Deploy the eBPF host profiler on every node: `true` or `false`. Off by default: its pods need eBPF privileges. See [Host profiler (optional)](README.md#host-profiler-optional). | `false`                                                     |
 | `DD_HOST_PROFILER_NETWORK_POLICY` | Host profiler egress NetworkPolicy: `standard` or `cilium` on Kubernetes clusters enforcing NetworkPolicy, `none` otherwise. Only used with the host profiler. | `none`                                                      |
@@ -356,8 +356,6 @@ runs `helm repo update`, and downloads the configuration files to a temporary di
 
 - **`Could not download ...`**: the configuration files couldn't be fetched from GitHub. Check the network access and
   the `--config-url`, or run from a clone of this repository with `--local`.
-- **`Using cluster name '...' instead of '...'`**: the Kubernetes cluster name you entered was normalized to satisfy the
-  Datadog Agent's constraints. Use the normalized name when looking for the Kubernetes cluster in Datadog.
 - **`A host-profiler egress ... from a previous installation conflicts with the selected policy`**: a previous run
   applied the other kind of host-profiler egress NetworkPolicy. Run the `kubectl delete` command in the error message,
   then re-run the script.

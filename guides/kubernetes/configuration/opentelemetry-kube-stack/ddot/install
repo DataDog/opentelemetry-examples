@@ -84,21 +84,14 @@ if [[ "$K8S_CLUSTER_TYPE" != other ]]; then
     K8S_MANAGED_SERVICE_DETECTOR="$K8S_CLUSTER_TYPE"
 fi
 
-# The Datadog Agent only accepts lowercase letters, digits, "-" and "." in cluster names (no
-# uppercase, no "_"): it rewrites "_" to "-" and ignores names with uppercase letters.
+# The cluster name must satisfy the Datadog Agent's constraints (lowercase letters, digits, "-" and ".", see the
+# README's "Kubernetes cluster name constraints").
 #
 # On EKS/GKE/AKS, the cluster name is auto-detected (k8s.cluster.name by the OpenTelemetry Collector
 # Resource Detection Processor, clusterName by the Datadog Agent) when K8S_CLUSTER_NAME is unset.
 K8S_CLUSTER_NAME="${K8S_CLUSTER_NAME:-}"
 if [[ -z "$K8S_CLUSTER_NAME" && "$K8S_CLUSTER_TYPE" == other ]]; then
     K8S_CLUSTER_NAME=unknown-k8s-cluster
-fi
-if [[ -n "$K8S_CLUSTER_NAME" ]]; then
-    NORMALIZED_K8S_CLUSTER_NAME=$(echo "$K8S_CLUSTER_NAME" | tr '[:upper:]_' '[:lower:]-')
-    if [[ "$NORMALIZED_K8S_CLUSTER_NAME" != "$K8S_CLUSTER_NAME" ]]; then
-        echo "Using cluster name '$NORMALIZED_K8S_CLUSTER_NAME' instead of '$K8S_CLUSTER_NAME' (lowercase, '-' instead of '_')."
-        K8S_CLUSTER_NAME="$NORMALIZED_K8S_CLUSTER_NAME"
-    fi
 fi
 
 DEPLOYMENT_ENVIRONMENT_NAME="${DEPLOYMENT_ENVIRONMENT_NAME:-production}"
