@@ -108,7 +108,7 @@ chmod 600 .env
 source .env
 ```
 
-Keep `.env` out of version control (this folder's `.gitignore` ignores it).
+Keep `.env` out of version control (the repository's `.gitignore` ignores it).
 
 ## 3. Run the script
 
