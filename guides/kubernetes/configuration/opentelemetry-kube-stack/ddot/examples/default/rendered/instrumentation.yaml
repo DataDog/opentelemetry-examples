@@ -55,7 +55,7 @@ spec:
     - name: CORECLR_PROFILER
       value: '{846F5F1C-F9AE-4B07-969E-05C26BC060D8}'
     - name: CORECLR_PROFILER_PATH
-      value: /otel-auto-instrumentation-dotnet/linux/Datadog.Tracer.Native.so
+      value: /otel-auto-instrumentation-dotnet/linux/Datadog.Trace.ClrProfiler.Native.so
     - name: DD_DOTNET_TRACER_HOME
       value: /otel-auto-instrumentation-dotnet
     image: datadog/dd-otel-autoinstrumentation-dotnet:3.56.0-preview

@@ -2,7 +2,7 @@ clusterName: ""
 
 resourceAttributes:
   deployment.environment.name: production # overwrite as needed
-  deployment.environment: production # FIXME only use deployment.environment.name, it's a workaround for https://github.com/DataDog/dd-trace-java/pull/12324
+  deployment.environment: production # FIXME only use deployment.environment.name, it's a workaround for https://github.com/DataDog/dd-trace-java/pull/12324 and similar issues
 
 opentelemetry-operator:
   manager:
@@ -30,7 +30,7 @@ defaultCRConfig:
         secretKeyRef:
           name: datadog-secret
           key: api-key
-    - name: DD_SITE # e.g. datadoghq.com, us3.datadoghq.com, datadoghq.eu. Defaults to datadoghq.com.
+    - name: DD_SITE  # e.g. datadoghq.com, us3.datadoghq.com, datadoghq.eu. Defaults to datadoghq.com.
       valueFrom:
         secretKeyRef:
           name: datadog-secret
@@ -59,7 +59,7 @@ defaultCRConfig:
           http:
             endpoint: 0.0.0.0:4318
     processors:
-      cumulativetodelta: {}
+      cumulative_to_delta: {}
       resource_detection/env:
         override: false
     exporters:
@@ -89,6 +89,7 @@ defaultCRConfig:
                     endpoint: http://localhost:4318
 
 collectors:
+
   cluster:
     enabled: true
     suffix: cluster
@@ -264,7 +265,7 @@ collectors:
             receivers: [prometheus/otel_operator]
             processors:
               - resource_detection/env
-              - cumulativetodelta
+              - cumulative_to_delta
             exporters: [datadog/exporter]
 
           metrics/count:
@@ -279,7 +280,7 @@ collectors:
               - groupbyattrs
               - k8s_attributes
               - resource_detection/env
-              - cumulativetodelta
+              - cumulative_to_delta
               - transform/sum_to_gauge
             exporters: [datadog/exporter]
 
@@ -314,6 +315,8 @@ collectors:
 
     config:
       receivers:
+        # Parse the JSON logs of the Datadog Agent and Operator, in the datadog namespace (see datadog-agent.yaml).
+        # The operators only apply to that namespace: they do nothing without the Datadog Agent.
         # FIXME the Agent's JMXFetch lines are wrapped as {"msg": "<yyyy-MM-dd HH:mm:ss> UTC | JMX |
         # <LEVEL> | ..."} without a level field: their level would need a `regex_parser` on the
         # message, see https://github.com/DataDog/datadog-agent/issues/57387.
@@ -432,12 +435,12 @@ collectors:
                     action: drop
 
       processors:
-        deltatorate:
+        delta_to_rate:
           metrics:
             - k8s.pod.network.io
             - k8s.pod.network.errors
 
-        deltatorate/cadvisor:
+        delta_to_rate/cadvisor:
           metrics:
             - container_cpu_usage_seconds_total
             - container_cpu_cfs_periods_total
@@ -509,8 +512,8 @@ collectors:
             processors:
               - resource_detection/env
               - resource/hostname
-              - cumulativetodelta
-              - deltatorate
+              - cumulative_to_delta
+              - delta_to_rate
             exporters: [datadog/exporter]
 
           metrics/cadvisor:
@@ -520,8 +523,8 @@ collectors:
               - transform/cadvisor_labels
               - groupbyattrs
               - k8s_attributes
-              - cumulativetodelta
-              - deltatorate/cadvisor
+              - cumulative_to_delta
+              - delta_to_rate/cadvisor
             exporters: [datadog/exporter]
   # Datadog's distribution of the OpenTelemetry eBPF profiler
   # see https://github.com/DataDog/datadog-agent/blob/main/cmd/host-profiler/deploy/README.md
@@ -689,14 +692,16 @@ collectors:
           # pipeline.
           profiles:
             exporters: [otlp_http]
+        # Loop the host profiler's own metrics through its OTLP receiver: with inheritDefaultCRConfig: false, it
+        # doesn't inherit defaultCRConfig's telemetry settings.
         telemetry:
           metrics:
             readers:
               - periodic:
                   exporter:
                     otlp:
-                      endpoint: http://localhost:4318
                       protocol: http/protobuf
+                      endpoint: http://localhost:4318
 instrumentation:
   enabled: true
   env:
@@ -781,7 +786,10 @@ instrumentation:
       - name: CORECLR_PROFILER
         value: "{846F5F1C-F9AE-4B07-969E-05C26BC060D8}"
       - name: CORECLR_PROFILER_PATH
-        value: /otel-auto-instrumentation-dotnet/linux/Datadog.Tracer.Native.so
+        value: /otel-auto-instrumentation-dotnet/linux/Datadog.Trace.ClrProfiler.Native.so
+      # If the application container is running on musl/Alpine, use the linux-musl subdirectory
+      # - name: CORECLR_PROFILER_PATH
+      #   value: /otel-auto-instrumentation-dotnet/linux-musl/Datadog.Trace.ClrProfiler.Native.so
       - name: DD_DOTNET_TRACER_HOME
         value: /otel-auto-instrumentation-dotnet
   java:

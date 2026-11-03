@@ -525,7 +525,9 @@ environment variable, typically through `OTEL_RESOURCE_ATTRIBUTES=datadog.host.n
       - name: CORECLR_PROFILER
         value: "{846F5F1C-F9AE-4B07-969E-05C26BC060D8}"
       - name: CORECLR_PROFILER_PATH
-        value: /otel-auto-instrumentation-dotnet/linux/Datadog.Tracer.Native.so
+        value: /otel-auto-instrumentation-dotnet/linux/Datadog.Trace.ClrProfiler.Native.so
+      # On musl/Alpine application containers, use the linux-musl subdirectory instead:
+      # value: /otel-auto-instrumentation-dotnet/linux-musl/Datadog.Trace.ClrProfiler.Native.so
       - name: DD_DOTNET_TRACER_HOME
         value: /otel-auto-instrumentation-dotnet
   ```
