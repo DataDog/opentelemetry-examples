@@ -724,9 +724,12 @@ instrumentation:
       value: "true"
     - name: "DD_TRACE_OTEL_SEMANTICS_ENABLED"
       value: "true"
-    ## DDOT CONFIGURATION
     - name: "DD_AGENT_HOST"
       value: "datadog-agent.datadog.svc.cluster.local"
+
+    # Let the collector compute span stats so every service gets trace.* metrics.
+    - name: "OTEL_TRACES_SPAN_METRICS_ENABLED"
+      value: "false"
 
     ## Optional Datadog features of the DDOT SDKs, disabled by default. Uncomment them below to configure them
     ## for every instrumented workload, or set them in the env of a workload's containers to configure them

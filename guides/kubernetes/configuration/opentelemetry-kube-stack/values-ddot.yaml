@@ -801,6 +801,9 @@ instrumentation:
       value: "true"
     - name: "DD_TRACE_OTEL_SEMANTICS_ENABLED"
       value: "true"
+    - name: "DD_AGENT_HOST"
+      value: "datadog-agent.datadog.svc.cluster.local"
+
     # Let the collector compute span stats so every service gets trace.* metrics.
     - name: "OTEL_TRACES_SPAN_METRICS_ENABLED"
       value: "false"
