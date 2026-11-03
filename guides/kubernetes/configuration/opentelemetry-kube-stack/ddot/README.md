@@ -87,9 +87,6 @@ prevents the Datadog Agent's admission controller from instrumenting the pod too
       admission.datadoghq.com/enabled: "false"
   ```
 
-Datadog engineers upgrading a Kubernetes cluster set up with an earlier version of this guide: see the
-[upgrade guide](UPGRADE.md).
-
 ### Hybrid OTel + Datadog APM instrumentation
 
 `datadog-agent.yaml` ships with `features.apm.instrumentation.enabled: false`, since this guide instruments applications

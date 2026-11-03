@@ -343,7 +343,7 @@ update resources: the script never deletes anything from the Kubernetes cluster,
 Before making any change, the script also runs read-only checks and stops on a conflict:
 
 - `helm status` for the legacy `host-profiler` and `ddagent-kube-stack` Helm releases of a previous setup: if found,
-  run the [`upgrade` script](UPGRADE.md) first.
+  remove them first with `helm uninstall <release> --namespace opentelemetry-operator-system --wait`.
 - `kubectl get` for an `opentelemetry-kube-stack-host-profiler-egress` NetworkPolicy or CiliumNetworkPolicy of a kind
   other than the selected one, left by a previous run: since both policies select the same pods and Kubernetes
   NetworkPolicies are additive, the script asks you to delete it rather than deleting it itself.
