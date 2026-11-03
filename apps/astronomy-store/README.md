@@ -1,6 +1,6 @@
 Inspired by the OpenTelemetry Demo. Demonstrates OpenTelemetry automatic instrumentation.
 
-Intended to be used with the `guides/kubernetes/configuration/opentelemetry-kube-stack/install`
+Intended to be used with the `guides/kubernetes/configuration/opentelemetry-kube-stack/ddot/install`
 
 This demo app is called `astronomy-store` instead of `astronomy-shop` to avoid confusion with the `astronomy-shop` demo
 app that is part of the OpenTelemetry Demo while being similar.
@@ -19,8 +19,8 @@ with the ones installed in the next step.
 ### 2. Install OpenTelemetry monitoring
 
 We recommend installing Datadog's version of OpenTelemetry with the installer of the
-[Datadog OTel Kube Stack](../../guides/kubernetes/configuration/opentelemetry-kube-stack) (see its
-[installation guide](../../guides/kubernetes/configuration/opentelemetry-kube-stack/INSTALL.md)). Upstream
+[Datadog OTel Kube Stack](../../guides/kubernetes/configuration/opentelemetry-kube-stack/ddot) (see its
+[installation guide](../../guides/kubernetes/configuration/opentelemetry-kube-stack/ddot/INSTALL.md)). Upstream
 OpenTelemetry also works: the services are instrumented with vendor-neutral OpenTelemetry, so any OpenTelemetry Operator
 `Instrumentation` named `opentelemetry-kube-stack` in the `opentelemetry-operator-system` namespace, and any collector
 receiving OTLP, works.
@@ -35,11 +35,11 @@ that the same telemetry works with any backend:
    ```
 
 2. Install the Datadog OTel Kube Stack with the
-   [`export-to-datadog-and-jaeger`](../../guides/kubernetes/configuration/opentelemetry-kube-stack/examples/export-to-datadog-and-jaeger/values.yaml)
+   [`export-to-datadog-and-jaeger`](../../guides/kubernetes/configuration/opentelemetry-kube-stack/ddot/examples/export-to-datadog-and-jaeger/values.yaml)
    overlay, which adds Jaeger (`jaeger.jaeger.svc.cluster.local:4317`) to the `daemon` collector's trace exporters:
 
    ```sh
-   cd ../../guides/kubernetes/configuration/opentelemetry-kube-stack
+   cd ../../guides/kubernetes/configuration/opentelemetry-kube-stack/ddot
    ./install examples/export-to-datadog-and-jaeger/values.yaml
    ```
 
@@ -53,16 +53,19 @@ See [`demo-multi-o11y-backends`](demo-multi-o11y-backends) for more about this s
 
 `build-images` builds the images of the `ad`, `checkout`, `fraud-detection`, `frontend`, and `product-catalog` services,
 named `<IMAGE_PREFIX>/<service>:<IMAGE_TAG>`. It also builds the `checkout` service with upstream OpenTelemetry
-(`checkout/Dockerfile.upstream-otel`) as `<IMAGE_PREFIX>/checkout:<IMAGE_TAG>-upstream-otel`. It takes no arguments,
-only these environment variables:
+(`checkout/Dockerfile.upstream-otel`) as `<IMAGE_PREFIX>/checkout:<IMAGE_TAG>-upstream-otel`. Without arguments, it
+builds the images locally with `docker build`. With `--push`, it builds them for `linux/amd64` with `docker buildx`,
+pushes them to `IMAGE_PREFIX`, and records `IMAGE_PREFIX` and `IMAGE_TAG` in `.image-env` for `install-app`. It takes
+these environment variables:
 
 | Variable | Default | Description |
 |---|---|---|
 | `IMAGE_PREFIX` | `astronomy-store` | Image name prefix, typically your container registry, e.g. `ghcr.io/example/astronomy-store`. A trailing `/` is removed. |
-| `IMAGE_TAG` | `latest` | Image tag. |
+| `IMAGE_TAG` | `latest`, or the short commit SHA with `--push` | Image tag. |
+| `BUILDER` | `astronomy-store` | `docker buildx` builder name, with `--push` only. |
 
 ```sh
-IMAGE_PREFIX=ghcr.io/example/astronomy-store IMAGE_TAG=v1.2.3 ./build-images
+IMAGE_PREFIX=ghcr.io/example/astronomy-store IMAGE_TAG=v1.2.3 ./build-images --push
 ```
 
 The script also reads the git metadata of the local checkout (remote URL, branch, commit) and passes it to the image
@@ -70,7 +73,7 @@ builds, see [Git/VCS metadata](#gitvcs-metadata). `./build-images --help` prints
 
 The images must be available to the Kubernetes cluster's nodes (the manifests use `imagePullPolicy: IfNotPresent`):
 with a local cluster such as Docker Desktop, the images built locally are directly available; otherwise, push them to a
-registry the cluster can pull from (`docker push`), or load them into the cluster (e.g. `kind load docker-image`).
+registry the cluster can pull from (`./build-images --push`), or load them into the cluster (e.g. `kind load docker-image`).
 
 ### 4. Deploy the app
 
@@ -81,13 +84,19 @@ registry the cluster can pull from (`docker push`), or load them into the cluste
 `install-app` creates the `astronomy-store` namespace, deploys `astronomy-db`, `kafka`, `ad`, `product-catalog`,
 `fraud-detection`, `checkout`, and `frontend`, waits for their rollouts, then deploys the `k6-load-generator` that
 generates traffic. It takes the same `IMAGE_PREFIX` and `IMAGE_TAG` environment variables as `build-images`, to deploy
-the images you built, plus `ROLLOUT_TIMEOUT` (default `3m`), how long to wait for each rollout:
+the images you built (defaulting to the values in `.image-env` after `./build-images --push`), plus `ROLLOUT_TIMEOUT`
+(default `3m`), how long to wait for each rollout:
 
 ```sh
 IMAGE_PREFIX=ghcr.io/example/astronomy-store IMAGE_TAG=v1.2.3 ./install-app
 ```
 
-`install-app` deploys the `checkout` image instrumented with the DDOT SDK for Go, not its `-upstream-otel` variant.
+`DD_INSTALL_FLOW` selects the `checkout` image that matches the OpenTelemetry installation: `ddot` (default) deploys
+the image instrumented with the DDOT SDK for Go, `upstream` its `-upstream-otel` variant:
+
+```sh
+DD_INSTALL_FLOW=upstream ./install-app
+```
 
 To browse the store, run `kubectl port-forward -n astronomy-store svc/frontend 8080:8080` and open
 http://localhost:8080. To remove the app, run `./uninstall-app`.
@@ -162,22 +171,28 @@ used by `ad`, otherwise labels the image `ubuntu` version `26.04`). These labels
 workload: neither OpenTelemetry nor Datadog Source Code Integration reads them, which is why the `DD_GIT_*` env vars
 are still needed.
 
-We deliberately do **not** also set the OpenTelemetry [VCS semantic-convention resource attributes]
-(https://opentelemetry.io/docs/specs/semconv/registry/entities/vcs/) (`vcs.repository.url.full`,
-`vcs.ref.head.name`, `vcs.ref.type`, `vcs.ref.head.revision`) via an image-level `OTEL_RESOURCE_ATTRIBUTES` env
-var. These pods are auto-instrumented by the OpenTelemetry Operator, and the Operator injects its own
-`OTEL_RESOURCE_ATTRIBUTES` pod env var (with `k8s.*`, `service.*`, `deployment.environment`, etc.) derived from
-the `Instrumentation` CR. A pod spec env var completely replaces an image-baked `ENV` of the same name rather
-than merging with it, so any `vcs.*` keys set in the Dockerfile would simply be dropped — silently overwritten
-by the Operator's value the moment the pod starts.
+In the `upstream` flow (upstream OpenTelemetry SDKs), the `ad`, `fraud-detection`, `frontend`, and
+`product-catalog` images also report two OpenTelemetry [VCS semantic-convention resource attributes]
+(https://opentelemetry.io/docs/specs/semconv/registry/entities/vcs/): `vcs.repository.url.full` and
+`vcs.ref.head.revision`.
 
-For the `ad` service specifically (instrumented with Datadog's `dd-java-agent`, not the plain OpenTelemetry Java
-agent), this can't be worked around either: `dd-java-agent` doesn't support OpenTelemetry SDK-level extension
-points like `ResourceProvider` (only instrumentation-library extensions), and setting `DD_TAGS` as an
-alternative causes `dd-java-agent` to ignore `OTEL_RESOURCE_ATTRIBUTES` entirely — trading the `vcs.*` attributes
-for the loss of `deployment.environment`, `k8s.pod.name`, `k8s.namespace.name`, `service.namespace`, and
-`service.version`.
+These can't be set with an image-level `OTEL_RESOURCE_ATTRIBUTES` env var. The OpenTelemetry Operator sets
+`OTEL_RESOURCE_ATTRIBUTES` in the pod spec (with `k8s.*`, `service.*`, `deployment.environment.name`, etc.), and a
+pod spec env var replaces an image `ENV` of the same name. Instead, each of these images bakes
+`VCS_REPOSITORY_URL_FULL` and `VCS_REF_HEAD_REVISION` as env vars and starts through `otel-env.sh`, which runs
+when the container starts, after the Operator's injection, appends the two `vcs.*` keys to the injected
+`OTEL_RESOURCE_ATTRIBUTES`, then runs the container command:
 
-If you want `vcs.*` attributes on these services' telemetry, add them to the `Instrumentation` CR's
-`spec.resource.resourceAttributes` in `values.yaml` instead, so they're merged in at injection time rather than
-raced against it.
+- Keys already present in `OTEL_RESOURCE_ATTRIBUTES` (pod spec env, `Instrumentation` CR,
+  `resource.opentelemetry.io/*` pod annotations) are not overridden.
+- The script does nothing in the `ddot` flow (`DD_TRACE_OTEL_ENABLED=true`), where the Datadog SDKs read
+  `DD_GIT_*` instead.
+- A Deployment that sets `command:` replaces the image `ENTRYPOINT`, so it must start with
+  `/usr/local/bin/otel-env.sh` to keep the `vcs.*` attributes. Setting only `args:` keeps it.
+- `otel-env.sh` lives in `shared/`. Each image is built with its service directory as the build context, so
+  the Dockerfiles copy the script from a `shared` named build context (`COPY --from=shared`), which
+  `./build-images` passes with `--build-context shared=shared`. To build an image by hand, pass
+  `--build-context shared=../shared` from its service directory.
+
+`checkout` doesn't report `vcs.*`: its runtime image (`gcr.io/distroless/static-debian12`) has no shell to run
+`otel-env.sh`.

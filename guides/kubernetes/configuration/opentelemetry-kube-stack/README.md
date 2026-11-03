@@ -1,179 +1,220 @@
-# Datadog installer for DDOT on Kubernetes, with the OpenTelemetry Kube Stack Helm chart
+# kube-stack values.yaml
 
-The Datadog installer deploys the DDOT components on Kubernetes, using the [OpenTelemetry Kube Stack][chart] Helm chart.
-This folder holds the installer (see the [installation guide](INSTALL.md)) and its configuration, including the
-reference `values.yaml` for the chart, configured to send Kubernetes and application telemetry to Datadog.
+Reference `values.yaml` for the [opentelemetry-kube-stack][chart] Helm chart, configured to send Kubernetes telemetry to Datadog. 
 
 ## What this deploys
 
-![Deployment architecture: the OpenTelemetry Kube Stack deploys the DDOT SDKs, Collectors, and host profiler, next to a Datadog Agent acting as an enabler of the DDOT SDKs](assets/deployment-architecture-diagram_k8s_ddot-with-dd-agent.svg.png)
+The `opentelemetry-kube-stack` chart installs the OpenTelemetry Operator and renders one `OpenTelemetryCollector` CR for each entry under `collectors:`. This values file configures two of them:
 
-The `opentelemetry-kube-stack` chart installs the OpenTelemetry Operator and renders one `OpenTelemetryCollector` CR for
-each entry under `collectors:`. This values file configures two of them:
+- **`cluster`** — a single-replica Deployment responsible for cluster-scope telemetry: scraping kube-state-metrics and watching Kubernetes objects.
+- **`daemon`** — a DaemonSet running on every node, responsible for node-scope telemetry (host and kubelet metrics) and for terminating the OTLP endpoint that application workloads send traces, logs, and metrics to.
 
-- **`cluster`** — a single-replica Deployment responsible for cluster-scope telemetry: scraping kube-state-metrics and
-  watching Kubernetes objects.
-- **`daemon`** — a DaemonSet running on every node, responsible for node-scope telemetry (host and kubelet metrics) and
-  for terminating the OTLP endpoint that application workloads send traces, logs, and metrics to.
+You can also install the **host profiler** collector — a DaemonSet that runs the OpenTelemetry eBPF profiler on every node and exports profiles to Datadog. See [Host profiler (optional)](#host-profiler-optional).
 
-The OpenTelemetry Operator also deploys an **`Instrumentation`** custom resource (`instrumentation:` in `values.yaml`):
-an instrumentation configuration that instruments annotated Kubernetes workloads with the **DDOT SDKs**, Datadog's
-version of the OpenTelemetry APM SDKs, and points them at the `daemon` collector's OTLP endpoint.
+## Prerequisites
 
-Optionally, the release installs the **host profiler** collector - a DaemonSet running the OpenTelemetry eBPF profiler
-on every node and exporting profiles to Datadog. See [Host profiler (optional)](#host-profiler-optional).
-
-The Datadog Agent itself is installed separately, via the **[Datadog Operator][dd-operator]** (`DatadogAgent` custom
-resource, `datadog-agent.yaml`), running as a DaemonSet in its own **`datadog` namespace** — the namespace name used
-throughout Datadog's own documentation and examples. The Datadog Operator and Agent are installed only for the Datadog
-Agent to act as an **enabler of the DDOT SDKs**: the Agent enables the Datadog-specific features of the DDOT SDKs, such
-as Live Debugger, Dynamic Instrumentation, Remote Configuration of head sampling, or Feature Flag Management. It is
-deliberately scoped down (cluster checks, orchestrator explorer, KSM core, process collection, log collection, and APM
-auto-instrumentation are all disabled): the OTel collectors above already handle Kubernetes object/metrics monitoring
-and log collection, and application SDKs are instrumented via the OpenTelemetry Operator instead of Datadog single-step
-APM instrumentation. The Datadog Cluster Agent is kept, as the node Agent relies on it for cluster-level metadata.
-Dynamic Instrumentation, which Live Debugger is built on, stays enabled, including the system-probe module needed for Go
-apps (Linux kernel >= 5.17, see [Live Debugger for Go][dd-live-debugger-go]).
+- A Kubernetes secret named `datadog-secret` with keys `api-key` (required) and `dd-site` (optional; defaults to `datadoghq.com`).
+- [cert-manager][cm] installed in the cluster, for the operator's admission webhook.
+- For the optional host profiler only: Linux nodes with kernel >= 5.10 and Kubernetes >= 1.30.
+  The host profiler's `securityContext` uses the container-level `appArmorProfile` field,
+  introduced in 1.30.
 
 ## Quickstart
 
-Download and run the `install` script, the recommended way to install. You don't need to clone the repository: by
-default, the script downloads its configuration files (`values.yaml`, `datadog-agent.yaml`...) from GitHub:
+Configure the installer with environment variables, then run it from this directory:
+
+| Variable | Description | Default |
+|---|---|---|
+| `DD_API_KEY` | Datadog API key. | None (required) |
+| `DD_INSTALL_FLOW` | Installation flow: `upstream` (OTLP/HTTP exporter and upstream OpenTelemetry SDKs) or `ddot` (Datadog exporter, DDOT SDKs, and the Datadog Agent). | None (required) |
+| `DD_SITE` | Datadog site, for example `datadoghq.eu`. | `datadoghq.com` |
+| `K8S_CLUSTER_TYPE` | Kubernetes platform: `eks` (EKS), `gcp` (GKE), `aks` (AKS), or `other`. | `other` |
+| `K8S_CLUSTER_NAME` | Kubernetes cluster name. For `eks`, `gcp`, and `aks`, overrides the auto-detected name. | Auto-detected for `eks`, `gcp`, and `aks`; unset otherwise |
+| `DEPLOYMENT_ENVIRONMENT_NAME` | Value of the `deployment.environment.name` resource attribute. | `production` |
+| `DD_AGENT_ENABLED` | Install the Datadog Agent in the `ddot` flow: `true` or `false`. | `true` |
+| `DD_APP_KEY` | Datadog application key. Enables Fleet Automation for the Datadog Agent. Requires `K8S_CLUSTER_NAME`. | Unset |
+| `DD_HOST_PROFILER_ENABLED` | Enable the eBPF host profiler: `true` or `false`. See [Host profiler (optional)](#host-profiler-optional). | `false` |
+| `DD_HOST_PROFILER_NETWORK_POLICY` | Host profiler egress NetworkPolicy: `none`, `standard`, or `cilium`. | `none` |
 
 ```sh
-curl -fsSL -o install https://raw.githubusercontent.com/DataDog/opentelemetry-examples/bb0d2c786490d5caf5d5c78fe927eb78c795c17b/guides/kubernetes/configuration/opentelemetry-kube-stack/install
-chmod +x install
+export DD_API_KEY="<your-datadog-api-key>"
+export DD_INSTALL_FLOW=upstream
+export K8S_CLUSTER_TYPE=eks
 ./install
 ```
 
-See the [installation guide](INSTALL.md) for the prerequisites, the script's prompts and options, verification, and
-troubleshooting, and to [install without the `install` script](INSTALL.md#install-without-the-install-script).
-To export to another observability backend in addition to Datadog, or to modify the configuration files, see
-[Customize the installation](INSTALL.md#customize-the-installation).
+Alternatively, copy `.env.example` to `.env`, fill it in, and load it before running the installer:
 
-Already running an OpenTelemetry Collector, the OpenTelemetry Operator, OpenTelemetry SDKs, or a Datadog Agent? See
-[Adapt an existing configuration for DDOT](ADAPT-EXISTING-CONFIG.md) to adapt them instead of reinstalling. The guide
-is written so that coding agents can follow it too.
-
-### Instrument Kubernetes workloads with DDOT SDKs
-
-Add one of the following annotations to the pod spec. To prevent double instrumentation by the OpenTelemetry Operator
-and the Datadog Operator, also add the `admission.datadoghq.com/enabled: "false"` label alongside either annotation: it
-prevents the Datadog Agent's admission controller from instrumenting the pod too.
-
-- **Auto-instrument and auto-configure applications:** Add this annotation to a pod spec to inject a DDOT SDK and its
-  automatic configuration. Replace `<language>` with `dotnet`, `java`, `nodejs`, `python`:
-
-  ```yaml
-  metadata:
-    annotations:
-      instrumentation.opentelemetry.io/inject-<language>: opentelemetry-operator-system/opentelemetry-kube-stack
-    labels:
-      admission.datadoghq.com/enabled: "false"
-  ```
-
-- **Manually instrument and auto-configure applications:** Bundle the DDOT SDK in the application container, then add
-  this annotation for automatic configuration through environment-variable injection:
-
-  ```yaml
-  metadata:
-    annotations:
-      instrumentation.opentelemetry.io/inject-sdk: opentelemetry-operator-system/opentelemetry-kube-stack
-    labels:
-      admission.datadoghq.com/enabled: "false"
-  ```
-
-Datadog engineers upgrading a Kubernetes cluster set up with an earlier version of this guide: see the
-[upgrade guide](UPGRADE.md).
-
-### Hybrid OTel + Datadog APM instrumentation
-
-`datadog-agent.yaml` ships with `features.apm.instrumentation.enabled: false`, since this guide instruments applications
-via the OpenTelemetry Operator instead. It can be flipped to `true` to let the Datadog Agent auto-instrument workloads
-too (e.g. while migrating a service from Datadog tracers to OTel SDKs) — but a pod must never be instrumented by both at
-once.
-
-The OpenTelemetry Operator marks a pod for injection with `instrumentation.opentelemetry.io/inject-*` pod
-**annotations**. Datadog's admission controller cannot select on annotations:
-`apm.instrumentation.targets[].podSelector` is a plain Kubernetes label selector, and only ever matches pod **labels**.
-So to exclude an OTel-instrumented pod template from Datadog auto-instrumentation, add this label to it directly,
-alongside the OTel annotations:
-
-```yaml
-metadata:
-  labels:
-    admission.datadoghq.com/enabled: "false"
+```sh
+cp .env.example .env
+# Edit .env
+source .env
+./install
 ```
 
-That label makes Datadog's admission controller skip the pod outright — no `podSelector` needed.
+For EKS, GKE, and AKS, the installer enables the matching resource-detection preset.
+
+It then:
+
+- creates the `opentelemetry-operator-system` namespace and the `datadog-secret` secret;
+- installs cert-manager when needed;
+- installs or upgrades the OpenTelemetry Kube Stack Helm chart with `values-otlp-http.yaml` (`upstream`) or `values-ddot.yaml` (`ddot`), and optionally enables the host profiler; and
+- for `ddot`, unless `DD_AGENT_ENABLED=false`, installs or upgrades the Datadog Agent.
+
+## Install with values files
+
+To perform the same installation without the interactive script, create a Kubernetes secret for the Datadog credentials,
+install cert-manager, then apply a platform-specific values overlay.
+
+Set the Datadog credentials:
+
+```sh
+export DD_API_KEY="<your-datadog-api-key>"
+export DD_SITE="datadoghq.com" # Use your Datadog site when different.
+```
+
+Create the namespace and secret consumed by the collectors:
+
+```sh
+kubectl create namespace opentelemetry-operator-system \
+  --dry-run=client -o yaml | kubectl apply -f -
+
+kubectl create secret generic datadog-secret \
+  --namespace opentelemetry-operator-system \
+  --from-literal="api-key=$DD_API_KEY" \
+  --from-literal="dd-site=$DD_SITE" \
+  --dry-run=client -o yaml | kubectl apply -f -
+```
+
+Install cert-manager:
+
+```sh
+helm repo add jetstack https://charts.jetstack.io
+helm repo update
+helm upgrade --install cert-manager jetstack/cert-manager \
+  --namespace cert-manager \
+  --create-namespace \
+  --set crds.enabled=true \
+  --wait \
+  --timeout 5m
+```
+
+Create `deployment/values.yaml` by copying the example for the cluster platform, then set its deployment environment.
+EKS, GKE, and AKS enable the appropriate resource detector and automatically determine `k8s.cluster.name`:
+
+```sh
+mkdir -p deployment
+
+# Choose one:
+cp examples/eks-deployment/values.yaml deployment/values.yaml
+cp examples/gcp-deployment/values.yaml deployment/values.yaml
+cp examples/aks-deployment/values.yaml deployment/values.yaml
+```
+
+For other Kubernetes platforms, start with the manual cluster-name example and replace `my_k8s_cluster` and `production`
+with the cluster name and deployment environment. `DD_SITE` continues to be sourced from `datadog-secret`.
+
+```sh
+mkdir -p deployment
+cp examples/manually-set-k8s-cluster-name/values.yaml deployment/values.yaml
+```
+
+The selected file is an overlay for this directory's base `values.yaml`; add any deployment-specific configuration to
+`./deployment/values.yaml`. Install or upgrade the chart with both files:
+
+```sh
+helm repo add open-telemetry https://open-telemetry.github.io/opentelemetry-helm-charts
+helm repo update
+helm upgrade --install opentelemetry-kube-stack \
+  open-telemetry/opentelemetry-kube-stack \
+  --version 0.26.1 \
+  --namespace opentelemetry-operator-system \
+  --values ./values.yaml \
+  --values ./deployment/values.yaml
+```
 
 ## Host profiler (optional)
 
-The host profiler runs the [Datadog host profiler][dd-host-profiler] (Datadog's own distribution of
-the [OpenTelemetry eBPF profiler][ebpf-profiler], to which it actively contributes) as a collector DaemonSet on every
-node and exports profiles to Datadog's OTLP intake.
+This collector runs the [Datadog host profiler][dd-host-profiler], Datadog's distribution of the [OpenTelemetry eBPF profiler][ebpf-profiler], as a DaemonSet on every node and exports profiles to Datadog's OTLP intake.
 
-Enable it by answering `y` to the installer's prompt, or install manually following
-the [manual installation steps][dd-host-profiler-install]. Unlike the other collectors, its pods need more privileges,
-which is why it is opt-in.
+The host profiler is opt-in because its pods need more privileges than the other collectors. To enable it, set `DD_HOST_PROFILER_ENABLED=true` before you run the installer. The installer then also applies `host-profiler-rbac-values.yaml` and, on clusters that enforce NetworkPolicy, the policy that `DD_HOST_PROFILER_NETWORK_POLICY` selects: `host-profiler-network-policy.yaml` (`standard`, any enforcing CNI) or `host-profiler-cilium-network-policy.yaml` (`cilium`, FQDN-scoped egress).
 
-## Kubernetes cluster name detection
+## Cluster name detection
 
 For EKS, AKS, and GKE, the installer enables the corresponding resource-detection preset in both collectors. The
-OpenTelemetry Collector then automatically populates `k8s.cluster.name`.
+OpenTelemetry Collector then automatically populates `k8s.cluster.name`, unless `K8S_CLUSTER_NAME` is set.
 
-For other Kubernetes platforms, the installer sets `resourceAttributes.k8s.cluster.name` to the supplied Kubernetes
-cluster name.
+ For other Kubernetes platforms, the
+installer sets `resourceAttributes.k8s.cluster.name` to `K8S_CLUSTER_NAME` if that variable is set.
 
-### Kubernetes cluster name constraints
-
-The supplied Kubernetes cluster name is used both as the OpenTelemetry `k8s.cluster.name` resource attribute and as the
-Datadog Agent's `clusterName`, so it must satisfy the [Datadog Agent's restrictions][dd-cluster-name]. It's made of
-dot-separated tokens that:
-
-- only contain lowercase letters, numbers, and hyphens (`-`): no uppercase letters and no underscores (`_`);
-- start with a letter;
-- end with a letter or a number.
-
-The whole name must be at most 80 characters long. For example, `my-k8s-cluster` and `prod.eu-west-1` are valid;
-`my_k8s_cluster`, `My-k8s-cluster`, and `1-cluster` are not.
-
-The Datadog Agent rewrites `_` to `-` and ignores names containing uppercase letters, so an invalid name leaves the
-Agent's and the OpenTelemetry Collector's telemetry with different (or missing) Kubernetes cluster names. The installer
-lowercases the supplied name and replaces `_` with `-` (with a message if it does); when installing manually, choose a
-valid name and use it for both `k8s.cluster.name` and `K8S_CLUSTER_NAME`.
-
-See `examples/` for rendered values and manifests for each deployment type. Regenerate them with
-`make generate-otel-kube-stack-examples`.
-
-The Datadog Agent is installed as its own step, via the Datadog Operator's `DatadogAgent` custom resource
-(`datadog-agent.yaml`), in the `datadog` namespace — see [What this deploys](#what-this-deploys) and
-[Install without the `install` script](INSTALL.md#install-without-the-install-script). See `examples-datadog-agent/`
-for the manifests the Datadog Operator generates from it, rendered offline with the [datadog-operator][dd-operator]'s
-`operator-render` CLI (built on the fly from a shallow clone under `tmp/`). Regenerate it with `make generate-datadog-operator-examples`.
-
-Run `make generate-examples` to regenerate both sets of examples in one step.
+See `examples/` for rendered values and manifests for each deployment type.
 
 ## Resource allocation
 
-Both collectors default to `500m` CPU / `1Gi` memory limits and `200m` CPU / `500Mi` memory requests. Scale up for large
-Kubernetes clusters.
+Both collectors default to `500m` CPU / `1Gi` memory limits and `200m` CPU / `500Mi` memory requests. Scale up for large clusters.
 
 ## Chart version
 
 Verified against:
 
-- `opentelemetry-kube-stack` chart `>= 0.24.2`
-- Collector image `otel/opentelemetry-collector-contrib >= 0.161.0` (pinned in values.yaml under
-  `opentelemetry-operator.manager.collectorImage`)
-
-For operator metrics troubleshooting, see [TROUBLESHOOTING.md](TROUBLESHOOTING.md).
+- `opentelemetry-kube-stack` chart `>= 0.26.1`
+- Collector image `otel/opentelemetry-collector-contrib >= 0.154.0` (pinned in values.yaml under `opentelemetry-operator.manager.collectorImage`)
 
 [chart]: https://github.com/open-telemetry/opentelemetry-helm-charts/tree/main/charts/opentelemetry-kube-stack
-[dd-operator]: https://github.com/DataDog/datadog-operator
-[dd-live-debugger-go]: https://docs.datadoghq.com/tracing/live_debugger/?prog_lang=go
-[dd-cluster-name]: https://docs.datadoghq.com/containers/kubernetes/installation/
-
-[ebpf-profiler]: https://github.com/open-telemetry/opentelemetry-ebpf-profiler
+[cm]: https://cert-manager.io/docs/installation/
 [dd-host-profiler]: https://github.com/DataDog/datadog-agent/tree/main/cmd/host-profiler
-[dd-host-profiler-install]: INSTALL.md#install-without-the-install-script
+[ebpf-profiler]: https://github.com/open-telemetry/opentelemetry-ebpf-profiler
+
+## Appendix
+
+### OpenTelemetry Operator Internal Metrics
+
+The `cluster` collector scrapes the operator manager's own Prometheus metrics via the `prometheus/otel_operator`
+receiver (`values.yaml`, `collectors.cluster.config.receivers`).
+
+As of v0.154.0 of the OpenTelemetry Operator, like any [controller-runtime][controller-runtime]-based operator, the
+manager exposes the standard controller-runtime metrics registry (documented in the
+[Kubebuilder metrics reference][kubebuilder-metrics]) on its `--metrics-bind-address` (secured with
+`--metrics-secure`, port `8443` by default in this Helm chart, fronted by [kube-rbac-proxy][kube-rbac-proxy]). These are
+generic reconciler metrics, not anything OTel-specific — the same set any Kubebuilder/controller-runtime operator emits:
+
+- `controller_runtime_reconcile_total`, `controller_runtime_reconcile_errors_total`,
+  `controller_runtime_reconcile_time_seconds` — reconcile loop counts, errors, and latency, per controller. A
+  *reconciliation* is one run of a controller's control loop: whenever a watched resource (e.g. an
+  `OpenTelemetryCollector` or `Instrumentation` custom resource) is created, updated, or deleted, the controller is
+  asked to look at that object's current state and drive the cluster's actual
+  state toward the desired state described in the resource spec — creating/updating the Deployment, ConfigMap,
+  webhooks, etc. it owns. Reconciliations are also re-run periodically and after transient errors, so these metrics
+  are the best signal for whether the operator is keeping up and succeeding.
+- `workqueue_depth`, `workqueue_adds_total`, `workqueue_queue_duration_seconds`,
+  `workqueue_work_duration_seconds` — health of each controller's *work queue*. Each controller has a work queue that
+  decouples "an object changed" (an event from the informer/watch cache) from "process that object" (a
+  reconciliation): watch events enqueue the object's key, and a pool of workers dequeues keys one at a time and runs
+  the reconcile function for each. This queue also deduplicates rapid-fire updates to the same object and provides
+  retry-with-backoff by re-enqueueing keys whose reconciliation failed. `workqueue_depth` is the number of items
+  waiting to be processed (a sustained rise means the operator can't keep up), `workqueue_queue_duration_seconds` is
+  how long items wait before a worker picks them up, and `workqueue_work_duration_seconds` is how long the actual
+  reconcile takes once dequeued.
+- `controller_runtime_active_workers` — number of reconcile workers currently running per controller.
+- `controller_runtime_webhook_requests_total`, `controller_runtime_webhook_requests_in_flight`,
+  `controller_runtime_webhook_latency_seconds` — count, concurrency, and latency of admission webhook calls, labeled
+  by `webhook` path (e.g. the pod-mutating webhook that injects instrumentation, and the validating/mutating webhooks
+  for the `OpenTelemetryCollector`/`Instrumentation` CRs). Distinct from the reconcile metrics above: webhooks run
+  synchronously inside the Kubernetes API request path (at `Pod`/CR admission time), while reconciliation runs
+  asynchronously afterwards.
+- Standard Go/process runtime metrics (`go_*`, `process_*`).
+
+kube-rbac-proxy sits in front of the metrics endpoint and, for any HTTP client to be let through, requires an
+`Authorization: Bearer <token>` header over TLS — it forwards the token to the Kubernetes API server's
+TokenReview/SubjectAccessReview endpoints to authenticate the caller and authorize the request (see
+[kube-rbac-proxy's authentication/authorization docs][kube-rbac-proxy-auth]). The `prometheus/otel_operator` scrape
+config (`values.yaml`, `collectors.cluster.config.receivers`) satisfies this by setting `scheme: https`,
+`bearer_token_file: /var/run/secrets/kubernetes.io/serviceaccount/token` (the Collector pod's own ServiceAccount
+token, mounted automatically), and `tls_config.insecure_skip_verify: true` since kube-rbac-proxy's default
+self-signed serving certificate isn't in the scraper's trust store.
+
+[controller-runtime]: https://github.com/kubernetes-sigs/controller-runtime
+[kubebuilder-metrics]: https://book.kubebuilder.io/reference/metrics-reference
+[kube-rbac-proxy]: https://github.com/brancz/kube-rbac-proxy
+[kube-rbac-proxy-auth]: https://github.com/brancz/kube-rbac-proxy#authentication--authorization
+

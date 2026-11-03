@@ -1,0 +1,338 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+error() { echo "ERROR: $*" >&2; exit 1; }
+
+# When run through process substitution (`bash <(curl -fsSL .../install)`), the script isn't a
+# file on disk: use the current directory (e.g. for --local) instead.
+if [[ -f "${BASH_SOURCE[0]}" ]]; then
+    SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+else
+    SCRIPT_DIR="$PWD"
+fi
+
+# Where the configuration files (values.yaml, datadog-agent.yaml...) are read from: by default
+# from GitHub, so that this script can be downloaded and run on its own. Accepts a GitHub folder
+# URL (https://github.com/<owner>/<repo>/tree/<branch>/<path>) or a raw base URL.
+DEFAULT_CONFIG_URL="https://github.com/DataDog/opentelemetry-examples/tree/4ebc93b1d95af344cd51e9c8723fdcdffbb80b34/guides/kubernetes/configuration/opentelemetry-kube-stack/ddot"
+CONFIG_URL="$DEFAULT_CONFIG_URL"
+USE_LOCAL_CONFIG=false
+
+usage() {
+    cat <<EOF
+Usage: $0 [--local | --config-url=<url>] [<overlay-values.yaml>]
+
+  --local                 Use the configuration files next to this script ($SCRIPT_DIR)
+                          instead of downloading them.
+  --config-url=<url>      Download the configuration files from this GitHub folder URL
+                          (https://github.com/<owner>/<repo>/tree/<branch>/<path>) or raw base URL.
+                          Default: $DEFAULT_CONFIG_URL
+  <overlay-values.yaml>   Optional values file merged on top of values.yaml: a local file, a URL,
+                          or a path relative to the configuration folder
+                          (e.g. examples/export-to-datadog-and-jaeger/values.yaml).
+
+Configuration, read from environment variables only (see .env.example):
+
+  DD_API_KEY                       Datadog API key. Required.
+  DD_SITE                          Datadog site. Default: datadoghq.com.
+  K8S_CLUSTER_TYPE                 Kubernetes platform: eks, gcp, aks, or other. Default: other.
+  K8S_CLUSTER_NAME                 Kubernetes cluster name. Default: auto-detected for eks, gcp, and aks;
+                                   unknown-k8s-cluster for other.
+  DEPLOYMENT_ENVIRONMENT_NAME      Value of the deployment.environment.name resource attribute.
+                                   Default: production.
+  DD_HOST_PROFILER_ENABLED         Enable the eBPF host profiler: true or false. Requires Linux nodes
+                                   with kernel >= 5.10. Default: false.
+  DD_HOST_PROFILER_NETWORK_POLICY  Host profiler egress NetworkPolicy: none, standard, or cilium.
+                                   Default: none.
+EOF
+}
+
+require_one_of() {
+    local name="$1"; shift
+    local value="${!name}" allowed
+    for allowed in "$@"; do
+        [[ "$value" == "$allowed" ]] && return 0
+    done
+    local allowed_list
+    allowed_list="$(printf '%s, ' "$@")"
+    error "$name must be one of: ${allowed_list%, } (got '$value')"
+}
+
+# Optional extra/overlay values.yaml (e.g. examples/export-to-datadog-and-jaeger/values.yaml)
+# merged on top of the base values.yaml, and optional flags, in any order.
+OVERLAY_VALUES_FILE=""
+for arg in "$@"; do
+    case "$arg" in
+        --local) USE_LOCAL_CONFIG=true ;;
+        --config-url=*) CONFIG_URL="${arg#--config-url=}" ;;
+        -h|--help) usage; exit 0 ;;
+        -*) usage >&2; error "Unknown option: $arg" ;;
+        *) OVERLAY_VALUES_FILE="$arg" ;;
+    esac
+done
+
+#### CONFIGURATION, from environment variables only
+
+[[ -n "${DD_API_KEY:-}" ]] || error "DD_API_KEY is not set (see $0 --help)"
+DD_SITE="${DD_SITE:-datadoghq.com}"
+
+K8S_CLUSTER_TYPE="${K8S_CLUSTER_TYPE:-other}"
+require_one_of K8S_CLUSTER_TYPE eks gcp aks other
+# Resource detection preset of the OpenTelemetry Kube Stack chart, none on other clusters.
+K8S_MANAGED_SERVICE_DETECTOR=""
+if [[ "$K8S_CLUSTER_TYPE" != other ]]; then
+    K8S_MANAGED_SERVICE_DETECTOR="$K8S_CLUSTER_TYPE"
+fi
+
+# The Datadog Agent only accepts lowercase letters, digits, "-" and "." in cluster names (no
+# uppercase, no "_"): it rewrites "_" to "-" and ignores names with uppercase letters.
+#
+# On EKS/GKE/AKS, the cluster name is auto-detected (k8s.cluster.name by the OpenTelemetry Collector
+# Resource Detection Processor, clusterName by the Datadog Agent) when K8S_CLUSTER_NAME is unset.
+K8S_CLUSTER_NAME="${K8S_CLUSTER_NAME:-}"
+if [[ -z "$K8S_CLUSTER_NAME" && "$K8S_CLUSTER_TYPE" == other ]]; then
+    K8S_CLUSTER_NAME=unknown-k8s-cluster
+fi
+if [[ -n "$K8S_CLUSTER_NAME" ]]; then
+    NORMALIZED_K8S_CLUSTER_NAME=$(echo "$K8S_CLUSTER_NAME" | tr '[:upper:]_' '[:lower:]-')
+    if [[ "$NORMALIZED_K8S_CLUSTER_NAME" != "$K8S_CLUSTER_NAME" ]]; then
+        echo "Using cluster name '$NORMALIZED_K8S_CLUSTER_NAME' instead of '$K8S_CLUSTER_NAME' (lowercase, '-' instead of '_')."
+        K8S_CLUSTER_NAME="$NORMALIZED_K8S_CLUSTER_NAME"
+    fi
+fi
+
+DEPLOYMENT_ENVIRONMENT_NAME="${DEPLOYMENT_ENVIRONMENT_NAME:-production}"
+
+# The eBPF host profiler needs Linux nodes with kernel >= 5.10 and runs one collector per node with
+# eBPF capabilities. Off by default: it is a security decision, not a configuration detail.
+DD_HOST_PROFILER_ENABLED="${DD_HOST_PROFILER_ENABLED:-false}"
+require_one_of DD_HOST_PROFILER_ENABLED true false
+# Egress policy for the profiler, only useful on default-deny clusters whose CNI enforces NetworkPolicy.
+DD_HOST_PROFILER_NETWORK_POLICY="${DD_HOST_PROFILER_NETWORK_POLICY:-none}"
+require_one_of DD_HOST_PROFILER_NETWORK_POLICY none standard cilium
+
+echo "Configuration: DD_SITE=$DD_SITE K8S_CLUSTER_TYPE=$K8S_CLUSTER_TYPE K8S_CLUSTER_NAME=${K8S_CLUSTER_NAME:-<auto-detected>}" \
+     "DEPLOYMENT_ENVIRONMENT_NAME=$DEPLOYMENT_ENVIRONMENT_NAME DD_HOST_PROFILER_ENABLED=$DD_HOST_PROFILER_ENABLED" \
+     "DD_HOST_PROFILER_NETWORK_POLICY=$DD_HOST_PROFILER_NETWORK_POLICY"
+
+# The configuration files used by this script, relative to the configuration folder.
+CONFIG_FILES=(
+    values.yaml
+    datadog-agent.yaml
+    host-profiler-rbac-values.yaml
+    host-profiler-network-policy.yaml
+    host-profiler-cilium-network-policy.yaml
+)
+
+# Downloaded files go to a temporary directory, deleted on exit.
+DOWNLOAD_DIR="$(mktemp -d)"
+trap 'rm -rf "$DOWNLOAD_DIR"' EXIT
+
+# https://github.com/<owner>/<repo>/tree/<branch>/<path> -> https://raw.githubusercontent.com/<owner>/<repo>/<branch>/<path>
+# (raw.githubusercontent.com resolves branch names containing "/").
+CONFIG_RAW_URL="$(echo "${CONFIG_URL%/}" | sed -E 's|^https://github\.com/([^/]+)/([^/]+)/(tree\|blob)/|https://raw.githubusercontent.com/\1/\2/|')"
+
+if [[ "$USE_LOCAL_CONFIG" == true ]]; then
+    CONFIG_DIR="$SCRIPT_DIR"
+    echo "Using the local configuration files from $CONFIG_DIR"
+else
+    CONFIG_DIR="$DOWNLOAD_DIR"
+    echo "Downloading the configuration files from $CONFIG_RAW_URL ..."
+    for config_file in "${CONFIG_FILES[@]}"; do
+        curl -fsSL "$CONFIG_RAW_URL/$config_file" -o "$CONFIG_DIR/$config_file" \
+          || error "Could not download $CONFIG_RAW_URL/$config_file (use --local to use the files on disk)"
+    done
+fi
+
+OVERLAY_VALUES_ARGS=()
+if [[ -n "$OVERLAY_VALUES_FILE" ]]; then
+    if [[ "$OVERLAY_VALUES_FILE" =~ ^https?:// || ( "$USE_LOCAL_CONFIG" != true && ! -f "$OVERLAY_VALUES_FILE" ) ]]; then
+        # A URL, or a path relative to the remote configuration folder
+        OVERLAY_VALUES_URL="$OVERLAY_VALUES_FILE"
+        [[ "$OVERLAY_VALUES_URL" =~ ^https?:// ]] || OVERLAY_VALUES_URL="$CONFIG_RAW_URL/${OVERLAY_VALUES_FILE#./}"
+        OVERLAY_VALUES_FILE="$DOWNLOAD_DIR/overlay-values.yaml"
+        curl -fsSL "$OVERLAY_VALUES_URL" -o "$OVERLAY_VALUES_FILE" \
+          || error "Could not download the overlay values file $OVERLAY_VALUES_URL"
+    fi
+    [[ -f "$OVERLAY_VALUES_FILE" ]] || error "Overlay values file not found: $OVERLAY_VALUES_FILE"
+    OVERLAY_VALUES_ARGS=(-f "$OVERLAY_VALUES_FILE")
+fi
+
+# Refuse to install next to a previous setup of this guide (two eBPF profilers or two Datadog Agent
+# DaemonSets must not run on the same node): the `upgrade` script removes it.
+for legacy_release in host-profiler ddagent-kube-stack; do
+    if helm status "$legacy_release" --namespace opentelemetry-operator-system >/dev/null 2>&1; then
+        error "Found the legacy '$legacy_release' Helm release from a previous setup in the" \
+              "opentelemetry-operator-system namespace: run ./upgrade to remove it, then re-run this script."
+    fi
+done
+
+HOST_PROFILER_NETWORK_POLICY_FILE=""
+HOST_PROFILER_ENABLED_ARGS=()
+if [[ "$DD_HOST_PROFILER_ENABLED" == true ]]; then
+    HOST_PROFILER_NETWORK_POLICY_KIND=""
+    case "$DD_HOST_PROFILER_NETWORK_POLICY" in
+        standard) HOST_PROFILER_NETWORK_POLICY_FILE="$CONFIG_DIR/host-profiler-network-policy.yaml"
+                  HOST_PROFILER_NETWORK_POLICY_KIND=networkpolicy ;;
+        cilium)   HOST_PROFILER_NETWORK_POLICY_FILE="$CONFIG_DIR/host-profiler-cilium-network-policy.yaml"
+                  HOST_PROFILER_NETWORK_POLICY_KIND=ciliumnetworkpolicy ;;
+    esac
+    # The standard and Cilium policies select the same pods and Kubernetes NetworkPolicies are
+    # additive: a policy of another kind left by a previous run would change the requested
+    # egress, so fail rather than silently keep or delete it. The CiliumNetworkPolicy CRD only
+    # exists on Cilium clusters, hence the ignored errors.
+    for kind in networkpolicy ciliumnetworkpolicy; do
+        [[ "$kind" == "$HOST_PROFILER_NETWORK_POLICY_KIND" ]] && continue
+        if [[ -n "$(kubectl get "$kind" opentelemetry-kube-stack-host-profiler-egress \
+                      --namespace opentelemetry-operator-system \
+                      --ignore-not-found=true -o name 2>/dev/null)" ]]; then
+            error "A host-profiler egress $kind from a previous installation conflicts with DD_HOST_PROFILER_NETWORK_POLICY=$DD_HOST_PROFILER_NETWORK_POLICY." \
+                  "Delete it and re-run this script:" \
+                  "kubectl delete $kind opentelemetry-kube-stack-host-profiler-egress --namespace opentelemetry-operator-system"
+        fi
+    done
+    HOST_PROFILER_ENABLED_ARGS=(
+        --set collectors.host-profiler.enabled=true
+        -f "$CONFIG_DIR/host-profiler-rbac-values.yaml"
+    )
+fi
+echo ""
+
+#### BEGINNING OF INSTALLATION SCRIPT
+
+# WARNING: dont change "namespace=opentelemetry-operator-system" as it is used in the 'instrumentation' CRD defined in values.yaml
+
+echo "Creating Kubernetes namespaces..."
+
+kubectl create namespace opentelemetry-operator-system || echo "WARNING: Could not create namespace 'opentelemetry-operator-system' (may already exist or insufficient permissions). Continuing..."
+# The Datadog Operator and the DatadogAgent custom resource live in their own
+# "datadog" namespace, separate from the OpenTelemetry Kube Stack.
+kubectl create namespace datadog || echo "WARNING: Could not create namespace 'datadog' (may already exist or insufficient permissions). Continuing..."
+
+echo "Creating or updating Datadog secret..."
+
+# The secret is duplicated in both namespaces: opentelemetry-operator-system's
+# copy is used by the Datadog exporter in the OTel collectors (see values.yaml),
+# and datadog's copy is used by the DatadogAgent custom resource and the Datadog
+# Operator.
+for DD_SECRET_NAMESPACE in opentelemetry-operator-system datadog; do
+    kubectl create secret generic datadog-secret \
+      --namespace "$DD_SECRET_NAMESPACE"  \
+      --from-literal="api-key=$DD_API_KEY" \
+      --from-literal="dd-site=$DD_SITE" \
+      --dry-run=client -o yaml | kubectl apply -f -
+done
+
+echo "Configuring and updating Helm"
+
+helm repo add open-telemetry https://open-telemetry.github.io/opentelemetry-helm-charts
+helm repo add jetstack       https://charts.jetstack.io
+helm repo add datadog        https://helm.datadoghq.com
+helm repo update
+
+# Detect cert-manager by its CRD rather than by a Helm release, to also skip installations done
+# without Helm, under another release name, or by a managed Kubernetes add-on.
+if kubectl get crd certificates.cert-manager.io >/dev/null 2>&1; then
+    echo "cert-manager is already installed (certificates.cert-manager.io CRD found), skipping its installation."
+else
+    echo "Installing cert-manager..."
+    helm install cert-manager jetstack/cert-manager \
+      --namespace cert-manager --create-namespace \
+      --set crds.enabled=true  \
+      --wait --timeout 5m \
+      || echo "WARNING: Could not install cert-manager (insufficient permissions?). Continuing..."
+fi
+
+echo "Installing Datadog Operator..."
+
+# The Operator's own identity (API key, site and cluster name), used for its telemetry and
+# metadata. Without them, the Operator falls back to the DatadogAgent's credentials and settings.
+OPERATOR_HELM_ARGS=(
+    --set apiKeyExistingSecret=datadog-secret
+    --set-string site="$DD_SITE"
+)
+if [[ -n "$K8S_CLUSTER_NAME" ]]; then
+    OPERATOR_HELM_ARGS+=(--set-string clusterName="$K8S_CLUSTER_NAME")
+fi
+
+helm upgrade datadog-operator \
+    datadog/datadog-operator \
+    --install \
+    --namespace datadog \
+    ${OPERATOR_HELM_ARGS[@]+"${OPERATOR_HELM_ARGS[@]}"} \
+    --wait --timeout 5m
+
+echo "Applying the DatadogAgent custom resource..."
+
+# Without a cluster name (EKS/GKE/AKS), drop the `clusterName` line so
+# the Datadog Agent auto-detects the cluster name from the cloud provider. An empty `clusterName: ""`
+# isn't enough, the Operator would still set DD_CLUSTER_NAME on the agent containers.
+# Only set the Agent hostname from the Kubernetes node name and the cluster name on non-cloud
+# clusters: on EKS/GKE/AKS, the cloud provider hostname is preferred.
+if [[ -n "$K8S_CLUSTER_NAME" ]]; then
+    CLUSTER_NAME_SED_ARGS=(-e "s|<CLUSTER_NAME>|$K8S_CLUSTER_NAME|")
+else
+    CLUSTER_NAME_SED_ARGS=(-e "/<CLUSTER_NAME>/d")
+fi
+if [[ "$K8S_CLUSTER_TYPE" == other ]]; then
+    CLUSTER_NAME_SED_ARGS+=(-e "/<HOSTNAME_FROM_NODE_NAME:/d")
+else
+    CLUSTER_NAME_SED_ARGS+=(-e "/<HOSTNAME_FROM_NODE_NAME:BEGIN>/,/<HOSTNAME_FROM_NODE_NAME:END>/d")
+fi
+
+sed \
+  "${CLUSTER_NAME_SED_ARGS[@]}" \
+  -e "s|<DD_SITE>|$DD_SITE|" \
+  "$CONFIG_DIR/datadog-agent.yaml" \
+  | kubectl apply --namespace datadog -f -
+
+if [[ -n "$HOST_PROFILER_NETWORK_POLICY_FILE" ]]; then
+    echo "Applying the host-profiler egress NetworkPolicy..."
+    kubectl apply -f "$HOST_PROFILER_NETWORK_POLICY_FILE" \
+      || echo "WARNING: Could not apply the host-profiler egress NetworkPolicy (is Cilium installed if you chose the Cilium policy?). Continuing..."
+fi
+
+# Install the OpenTelemetry Kube Stack Helm chart last: its output (release status and notes) is the
+# most important one for the user to read.
+echo "Installing OpenTelemetry Kube Stack Helm Chart..."
+
+# FIXME just use deployment.environment.name and remove deployment.environment after https://github.com/DataDog/dd-trace-go/pull/5285
+HELM_SET_ARGS=(
+    --set-string "resourceAttributes.deployment\.environment=$DEPLOYMENT_ENVIRONMENT_NAME"
+    --set-string "resourceAttributes.deployment\.environment\.name=$DEPLOYMENT_ENVIRONMENT_NAME"
+)
+
+# The eks, aks and gcp presets are disabled by default in the chart: enable the cluster's one.
+if [[ -n "$K8S_MANAGED_SERVICE_DETECTOR" ]]; then
+    HELM_SET_ARGS+=(--set "defaultCRConfig.presets.resourceDetection.${K8S_MANAGED_SERVICE_DETECTOR}.enabled=true")
+fi
+
+# On EKS, also detect the EC2 instance attributes of the node, and use the EC2 hostname as host.name on the daemon
+# collector, like the Datadog Agent does on EKS.
+if [[ "$K8S_MANAGED_SERVICE_DETECTOR" == "eks" ]]; then
+    HELM_SET_ARGS+=(
+        --set "defaultCRConfig.config.processors.resource_detection/env.eks.node_from_env_var=K8S_NODE_NAME"
+        --set "defaultCRConfig.config.processors.resource_detection/env.eks.resource_attributes.host\.id.enabled=true"
+        --set "defaultCRConfig.config.processors.resource_detection/env.eks.resource_attributes.cloud\.region.enabled=true"
+        --set "defaultCRConfig.config.processors.resource_detection/env.eks.resource_attributes.cloud\.availability_zone.enabled=true"
+        --set "defaultCRConfig.config.processors.resource_detection/env.eks.resource_attributes.cloud\.account\.id.enabled=true"
+        --set "defaultCRConfig.config.processors.resource_detection/env.eks.resource_attributes.host\.image\.id.enabled=true"
+        --set "defaultCRConfig.config.processors.resource_detection/env.eks.resource_attributes.host\.type.enabled=true"
+        --set "collectors.daemon.config.processors.resource_detection/env.override=true"
+        --set "collectors.daemon.config.processors.resource_detection/env.eks.resource_attributes.host\.name.enabled=true"
+    )
+fi
+
+if [[ -n "$K8S_CLUSTER_NAME" ]]; then
+    HELM_SET_ARGS+=(--set-string "resourceAttributes.k8s\.cluster\.name=$K8S_CLUSTER_NAME")
+fi
+
+helm upgrade opentelemetry-kube-stack \
+    open-telemetry/opentelemetry-kube-stack \
+    --version 0.24.2 \
+    --install \
+    --namespace opentelemetry-operator-system \
+    "${HELM_SET_ARGS[@]}" \
+    -f "$CONFIG_DIR/values.yaml" \
+    ${HOST_PROFILER_ENABLED_ARGS[@]+"${HOST_PROFILER_ENABLED_ARGS[@]}"} \
+    ${OVERLAY_VALUES_ARGS[@]+"${OVERLAY_VALUES_ARGS[@]}"}

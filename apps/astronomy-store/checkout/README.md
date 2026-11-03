@@ -72,6 +72,11 @@ An alternate [`Dockerfile.upstream-otel`](Dockerfile.upstream-otel) builds the s
 `otelc`](https://github.com/open-telemetry/opentelemetry-go-compile-instrumentation) v1.1.0 compiler instead of Datadog
 Orchestrion, instrumenting via the OpenTelemetry Go SDK rather than `dd-trace-go/v2`. `./build-images` publishes it
 under the same image name with a `-upstream-otel` tag suffix (e.g. `astronomy-store/checkout:latest-upstream-otel`).
+`../install-app` deploys the image that matches `DD_INSTALL_FLOW`, the same variable the OpenTelemetry Kube Stack
+`install` script uses (default `ddot`):
+
+- `upstream`: the `-upstream-otel` image.
+- `ddot`: the Orchestrion image.
 
 ## Datadog App & API Protection
 

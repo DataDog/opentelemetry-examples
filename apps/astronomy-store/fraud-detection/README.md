@@ -7,7 +7,7 @@ random integer `fraud_score` from 0 through 99. It exposes no HTTP endpoint.
 Build and deploy it with:
 
 ```sh
-docker build -t astronomy-store/fraud-detection:latest .
+docker build --build-context shared=../shared -t astronomy-store/fraud-detection:latest .
 kubectl apply -f kubernetes.yaml
 ```
 

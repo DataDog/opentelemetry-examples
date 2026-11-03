@@ -209,10 +209,12 @@ spec:
                       "astronomy_db"
                     ]
                   },
-                  "reported_hostname": "astronomy_db", 
-                  "reported_hostname_comment": "align on the PG database name to enable seamless correlation with APM", 
+                  "reported_hostname": "astronomy_db",
+                  "reported_hostname_comment": "align on the PG database name to enable seamless correlation with APM",
+                  "propagate_agent_tags": true,
+                  "propagate_agent_tags_comment": "take the env tag from the Agent rather than hardcoding it",
                   "tags": [
-                    "env:production"
+                    "service:astronomy-db"
                   ]
                 }
               ]
