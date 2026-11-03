@@ -49,6 +49,8 @@ generate-otel-kube-stack-examples:
 			\{\} + ; \
 	fi
 
+# operator-render reads the Datadog Operator CRDs from the absolute path of the checkout it was built from
+# (runtime.Caller): it's rebuilt when that path changes, for example after moving or renaming a parent folder.
 .PHONY: generate-datadog-operator-examples
 generate-datadog-operator-examples:
 	@echo "Generating the Datadog Operator example into examples-datadog-agent/"
@@ -58,9 +60,12 @@ generate-datadog-operator-examples:
 		git clone --depth 1 https://github.com/DataDog/datadog-operator.git "$(datadog_operator_dir)"; \
 	fi; \
 	OPERATOR_RENDER_BIN="$(datadog_operator_dir)/bin/$(platform)/operator-render"; \
-	if [ ! -x "$${OPERATOR_RENDER_BIN}" ]; then \
+	OPERATOR_RENDER_BUILT_FROM="$${OPERATOR_RENDER_BIN}.built-from"; \
+	OPERATOR_SRC_DIR="$(abspath $(datadog_operator_dir))"; \
+	if [ ! -x "$${OPERATOR_RENDER_BIN}" ] || [ "$$(cat "$${OPERATOR_RENDER_BUILT_FROM}" 2>/dev/null)" != "$${OPERATOR_SRC_DIR}" ]; then \
 		echo "Building operator-render..."; \
 		$(MAKE) -C "$(datadog_operator_dir)" build-renderer; \
+		echo "$${OPERATOR_SRC_DIR}" > "$${OPERATOR_RENDER_BUILT_FROM}"; \
 	fi; \
 	EXAMPLE_DIR=./examples-datadog-agent/default; \
 	rm -rf $${EXAMPLE_DIR}; \
