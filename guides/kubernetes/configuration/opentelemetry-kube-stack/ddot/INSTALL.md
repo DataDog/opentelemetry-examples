@@ -75,41 +75,46 @@ curl -fsSL -o install https://raw.githubusercontent.com/DataDog/opentelemetry-ex
 chmod +x install
 ```
 
-## 2. Provide the Datadog credentials
+## 2. Configure the installation
 
-The script reads the Datadog credentials from a `.env` file next to it (in the current directory when run with
-`bash <(curl ...)`). Without a `.env` file, it prompts for them on every run.
+The script reads its configuration from environment variables only. It doesn't prompt for anything, so it can run
+unattended, for example in CI:
 
-To skip the credential prompts, create the `.env` file beforehand:
+| Variable                          | Description                                                                                                                         | Default                                                     |
+|:----------------------------------|:------------------------------------------------------------------------------------------------------------------------------------|:------------------------------------------------------------|
+| `DD_API_KEY`                      | Datadog API key.                                                                                                                    | None (required)                                             |
+| `DD_SITE`                         | Datadog site, for example `datadoghq.eu`.                                                                                           | `datadoghq.com`                                             |
+| `K8S_CLUSTER_TYPE`                | Kubernetes platform: `eks` (EKS), `gcp` (GKE), `aks` (AKS), or `other`. `eks`, `gcp`, and `aks` auto-detect the cluster name from the cloud provider. | `other`                                                     |
+| `K8S_CLUSTER_NAME`                | Kubernetes cluster name. For `eks`, `gcp`, and `aks`, overrides the auto-detected name. Uppercase letters are lowercased and `_` replaced with `-`, see [Kubernetes cluster name constraints](README.md#kubernetes-cluster-name-constraints). | Auto-detected for `eks`, `gcp`, and `aks`; `unknown-k8s-cluster` for `other` |
+| `DEPLOYMENT_ENVIRONMENT_NAME`     | Value of the `deployment.environment.name` resource attribute, set on all telemetry.                                               | `production`                                                |
+| `DD_HOST_PROFILER_ENABLED`        | Deploy the eBPF host profiler on every node: `true` or `false`. Off by default: its pods need eBPF privileges. See [Host profiler (optional)](README.md#host-profiler-optional). | `false`                                                     |
+| `DD_HOST_PROFILER_NETWORK_POLICY` | Host profiler egress NetworkPolicy: `standard` or `cilium` on Kubernetes clusters enforcing NetworkPolicy, `none` otherwise. Only used with the host profiler. | `none`                                                      |
+
+The script validates them before making any change, and prints the resulting configuration.
 
 ```sh
-cat > .env <<'EOF'
-export DD_SITE="datadoghq.com"
 export DD_API_KEY="<your-datadog-api-key>"
-EOF
-chmod 600 .env
+export DD_SITE="datadoghq.com"
+export K8S_CLUSTER_TYPE=eks
 ```
 
-`DD_API_KEY` is required. `DD_SITE` defaults to `datadoghq.com` when missing from `.env`. Keep `.env` out of version
-control (this folder's `.gitignore` ignores it).
+Alternatively, keep the configuration in a `.env` file, starting from
+[`.env.example`](.env.example), and load it before running the script:
+
+```sh
+curl -fsSL -o .env https://raw.githubusercontent.com/DataDog/opentelemetry-examples/69ff1a61d452011dbd61ecf0b04be9d27ba83d0e/guides/kubernetes/configuration/opentelemetry-kube-stack/ddot/.env.example
+chmod 600 .env
+# Edit .env
+source .env
+```
+
+Keep `.env` out of version control (this folder's `.gitignore` ignores it).
 
 ## 3. Run the script
 
 ```sh
 ./install
 ```
-
-The script asks the following questions:
-
-| Prompt                         | Answer                                                                                                                     |
-|:-------------------------------|:---------------------------------------------------------------------------------------------------------------------------|
-| Datadog Site                   | Your Datadog site, e.g. `datadoghq.eu`. Required. Only asked without a `.env` file.                                        |
-| Datadog API Key                | Your API key (input hidden). Required. Only asked without a `.env` file.                                                   |
-| Kubernetes cluster type        | `EKS`, `GKE`, or `AKS` to auto-detect the cluster name from the cloud provider, `Other` otherwise.                         |
-| Kubernetes Cluster Name        | Only asked for `Other`, defaults to `unknown-k8s-cluster`. Uppercase letters are lowercased and `_` replaced with `-`.      |
-| Deployment Environment Name    | Sets `deployment.environment.name` on all telemetry. Defaults to `production`.                                             |
-| Enable the eBPF host profiler? | `y` to deploy the host profiler on every node. Defaults to `N`: its pods need eBPF privileges.                             |
-| Egress NetworkPolicy?          | Only asked with the host profiler: `s`tandard or `c`ilium on Kubernetes clusters enforcing NetworkPolicy, `n`one otherwise (default). |
 
 It then:
 
@@ -332,7 +337,7 @@ update resources: the script never deletes anything from the Kubernetes cluster,
 | 4 | `helm install cert-manager jetstack/cert-manager --namespace cert-manager --create-namespace --set crds.enabled=true`                                | Only when the `certificates.cert-manager.io` CRD is missing (warns and continues on failure) | Installs cert-manager and its CRDs in the `cert-manager` namespace.                                                                                                     |
 | 5 | `helm upgrade --install datadog-operator datadog/datadog-operator --namespace datadog ...`                                                           | Always                                                                                  | Installs or upgrades the Datadog Operator and its CRDs.                                                                                                                      |
 | 6 | `kubectl apply --namespace datadog -f -` (`datadog-agent.yaml`, with the Kubernetes cluster name and site substituted)                               | Always                                                                                  | Creates or updates the `DatadogAgent` custom resource, from which the Datadog Operator deploys the Datadog Agent DaemonSet and the Cluster Agent.                           |
-| 7 | `kubectl apply -f host-profiler-network-policy.yaml` or `kubectl apply -f host-profiler-cilium-network-policy.yaml`                                  | Only with the host profiler and a `s`tandard or `c`ilium egress NetworkPolicy (warns and continues on failure) | Creates or updates the `opentelemetry-kube-stack-host-profiler-egress` NetworkPolicy or CiliumNetworkPolicy in the `opentelemetry-operator-system` namespace. |
+| 7 | `kubectl apply -f host-profiler-network-policy.yaml` or `kubectl apply -f host-profiler-cilium-network-policy.yaml`                                  | Only with `DD_HOST_PROFILER_ENABLED=true` and `DD_HOST_PROFILER_NETWORK_POLICY=standard` or `cilium` (warns and continues on failure) | Creates or updates the `opentelemetry-kube-stack-host-profiler-egress` NetworkPolicy or CiliumNetworkPolicy in the `opentelemetry-operator-system` namespace. |
 | 8 | `helm upgrade --install opentelemetry-kube-stack open-telemetry/opentelemetry-kube-stack --version 0.24.2 --namespace opentelemetry-operator-system ...` | Always                                                                                  | Installs or upgrades the OpenTelemetry Operator and its CRDs, the `cluster` and `daemon` collectors, and the `Instrumentation` custom resource, plus the `host-profiler` collector and its RBAC (`host-profiler-rbac-values.yaml`) when enabled. |
 
 Before making any change, the script also runs read-only checks and stops on a conflict:

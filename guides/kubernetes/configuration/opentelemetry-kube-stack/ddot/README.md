@@ -38,15 +38,19 @@ apps (Linux kernel >= 5.17, see [Live Debugger for Go][dd-live-debugger-go]).
 ## Quickstart
 
 Download and run the `install` script, the recommended way to install. You don't need to clone the repository: by
-default, the script downloads its configuration files (`values.yaml`, `datadog-agent.yaml`...) from GitHub:
+default, the script downloads its configuration files (`values.yaml`, `datadog-agent.yaml`...) from GitHub. It reads
+its configuration from environment variables:
 
 ```sh
 curl -fsSL -o install https://raw.githubusercontent.com/DataDog/opentelemetry-examples/69ff1a61d452011dbd61ecf0b04be9d27ba83d0e/guides/kubernetes/configuration/opentelemetry-kube-stack/ddot/install
 chmod +x install
+export DD_API_KEY="<your-datadog-api-key>"
+export DD_SITE="datadoghq.com"
+export K8S_CLUSTER_TYPE=eks # eks, gcp, aks, or other
 ./install
 ```
 
-See the [installation guide](INSTALL.md) for the prerequisites, the script's prompts and options, verification, and
+See the [installation guide](INSTALL.md) for the prerequisites, the script's environment variables and options, verification, and
 troubleshooting, and to [install without the `install` script](INSTALL.md#install-without-the-install-script).
 To export to another observability backend in addition to Datadog, or to modify the configuration files, see
 [Customize the installation](INSTALL.md#customize-the-installation).
@@ -113,7 +117,7 @@ The host profiler runs the [Datadog host profiler][dd-host-profiler] (Datadog's 
 the [OpenTelemetry eBPF profiler][ebpf-profiler], to which it actively contributes) as a collector DaemonSet on every
 node and exports profiles to Datadog's OTLP intake.
 
-Enable it by answering `y` to the installer's prompt, or install manually following
+Enable it by setting `DD_HOST_PROFILER_ENABLED=true` before running the installer, or install manually following
 the [manual installation steps][dd-host-profiler-install]. Unlike the other collectors, its pods need more privileges,
 which is why it is opt-in.
 

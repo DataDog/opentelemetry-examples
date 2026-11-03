@@ -41,5 +41,5 @@ Between the two scripts, profiling and the features enabled by the Datadog Agent
 ## Upgrading the current setup
 
 Once the legacy releases are removed, upgrade by re-running the `install` script: every step is idempotent (`helm upgrade --install`,
-`kubectl apply`). It asks the deployment questions again, so give the same answers to keep the same configuration.
-The credentials come from the `.env` file when it exists.
+`kubectl apply`). Set the same [environment variables](INSTALL.md#2-configure-the-installation) as for the first
+installation to keep the same configuration.
