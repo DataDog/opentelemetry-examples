@@ -134,6 +134,9 @@ spec:
       resource/global:
         attributes:
         - action: upsert
+          key: deployment.environment
+          value: production
+        - action: upsert
           key: deployment.environment.name
           value: production
       resource_detection/env:
@@ -481,7 +484,7 @@ spec:
         apiVersion: v1
         fieldPath: status.podIP
   - name: OTEL_RESOURCE_ATTRIBUTES
-    value: "k8s.pod.name=$(OTEL_K8S_POD_NAME),k8s.namespace.name=$(OTEL_K8S_NAMESPACE),k8s.node.name=$(OTEL_K8S_NODE_NAME),host.name=$(OTEL_K8S_NODE_NAME),k8s.node.ip=$(OTEL_K8S_NODE_IP),k8s.pod.ip=$(OTEL_K8S_POD_IP),deployment.environment.name=production"
+    value: "k8s.pod.name=$(OTEL_K8S_POD_NAME),k8s.namespace.name=$(OTEL_K8S_NAMESPACE),k8s.node.name=$(OTEL_K8S_NODE_NAME),host.name=$(OTEL_K8S_NODE_NAME),k8s.node.ip=$(OTEL_K8S_NODE_IP),k8s.pod.ip=$(OTEL_K8S_POD_IP),deployment.environment=production,deployment.environment.name=production"
   
   - name: DD_AGENT_HOST
     value: "datadog-agent.datadog.svc.cluster.local"
@@ -502,7 +505,6 @@ spec:
         key: dd-site
         name: datadog-secret
         optional: true
-
 ---
 # Source: opentelemetry-kube-stack/templates/collector.yaml
 apiVersion: opentelemetry.io/v1beta1
@@ -622,6 +624,9 @@ spec:
       resource/global:
         attributes:
         - action: upsert
+          key: deployment.environment
+          value: production
+        - action: upsert
           key: deployment.environment.name
           value: production
       resource_detection/env:
@@ -689,6 +694,59 @@ spec:
         - id: container-parser
           max_log_size: 102400
           type: container
+        - id: datadog-json-parser
+          if: resource["k8s.namespace.name"] == "datadog" and body matches "^\\s*\\{"
+          on_error: send_quiet
+          parse_from: body
+          parse_to: attributes.datadog_log
+          severity:
+            mapping:
+              fatal: critical
+            parse_from: attributes.datadog_log.level
+          type: json_parser
+        - from: attributes.datadog_log.msg
+          id: datadog-json-msg
+          if: attributes["datadog_log"] != nil and attributes["datadog_log"]["msg"] !=
+            nil
+          to: body
+          type: move
+        - from: attributes.datadog_log.file
+          id: datadog-json-code-file
+          if: attributes["datadog_log"] != nil and attributes["datadog_log"]["file"] !=
+            nil
+          to: attributes["code.file.path"]
+          type: move
+        - from: attributes.datadog_log.line
+          id: datadog-json-code-line
+          if: attributes["datadog_log"] != nil and attributes["datadog_log"]["line"] !=
+            nil
+          to: attributes["code.line.number"]
+          type: move
+        - from: attributes.datadog_log.func
+          id: datadog-json-code-func
+          if: attributes["datadog_log"] != nil and attributes["datadog_log"]["func"] !=
+            nil
+          to: attributes["code.function.name"]
+          type: move
+        - field: attributes.datadog_log.level
+          id: datadog-json-level
+          if: attributes["datadog_log"] != nil and attributes["datadog_log"]["level"]
+            != nil
+          type: remove
+        - field: attributes.datadog_log.time
+          id: datadog-json-time
+          if: attributes["datadog_log"] != nil and attributes["datadog_log"]["time"] !=
+            nil
+          type: remove
+        - field: attributes.datadog_log.ts
+          id: datadog-json-ts
+          if: attributes["datadog_log"] != nil and attributes["datadog_log"]["ts"] !=
+            nil
+          type: remove
+        - field: attributes.datadog_log
+          id: datadog-json-flatten
+          if: attributes["datadog_log"] != nil
+          type: flatten
         retry_on_failure:
           enabled: true
         start_at: end
@@ -985,7 +1043,7 @@ spec:
         apiVersion: v1
         fieldPath: status.podIP
   - name: OTEL_RESOURCE_ATTRIBUTES
-    value: "k8s.pod.name=$(OTEL_K8S_POD_NAME),k8s.namespace.name=$(OTEL_K8S_NAMESPACE),k8s.node.name=$(OTEL_K8S_NODE_NAME),host.name=$(OTEL_K8S_NODE_NAME),k8s.node.ip=$(OTEL_K8S_NODE_IP),k8s.pod.ip=$(OTEL_K8S_POD_IP),deployment.environment.name=production"
+    value: "k8s.pod.name=$(OTEL_K8S_POD_NAME),k8s.namespace.name=$(OTEL_K8S_NAMESPACE),k8s.node.name=$(OTEL_K8S_NODE_NAME),host.name=$(OTEL_K8S_NODE_NAME),k8s.node.ip=$(OTEL_K8S_NODE_IP),k8s.pod.ip=$(OTEL_K8S_POD_IP),deployment.environment=production,deployment.environment.name=production"
   
   - name: DD_AGENT_HOST
     value: "datadog-agent.datadog.svc.cluster.local"

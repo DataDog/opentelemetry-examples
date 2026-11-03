@@ -54,6 +54,7 @@ spec:
   resource:
     addK8sUIDAttributes: true
     resourceAttributes:
+      deployment.environment: production
       deployment.environment.name: production
   java:
     image: datadog/dd-otel-autoinstrumentation-java:1.68.0-preview
