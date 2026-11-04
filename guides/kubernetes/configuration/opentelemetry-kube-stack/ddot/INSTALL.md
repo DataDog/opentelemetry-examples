@@ -71,7 +71,7 @@ You don't need to clone the repository: by default, the script downloads its con
 `datadog-agent.yaml`...) from GitHub.
 
 ```sh
-curl -fsSL -o install https://raw.githubusercontent.com/DataDog/opentelemetry-examples/1a61405cad708e6f0cfe39dc7aa4ebd825c82613/guides/kubernetes/configuration/opentelemetry-kube-stack/ddot/install
+curl -fsSL -o install https://raw.githubusercontent.com/DataDog/opentelemetry-examples/3d2fd27ccc3c4fd4d3f07a8b3c292617aade4abb/guides/kubernetes/configuration/opentelemetry-kube-stack/ddot/install
 chmod +x install
 ```
 
@@ -102,7 +102,7 @@ Alternatively, keep the configuration in a `.env` file, starting from
 [`.env.example`](.env.example), and load it before running the script:
 
 ```sh
-curl -fsSL -o .env https://raw.githubusercontent.com/DataDog/opentelemetry-examples/1a61405cad708e6f0cfe39dc7aa4ebd825c82613/guides/kubernetes/configuration/opentelemetry-kube-stack/ddot/.env.example
+curl -fsSL -o .env https://raw.githubusercontent.com/DataDog/opentelemetry-examples/3d2fd27ccc3c4fd4d3f07a8b3c292617aade4abb/guides/kubernetes/configuration/opentelemetry-kube-stack/ddot/.env.example
 chmod 600 .env
 # Edit .env
 source .env
@@ -295,7 +295,7 @@ With `--local`, the script reads all its configuration files from its own folder
 the script and its configuration files, from the same commit, into one folder:
 
 ```sh
-CONFIG_RAW_URL=https://raw.githubusercontent.com/DataDog/opentelemetry-examples/1a61405cad708e6f0cfe39dc7aa4ebd825c82613/guides/kubernetes/configuration/opentelemetry-kube-stack/ddot
+CONFIG_RAW_URL=https://raw.githubusercontent.com/DataDog/opentelemetry-examples/3d2fd27ccc3c4fd4d3f07a8b3c292617aade4abb/guides/kubernetes/configuration/opentelemetry-kube-stack/ddot
 for file in install values.yaml datadog-agent.yaml host-profiler-rbac-values.yaml \
     host-profiler-network-policy.yaml host-profiler-cilium-network-policy.yaml; do
   curl -fsSL -o "$file" "$CONFIG_RAW_URL/$file"
@@ -368,7 +368,7 @@ deletes all their custom resources cluster-wide, including ones the `install` sc
 deletes and asks for confirmation:
 
 ```sh
-curl -fsSL -o uninstall https://raw.githubusercontent.com/DataDog/opentelemetry-examples/1a61405cad708e6f0cfe39dc7aa4ebd825c82613/guides/kubernetes/configuration/opentelemetry-kube-stack/ddot/uninstall
+curl -fsSL -o uninstall https://raw.githubusercontent.com/DataDog/opentelemetry-examples/3d2fd27ccc3c4fd4d3f07a8b3c292617aade4abb/guides/kubernetes/configuration/opentelemetry-kube-stack/ddot/uninstall
 chmod +x uninstall
 ./uninstall
 ```

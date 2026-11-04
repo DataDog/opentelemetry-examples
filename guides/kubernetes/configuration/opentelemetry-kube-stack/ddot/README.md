@@ -42,7 +42,7 @@ default, the script downloads its configuration files (`values.yaml`, `datadog-a
 its configuration from environment variables:
 
 ```sh
-curl -fsSL -o install https://raw.githubusercontent.com/DataDog/opentelemetry-examples/1a61405cad708e6f0cfe39dc7aa4ebd825c82613/guides/kubernetes/configuration/opentelemetry-kube-stack/ddot/install
+curl -fsSL -o install https://raw.githubusercontent.com/DataDog/opentelemetry-examples/3d2fd27ccc3c4fd4d3f07a8b3c292617aade4abb/guides/kubernetes/configuration/opentelemetry-kube-stack/ddot/install
 chmod +x install
 export DD_API_KEY="<your-datadog-api-key>"
 export DD_SITE="datadoghq.com"
