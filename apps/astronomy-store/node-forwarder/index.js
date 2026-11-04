@@ -7,7 +7,6 @@ const outputTopic = process.env.KAFKA_OUTPUT_TOPIC || 'node-forwarder-orders'
 const log = (msg, fields = {}) => console.log(JSON.stringify({ level: 'info', msg, ...fields }))
 
 const kafka = new Kafka({ clientId: 'node-forwarder', brokers: [broker], logLevel: logLevel.WARN })
-const admin = kafka.admin()
 const consumer = kafka.consumer({ groupId: 'node-forwarder' })
 const producer = kafka.producer()
 
@@ -18,12 +17,22 @@ function processingDelayMs () {
   return Math.min(Math.max(500 + 150 * gaussian, 0), 990)
 }
 
+async function subscribeWhenTopicExists () {
+  for (;;) {
+    try {
+      await consumer.subscribe({ topic: inputTopic, fromBeginning: true })
+      return
+    } catch (err) {
+      if (err.type !== 'UNKNOWN_TOPIC_OR_PARTITION') throw err
+      log('waiting for topic to exist', { input_topic: inputTopic })
+      await sleep(2000)
+    }
+  }
+}
+
 async function main () {
-  await admin.connect()
-  await admin.createTopics({ topics: [{ topic: inputTopic }] })
-  await admin.disconnect()
   await Promise.all([consumer.connect(), producer.connect()])
-  await consumer.subscribe({ topic: inputTopic, fromBeginning: true })
+  await subscribeWhenTopicExists()
   log('node-forwarder started', { input_topic: inputTopic, output_topic: outputTopic })
   await consumer.run({
     eachMessage: async ({ message }) => {

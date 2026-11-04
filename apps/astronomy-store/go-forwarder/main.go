@@ -33,6 +33,25 @@ func processingDelay() time.Duration {
 	return time.Duration(millis * float64(time.Millisecond))
 }
 
+func waitForTopic(ctx context.Context, logger *slog.Logger, broker, topic string) error {
+	for {
+		conn, err := kafka.DialContext(ctx, "tcp", broker)
+		if err == nil {
+			partitions, readErr := conn.ReadPartitions(topic)
+			conn.Close()
+			if readErr == nil && len(partitions) > 0 {
+				return nil
+			}
+		}
+		logger.Info("waiting for topic to exist", slog.String("input_topic", topic))
+		select {
+		case <-ctx.Done():
+			return ctx.Err()
+		case <-time.After(2 * time.Second):
+		}
+	}
+}
+
 func run() error {
 	ctx, stop := signal.NotifyContext(context.Background(), syscall.SIGINT, syscall.SIGTERM)
 	defer stop()
@@ -41,6 +60,10 @@ func run() error {
 	broker := getEnv("KAFKA_ADDR", "kafka:9092")
 	inputTopic := getEnv("KAFKA_TOPIC", "dotnet-forwarder-orders")
 	outputTopic := getEnv("KAFKA_OUTPUT_TOPIC", "go-forwarder-orders")
+
+	if err := waitForTopic(ctx, logger, broker, inputTopic); err != nil {
+		return err
+	}
 
 	reader := kafka.NewReader(kafka.ReaderConfig{
 		Brokers:     []string{broker},
@@ -70,8 +93,22 @@ func run() error {
 		}
 		logger.InfoContext(ctx, "forward_order", slog.String("key", string(msg.Key)))
 		time.Sleep(processingDelay())
-		if err := writer.WriteMessages(ctx, kafka.Message{Key: msg.Key, Value: msg.Value, Headers: msg.Headers}); err != nil {
+		if err := forward(ctx, writer, msg); err != nil {
 			return fmt.Errorf("write Kafka message: %w", err)
+		}
+	}
+}
+
+func forward(ctx context.Context, writer *kafka.Writer, msg kafka.Message) error {
+	for {
+		err := writer.WriteMessages(ctx, kafka.Message{Key: msg.Key, Value: msg.Value, Headers: msg.Headers})
+		if !errors.Is(err, kafka.UnknownTopicOrPartition) {
+			return err
+		}
+		select {
+		case <-ctx.Done():
+			return ctx.Err()
+		case <-time.After(time.Second):
 		}
 	}
 }
