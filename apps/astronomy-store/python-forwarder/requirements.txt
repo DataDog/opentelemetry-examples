@@ -1,0 +1,2 @@
+confluent-kafka==2.15.1
+opentelemetry-api==1.45.2

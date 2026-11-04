@@ -1,0 +1,36 @@
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: astronomy-store
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: go-forwarder
+  namespace: astronomy-store
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: go-forwarder
+  template:
+    metadata:
+      annotations:
+        instrumentation.opentelemetry.io/inject-sdk: opentelemetry-operator-system/opentelemetry-kube-stack
+        resource.opentelemetry.io/service.name: go-forwarder
+        resource.opentelemetry.io/service.namespace: astronomy-store
+      labels:
+        app.kubernetes.io/name: go-forwarder
+        admission.datadoghq.com/enabled: "false"
+    spec:
+      containers:
+        - name: go-forwarder
+          image: astronomy-store/go-forwarder:latest
+          imagePullPolicy: IfNotPresent
+          env:
+            - name: KAFKA_ADDR
+              value: kafka:9092
+            - name: KAFKA_TOPIC
+              value: dotnet-forwarder-orders
+            - name: KAFKA_OUTPUT_TOPIC
+              value: go-forwarder-orders

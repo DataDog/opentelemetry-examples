@@ -1,0 +1,12 @@
+# .net Forwarder
+
+This .NET service built on `Confluent.Kafka` is one hop in the [Kafka forwarder chain](../README.md#kafka-forwarder-chain). It consumes `KAFKA_TOPIC` (default `node-forwarder-orders`) waits a normally distributed 0–1s processing delay (mean 500ms), and forwards each message, unchanged, to `KAFKA_OUTPUT_TOPIC` (default `dotnet-forwarder-orders`). The broker address comes from `KAFKA_ADDR` (default `kafka:9092`).
+
+Build and deploy it with:
+
+```sh
+docker build --build-context shared=../shared -t astronomy-store/dotnet-forwarder:latest .
+kubectl apply -f kubernetes.yaml
+```
+
+The Deployment uses the OpenTelemetry Operator's `inject-dotnet` annotation. Consume and produce spans, trace-context propagation, and Data Streams Monitoring checkpoints come from .NET auto-instrumentation.
