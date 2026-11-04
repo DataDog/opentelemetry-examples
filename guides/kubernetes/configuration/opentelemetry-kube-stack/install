@@ -36,6 +36,9 @@ case "${1:-}" in
         ;;
 esac
 
+INSTALLER_VERSION=$(git -C "$SCRIPT_DIR" describe --always --dirty 2>/dev/null || echo unknown)
+echo "opentelemetry-kube-stack install script $INSTALLER_VERSION"
+
 require_bool() {
     case "${!1}" in
         true|false) ;;
