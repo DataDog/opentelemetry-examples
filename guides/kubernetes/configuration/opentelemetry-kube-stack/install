@@ -3,6 +3,39 @@ set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
+usage() {
+    cat <<EOF
+Usage: $0 [<overlay-values.yaml>]
+       $0 --help
+
+Installs the OpenTelemetry Kube Stack Helm chart configured to send telemetry to Datadog.
+
+Arguments:
+  <overlay-values.yaml>  Optional values file merged on top of the base values file.
+
+Environment variables:
+  DD_API_KEY                       Datadog API key. Required.
+  DD_INSTALL_FLOW                  Installation flow: upstream or ddot. Required.
+  DD_SITE                          Datadog site. Default: datadoghq.com.
+  K8S_CLUSTER_TYPE                 Kubernetes platform: eks, gcp, aks, or other. Default: other.
+  K8S_CLUSTER_NAME                 Kubernetes cluster name. Default: auto-detected for eks, gcp, and aks; unset otherwise.
+  DEPLOYMENT_ENVIRONMENT_NAME      Value of the deployment.environment.name resource attribute. Default: production.
+  DD_AGENT_ENABLED                 Install the Datadog Agent in the ddot flow: true or false. Default: true.
+  DD_APP_KEY                       Datadog application key. Enables Fleet Automation for the Datadog Agent. Requires K8S_CLUSTER_NAME. Default: unset.
+  DD_HOST_PROFILER_ENABLED         Enable the eBPF host profiler: true or false. Default: false.
+  DD_HOST_PROFILER_NETWORK_POLICY  Host profiler egress NetworkPolicy: none, standard, or cilium. Default: none.
+EOF
+}
+
+case "${1:-}" in
+    -h|--help) usage; exit 0 ;;
+    -*)
+        echo "ERROR: Unknown option: $1" >&2
+        usage >&2
+        exit 1
+        ;;
+esac
+
 require_bool() {
     case "${!1}" in
         true|false) ;;
