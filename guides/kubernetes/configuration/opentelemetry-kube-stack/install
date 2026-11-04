@@ -40,6 +40,25 @@ K8S_CLUSTER_TYPE=${K8S_CLUSTER_TYPE:-other}
 DEPLOYMENT_ENVIRONMENT_NAME=${DEPLOYMENT_ENVIRONMENT_NAME:-production}
 DD_AGENT_ENABLED=${DD_AGENT_ENABLED:-true}
 require_bool DD_AGENT_ENABLED
+DD_AUTOINSTRUMENTATION_ENABLED=${DD_AUTOINSTRUMENTATION_ENABLED:-true}
+require_bool DD_AUTOINSTRUMENTATION_ENABLED
+DD_COLLECTOR_ENABLED=${DD_COLLECTOR_ENABLED:-true}
+require_bool DD_COLLECTOR_ENABLED
+
+if [[ "$DD_AUTOINSTRUMENTATION_ENABLED" == "false" && "$DD_COLLECTOR_ENABLED" == "false" ]]; then
+    echo "ERROR: DD_AUTOINSTRUMENTATION_ENABLED and DD_COLLECTOR_ENABLED cannot both be false" >&2
+    exit 1
+fi
+
+if [[ "$DD_COLLECTOR_ENABLED" == "true" && -n "${OTEL_EXPORTER_OTLP_ENDPOINT:-}" ]]; then
+    echo "ERROR: OTEL_EXPORTER_OTLP_ENDPOINT can only be set when DD_COLLECTOR_ENABLED=false" >&2
+    exit 1
+fi
+
+if [[ "$DD_COLLECTOR_ENABLED" == "false" && -z "${OTEL_EXPORTER_OTLP_ENDPOINT:-}" ]]; then
+    echo "ERROR: OTEL_EXPORTER_OTLP_ENDPOINT must be set when DD_COLLECTOR_ENABLED=false" >&2
+    exit 1
+fi
 
 DD_AGENT_VALUES_ARGS=()
 if [[ "$DD_INSTALL_FLOW" == "ddot" && "$DD_AGENT_ENABLED" == "true" ]]; then
@@ -68,6 +87,11 @@ HOST_PROFILER_NETWORK_POLICY_FILE=""
 HOST_PROFILER_ENABLED_ARGS=()
 
 require_bool DD_HOST_PROFILER_ENABLED
+
+if [[ "$DD_HOST_PROFILER_ENABLED" == "true" && "$DD_COLLECTOR_ENABLED" == "false" ]]; then
+    echo "ERROR: DD_HOST_PROFILER_ENABLED=true requires DD_COLLECTOR_ENABLED=true" >&2
+    exit 1
+fi
 
 if [[ "$DD_HOST_PROFILER_ENABLED" == "true" ]]; then
     # Egress policy for the profiler, only useful on default-deny clusters
@@ -140,6 +164,19 @@ fi
 
 if [[ -n "${K8S_CLUSTER_NAME:-}" ]]; then
     HELM_SET_ARGS+=(--set-string "resourceAttributes.k8s\.cluster\.name=$K8S_CLUSTER_NAME")
+fi
+
+if [[ "$DD_AUTOINSTRUMENTATION_ENABLED" == "false" ]]; then
+    HELM_SET_ARGS+=(--set instrumentation.enabled=false)
+fi
+
+if [[ "$DD_COLLECTOR_ENABLED" == "false" ]]; then
+    HELM_SET_ARGS+=(
+        --set collectors.cluster.enabled=false
+        --set collectors.daemon.enabled=false
+        --set kubeStateMetrics.enabled=false
+        --set-string "instrumentation.exporter.endpoint=$OTEL_EXPORTER_OTLP_ENDPOINT"
+    )
 fi
 
 helm upgrade opentelemetry-kube-stack \
