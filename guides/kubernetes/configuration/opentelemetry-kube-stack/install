@@ -125,6 +125,64 @@ if [[ "$DD_HOST_PROFILER_ENABLED" == "true" ]]; then
     )
 fi
 
+check_error() {
+    echo "ERROR: $*" >&2
+    exit 1
+}
+
+require_permission() {
+    local description=$1
+    shift
+    kubectl auth can-i "$@" --quiet \
+      || check_error "The current kubectl user cannot $description. Use a user with cluster-admin permissions."
+}
+
+older_than() {
+    local version=${1#v} major minor
+    major=${version%%.*}
+    minor=${version#*.}
+    minor=${minor%%[!0-9]*}
+    [[ "$major" =~ ^[0-9]+$ && "$minor" =~ ^[0-9]+$ ]] || return 0
+    (( major < $2 || (major == $2 && minor < $3) ))
+}
+
+echo "Running checks..."
+
+for cmd in kubectl helm curl; do
+    command -v "$cmd" >/dev/null 2>&1 || check_error "$cmd is not installed. Install it and add it to PATH."
+done
+
+kubectl get --raw /version --request-timeout=10s >/dev/null \
+  || check_error "Cannot reach the cluster of the current kubectl context. Check the kubectl context and the cluster's availability."
+
+require_permission "create namespaces" create namespaces --all-namespaces
+require_permission "create secrets in the opentelemetry-operator-system namespace" create secrets --namespace opentelemetry-operator-system
+require_permission "create CustomResourceDefinitions" create customresourcedefinitions.apiextensions.k8s.io --all-namespaces
+require_permission "create ClusterRoles" create clusterroles.rbac.authorization.k8s.io --all-namespaces
+require_permission "create ClusterRoleBindings" create clusterrolebindings.rbac.authorization.k8s.io --all-namespaces
+
+API_KEY_STATUS=$(curl -sS -o /dev/null -w '%{http_code}' --max-time 30 --config - \
+  "https://api.$DD_SITE/api/v1/validate" <<<"header = \"DD-API-KEY: $DD_API_KEY\"" || true)
+case "$API_KEY_STATUS" in
+    200) ;;
+    403) check_error "DD_API_KEY is not valid for DD_SITE '$DD_SITE'. Check the API key and the Datadog site." ;;
+    *) check_error "Could not validate DD_API_KEY at https://api.$DD_SITE (HTTP status $API_KEY_STATUS). Check DD_SITE and the network connection." ;;
+esac
+
+if [[ "$DD_HOST_PROFILER_ENABLED" == "true" ]]; then
+    NODE_KERNELS=$(kubectl get nodes -o jsonpath='{range .items[*]}{.metadata.name}{" "}{.status.nodeInfo.kernelVersion}{"\n"}{end}')
+    OLD_KERNEL_NODES=""
+    while read -r node kernel; do
+        [[ -n "$node" ]] || continue
+        if older_than "$kernel" 5 10; then
+            OLD_KERNEL_NODES+=" $node ($kernel)"
+        fi
+    done <<<"$NODE_KERNELS"
+    if [[ -n "$OLD_KERNEL_NODES" ]]; then
+        check_error "The host profiler requires Linux kernel 5.10 or later. These nodes run an older kernel:$OLD_KERNEL_NODES. Upgrade the nodes or set DD_HOST_PROFILER_ENABLED=false."
+    fi
+fi
+
 #### BEGINNING OF INSTALLATION SCRIPT
 
 # WARNING: dont change "namespace=opentelemetry-operator-system" as it is used in the 'instrumentation' CRD defined in values-otlp-http.yaml and values-ddot.yaml
