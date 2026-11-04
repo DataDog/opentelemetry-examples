@@ -87,7 +87,7 @@ spec:
         lease_name: k8s.cluster.receiver.opentelemetry.io
         lease_namespace: opentelemetry-operator-system
     processors:
-      cumulativetodelta: {}
+      cumulative_to_delta: {}
       groupbyattrs:
         keys:
         - k8s.pod.uid
@@ -132,9 +132,6 @@ spec:
             name: k8s.pod.uid
       resource/global:
         attributes:
-        - action: upsert
-          key: deployment.environment
-          value: production
         - action: upsert
           key: deployment.environment.name
           value: production
@@ -383,7 +380,7 @@ spec:
           - groupbyattrs
           - k8s_attributes
           - resource_detection/env
-          - cumulativetodelta
+          - cumulative_to_delta
           - transform/sum_to_gauge
           - resource/global
           receivers:
@@ -403,7 +400,7 @@ spec:
           - datadog/exporter
           processors:
           - resource_detection/env
-          - cumulativetodelta
+          - cumulative_to_delta
           - resource/global
           receivers:
           - prometheus/otel_operator
@@ -457,7 +454,7 @@ spec:
         apiVersion: v1
         fieldPath: status.podIP
   - name: OTEL_RESOURCE_ATTRIBUTES
-    value: "k8s.pod.name=$(OTEL_K8S_POD_NAME),k8s.namespace.name=$(OTEL_K8S_NAMESPACE),k8s.node.name=$(OTEL_K8S_NODE_NAME),host.name=$(OTEL_K8S_NODE_NAME),k8s.node.ip=$(OTEL_K8S_NODE_IP),k8s.pod.ip=$(OTEL_K8S_POD_IP),deployment.environment=production,deployment.environment.name=production"
+    value: "k8s.pod.name=$(OTEL_K8S_POD_NAME),k8s.namespace.name=$(OTEL_K8S_NAMESPACE),k8s.node.name=$(OTEL_K8S_NODE_NAME),host.name=$(OTEL_K8S_NODE_NAME),k8s.node.ip=$(OTEL_K8S_NODE_IP),k8s.pod.ip=$(OTEL_K8S_POD_IP),deployment.environment.name=production"
   
   - name: DD_API_KEY
     valueFrom:
@@ -507,12 +504,12 @@ spec:
         send_batch_max_size: 1500
         send_batch_size: 1000
         timeout: 1s
-      cumulativetodelta: {}
-      deltatorate:
+      cumulative_to_delta: {}
+      delta_to_rate:
         metrics:
         - k8s.pod.network.io
         - k8s.pod.network.errors
-      deltatorate/cadvisor:
+      delta_to_rate/cadvisor:
         metrics:
         - container_cpu_usage_seconds_total
         - container_cpu_cfs_periods_total
@@ -588,9 +585,6 @@ spec:
           - from: connection
       resource/global:
         attributes:
-        - action: upsert
-          key: deployment.environment
-          value: production
         - action: upsert
           key: deployment.environment.name
           value: production
@@ -878,8 +872,8 @@ spec:
           - k8s_attributes
           - resource_detection/env
           - resource/hostname
-          - cumulativetodelta
-          - deltatorate
+          - cumulative_to_delta
+          - delta_to_rate
           - resource/global
           receivers:
           - datadog/connector
@@ -894,8 +888,8 @@ spec:
           - transform/cadvisor_labels
           - groupbyattrs
           - k8s_attributes
-          - cumulativetodelta
-          - deltatorate/cadvisor
+          - cumulative_to_delta
+          - delta_to_rate/cadvisor
           - resource/global
           receivers:
           - prometheus/cadvisor
@@ -976,7 +970,7 @@ spec:
         apiVersion: v1
         fieldPath: status.podIP
   - name: OTEL_RESOURCE_ATTRIBUTES
-    value: "k8s.pod.name=$(OTEL_K8S_POD_NAME),k8s.namespace.name=$(OTEL_K8S_NAMESPACE),k8s.node.name=$(OTEL_K8S_NODE_NAME),host.name=$(OTEL_K8S_NODE_NAME),k8s.node.ip=$(OTEL_K8S_NODE_IP),k8s.pod.ip=$(OTEL_K8S_POD_IP),deployment.environment=production,deployment.environment.name=production"
+    value: "k8s.pod.name=$(OTEL_K8S_POD_NAME),k8s.namespace.name=$(OTEL_K8S_NAMESPACE),k8s.node.name=$(OTEL_K8S_NODE_NAME),host.name=$(OTEL_K8S_NODE_NAME),k8s.node.ip=$(OTEL_K8S_NODE_IP),k8s.pod.ip=$(OTEL_K8S_POD_IP),deployment.environment.name=production"
   
   - name: DD_API_KEY
     valueFrom:
@@ -1093,9 +1087,6 @@ spec:
       resource/global:
         attributes:
         - action: upsert
-          key: deployment.environment
-          value: production
-        - action: upsert
           key: deployment.environment.name
           value: production
     receivers:
@@ -1209,7 +1200,7 @@ spec:
         apiVersion: v1
         fieldPath: status.podIP
   - name: OTEL_RESOURCE_ATTRIBUTES
-    value: "k8s.pod.name=$(OTEL_K8S_POD_NAME),k8s.namespace.name=$(OTEL_K8S_NAMESPACE),k8s.node.name=$(OTEL_K8S_NODE_NAME),host.name=$(OTEL_K8S_NODE_NAME),k8s.node.ip=$(OTEL_K8S_NODE_IP),k8s.pod.ip=$(OTEL_K8S_POD_IP),deployment.environment=production,deployment.environment.name=production"
+    value: "k8s.pod.name=$(OTEL_K8S_POD_NAME),k8s.namespace.name=$(OTEL_K8S_NAMESPACE),k8s.node.name=$(OTEL_K8S_NODE_NAME),host.name=$(OTEL_K8S_NODE_NAME),k8s.node.ip=$(OTEL_K8S_NODE_IP),k8s.pod.ip=$(OTEL_K8S_POD_IP),deployment.environment.name=production"
   
   - name: DD_API_KEY
     valueFrom:

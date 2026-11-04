@@ -407,9 +407,6 @@ environment variable, typically through `OTEL_RESOURCE_ATTRIBUTES=datadog.host.n
 
 - **Requirement:** `deployment.environment.name` on all the telemetry, for example with `resourceAttributes` in the
   kube-stack chart's values.
-- **Workaround:** also set the deprecated `deployment.environment` to the same value until
-  [dd-trace-java#12324][dd-trace-java-12324] ships.
-- FIXME change the description of the resolution of the workaround to point to the DDOT Go SDK as it's the last one to release.  
 
 ### C-12: Collect middleware telemetry from the `daemon` collector on the same node
 
@@ -888,7 +885,6 @@ See [TROUBLESHOOTING.md][troubleshooting] when something doesn't show up.
 [orchestrion]: https://github.com/DataDog/orchestrion
 [orchestrion-936]: https://github.com/DataDog/orchestrion/issues/936
 [dd-trace-go-5407]: https://github.com/DataDog/dd-trace-go/pull/5407  
-[dd-trace-java-12324]: https://github.com/DataDog/dd-trace-java/pull/12324
 [dd-operator-3521]: https://github.com/DataDog/datadog-operator/issues/3521
 [dd-agent-57314]: https://github.com/DataDog/datadog-agent/issues/57314
 [otel-operator-sdk-go]: https://github.com/open-telemetry/opentelemetry-operator/blob/v0.159.0/internal/instrumentation/sdk.go

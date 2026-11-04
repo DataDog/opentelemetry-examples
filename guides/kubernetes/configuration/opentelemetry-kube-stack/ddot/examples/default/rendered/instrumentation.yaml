@@ -39,10 +39,11 @@ spec:
       value: "http,database,rpc,messaging"
     - name: OTEL_TRACES_EXPORTER
       value: "otlp"
+    - name: OTEL_TRACES_SPAN_METRICS_ENABLED
+      value: "false"
   resource:
     addK8sUIDAttributes: true
     resourceAttributes:
-      deployment.environment: staging
       deployment.environment.name: staging
   java:
     image: datadog/dd-otel-autoinstrumentation-java:1.68.0-preview

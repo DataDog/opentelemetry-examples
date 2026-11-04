@@ -21,14 +21,6 @@ spec:
   env:
     - name: DD_AGENT_HOST
       value: "datadog-agent.datadog.svc.cluster.local"
-    - name: DD_DATA_STREAMS_ENABLED
-      value: "true"
-    - name: DD_DBM_PROPAGATION_MODE
-      value: "full"
-    - name: DD_DBM_TRACE_PREPARED_STATEMENTS
-      value: "true"
-    - name: DD_DYNAMIC_INSTRUMENTATION_ENABLED
-      value: "true"
     - name: DD_LOGS_OTEL_ENABLED
       value: "true"
     - name: DD_METRICS_OTEL_ENABLED
@@ -36,8 +28,6 @@ spec:
     - name: DD_TRACE_OTEL_ENABLED
       value: "true"
     - name: DD_TRACE_OTEL_SEMANTICS_ENABLED
-      value: "true"
-    - name: DD_TRACE_REMOVE_INTEGRATION_SERVICE_NAMES_ENABLED
       value: "true"
     - name: OTEL_EXPORTER_OTLP_METRICS_TEMPORALITY_PREFERENCE
       value: "delta"
@@ -54,7 +44,6 @@ spec:
   resource:
     addK8sUIDAttributes: true
     resourceAttributes:
-      deployment.environment: production
       deployment.environment.name: production
       k8s.cluster.name: my_k8s_cluster
   java:

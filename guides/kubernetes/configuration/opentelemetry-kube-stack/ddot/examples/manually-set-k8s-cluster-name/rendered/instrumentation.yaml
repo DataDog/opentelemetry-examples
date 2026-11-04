@@ -39,10 +39,11 @@ spec:
       value: "http,database,rpc,messaging"
     - name: OTEL_TRACES_EXPORTER
       value: "otlp"
+    - name: OTEL_TRACES_SPAN_METRICS_ENABLED
+      value: "false"
   resource:
     addK8sUIDAttributes: true
     resourceAttributes:
-      deployment.environment: production
       deployment.environment.name: production
       k8s.cluster.name: my-k8s-cluster
   java:
