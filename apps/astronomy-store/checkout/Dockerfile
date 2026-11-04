@@ -5,7 +5,7 @@ COPY go.mod go.sum ./
 RUN go mod download
 
 COPY *.go ./
-RUN go install github.com/DataDog/orchestrion@v1.13.1
+RUN go install github.com/DataDog/orchestrion@v1.15.0
 RUN orchestrion pin
 RUN CGO_ENABLED=0 orchestrion go build -o /checkout .
 
