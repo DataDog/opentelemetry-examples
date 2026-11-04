@@ -29,8 +29,19 @@ try
 {
     while (!cts.IsCancellationRequested)
     {
-        var result = consumer.Consume(cts.Token);
+        ConsumeResult<string, string> result;
+        try
+        {
+            result = consumer.Consume(cts.Token);
+        }
+        catch (ConsumeException e) when (e.Error.Code == ErrorCode.UnknownTopicOrPart)
+        {
+            logger.LogWarning("waiting for topic {InputTopic} to exist", inputTopic);
+            await Task.Delay(TimeSpan.FromSeconds(2), cts.Token);
+            continue;
+        }
         logger.LogInformation("forward_order key={Key}", result.Message.Key);
+        await Task.Delay(ProcessingDelay(), cts.Token);
         await producer.ProduceAsync(outputTopic, new Message<string, string> { Key = result.Message.Key, Value = result.Message.Value }, cts.Token);
     }
 }
@@ -41,6 +52,12 @@ finally
 {
     producer.Flush(TimeSpan.FromSeconds(10));
     consumer.Close();
+}
+
+static TimeSpan ProcessingDelay()
+{
+    var gaussian = Math.Sqrt(-2 * Math.Log(1 - Random.Shared.NextDouble())) * Math.Cos(2 * Math.PI * Random.Shared.NextDouble());
+    return TimeSpan.FromMilliseconds(Math.Clamp(500 + 150 * gaussian, 0, 990));
 }
 
 static string Env(string key, string defaultValue) =>

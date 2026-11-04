@@ -3,6 +3,7 @@ package com.astronomystore.javaforwarder;
 import java.time.Duration;
 import java.util.List;
 import java.util.Properties;
+import java.util.concurrent.ThreadLocalRandom;
 
 import org.apache.kafka.clients.consumer.ConsumerConfig;
 import org.apache.kafka.clients.consumer.ConsumerRecord;
@@ -19,7 +20,7 @@ public class JavaForwarderApplication {
     private static final Logger logger = LoggerFactory.getLogger(JavaForwarderApplication.class);
     private static final String CONSUMER_GROUP = "java-forwarder";
 
-    public static void main(String[] args) {
+    public static void main(String[] args) throws InterruptedException {
         String broker = env("KAFKA_ADDR", "kafka:9092");
         String inputTopic = env("KAFKA_TOPIC", "python-forwarder-orders");
         String outputTopic = env("KAFKA_OUTPUT_TOPIC", "java-forwarder-orders");
@@ -43,10 +44,16 @@ public class JavaForwarderApplication {
             while (true) {
                 for (ConsumerRecord<String, String> record : consumer.poll(Duration.ofSeconds(1))) {
                     logger.info("forward_order key={}", record.key());
+                    Thread.sleep(processingDelayMillis());
                     producer.send(new ProducerRecord<>(outputTopic, record.key(), record.value()));
                 }
             }
         }
+    }
+
+    private static long processingDelayMillis() {
+        double millis = 500 + 150 * ThreadLocalRandom.current().nextGaussian();
+        return (long) Math.min(Math.max(millis, 0), 990);
     }
 
     private static String env(String key, String defaultValue) {

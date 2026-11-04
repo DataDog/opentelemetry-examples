@@ -5,9 +5,11 @@ import (
 	"errors"
 	"fmt"
 	"log/slog"
+	"math/rand/v2"
 	"os"
 	"os/signal"
 	"syscall"
+	"time"
 
 	"github.com/segmentio/kafka-go"
 )
@@ -24,6 +26,11 @@ func getEnv(key, defaultValue string) string {
 		return value
 	}
 	return defaultValue
+}
+
+func processingDelay() time.Duration {
+	millis := min(max(500+150*rand.NormFloat64(), 0), 990)
+	return time.Duration(millis * float64(time.Millisecond))
 }
 
 func run() error {
@@ -62,6 +69,7 @@ func run() error {
 			return fmt.Errorf("read Kafka message: %w", err)
 		}
 		logger.InfoContext(ctx, "forward_order", slog.String("key", string(msg.Key)))
+		time.Sleep(processingDelay())
 		if err := writer.WriteMessages(ctx, kafka.Message{Key: msg.Key, Value: msg.Value, Headers: msg.Headers}); err != nil {
 			return fmt.Errorf("write Kafka message: %w", err)
 		}

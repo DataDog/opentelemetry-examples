@@ -15,7 +15,7 @@ With --push, builds with `docker buildx` and pushes to IMAGE_PREFIX.
 
 Images are built for linux/amd64 only.
 
-The Go services (checkout, go-forwarder, go-producer) are built twice, once per OpenTelemetry Kube Stack install flow (DD_INSTALL_FLOW):
+The Go services (checkout, go-forwarder) are built twice, once per OpenTelemetry Kube Stack install flow (DD_INSTALL_FLOW):
   <service>:<tag>                 ddot flow: Datadog Orchestrion compile-time instrumentation
   <service>:<tag>-upstream-otel   upstream flow: OpenTelemetry Go compile-time instrumentation (otelc)
 
@@ -41,8 +41,8 @@ fi
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 IMAGE_PREFIX="${IMAGE_PREFIX:-astronomy-store}"
 IMAGE_PREFIX="${IMAGE_PREFIX%/}"
-SERVICES=(ad checkout dotnet-forwarder fraud-detection frontend go-forwarder go-producer java-forwarder node-forwarder product-catalog python-forwarder)
-UPSTREAM_OTEL_SERVICES=(checkout go-forwarder go-producer)
+SERVICES=(ad checkout dotnet-forwarder fraud-detection frontend go-forwarder java-forwarder node-forwarder product-catalog python-forwarder)
+UPSTREAM_OTEL_SERVICES=(checkout go-forwarder)
 UPSTREAM_OTEL_TAG_SUFFIX="-upstream-otel"
 
 # Converts a git remote URL to https://<host>/<path>, without credentials, port, or ".git" suffix: the form

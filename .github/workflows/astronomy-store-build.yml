@@ -68,7 +68,7 @@ jobs:
         if: failure()
         run: |
           kubectl get pods --namespace astronomy-store -o wide
-          for deployment in kafka checkout fraud-detection go-producer python-forwarder java-forwarder node-forwarder dotnet-forwarder go-forwarder; do
+          for deployment in kafka checkout fraud-detection python-forwarder java-forwarder node-forwarder dotnet-forwarder go-forwarder; do
             echo "--- ${deployment} logs ---"
             kubectl logs "deployment/${deployment}" --namespace astronomy-store --all-containers --tail=-1 || true
           done

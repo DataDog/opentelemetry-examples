@@ -13,7 +13,7 @@ Usage:
 If IMAGE_PREFIX/IMAGE_TAG are not set, they default to the values in .image-env (written by
 `./build-images --push`), falling back to astronomy-store:latest.
 
-DD_INSTALL_FLOW selects the Go service images (checkout, go-forwarder, go-producer) matching the OpenTelemetry Kube Stack install flow
+DD_INSTALL_FLOW selects the Go service images (checkout, go-forwarder) matching the OpenTelemetry Kube Stack install flow
 (same variable as guides/kubernetes/configuration/opentelemetry-kube-stack/install):
   upstream  <service>:<tag>-upstream-otel, OpenTelemetry Go compile-time instrumentation
   ddot      <service>:<tag>, Datadog Orchestrion (DDOT SDK for Go)
@@ -63,7 +63,6 @@ SERVICE_MANIFESTS=(
     ad/kubernetes.yaml
     product-catalog/kubernetes.yaml
     fraud-detection/kubernetes.yaml
-    go-producer/kubernetes.yaml
     python-forwarder/kubernetes.yaml
     java-forwarder/kubernetes.yaml
     node-forwarder/kubernetes.yaml
@@ -110,7 +109,7 @@ for manifest in "${SERVICE_MANIFESTS[@]}"; do
     apply_service_manifest "${manifest}"
 done
 
-for deployment in astronomy-db kafka ad product-catalog fraud-detection go-producer python-forwarder java-forwarder node-forwarder dotnet-forwarder go-forwarder checkout frontend; do
+for deployment in astronomy-db kafka ad product-catalog fraud-detection python-forwarder java-forwarder node-forwarder dotnet-forwarder go-forwarder checkout frontend; do
     kubectl rollout status "deployment/${deployment}" \
         --namespace "${NAMESPACE}" \
         --timeout="${ROLLOUT_TIMEOUT}"

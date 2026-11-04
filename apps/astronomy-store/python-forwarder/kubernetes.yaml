@@ -31,6 +31,6 @@ spec:
             - name: KAFKA_ADDR
               value: kafka:9092
             - name: KAFKA_TOPIC
-              value: go-producer-orders
+              value: orders
             - name: KAFKA_OUTPUT_TOPIC
               value: python-forwarder-orders

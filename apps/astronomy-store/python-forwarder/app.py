@@ -1,7 +1,9 @@
 import json
 import logging
 import os
+import random
 import sys
+import time
 
 from confluent_kafka import Consumer, Producer
 from opentelemetry import propagate, trace
@@ -11,7 +13,7 @@ logging.basicConfig(stream=sys.stdout, level=logging.INFO, format="%(message)s")
 logger = logging.getLogger("python-forwarder")
 
 KAFKA_ADDR = os.environ.get("KAFKA_ADDR", "kafka:9092")
-KAFKA_TOPIC = os.environ.get("KAFKA_TOPIC", "go-producer-orders")
+KAFKA_TOPIC = os.environ.get("KAFKA_TOPIC", "orders")
 KAFKA_OUTPUT_TOPIC = os.environ.get("KAFKA_OUTPUT_TOPIC", "python-forwarder-orders")
 KAFKA_CONSUMER_GROUP = "python-forwarder"
 
@@ -20,6 +22,10 @@ tracer = trace.get_tracer(__name__)
 
 def log(msg: str, **fields) -> None:
     logger.info(json.dumps({"level": "info", "msg": msg, **fields}))
+
+
+def processing_delay() -> float:
+    return min(max(random.gauss(0.5, 0.15), 0.0), 0.99)
 
 
 def main() -> None:
@@ -44,6 +50,7 @@ def main() -> None:
             carrier = {key: value.decode("utf-8") for key, value in message.headers() or []}
             with tracer.start_as_current_span("forward_order", context=propagate.extract(carrier), kind=SpanKind.CONSUMER):
                 log("forward_order", key=(message.key() or b"").decode("utf-8"))
+                time.sleep(processing_delay())
                 producer.produce(KAFKA_OUTPUT_TOPIC, key=message.key(), value=message.value())
                 producer.poll(0)
     finally:
