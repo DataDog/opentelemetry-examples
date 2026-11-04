@@ -2,6 +2,7 @@
 set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+INSTALLER_VERSION=v0.0.1-pre
 
 require_bool() {
     case "${!1}" in
@@ -89,11 +90,30 @@ fi
 
 #### BEGINNING OF INSTALLATION SCRIPT
 
+INSTALLED_BY=datadog-otel-onboarding-script
+INSTALLED_BY_LABEL="install.datadoghq.com/installed-by=$INSTALLED_BY"
+PROVENANCE_ANNOTATIONS=(
+    "install.datadoghq.com/installer-version=$INSTALLER_VERSION"
+    "install.datadoghq.com/install-flow=$DD_INSTALL_FLOW"
+    "install.datadoghq.com/installed-at=$(date -u +%Y-%m-%dT%H:%M:%SZ)"
+)
+HELM_PROVENANCE_ARGS=(
+    --labels "$INSTALLED_BY_LABEL,install.datadoghq.com/installer-version=$INSTALLER_VERSION,install.datadoghq.com/install-flow=$DD_INSTALL_FLOW"
+    --description "$INSTALLED_BY $INSTALLER_VERSION"
+)
+
+stamp_provenance() {
+    kubectl label --local -f - -o yaml "$INSTALLED_BY_LABEL" \
+      | kubectl annotate --local -f - -o yaml "${PROVENANCE_ANNOTATIONS[@]}"
+}
+
 # WARNING: dont change "namespace=opentelemetry-operator-system" as it is used in the 'instrumentation' CRD defined in values-otlp-http.yaml and values-ddot.yaml
 
 echo "Creating Kubernetes namespace..."
 
-kubectl create namespace opentelemetry-operator-system || echo "WARNING: Could not create namespace 'opentelemetry-operator-system' (may already exist or insufficient permissions). Continuing..."
+kubectl create namespace opentelemetry-operator-system --dry-run=client -o yaml \
+  | stamp_provenance | kubectl create -f - \
+  || echo "WARNING: Could not create namespace 'opentelemetry-operator-system' (may already exist or insufficient permissions). Continuing..."
 
 echo "Creating or updating Datadog secret..."
 
@@ -101,7 +121,7 @@ kubectl create secret generic datadog-secret \
   --namespace opentelemetry-operator-system  \
   --from-literal="api-key=$DD_API_KEY" \
   --from-literal="dd-site=$DD_SITE" \
-  --dry-run=client -o yaml | kubectl apply -f -
+  --dry-run=client -o yaml | stamp_provenance | kubectl apply -f -
 
 echo "Installing cert-manager (if not already installed)..."
 
@@ -110,6 +130,7 @@ helm repo update
 helm install cert-manager jetstack/cert-manager \
   --namespace cert-manager --create-namespace \
   --set crds.enabled=true  \
+  "${HELM_PROVENANCE_ARGS[@]}" \
   --wait --timeout 5m \
   || echo "WARNING: Could not install cert-manager (may already exist or insufficient permissions). Continuing..."
 
@@ -133,14 +154,16 @@ fi
 
 if [[ -n "$HOST_PROFILER_NETWORK_POLICY_FILE" ]]; then
     echo "Applying the host-profiler egress NetworkPolicy..."
-    kubectl apply -f "$HOST_PROFILER_NETWORK_POLICY_FILE" \
+    stamp_provenance <"$HOST_PROFILER_NETWORK_POLICY_FILE" | kubectl apply -f - \
       || echo "WARNING: Could not apply the host-profiler egress NetworkPolicy (is Cilium installed if you chose the Cilium policy?). Continuing..."
 fi
 
 if [[ "$DD_INSTALL_FLOW" == "ddot" && "$DD_AGENT_ENABLED" == "true" ]]; then
     echo "Installing Datadog Operator..."
 
-    kubectl create namespace datadog || echo "WARNING: Could not create namespace 'datadog' (may already exist or insufficient permissions). Continuing..."
+    kubectl create namespace datadog --dry-run=client -o yaml \
+      | stamp_provenance | kubectl create -f - \
+      || echo "WARNING: Could not create namespace 'datadog' (may already exist or insufficient permissions). Continuing..."
 
     DD_APP_KEY_SECRET_ARGS=()
     if [[ -n "${DD_APP_KEY:-}" ]]; then
@@ -150,7 +173,7 @@ if [[ "$DD_INSTALL_FLOW" == "ddot" && "$DD_AGENT_ENABLED" == "true" ]]; then
       --namespace datadog \
       --from-literal="api-key=$DD_API_KEY" \
       ${DD_APP_KEY_SECRET_ARGS[@]+"${DD_APP_KEY_SECRET_ARGS[@]}"} \
-      --dry-run=client -o yaml | kubectl apply -f -
+      --dry-run=client -o yaml | stamp_provenance | kubectl apply -f -
 
     helm repo add datadog https://helm.datadoghq.com
     helm repo update
@@ -178,6 +201,7 @@ if [[ "$DD_INSTALL_FLOW" == "ddot" && "$DD_AGENT_ENABLED" == "true" ]]; then
         --install \
         --namespace datadog \
         "${OPERATOR_HELM_ARGS[@]}" \
+        "${HELM_PROVENANCE_ARGS[@]}" \
         --wait --timeout 5m
 
     echo "Applying the DatadogAgent custom resource..."
@@ -190,7 +214,7 @@ if [[ "$DD_INSTALL_FLOW" == "ddot" && "$DD_AGENT_ENABLED" == "true" ]]; then
       -f "$SCRIPT_DIR/datadog-agent.yaml" \
       --type merge \
       -p "{\"spec\":{\"global\":{$GLOBAL_JSON}}}" \
-      -o yaml | kubectl apply --namespace datadog -f -
+      -o yaml | stamp_provenance | kubectl apply --namespace datadog -f -
 fi
 
 # Installed last so the Helm release notes are the last output the user sees.
@@ -229,6 +253,7 @@ helm upgrade opentelemetry-kube-stack \
     --install \
     --namespace opentelemetry-operator-system \
     "${HELM_SET_ARGS[@]}" \
+    "${HELM_PROVENANCE_ARGS[@]}" \
     -f "$SCRIPT_DIR/$VALUES_FILE" \
     ${DD_AGENT_VALUES_ARGS[@]+"${DD_AGENT_VALUES_ARGS[@]}"} \
     ${HOST_PROFILER_ENABLED_ARGS[@]+"${HOST_PROFILER_ENABLED_ARGS[@]}"} \
