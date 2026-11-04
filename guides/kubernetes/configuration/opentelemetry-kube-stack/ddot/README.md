@@ -164,7 +164,7 @@ Kubernetes clusters.
 
 Verified against:
 
-- `opentelemetry-kube-stack` chart `>= 0.24.2`
+- `opentelemetry-kube-stack` chart `>= 0.26.1`
 - Collector image `otel/opentelemetry-collector-contrib >= 0.161.0` (pinned in values.yaml under
   `opentelemetry-operator.manager.collectorImage`)
 

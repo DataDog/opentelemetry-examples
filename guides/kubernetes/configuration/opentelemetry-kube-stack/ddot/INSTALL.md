@@ -338,7 +338,7 @@ update resources: the script never deletes anything from the Kubernetes cluster,
 | 5 | `helm upgrade --install datadog-operator datadog/datadog-operator --namespace datadog ...`                                                           | Always                                                                                  | Installs or upgrades the Datadog Operator and its CRDs.                                                                                                                      |
 | 6 | `kubectl apply --namespace datadog -f -` (`datadog-agent.yaml`, with the Kubernetes cluster name and site substituted)                               | Always                                                                                  | Creates or updates the `DatadogAgent` custom resource, from which the Datadog Operator deploys the Datadog Agent DaemonSet and the Cluster Agent.                           |
 | 7 | `kubectl apply -f host-profiler-network-policy.yaml` or `kubectl apply -f host-profiler-cilium-network-policy.yaml`                                  | Only with `DD_HOST_PROFILER_ENABLED=true` and `DD_HOST_PROFILER_NETWORK_POLICY=standard` or `cilium` (warns and continues on failure) | Creates or updates the `opentelemetry-kube-stack-host-profiler-egress` NetworkPolicy or CiliumNetworkPolicy in the `opentelemetry-operator-system` namespace. |
-| 8 | `helm upgrade --install opentelemetry-kube-stack open-telemetry/opentelemetry-kube-stack --version 0.24.2 --namespace opentelemetry-operator-system ...` | Always                                                                                  | Installs or upgrades the OpenTelemetry Operator and its CRDs, the `cluster` and `daemon` collectors, and the `Instrumentation` custom resource, plus the `host-profiler` collector and its RBAC (`host-profiler-rbac-values.yaml`) when enabled. |
+| 8 | `helm upgrade --install opentelemetry-kube-stack open-telemetry/opentelemetry-kube-stack --version 0.26.1 --namespace opentelemetry-operator-system ...` | Always                                                                                  | Installs or upgrades the OpenTelemetry Operator and its CRDs, the `cluster` and `daemon` collectors, and the `Instrumentation` custom resource, plus the `host-profiler` collector and its RBAC (`host-profiler-rbac-values.yaml`) when enabled. |
 
 Before making any change, the script also runs read-only checks and stops on a conflict:
 
@@ -452,7 +452,7 @@ helm repo add open-telemetry https://open-telemetry.github.io/opentelemetry-helm
 helm repo update
 helm upgrade --install opentelemetry-kube-stack \
   open-telemetry/opentelemetry-kube-stack \
-  --version 0.24.2 \
+  --version 0.26.1 \
   --namespace opentelemetry-operator-system \
   --values ./values.yaml \
   --values ./deployment/values.yaml
@@ -463,7 +463,7 @@ Alternatively, if you want to enable the `host-profiler` collector:
 ```sh
 helm upgrade --install opentelemetry-kube-stack \
   open-telemetry/opentelemetry-kube-stack \
-  --version 0.24.2 \
+  --version 0.26.1 \
   --namespace opentelemetry-operator-system \
   --set collectors.host-profiler.enabled=true \
   --values ./values.yaml \

@@ -765,7 +765,7 @@ values: this guide doesn't list them, and they aren't tested in this repository.
   `datadog-agent.yaml` disables the Agent's `eventCollection.collectKubernetesEvents`, but the Collectors don't
   collect them either: `values.yaml` disables the `kubernetesEvents` preset on the `daemon` collector and doesn't enable
   it on the `cluster` collector, and the `kubernetesObjects` preset doesn't collect events (verified against
-  `opentelemetry-kube-stack` chart 0.24.2 and `examples/default/rendered/collector.yaml`). Decide which component
+  `opentelemetry-kube-stack` chart 0.26.1 and `examples/default/rendered/collector.yaml`). Decide which component
   collects them: enable `collectors.cluster.presets.kubernetesEvents` in `values.yaml` and re-render the examples, or
   re-enable `eventCollection.collectKubernetesEvents` in `datadog-agent.yaml`. Then simplify the events row of the table
   and the sentence introducing the reference configuration.

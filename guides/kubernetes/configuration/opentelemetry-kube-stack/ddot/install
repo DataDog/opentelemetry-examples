@@ -321,7 +321,7 @@ fi
 
 helm upgrade opentelemetry-kube-stack \
     open-telemetry/opentelemetry-kube-stack \
-    --version 0.24.2 \
+    --version 0.26.1 \
     --install \
     --namespace opentelemetry-operator-system \
     "${HELM_SET_ARGS[@]}" \
