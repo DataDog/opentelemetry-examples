@@ -1,6 +1,18 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
+SELECTOR=install.datadoghq.com/installed-by=opentelemetry-kube-stack-install
+
+installed_release() {
+  helm list --namespace "$2" --selector "$SELECTOR" --short | grep -x "$1" >/dev/null
+}
+
+if [[ -z "$(helm list --all-namespaces --selector "$SELECTOR" --short)" \
+  && -z "$(kubectl get namespaces,secrets --all-namespaces -l "$SELECTOR" -o name)" ]]; then
+  echo "No installation made by the opentelemetry-kube-stack installer was found. Nothing to uninstall."
+  exit 0
+fi
+
 cat <<'EOF'
 WARNING: This uninstall script is for development purposes only.
 
@@ -38,20 +50,24 @@ fi
 kubectl delete networkpolicy \
   --namespace opentelemetry-operator-system \
   --ignore-not-found=true \
-  opentelemetry-kube-stack-host-profiler-egress \
+  -l "$SELECTOR" \
   || echo "WARNING: Could not delete the host-profiler NetworkPolicy. Continuing..."
 kubectl delete ciliumnetworkpolicy \
   --namespace opentelemetry-operator-system \
   --ignore-not-found=true \
-  opentelemetry-kube-stack-host-profiler-egress \
+  -l "$SELECTOR" \
   || echo "WARNING: CiliumNetworkPolicy CRD not installed. Continuing..."
 
-helm uninstall opentelemetry-kube-stack \
-  --namespace opentelemetry-operator-system  \
-  || echo "WARNING: Could not uninstall opentelemetry-kube-stack. Continuing..."
+if installed_release opentelemetry-kube-stack opentelemetry-operator-system; then
+  helm uninstall opentelemetry-kube-stack \
+    --namespace opentelemetry-operator-system  \
+    || echo "WARNING: Could not uninstall opentelemetry-kube-stack. Continuing..."
+fi
 
-helm uninstall cert-manager -n cert-manager \
-   || echo "WARNING: Could not uninstall cert-manager. Continuing..."
+if installed_release cert-manager cert-manager; then
+  helm uninstall cert-manager -n cert-manager \
+     || echo "WARNING: Could not uninstall cert-manager. Continuing..."
+fi
 
 kubectl delete crd \
   issuers.cert-manager.io \
@@ -67,7 +83,7 @@ kubectl delete datadogagent \
   --ignore-not-found=true \
   --cascade=foreground \
   --timeout=5m \
-  datadog \
+  -l "$SELECTOR" \
   || echo "WARNING: Could not delete the datadog DatadogAgent. Continuing..."
 
 helm uninstall ddagent-kube-stack \
@@ -75,10 +91,12 @@ helm uninstall ddagent-kube-stack \
   --ignore-not-found \
   || echo "WARNING: Could not uninstall ddagent-kube-stack. Continuing..."
 
-helm uninstall datadog-operator \
-  --namespace datadog \
-  --ignore-not-found \
-  || echo "WARNING: Could not uninstall datadog-operator. Continuing..."
+if installed_release datadog-operator datadog; then
+  helm uninstall datadog-operator \
+    --namespace datadog \
+    --ignore-not-found \
+    || echo "WARNING: Could not uninstall datadog-operator. Continuing..."
+fi
 
 kubectl delete mutatingwebhookconfiguration,validatingwebhookconfiguration \
   --ignore-not-found=true \
@@ -86,7 +104,7 @@ kubectl delete mutatingwebhookconfiguration,validatingwebhookconfiguration \
   || echo "WARNING: Could not delete the datadog-webhook webhook configurations. Continuing..."
 
 echo "Removing Datadog endpoint configuration..."
-kubectl delete secrets --namespace opentelemetry-operator-system  --ignore-not-found=true datadog-secret
+kubectl delete secrets --all-namespaces --ignore-not-found=true -l "$SELECTOR" --field-selector metadata.name=datadog-secret
 
 
 # Remove OpenTelemetry CRDs (optional - be careful as this affects all OpenTelemetry resources)
@@ -99,4 +117,5 @@ kubectl delete crd --ignore-not-found=true \
   || echo "WARNING: Could not delete the OpenTelemetry Operator CRDs. Continuing..."
 
 echo "Removing namespaces..."
-kubectl delete namespace --ignore-not-found=true opentelemetry-operator-system datadog cert-manager
+kubectl delete namespace --ignore-not-found=true -l "$SELECTOR"
+kubectl delete namespace --ignore-not-found=true cert-manager
