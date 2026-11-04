@@ -43,8 +43,6 @@ spec:
       value: "delta"
     - name: OTEL_EXPORTER_OTLP_PROTOCOL
       value: "http/protobuf"
-    - name: OTEL_EXPORTER_OTLP_TRACES_ENDPOINT
-      value: "http://opentelemetry-kube-stack-daemon-collector.opentelemetry-operator-system.svc.cluster.local:4318/v1/traces"
     - name: OTEL_SEMCONV_STABILITY_OPT_IN
       value: "http,database,rpc,messaging"
     - name: OTEL_TRACES_EXPORTER

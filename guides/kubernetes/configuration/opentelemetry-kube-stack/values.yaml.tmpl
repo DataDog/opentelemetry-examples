@@ -881,10 +881,6 @@ instrumentation:
       value: "true"
     - name: "DD_DYNAMIC_INSTRUMENTATION_ENABLED"
       value: "true"
-    ## WORKAROUND: DDOT SDK GO LANG ignores OTEL_EXPORTER_OTLP_ENDPOINT, it's a bug
-    ## https://github.com/DataDog/dd-trace-go/pull/5407
-    - name: "OTEL_EXPORTER_OTLP_TRACES_ENDPOINT"
-      value: "http://opentelemetry-kube-stack-daemon-collector.opentelemetry-operator-system.svc.cluster.local:4318/v1/traces"
 {{- end}}
   exporter:
     # Daemon collector Service DNS. Update the collector name and namespace
