@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-set -euo pipefail
+set -Eeuo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
@@ -38,6 +38,8 @@ esac
 
 INSTALLER_VERSION=$(git -C "$SCRIPT_DIR" describe --always --dirty 2>/dev/null || echo unknown)
 echo "opentelemetry-kube-stack install script $INSTALLER_VERSION"
+
+trap 'echo "ERROR: Command failed at line $LINENO: $BASH_COMMAND" >&2' ERR
 
 require_bool() {
     case "${!1}" in
