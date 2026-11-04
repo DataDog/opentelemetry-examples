@@ -678,9 +678,6 @@ collectors:
   host-profiler:
     enabled: false
     suffix: host-profiler
-    # The host-profiler is only supported on Linux nodes
-    nodeSelector:
-      kubernetes.io/os: linux
     # Recommended: run as a DaemonSet to collect profiles from every supported node
     # and provide a cluster-wide view.
     mode: daemonset
@@ -690,10 +687,10 @@ collectors:
     # config, presets, and targetAllocator from being merged into this collector.
     inheritDefaultCRConfig: false
 
-    # Host Profiler preview image. Update the tag when using a newer preview build.
+    # Host Profiler release candidate image. Update the tag when using a newer RC.
     image:
-      repository: datadog/ddot-ebpf-dev
-      tag: mackjmr-hp-preview-v2
+      repository: datadog/ddot-ebpf
+      tag: 7.86.0-rc.3
 
     env:
       - name: DD_API_KEY
@@ -707,10 +704,6 @@ collectors:
             name: datadog-secret
             key: dd-site
             optional: true
-      - name: MY_POD_IP
-        valueFrom:
-          fieldRef:
-            fieldPath: status.podIP
 
     # Enable the chart integrations the Host Profiler relies on. The profiling
     # preset configures host-level profiling settings such as hostPID and the
@@ -802,7 +795,7 @@ collectors:
     config:
       extensions:
         health_check:
-          endpoint: "[${env:MY_POD_IP}]:13133"
+          endpoint: "[${env:OTEL_K8S_POD_IP}]:13133"
 
       receivers:
         # OTLP receiver for collector self-telemetry metrics forwarded to Datadog.
@@ -810,7 +803,7 @@ collectors:
           protocols:
             grpc: {}
             http: {}
-        # Host Profiler receiver. DD_SITE and DD_API_KEY are provided by collector-values.yaml.
+        # Host Profiler receiver.
         profiling:
           symbol_uploader:
             enabled: true
@@ -824,7 +817,6 @@ collectors:
           endpoint: https://otlp.${env:DD_SITE:-datadoghq.com}
           headers:
             dd-api-key: ${env:DD_API_KEY}
-            dd-otel-metric-config: '{"resource_attributes_as_tags": true}'
 
       service:
         extensions: [health_check]
