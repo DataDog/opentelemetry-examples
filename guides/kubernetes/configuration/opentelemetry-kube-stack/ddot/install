@@ -254,7 +254,7 @@ helm upgrade datadog-operator \
     --version 2.28.1 \
     --install \
     --namespace datadog \
-    ${OPERATOR_HELM_ARGS[@]+"${OPERATOR_HELM_ARGS[@]}"} \
+    "${OPERATOR_HELM_ARGS[@]}" \
     --wait --timeout 5m
 
 echo "Applying the DatadogAgent custom resource..."
