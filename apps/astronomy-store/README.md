@@ -7,6 +7,19 @@ app that is part of the OpenTelemetry Demo while being similar.
 
 The demo includes a single-node Kafka broker at `kafka:9092`.
 
+## Kafka forwarder chain
+
+A separate chain of services, one per Datadog SDK language, passes generated orders through Kafka. Each forwarder
+consumes a topic and produces to the next, so every SDK's Kafka consume and produce instrumentation, and the Datadog
+Data Streams Monitoring pathway through it, can be checked end to end:
+
+```
+go-producer -> go-producer-orders -> python-forwarder -> python-forwarder-orders -> java-forwarder -> java-forwarder-orders
+  -> node-forwarder -> node-forwarder-orders -> dotnet-forwarder -> dotnet-forwarder-orders -> go-forwarder -> go-forwarder-orders
+```
+
+The chain doesn't touch the `orders` topic that `checkout` and `fraud-detection` use.
+
 ## Git/VCS metadata
 
 Each service's `Dockerfile` accepts `VCS_REPOSITORY_URL_FULL`, `VCS_REF_HEAD_NAME`, `VCS_REF_TYPE`, and

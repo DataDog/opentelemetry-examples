@@ -61,11 +61,14 @@ jobs:
       - name: Wait for fraud-detection to consume orders
         run: timeout 3m bash -c 'until kubectl logs deployment/fraud-detection --namespace astronomy-store | grep -q check_order; do sleep 5; done'
 
+      - name: Wait for go-forwarder to receive orders through the forwarder chain
+        run: timeout 3m bash -c 'until kubectl logs deployment/go-forwarder --namespace astronomy-store | grep -q forward_order; do sleep 5; done'
+
       - name: Diagnostics on failure
         if: failure()
         run: |
           kubectl get pods --namespace astronomy-store -o wide
-          for deployment in kafka checkout fraud-detection; do
+          for deployment in kafka checkout fraud-detection go-producer python-forwarder java-forwarder node-forwarder dotnet-forwarder go-forwarder; do
             echo "--- ${deployment} logs ---"
             kubectl logs "deployment/${deployment}" --namespace astronomy-store --all-containers --tail=-1 || true
           done

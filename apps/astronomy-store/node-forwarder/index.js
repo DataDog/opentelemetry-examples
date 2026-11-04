@@ -1,0 +1,35 @@
+const { Kafka, logLevel } = require('kafkajs')
+
+const broker = process.env.KAFKA_ADDR || 'kafka:9092'
+const inputTopic = process.env.KAFKA_TOPIC || 'java-forwarder-orders'
+const outputTopic = process.env.KAFKA_OUTPUT_TOPIC || 'node-forwarder-orders'
+
+const log = (msg, fields = {}) => console.log(JSON.stringify({ level: 'info', msg, ...fields }))
+
+const kafka = new Kafka({ clientId: 'node-forwarder', brokers: [broker], logLevel: logLevel.WARN })
+const consumer = kafka.consumer({ groupId: 'node-forwarder' })
+const producer = kafka.producer()
+
+async function main () {
+  await Promise.all([consumer.connect(), producer.connect()])
+  await consumer.subscribe({ topic: inputTopic, fromBeginning: true })
+  log('node-forwarder started', { input_topic: inputTopic, output_topic: outputTopic })
+  await consumer.run({
+    eachMessage: async ({ message }) => {
+      log('forward_order', { key: message.key?.toString() })
+      await producer.send({ topic: outputTopic, messages: [{ key: message.key, value: message.value }] })
+    }
+  })
+}
+
+const shutdown = async () => {
+  await Promise.allSettled([consumer.disconnect(), producer.disconnect()])
+  process.exit(0)
+}
+process.on('SIGTERM', shutdown)
+process.on('SIGINT', shutdown)
+
+main().catch((err) => {
+  console.error(err)
+  process.exit(1)
+})

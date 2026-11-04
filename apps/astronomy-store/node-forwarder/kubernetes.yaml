@@ -1,0 +1,36 @@
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: astronomy-store
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: node-forwarder
+  namespace: astronomy-store
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: node-forwarder
+  template:
+    metadata:
+      annotations:
+        instrumentation.opentelemetry.io/inject-nodejs: opentelemetry-operator-system/opentelemetry-kube-stack
+        resource.opentelemetry.io/service.name: node-forwarder
+        resource.opentelemetry.io/service.namespace: astronomy-store
+      labels:
+        app.kubernetes.io/name: node-forwarder
+        admission.datadoghq.com/enabled: "false"
+    spec:
+      containers:
+        - name: node-forwarder
+          image: astronomy-store/node-forwarder:latest
+          imagePullPolicy: IfNotPresent
+          env:
+            - name: KAFKA_ADDR
+              value: kafka:9092
+            - name: KAFKA_TOPIC
+              value: java-forwarder-orders
+            - name: KAFKA_OUTPUT_TOPIC
+              value: node-forwarder-orders
