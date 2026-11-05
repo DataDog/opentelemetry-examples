@@ -59,7 +59,7 @@ It then:
 - creates the `opentelemetry-operator-system` namespace and the `datadog-secret` secret;
 - installs cert-manager when needed;
 - installs or upgrades the OpenTelemetry Kube Stack Helm chart with `values-otlp-http.yaml` (`upstream`) or `values-ddot.yaml` (`ddot`), and optionally enables the host profiler; and
-- for `ddot`, unless `DD_AGENT_ENABLED=false`, installs or upgrades the Datadog Agent with Live Processes collection enabled. This supplies the process data used by the trace view's Live Processes panel.
+- for `ddot`, unless `DD_AGENT_ENABLED=false`, installs or upgrades the Datadog Agent.
 
 ## Install with values files
 
