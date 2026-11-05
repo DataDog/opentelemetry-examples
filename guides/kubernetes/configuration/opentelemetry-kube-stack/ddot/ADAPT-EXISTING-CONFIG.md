@@ -592,8 +592,9 @@ without the OpenTelemetry Operator, set them in their environment instead.
 
 ### S-01: Enable the OpenTelemetry mode of the DDOT SDKs
 
-- **Requirement:** set all of the following for workloads migrating to DDOT with OTLP export. Check their effective
-  configuration, not just the presence of these variables in `spec.env`:
+- **Requirement:** configure all of the following for workloads adopting DDOT SDKs with OpenTelemetry semantic
+  conventions and OTLP export, whether starting from Datadog-native instrumentation or an existing OpenTelemetry
+  setup. Verify the effective configuration at runtime; the variables' presence in `spec.env` is insufficient:
 
   ```yaml
   - name: OTEL_TRACES_EXPORTER
@@ -608,15 +609,19 @@ without the OpenTelemetry Operator, set them in their environment instead.
     value: "true"
   ```
 
-- **Why:** these settings configure different parts of the SDK:
-  - `DD_TRACE_OTEL_ENABLED=true` enables OpenTelemetry tracing support, including the OTel API bridge. This flag
-    alone leaves traces exported with the Datadog protocol (the default). It does not switch to OTLP, so set `OTEL_TRACES_EXPORTER=otlp` explicitly.
-    set to select OTLP trace export. See [Export traces from Datadog SDKs in OTLP format][dd-otlp-trace-export] for
-    supported versions and configuration, and check the SDK versions pinned in [`values.yaml`][values].
-  - `DD_LOGS_OTEL_ENABLED=true` and `DD_METRICS_OTEL_ENABLED=true` enable the SDK's OTel logs and metrics
-    pipelines with OTLP export. If the application already configures these pipelines, check their exporters
-    separately: the flags may leave the existing setup unchanged.
-  - `DD_TRACE_OTEL_SEMANTICS_ENABLED=true` switches trace instrumentation from Datadog semantic conventions to
+- **Why:** together, these settings configure OpenTelemetry semantic conventions and OTLP export for the supported
+  signals, including runtime metrics:
+  - `DD_TRACE_OTEL_ENABLED=true` enables OpenTelemetry tracing support, which can also be used with Datadog-native
+    export. This flag alone leaves traces exported with the Datadog protocol (the default). It does not switch to
+    OTLP, so set `OTEL_TRACES_EXPORTER=otlp` explicitly. See
+    [Export traces from Datadog SDKs in OTLP format][dd-otlp-trace-export] for supported versions and configuration,
+    and check the SDK versions pinned in [`values.yaml`][values].
+  - `DD_LOGS_OTEL_ENABLED=true` and `DD_METRICS_OTEL_ENABLED=true` enable the SDK's supported OTel logs and metrics
+    pipelines with OTLP export. The configuration above enables both signals by default. For enabled runtime
+    metrics, the metrics flag also selects OTel metric names and units where supported. If application code already
+    creates its own OTel logs or metrics provider, check that provider's exporter separately: these flags may leave
+    the existing setup unchanged.
+  - `DD_TRACE_OTEL_SEMANTICS_ENABLED=true` switches instrumentation from Datadog semantic conventions to
     OpenTelemetry semantic conventions, including span names and attributes. It is also intended to enforce OTLP
     trace export. The reverse does not apply: `OTEL_TRACES_EXPORTER=otlp` does not by itself switch from Datadog
     to OpenTelemetry semantics. Keep both settings explicit, and verify that the pinned SDK version supports them
@@ -650,8 +655,7 @@ without the OpenTelemetry Operator, set them in their environment instead.
 - **Why:** these settings direct the SDKs to the `daemon` collector's OTLP/HTTP endpoint on port 4318
   ([O-04](#o-04-point-the-sdks-at-the-daemon-collector)). Check which HTTP encodings each pinned SDK version
   supports. If a signal does not support the shared `http/protobuf` setting, configure a supported HTTP encoding
-  for that signal without changing the others. For example, if the pinned Node.js trace exporter supports only
-  `http/json`, use `OTEL_EXPORTER_OTLP_TRACES_PROTOCOL=http/json` in `instrumentation.nodejs.env`.
+  for that signal without changing the others.
 - **Conflicts:** check signal-specific protocol and endpoint overrides as well as the shared settings. If the user's
   endpoint is the gRPC port 4317, change it to 4318 together with the protocol. Use the
   [OTLP trace export guide][dd-otlp-trace-export] and the installed SDK version to check supported protocols.
