@@ -610,7 +610,7 @@ without the OpenTelemetry Operator, set them in their environment instead.
 
 - **Why:** these settings configure different parts of the SDK:
   - `DD_TRACE_OTEL_ENABLED=true` enables OpenTelemetry tracing support, including the OTel API bridge. This flag
-    alone keeps Datadog trace export by default; it does not select OTLP. Keep `OTEL_TRACES_EXPORTER=otlp` explicitly
+    alone leaves traces exported with the Datadog protocol (the default). It does not switch to OTLP, so set `OTEL_TRACES_EXPORTER=otlp` explicitly.
     set to select OTLP trace export. See [Export traces from Datadog SDKs in OTLP format][dd-otlp-trace-export] for
     supported versions and configuration, and check the SDK versions pinned in [`values.yaml`][values].
   - `DD_LOGS_OTEL_ENABLED=true` and `DD_METRICS_OTEL_ENABLED=true` enable the SDK's OTel logs and metrics
