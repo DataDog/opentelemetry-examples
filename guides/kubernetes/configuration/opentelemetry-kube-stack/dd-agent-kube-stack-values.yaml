@@ -1,5 +1,3 @@
 extraEnvs:
   - name: DD_AGENT_HOST
     value: datadog-agent.datadog.svc.cluster.local
-  - name: DD_RUNTIME_METRICS_ENABLED
-    value: "true"
