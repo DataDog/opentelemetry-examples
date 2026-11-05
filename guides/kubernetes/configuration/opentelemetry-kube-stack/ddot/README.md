@@ -42,7 +42,7 @@ default, the script downloads its configuration files (`values.yaml`, `datadog-a
 its configuration from environment variables:
 
 ```sh
-curl -fsSL -o install https://raw.githubusercontent.com/DataDog/opentelemetry-examples/b17e35ba042a117dc8b42b40118025dd0bd464f9/guides/kubernetes/configuration/opentelemetry-kube-stack/ddot/install
+curl -fsSL -o install https://raw.githubusercontent.com/DataDog/opentelemetry-examples/3d2fd27ccc3c4fd4d3f07a8b3c292617aade4abb/guides/kubernetes/configuration/opentelemetry-kube-stack/ddot/install
 chmod +x install
 export DD_API_KEY="<your-datadog-api-key>"
 export DD_SITE="datadoghq.com"
@@ -86,9 +86,6 @@ prevents the Datadog Agent's admission controller from instrumenting the pod too
     labels:
       admission.datadoghq.com/enabled: "false"
   ```
-
-Datadog engineers upgrading a Kubernetes cluster set up with an earlier version of this guide: see the
-[upgrade guide](UPGRADE.md).
 
 ### Hybrid OTel + Datadog APM instrumentation
 
@@ -167,7 +164,7 @@ Kubernetes clusters.
 
 Verified against:
 
-- `opentelemetry-kube-stack` chart `>= 0.24.2`
+- `opentelemetry-kube-stack` chart `>= 0.26.1`
 - Collector image `otel/opentelemetry-collector-contrib >= 0.161.0` (pinned in values.yaml under
   `opentelemetry-operator.manager.collectorImage`)
 

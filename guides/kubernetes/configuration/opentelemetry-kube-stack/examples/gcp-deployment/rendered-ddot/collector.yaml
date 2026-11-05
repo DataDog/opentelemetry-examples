@@ -522,6 +522,8 @@ spec:
           key: ${env:DD_API_KEY}
           site: ${env:DD_SITE:-datadoghq.com}
         deployment_type: daemonset
+      file_storage:
+        directory: /var/lib/otelcol
       health_check:
         endpoint: ${env:OTEL_K8S_POD_IP}:13133
     processors:
@@ -659,9 +661,63 @@ spec:
         - id: container-parser
           max_log_size: 102400
           type: container
+        - id: datadog-json-parser
+          if: resource["k8s.namespace.name"] == "datadog" and body matches "^\\s*\\{"
+          on_error: send_quiet
+          parse_from: body
+          parse_to: attributes.datadog_log
+          severity:
+            mapping:
+              fatal: critical
+            parse_from: attributes.datadog_log.level
+          type: json_parser
+        - from: attributes.datadog_log.msg
+          id: datadog-json-msg
+          if: attributes["datadog_log"] != nil and attributes["datadog_log"]["msg"] !=
+            nil
+          to: body
+          type: move
+        - from: attributes.datadog_log.file
+          id: datadog-json-code-file
+          if: attributes["datadog_log"] != nil and attributes["datadog_log"]["file"] !=
+            nil
+          to: attributes["code.file.path"]
+          type: move
+        - from: attributes.datadog_log.line
+          id: datadog-json-code-line
+          if: attributes["datadog_log"] != nil and attributes["datadog_log"]["line"] !=
+            nil
+          to: attributes["code.line.number"]
+          type: move
+        - from: attributes.datadog_log.func
+          id: datadog-json-code-func
+          if: attributes["datadog_log"] != nil and attributes["datadog_log"]["func"] !=
+            nil
+          to: attributes["code.function.name"]
+          type: move
+        - field: attributes.datadog_log.level
+          id: datadog-json-level
+          if: attributes["datadog_log"] != nil and attributes["datadog_log"]["level"]
+            != nil
+          type: remove
+        - field: attributes.datadog_log.time
+          id: datadog-json-time
+          if: attributes["datadog_log"] != nil and attributes["datadog_log"]["time"] !=
+            nil
+          type: remove
+        - field: attributes.datadog_log.ts
+          id: datadog-json-ts
+          if: attributes["datadog_log"] != nil and attributes["datadog_log"]["ts"] !=
+            nil
+          type: remove
+        - field: attributes.datadog_log
+          id: datadog-json-flatten
+          if: attributes["datadog_log"] != nil
+          type: flatten
         retry_on_failure:
           enabled: true
-        start_at: end
+        start_at: beginning
+        storage: file_storage
       host_metrics:
         collection_interval: 10s
         root_path: /hostfs
@@ -835,6 +891,7 @@ spec:
       extensions:
       - health_check
       - datadog
+      - file_storage
       pipelines:
         logs:
           exporters:
@@ -914,7 +971,8 @@ spec:
       cpu: 200m
       memory: 500Mi
   securityContext:
-    {}
+    runAsUser: 0
+    runAsGroup: 0
   volumeMounts:
   - name: varlogpods
     mountPath: /var/log/pods
@@ -922,6 +980,8 @@ spec:
   - name: varlibdockercontainers
     mountPath: /var/lib/docker/containers
     readOnly: true
+  - name: varlibotelcol
+    mountPath: /var/lib/otelcol
   - name: hostfs
     mountPath: /hostfs
     readOnly: true
@@ -980,6 +1040,10 @@ spec:
   - name: varlogpods
     hostPath:
       path: /var/log/pods
+  - name: varlibotelcol
+    hostPath:
+      path: /var/lib/otelcol
+      type: DirectoryOrCreate
   - name: varlibdockercontainers
     hostPath:
       path: /var/lib/docker/containers

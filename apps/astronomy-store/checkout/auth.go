@@ -6,6 +6,7 @@ import (
 )
 
 // basicAuthUsername/Password is the single hardcoded HTTP Basic user, used by the frontend service.
+// Hardcoded for demo purposes only: don't hardcode credentials in a real application.
 const (
 	basicAuthUsername = "frontend.astronomy-store"
 	basicAuthPassword = "changeme"

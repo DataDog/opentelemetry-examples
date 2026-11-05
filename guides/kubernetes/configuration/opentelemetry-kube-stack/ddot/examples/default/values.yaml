@@ -1,3 +1,2 @@
 resourceAttributes:
   deployment.environment.name: "staging"
-  deployment.environment: "staging"
