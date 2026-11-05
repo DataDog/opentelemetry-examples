@@ -483,7 +483,11 @@ collectors:
             - container.id
 
       connectors:
-        datadog/connector: {}
+        datadog/connector:
+          traces:
+            compute_top_level_by_span_kind: true
+            peer_tags_aggregation: true
+            compute_stats_by_span_kind: true
 
       extensions:
         datadog:
@@ -762,10 +766,6 @@ instrumentation:
     # - name: DD_APPSEC_SCA_ENABLED
     #   value: "true"
 
-    ## WORKAROUND: DDOT SDK GO LANG ignores OTEL_EXPORTER_OTLP_ENDPOINT, it's a bug
-    ## https://github.com/DataDog/dd-trace-go/pull/5407
-    - name: "OTEL_EXPORTER_OTLP_TRACES_ENDPOINT"
-      value: "http://opentelemetry-kube-stack-daemon-collector.opentelemetry-operator-system.svc.cluster.local:4318/v1/traces"
   exporter:
     # Daemon collector Service DNS. Update the collector name and namespace
     # to match your install: http://<helm-release-name>-daemon-collector.<namespace>.svc.cluster.local:4318
