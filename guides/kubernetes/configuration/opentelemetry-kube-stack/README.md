@@ -61,6 +61,19 @@ It then:
 - installs or upgrades the OpenTelemetry Kube Stack Helm chart with `values-otlp-http.yaml` (`upstream`) or `values-ddot.yaml` (`ddot`), and optionally enables the host profiler; and
 - for `ddot`, unless `DD_AGENT_ENABLED=false`, installs or upgrades the Datadog Agent.
 
+### Runtime metrics with the Datadog Agent
+
+With `DD_INSTALL_FLOW=ddot` and `DD_AGENT_ENABLED=true`, the Agent overlay enables SDK runtime metrics in annotated
+application pods, including `inject-sdk` workloads. Restart existing application pods after updating instrumentation.
+The Agent-less and upstream flows do not load this overlay.
+
+SDKs using DogStatsD send runtime metrics to `datadog-agent.datadog.svc.cluster.local:8125` over UDP. Node.js uses OTLP
+with the shared `DD_METRICS_OTEL_ENABLED=true` setting, which also preserves OTel API metrics. Application traces
+continue to use the Collector's OTLP endpoint.
+
+Check fresh metrics and service/environment/version tags for each SDK, then verify populated runtime views without
+duplicate series. Confirm Agent receipt for DogStatsD delivery; a configured host or populated dashboard is not proof.
+
 ## Install with values files
 
 To perform the same installation without the interactive script, create a Kubernetes secret for the Datadog credentials,
