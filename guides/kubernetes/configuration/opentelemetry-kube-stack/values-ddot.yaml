@@ -358,15 +358,19 @@ collectors:
       resourceDetection:
         env:
           enabled: false
+      logsCollection:
+        enabled: true
+        storeCheckpoints: true
 
     config:
       receivers:
-        # Parse the JSON logs of the Datadog Agent and Operator, in the datadog namespace (see datadog-agent.yaml).
-        # The operators only apply to that namespace: they do nothing without the Datadog Agent.
-        # FIXME the Agent's JMXFetch lines are wrapped as {"msg": "<yyyy-MM-dd HH:mm:ss> UTC | JMX |
-        # <LEVEL> | ..."} without a level field: their level would need a `regex_parser` on the
-        # message, see https://github.com/DataDog/datadog-agent/issues/57387.
         file_log:
+          start_at: beginning
+          # Parse the JSON logs of the Datadog Agent and Operator, in the datadog namespace (see datadog-agent.yaml).
+          # The operators only apply to that namespace: they do nothing without the Datadog Agent.
+          # FIXME the Agent's JMXFetch lines are wrapped as {"msg": "<yyyy-MM-dd HH:mm:ss> UTC | JMX |
+          # <LEVEL> | ..."} without a level field: their level would need a `regex_parser` on the
+          # message, see https://github.com/DataDog/datadog-agent/issues/57387.
           operators:
             # The preset's container parser (Helm replaces lists, so it's repeated here).
             - type: container
@@ -422,6 +426,7 @@ collectors:
               id: datadog-json-flatten
               if: 'attributes["datadog_log"] != nil'
               field: attributes.datadog_log
+
         host_metrics:
           scrapers:
             cpu:
@@ -838,7 +843,6 @@ instrumentation:
     # See https://docs.datadoghq.com/security/code_security/software_composition_analysis/ .
     # - name: DD_APPSEC_SCA_ENABLED
     #   value: "true"
-
   exporter:
     # Daemon collector Service DNS. Update the collector name and namespace
     # to match your install: http://<helm-release-name>-daemon-collector.<namespace>.svc.cluster.local:4318

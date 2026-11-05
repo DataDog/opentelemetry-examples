@@ -388,16 +388,20 @@ collectors:
       resourceDetection:
         env:
           enabled: false
+      logsCollection:
+        enabled: true
+        storeCheckpoints: true
 
     config:
       receivers:
-{{- if .DDOT}}
-        # Parse the JSON logs of the Datadog Agent and Operator, in the datadog namespace (see datadog-agent.yaml).
-        # The operators only apply to that namespace: they do nothing without the Datadog Agent.
-        # FIXME the Agent's JMXFetch lines are wrapped as {"msg": "<yyyy-MM-dd HH:mm:ss> UTC | JMX |
-        # <LEVEL> | ..."} without a level field: their level would need a `regex_parser` on the
-        # message, see https://github.com/DataDog/datadog-agent/issues/57387.
         file_log:
+          start_at: beginning
+{{- if .DDOT}}
+          # Parse the JSON logs of the Datadog Agent and Operator, in the datadog namespace (see datadog-agent.yaml).
+          # The operators only apply to that namespace: they do nothing without the Datadog Agent.
+          # FIXME the Agent's JMXFetch lines are wrapped as {"msg": "<yyyy-MM-dd HH:mm:ss> UTC | JMX |
+          # <LEVEL> | ..."} without a level field: their level would need a `regex_parser` on the
+          # message, see https://github.com/DataDog/datadog-agent/issues/57387.
           operators:
             # The preset's container parser (Helm replaces lists, so it's repeated here).
             - type: container
@@ -454,6 +458,7 @@ collectors:
               if: 'attributes["datadog_log"] != nil'
               field: attributes.datadog_log
 {{- end}}
+
         host_metrics:
           scrapers:
             cpu:
@@ -967,11 +972,6 @@ instrumentation:
     # See https://docs.datadoghq.com/security/code_security/software_composition_analysis/ .
     # - name: DD_APPSEC_SCA_ENABLED
     #   value: "true"
-
-    ## WORKAROUND: DDOT SDK GO LANG ignores OTEL_EXPORTER_OTLP_ENDPOINT, it's a bug
-    ## https://github.com/DataDog/dd-trace-go/pull/5407
-    - name: "OTEL_EXPORTER_OTLP_TRACES_ENDPOINT"
-      value: "http://opentelemetry-kube-stack-daemon-collector.opentelemetry-operator-system.svc.cluster.local:4318/v1/traces"
 {{- end}}
   exporter:
     # Daemon collector Service DNS. Update the collector name and namespace
