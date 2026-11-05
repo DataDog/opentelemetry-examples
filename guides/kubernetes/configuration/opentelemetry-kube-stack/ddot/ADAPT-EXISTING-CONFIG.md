@@ -609,17 +609,16 @@ without the OpenTelemetry Operator, set them in their environment instead.
   ```
 
 - **Why:** together, these settings configure OpenTelemetry semantic conventions and OTLP export for the supported
-  signals, including runtime metrics:
+  signals:
   - `DD_TRACE_OTEL_ENABLED=true` enables OpenTelemetry tracing support, which can also be used with Datadog-native
     export. This flag alone leaves traces exported with the Datadog protocol (the default). It does not switch to
     OTLP, so set `OTEL_TRACES_EXPORTER=otlp` explicitly. See
     [Export traces from Datadog SDKs in OTLP format][dd-otlp-trace-export] for supported versions and configuration,
     and check the SDK versions pinned in [`values.yaml`][values].
   - `DD_LOGS_OTEL_ENABLED=true` and `DD_METRICS_OTEL_ENABLED=true` enable the SDK's supported OTel logs and metrics
-    pipelines with OTLP export. The configuration above enables both signals by default. For enabled runtime
-    metrics, the metrics flag also selects OTel metric names and units where supported. If application code already
-    creates its own OTel logs or metrics provider, check that provider's exporter separately: these flags may leave
-    the existing setup unchanged.
+    pipelines with OTLP export. The configuration above enables both signals by default. If application code
+    already creates its own OTel logs or metrics provider, check that provider's exporter separately: these flags
+    may leave the existing setup unchanged.
   - `DD_TRACE_OTEL_SEMANTICS_ENABLED=true` switches instrumentation from Datadog semantic conventions to
     OpenTelemetry semantic conventions, including span names and attributes. It is also intended to enforce OTLP
     trace export. The reverse does not apply: `OTEL_TRACES_EXPORTER=otlp` does not by itself switch from Datadog
