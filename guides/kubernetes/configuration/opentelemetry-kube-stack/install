@@ -222,9 +222,23 @@ if [[ "$DD_INSTALL_FLOW" == "ddot" && "$DD_AGENT_ENABLED" == "true" ]]; then
     if [[ -n "${K8S_CLUSTER_NAME:-}" ]]; then
         GLOBAL_JSON+=",\"clusterName\":\"$K8S_CLUSTER_NAME\""
     fi
+    # The collectors' OTLP telemetry is attributed to the host "<k8s.node.name>-<k8s.cluster.name>"
+    # whenever k8s.cluster.name is set and no cloud provider hostname applies. Outside EKS, GKE and
+    # AKS, the Agent instead reports the bare node name, so each node shows up as two hosts in
+    # Datadog. Align the Agent hostname with the collectors so there is a single host per node.
+    AGENT_HOSTNAME_PATCH='[]'
+    if [[ "$K8S_CLUSTER_TYPE" == "other" && -n "${K8S_CLUSTER_NAME:-}" ]]; then
+        AGENT_HOSTNAME_PATCH="[
+          {\"op\":\"add\",\"path\":\"/spec/override/nodeAgent/env/-\",\"value\":{\"name\":\"K8S_NODE_NAME\",\"valueFrom\":{\"fieldRef\":{\"fieldPath\":\"spec.nodeName\"}}}},
+          {\"op\":\"add\",\"path\":\"/spec/override/nodeAgent/env/-\",\"value\":{\"name\":\"DD_HOSTNAME\",\"value\":\"\$(K8S_NODE_NAME)-$K8S_CLUSTER_NAME\"}}
+        ]"
+    fi
+
     kubectl patch --local \
       -f "$SCRIPT_DIR/datadog-agent.yaml" \
       --type merge \
       -p "{\"spec\":{\"global\":{$GLOBAL_JSON}}}" \
-      -o yaml | kubectl apply --namespace datadog -f -
+      -o yaml \
+      | kubectl patch --local -f - --type json -p "$AGENT_HOSTNAME_PATCH" -o yaml \
+      | kubectl apply --namespace datadog -f -
 fi
