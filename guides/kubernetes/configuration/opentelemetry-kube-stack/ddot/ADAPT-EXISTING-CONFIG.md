@@ -14,7 +14,7 @@ guide and those files disagree, the files are right.
 >
 > ```text
 > Adapt the OpenTelemetry and Datadog configuration of this repository for DDOT, following
-> https://raw.githubusercontent.com/DataDog/opentelemetry-examples/feat/otel-kube-stack-ddot-installer/guides/kubernetes/configuration/opentelemetry-kube-stack/ddot/ADAPT-EXISTING-CONFIG.md
+> https://raw.githubusercontent.com/DataDog/opentelemetry-examples/main/guides/kubernetes/configuration/opentelemetry-kube-stack/ddot/ADAPT-EXISTING-CONFIG.md
 > ```
 
 Contents:
@@ -407,9 +407,6 @@ environment variable, typically through `OTEL_RESOURCE_ATTRIBUTES=datadog.host.n
 
 - **Requirement:** `deployment.environment.name` on all the telemetry, for example with `resourceAttributes` in the
   kube-stack chart's values.
-- **Workaround:** also set the deprecated `deployment.environment` to the same value until
-  [dd-trace-java#12324][dd-trace-java-12324] ships.
-- FIXME change the description of the resolution of the workaround to point to the DDOT Go SDK as it's the last one to release.  
 
 ### C-12: Collect middleware telemetry from the `daemon` collector on the same node
 
@@ -525,7 +522,9 @@ environment variable, typically through `OTEL_RESOURCE_ATTRIBUTES=datadog.host.n
       - name: CORECLR_PROFILER
         value: "{846F5F1C-F9AE-4B07-969E-05C26BC060D8}"
       - name: CORECLR_PROFILER_PATH
-        value: /otel-auto-instrumentation-dotnet/linux/Datadog.Tracer.Native.so
+        value: /otel-auto-instrumentation-dotnet/linux/Datadog.Trace.ClrProfiler.Native.so
+      # On musl/Alpine application containers, use the linux-musl subdirectory instead:
+      # value: /otel-auto-instrumentation-dotnet/linux-musl/Datadog.Trace.ClrProfiler.Native.so
       - name: DD_DOTNET_TRACER_HOME
         value: /otel-auto-instrumentation-dotnet
   ```
@@ -797,7 +796,7 @@ values: this guide doesn't list them, and they aren't tested in this repository.
   `datadog-agent.yaml` disables the Agent's `eventCollection.collectKubernetesEvents`, but the Collectors don't
   collect them either: `values.yaml` disables the `kubernetesEvents` preset on the `daemon` collector and doesn't enable
   it on the `cluster` collector, and the `kubernetesObjects` preset doesn't collect events (verified against
-  `opentelemetry-kube-stack` chart 0.24.2 and `examples/default/rendered/collector.yaml`). Decide which component
+  `opentelemetry-kube-stack` chart 0.26.1 and `examples/default/rendered/collector.yaml`). Decide which component
   collects them: enable `collectors.cluster.presets.kubernetesEvents` in `values.yaml` and re-render the examples, or
   re-enable `eventCollection.collectKubernetesEvents` in `datadog-agent.yaml`. Then simplify the events row of the table
   and the sentence introducing the reference configuration.
@@ -899,14 +898,14 @@ Report these as `blocked` when the user's setup depends on them:
 
 See [TROUBLESHOOTING.md][troubleshooting] when something doesn't show up.
 
-[install]: https://github.com/DataDog/opentelemetry-examples/blob/feat/otel-kube-stack-ddot-installer/guides/kubernetes/configuration/opentelemetry-kube-stack/ddot/INSTALL.md
-[values]: https://raw.githubusercontent.com/DataDog/opentelemetry-examples/feat/otel-kube-stack-ddot-installer/guides/kubernetes/configuration/opentelemetry-kube-stack/ddot/values.yaml
-[dd-agent-yaml]: https://raw.githubusercontent.com/DataDog/opentelemetry-examples/feat/otel-kube-stack-ddot-installer/guides/kubernetes/configuration/opentelemetry-kube-stack/ddot/datadog-agent.yaml
-[examples-rendered]: https://github.com/DataDog/opentelemetry-examples/tree/feat/otel-kube-stack-ddot-installer/guides/kubernetes/configuration/opentelemetry-kube-stack/ddot/examples/default/rendered
-[troubleshooting]: https://github.com/DataDog/opentelemetry-examples/blob/feat/otel-kube-stack-ddot-installer/guides/kubernetes/configuration/opentelemetry-kube-stack/ddot/TROUBLESHOOTING.md
-[architecture]: https://raw.githubusercontent.com/DataDog/opentelemetry-examples/feat/otel-kube-stack-ddot-installer/guides/kubernetes/configuration/opentelemetry-kube-stack/ddot/assets/deployment-architecture-diagram_k8s_ddot-with-dd-agent.svg.png
-[cluster-name]: https://github.com/DataDog/opentelemetry-examples/blob/feat/otel-kube-stack-ddot-installer/guides/kubernetes/configuration/opentelemetry-kube-stack/ddot/README.md#kubernetes-cluster-name-constraints
-[fleet-automation]: https://github.com/DataDog/opentelemetry-examples/blob/feat/otel-kube-stack-ddot-installer/guides/kubernetes/configuration/opentelemetry-kube-stack/ddot/README.md#fleet-automation-optional
+[install]: https://github.com/DataDog/opentelemetry-examples/blob/main/guides/kubernetes/configuration/opentelemetry-kube-stack/ddot/INSTALL.md
+[values]: https://raw.githubusercontent.com/DataDog/opentelemetry-examples/main/guides/kubernetes/configuration/opentelemetry-kube-stack/ddot/values.yaml
+[dd-agent-yaml]: https://raw.githubusercontent.com/DataDog/opentelemetry-examples/main/guides/kubernetes/configuration/opentelemetry-kube-stack/ddot/datadog-agent.yaml
+[examples-rendered]: https://github.com/DataDog/opentelemetry-examples/tree/main/guides/kubernetes/configuration/opentelemetry-kube-stack/ddot/examples/default/rendered
+[troubleshooting]: https://github.com/DataDog/opentelemetry-examples/blob/main/guides/kubernetes/configuration/opentelemetry-kube-stack/ddot/TROUBLESHOOTING.md
+[architecture]: https://raw.githubusercontent.com/DataDog/opentelemetry-examples/main/guides/kubernetes/configuration/opentelemetry-kube-stack/ddot/assets/deployment-architecture-diagram_k8s_ddot-with-dd-agent.svg.png
+[cluster-name]: https://github.com/DataDog/opentelemetry-examples/blob/main/guides/kubernetes/configuration/opentelemetry-kube-stack/ddot/README.md#kubernetes-cluster-name-constraints
+[fleet-automation]: https://github.com/DataDog/opentelemetry-examples/blob/main/guides/kubernetes/configuration/opentelemetry-kube-stack/ddot/README.md#fleet-automation-optional
 [dd-fleet-automation]: https://docs.datadoghq.com/agent/fleet_automation/
 [dd-live-debugger-go]: https://docs.datadoghq.com/tracing/live_debugger/?prog_lang=go
 [dd-dbm]: https://docs.datadoghq.com/database_monitoring/
@@ -917,7 +916,6 @@ See [TROUBLESHOOTING.md][troubleshooting] when something doesn't show up.
 [orchestrion]: https://github.com/DataDog/orchestrion
 [orchestrion-936]: https://github.com/DataDog/orchestrion/issues/936
 [dd-trace-go-5407]: https://github.com/DataDog/dd-trace-go/pull/5407  
-[dd-trace-java-12324]: https://github.com/DataDog/dd-trace-java/pull/12324
 [dd-operator-3521]: https://github.com/DataDog/datadog-operator/issues/3521
 [dd-agent-57314]: https://github.com/DataDog/datadog-agent/issues/57314
 [otel-operator-sdk-go]: https://github.com/open-telemetry/opentelemetry-operator/blob/v0.159.0/internal/instrumentation/sdk.go

@@ -7,7 +7,7 @@ COPY go.mod go.sum ./
 RUN go mod download
 
 COPY *.go ./
-RUN go install github.com/DataDog/orchestrion@v1.14.0
+RUN go install github.com/DataDog/orchestrion@v1.15.0
 RUN orchestrion pin
 
 RUN go get github.com/DataDog/dd-trace-go/v2@v2.13.0-dev.1 github.com/DataDog/dd-trace-go/orchestrion/all/v2@v2.13.0-dev.1

@@ -29,9 +29,10 @@ It deletes:
 Deleting CRDs also deletes all corresponding custom resources in the cluster.
 
 It doesn't uninstall the elements of previous setups of this guide (legacy
-host-profiler and ddagent-kube-stack Helm releases): run ./upgrade for these
-first, as deleting the opentelemetry-operator-system namespace would only
-remove their namespaced resources and leave their cluster-wide ones behind.
+host-profiler and ddagent-kube-stack Helm releases): remove these first with
+`helm uninstall <release> --namespace opentelemetry-operator-system`, as
+deleting the opentelemetry-operator-system namespace would only remove their
+namespaced resources and leave their cluster-wide ones behind.
 EOF
 
 read -r -p "Type 'yes' to continue with the uninstall: " confirmation

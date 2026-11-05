@@ -14,7 +14,7 @@ fi
 # Where the configuration files (values.yaml, datadog-agent.yaml...) are read from: by default
 # from GitHub, so that this script can be downloaded and run on its own. Accepts a GitHub folder
 # URL (https://github.com/<owner>/<repo>/tree/<branch>/<path>) or a raw base URL.
-DEFAULT_CONFIG_URL="https://github.com/DataDog/opentelemetry-examples/tree/4ebc93b1d95af344cd51e9c8723fdcdffbb80b34/guides/kubernetes/configuration/opentelemetry-kube-stack/ddot"
+DEFAULT_CONFIG_URL="https://github.com/DataDog/opentelemetry-examples/tree/5894f0a4e2625073eb5714720853a5e17369c4cd/guides/kubernetes/configuration/opentelemetry-kube-stack/ddot"
 CONFIG_URL="$DEFAULT_CONFIG_URL"
 USE_LOCAL_CONFIG=false
 
@@ -84,21 +84,14 @@ if [[ "$K8S_CLUSTER_TYPE" != other ]]; then
     K8S_MANAGED_SERVICE_DETECTOR="$K8S_CLUSTER_TYPE"
 fi
 
-# The Datadog Agent only accepts lowercase letters, digits, "-" and "." in cluster names (no
-# uppercase, no "_"): it rewrites "_" to "-" and ignores names with uppercase letters.
+# The cluster name must satisfy the Datadog Agent's constraints (lowercase letters, digits, "-" and ".", see the
+# README's "Kubernetes cluster name constraints").
 #
 # On EKS/GKE/AKS, the cluster name is auto-detected (k8s.cluster.name by the OpenTelemetry Collector
 # Resource Detection Processor, clusterName by the Datadog Agent) when K8S_CLUSTER_NAME is unset.
 K8S_CLUSTER_NAME="${K8S_CLUSTER_NAME:-}"
 if [[ -z "$K8S_CLUSTER_NAME" && "$K8S_CLUSTER_TYPE" == other ]]; then
     K8S_CLUSTER_NAME=unknown-k8s-cluster
-fi
-if [[ -n "$K8S_CLUSTER_NAME" ]]; then
-    NORMALIZED_K8S_CLUSTER_NAME=$(echo "$K8S_CLUSTER_NAME" | tr '[:upper:]_' '[:lower:]-')
-    if [[ "$NORMALIZED_K8S_CLUSTER_NAME" != "$K8S_CLUSTER_NAME" ]]; then
-        echo "Using cluster name '$NORMALIZED_K8S_CLUSTER_NAME' instead of '$K8S_CLUSTER_NAME' (lowercase, '-' instead of '_')."
-        K8S_CLUSTER_NAME="$NORMALIZED_K8S_CLUSTER_NAME"
-    fi
 fi
 
 DEPLOYMENT_ENVIRONMENT_NAME="${DEPLOYMENT_ENVIRONMENT_NAME:-production}"
@@ -158,12 +151,13 @@ if [[ -n "$OVERLAY_VALUES_FILE" ]]; then
     OVERLAY_VALUES_ARGS=(-f "$OVERLAY_VALUES_FILE")
 fi
 
-# Refuse to install next to a previous setup of this guide (two eBPF profilers or two Datadog Agent
-# DaemonSets must not run on the same node): the `upgrade` script removes it.
+# Refuse to install next to a previous setup of this guide: two eBPF profilers or two Datadog Agent
+# DaemonSets must not run on the same node.
 for legacy_release in host-profiler ddagent-kube-stack; do
     if helm status "$legacy_release" --namespace opentelemetry-operator-system >/dev/null 2>&1; then
         error "Found the legacy '$legacy_release' Helm release from a previous setup in the" \
-              "opentelemetry-operator-system namespace: run ./upgrade to remove it, then re-run this script."
+              "opentelemetry-operator-system namespace. Remove it, then re-run this script:" \
+              "helm uninstall $legacy_release --namespace opentelemetry-operator-system --wait"
     fi
 done
 
@@ -257,9 +251,10 @@ fi
 
 helm upgrade datadog-operator \
     datadog/datadog-operator \
+    --version 2.28.1 \
     --install \
     --namespace datadog \
-    ${OPERATOR_HELM_ARGS[@]+"${OPERATOR_HELM_ARGS[@]}"} \
+    "${OPERATOR_HELM_ARGS[@]}" \
     --wait --timeout 5m
 
 echo "Applying the DatadogAgent custom resource..."
@@ -296,9 +291,7 @@ fi
 # most important one for the user to read.
 echo "Installing OpenTelemetry Kube Stack Helm Chart..."
 
-# FIXME just use deployment.environment.name and remove deployment.environment after https://github.com/DataDog/dd-trace-go/pull/5285
 HELM_SET_ARGS=(
-    --set-string "resourceAttributes.deployment\.environment=$DEPLOYMENT_ENVIRONMENT_NAME"
     --set-string "resourceAttributes.deployment\.environment\.name=$DEPLOYMENT_ENVIRONMENT_NAME"
 )
 
@@ -329,7 +322,7 @@ fi
 
 helm upgrade opentelemetry-kube-stack \
     open-telemetry/opentelemetry-kube-stack \
-    --version 0.24.2 \
+    --version 0.26.1 \
     --install \
     --namespace opentelemetry-operator-system \
     "${HELM_SET_ARGS[@]}" \

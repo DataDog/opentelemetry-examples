@@ -6,7 +6,7 @@ metadata:
   name: opentelemetry-kube-stack
   namespace: opentelemetry-operator-system
   labels:
-    helm.sh/chart: opentelemetry-kube-stack-0.24.2
+    helm.sh/chart: opentelemetry-kube-stack-0.26.1
     app.kubernetes.io/version: "0.159.0"
     app.kubernetes.io/managed-by: Helm
     release: "opentelemetry-kube-stack"    
@@ -39,10 +39,11 @@ spec:
       value: "http,database,rpc,messaging"
     - name: OTEL_TRACES_EXPORTER
       value: "otlp"
+    - name: OTEL_TRACES_SPAN_METRICS_ENABLED
+      value: "false"
   resource:
     addK8sUIDAttributes: true
     resourceAttributes:
-      deployment.environment: production
       deployment.environment.name: production
   java:
     image: datadog/dd-otel-autoinstrumentation-java:1.68.0-preview
@@ -55,7 +56,7 @@ spec:
     - name: CORECLR_PROFILER
       value: '{846F5F1C-F9AE-4B07-969E-05C26BC060D8}'
     - name: CORECLR_PROFILER_PATH
-      value: /otel-auto-instrumentation-dotnet/linux/Datadog.Tracer.Native.so
+      value: /otel-auto-instrumentation-dotnet/linux/Datadog.Trace.ClrProfiler.Native.so
     - name: DD_DOTNET_TRACER_HOME
       value: /otel-auto-instrumentation-dotnet
     image: datadog/dd-otel-autoinstrumentation-dotnet:3.56.0-preview

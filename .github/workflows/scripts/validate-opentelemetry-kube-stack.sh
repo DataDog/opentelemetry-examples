@@ -14,7 +14,7 @@ validate_collector_configs() {
   trap 'rm -rf "${work_dir}" "${stub_dir}"' RETURN
 
   # Add dummy files so validation can run.
-  mkdir -p "${stub_dir}/serviceaccount" "${stub_dir}/hostfs"
+  mkdir -p "${stub_dir}/serviceaccount" "${stub_dir}/hostfs" "${stub_dir}/otelcol"
   echo "ci-dummy-token" > "${stub_dir}/serviceaccount/token"
   echo "default" > "${stub_dir}/serviceaccount/namespace"
   openssl req -x509 -newkey rsa:2048 -nodes \
@@ -51,6 +51,7 @@ validate_collector_configs() {
       --env-file "${DUMMY_ENV_FILE}" \
       -v "${stub_dir}/serviceaccount:/var/run/secrets/kubernetes.io/serviceaccount:ro" \
       -v "${stub_dir}/hostfs:/hostfs:ro" \
+      -v "${stub_dir}/otelcol:/var/lib/otelcol:ro" \
       -v "${config_file}:/etc/otel/config.yaml:ro" \
       "${collector_image}" validate --config=/etc/otel/config.yaml 2>&1); then
       echo "PASS  ${name}"
