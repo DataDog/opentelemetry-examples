@@ -61,19 +61,6 @@ It then:
 - installs or upgrades the OpenTelemetry Kube Stack Helm chart with `values-otlp-http.yaml` (`upstream`) or `values-ddot.yaml` (`ddot`), and optionally enables the host profiler; and
 - for `ddot`, unless `DD_AGENT_ENABLED=false`, installs or upgrades the Datadog Agent.
 
-### SDK runtime metrics
-
-The `ddot` flow enables SDK runtime metrics in both Plus (`DD_AGENT_ENABLED=true`) and Minus (`DD_AGENT_ENABLED=false`).
-The shared instrumentation settings apply to annotated application pods, including `inject-sdk` workloads.
-Restart existing application pods after updating instrumentation. The upstream flow is unchanged.
-
-SDKs supporting OTLP runtime metrics use the configured Collector endpoint. SDKs still using DogStatsD require a
-reachable DogStatsD receiver; enabling collection does not change their transport. OTel API metrics remain enabled,
-and application traces continue to use the Collector's OTLP endpoint.
-
-Check fresh metrics and service/environment/version tags for each SDK, then verify populated runtime views without
-duplicate series. Confirm receipt through the SDK's actual transport.
-
 ## Install with values files
 
 To perform the same installation without the interactive script, create a Kubernetes secret for the Datadog credentials,

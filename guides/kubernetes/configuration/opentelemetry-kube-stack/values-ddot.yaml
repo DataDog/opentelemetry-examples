@@ -803,8 +803,6 @@ instrumentation:
       value: "true"
     - name: "DD_METRICS_OTEL_ENABLED"
       value: "true"
-    - name: "DD_RUNTIME_METRICS_ENABLED"
-      value: "true"
     - name: "DD_TRACE_OTEL_SEMANTICS_ENABLED"
       value: "true"
     - name: "DD_AGENT_HOST"
