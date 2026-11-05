@@ -1,0 +1,138 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+cat <<'EOF'
+WARNING: This uninstall script is for development purposes only.
+
+It deletes:
+  - the opentelemetry-kube-stack Helm release in the
+    opentelemetry-operator-system namespace;
+  - the cert-manager Helm release in the cert-manager namespace;
+  - cert-manager CRDs: issuers, clusterissuers, certificates,
+    certificaterequests, orders, and challenges;
+  - the host-profiler egress NetworkPolicy and CiliumNetworkPolicy in the
+    opentelemetry-operator-system namespace (if installed);
+  - the datadog DatadogAgent custom resource in the datadog namespace;
+  - the datadog-operator Helm release in the datadog namespace;
+  - the datadog-webhook mutating and validating webhook configurations
+    created by the Datadog Cluster Agent;
+  - OpenTelemetry CRDs: opentelemetrycollectors, instrumentations,
+    opampbridges, and targetallocators;
+  - Datadog Operator CRDs: datadogagents, datadogagentprofiles,
+    datadogagentinternals, datadoginstrumentations, datadogmonitors,
+    datadogslos, datadogdashboards, datadogmetrics, datadogcsidrivers,
+    datadoggenericresources, datadogpodautoscalers, and
+    datadogpodautoscalerclusterprofiles;
+  - the opentelemetry-operator-system, datadog, and cert-manager namespaces,
+    with everything left in them (including the datadog-secret secrets).
+
+Deleting CRDs also deletes all corresponding custom resources in the cluster.
+
+It doesn't uninstall the elements of previous setups of this guide (legacy
+host-profiler and ddagent-kube-stack Helm releases): remove these first with
+`helm uninstall <release> --namespace opentelemetry-operator-system`, as
+deleting the opentelemetry-operator-system namespace would only remove their
+namespaced resources and leave their cluster-wide ones behind.
+EOF
+
+read -r -p "Type 'yes' to continue with the uninstall: " confirmation
+if [[ "$confirmation" != "yes" ]]; then
+  echo "Uninstall cancelled."
+  exit 0
+fi
+
+kubectl delete networkpolicy \
+  --namespace opentelemetry-operator-system \
+  --ignore-not-found=true \
+  opentelemetry-kube-stack-host-profiler-egress \
+  || echo "WARNING: Could not delete the host-profiler NetworkPolicy. Continuing..."
+kubectl delete ciliumnetworkpolicy \
+  --namespace opentelemetry-operator-system \
+  --ignore-not-found=true \
+  opentelemetry-kube-stack-host-profiler-egress \
+  || echo "WARNING: CiliumNetworkPolicy CRD not installed. Continuing..."
+
+helm uninstall opentelemetry-kube-stack \
+  --namespace opentelemetry-operator-system  \
+  || echo "WARNING: Could not uninstall opentelemetry-kube-stack. Continuing..."
+
+# Uninstall cert-manager only after opentelemetry-kube-stack: the kube-stack release owns
+# cert-manager Certificate and Issuer resources, and Helm can't delete the release once
+# the cert-manager CRDs are gone ("no matches for kind \"Certificate\"").
+helm uninstall cert-manager -n cert-manager \
+   || echo "WARNING: Could not uninstall cert-manager. Continuing..."
+
+kubectl delete crd \
+  issuers.cert-manager.io \
+  clusterissuers.cert-manager.io \
+  certificates.cert-manager.io \
+  certificaterequests.cert-manager.io \
+  orders.acme.cert-manager.io \
+  challenges.acme.cert-manager.io \
+|| echo "WARNING: Could not uninstall cert-manager CRDs. Continuing..."
+
+# Foreground cascading deletion: wait until the DatadogAgent's dependents (the
+# DatadogAgentInternal and, through it, the agent DaemonSet/pods, Services and RBAC)
+# are gone before uninstalling the Datadog Operator below. The DatadogAgentInternal
+# carries a finalizer only the Operator can remove, so uninstalling the Operator first
+# leaves it (and the agent pods it owns) stuck, and hangs the CRD deletion further down.
+kubectl delete datadogagent \
+  --namespace datadog \
+  --ignore-not-found=true \
+  --cascade=foreground \
+  --timeout=5m \
+  datadog \
+  || echo "WARNING: Could not delete the datadog DatadogAgent custom resource. Continuing..."
+
+helm uninstall datadog-operator \
+  --namespace datadog  \
+  || echo "WARNING: Could not uninstall datadog-operator. Continuing..."
+
+# The Cluster Agent creates its admission controller webhook configurations at runtime,
+# so neither the DatadogAgent deletion nor the Helm uninstall removes them. Delete them
+# once the Cluster Agent is gone, otherwise it would recreate them.
+kubectl delete mutatingwebhookconfiguration,validatingwebhookconfiguration \
+  --ignore-not-found=true \
+  datadog-webhook \
+  || echo "WARNING: Could not delete the datadog-webhook webhook configurations. Continuing..."
+
+
+# Remove OpenTelemetry CRDs (optional - be careful as this affects all OpenTelemetry resources).
+# CRDs are cluster-scoped, hence no --namespace. This is the full set installed by the
+# opentelemetry-kube-stack chart's otel-crds subchart (crds.installOtel: true).
+echo "Delete CRDs"
+kubectl delete crd --ignore-not-found=true \
+  opentelemetrycollectors.opentelemetry.io \
+  instrumentations.opentelemetry.io \
+  opampbridges.opentelemetry.io \
+  targetallocators.opentelemetry.io \
+  || echo "WARNING: Could not delete the OpenTelemetry Operator CRDs. Continuing..."
+
+# Remove Datadog Operator CRDs (optional - be careful as this affects all Datadog Operator
+# resources). This is the full set the datadog-operator chart's datadog-crds subchart can
+# install; several (datadogagentprofiles, datadogdashboards, datadoggenericresources,
+# datadogslos) are disabled by the chart's own defaults and won't exist unless enabled.
+kubectl delete crd --ignore-not-found=true \
+  datadogagents.datadoghq.com \
+  datadogagentprofiles.datadoghq.com \
+  datadogagentinternals.datadoghq.com \
+  datadoginstrumentations.datadoghq.com \
+  datadogmonitors.datadoghq.com \
+  datadogslos.datadoghq.com \
+  datadogdashboards.datadoghq.com \
+  datadogmetrics.datadoghq.com \
+  datadogcsidrivers.datadoghq.com \
+  datadoggenericresources.datadoghq.com \
+  datadogpodautoscalers.datadoghq.com \
+  datadogpodautoscalerclusterprofiles.datadoghq.com \
+  || echo "WARNING: Could not delete the Datadog Operator CRDs. Continuing..."
+
+# Delete the namespaces last, to also remove what Helm doesn't track: the datadog-secret
+# secrets, and the certificates, leader-election leases and ConfigMaps that cert-manager,
+# the operators and the Cluster Agent create at runtime.
+echo "Delete namespaces"
+kubectl delete namespace --ignore-not-found=true --timeout=5m \
+  opentelemetry-operator-system \
+  datadog \
+  cert-manager \
+  || echo "WARNING: Could not delete the namespaces. Continuing..."

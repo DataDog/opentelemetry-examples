@@ -8,6 +8,9 @@ jaeger:
   # Service already exposes otlp-grpc (4317), otlp-http (4318), http-query (16686),
   # and grpc-query (16685) by default.
 
+# Rendered into a ConfigMap and mounted at /etc/jaeger/ui-config.json (see
+# templates/jaeger/jaeger-ui-config.yaml in the chart). Referenced below via
+# userconfig.jaeger_query.ui.config_file.
 uiconfig:
   useOpenTelemetryTerms: true
 

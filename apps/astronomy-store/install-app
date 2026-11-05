@@ -6,6 +6,7 @@ if [[ "${1:-}" == "--help" || "${1:-}" == "-h" ]]; then
 Deploy all Astronomy Store workloads to Kubernetes.
 
 Usage:
+  ./install-app
   DD_INSTALL_FLOW=upstream ./install-app
   DD_INSTALL_FLOW=ddot ROLLOUT_TIMEOUT=5m ./install-app
   DD_INSTALL_FLOW=ddot IMAGE_PREFIX=ghcr.io/example/astronomy-store IMAGE_TAG=v1.2.3 ./install-app
@@ -14,7 +15,8 @@ If IMAGE_PREFIX/IMAGE_TAG are not set, they default to the values in .image-env 
 `./build-images --push`), falling back to astronomy-store:latest.
 
 DD_INSTALL_FLOW selects the checkout image matching the OpenTelemetry Kube Stack install flow
-(same variable as guides/kubernetes/configuration/opentelemetry-kube-stack/install):
+(same variable as guides/kubernetes/configuration/opentelemetry-kube-stack/install). Defaults to ddot,
+the flow of guides/kubernetes/configuration/opentelemetry-kube-stack/ddot/install:
   upstream  checkout:<tag>-upstream-otel, OpenTelemetry Go compile-time instrumentation
   ddot      checkout:<tag>, Datadog Orchestrion (DDOT SDK for Go)
 EOF
@@ -46,11 +48,12 @@ IMAGE_PREFIX="${IMAGE_PREFIX:-astronomy-store}"
 IMAGE_PREFIX="${IMAGE_PREFIX%/}"
 IMAGE_TAG="${IMAGE_TAG:-latest}"
 
-case "${DD_INSTALL_FLOW:-}" in
+DD_INSTALL_FLOW="${DD_INSTALL_FLOW:-ddot}"
+case "${DD_INSTALL_FLOW}" in
     upstream) CHECKOUT_IMAGE_TAG="${IMAGE_TAG}-upstream-otel" ;;
     ddot) CHECKOUT_IMAGE_TAG="${IMAGE_TAG}" ;;
     *)
-        echo "ERROR: DD_INSTALL_FLOW must be one of: upstream, ddot (got '${DD_INSTALL_FLOW:-}')" >&2
+        echo "ERROR: DD_INSTALL_FLOW must be one of: upstream, ddot (got '${DD_INSTALL_FLOW}')" >&2
         exit 1
         ;;
 esac

@@ -66,17 +66,26 @@ to_https_url() {
     echo "https://${host}/${path}"
 }
 
-# Git metadata baked into each image as build args, then surfaced as Datadog DD_GIT_* env vars and, through
-# otel-env.sh, as OTel vcs.* resource attributes. See the VCS ARG/ENV blocks near the end of each Dockerfile.
+# Git metadata baked into each image as build args, then surfaced as OCI image labels, Datadog DD_GIT_* env
+# vars and, through otel-env.sh, OTel vcs.* resource attributes. See the VCS ARG/LABEL/ENV blocks near the end
+# of each Dockerfile.
 VCS_REPOSITORY_URL_FULL="$(to_https_url "$(git -C "${SCRIPT_DIR}" config --get remote.origin.url)")"
 VCS_REF_HEAD_NAME="$(git -C "${SCRIPT_DIR}" rev-parse --abbrev-ref HEAD)"
 VCS_REF_TYPE="branch"
 VCS_REF_HEAD_REVISION="$(git -C "${SCRIPT_DIR}" rev-parse HEAD)"
+# org.opencontainers.image.version: the short commit SHA, as the image tag ("latest" by default) doesn't
+# identify the content.
+IMAGE_VERSION="$(git -C "${SCRIPT_DIR}" rev-parse --short HEAD)"
+# org.opencontainers.image.created: the commit date in UTC rather than the build time, so rebuilding the
+# same commit produces the same labels.
+IMAGE_CREATED="$(TZ=UTC git -C "${SCRIPT_DIR}" log -1 --date=format-local:%Y-%m-%dT%H:%M:%SZ --format=%cd)"
 VCS_BUILD_ARGS=(
     --build-arg "VCS_REPOSITORY_URL_FULL=${VCS_REPOSITORY_URL_FULL}"
     --build-arg "VCS_REF_HEAD_NAME=${VCS_REF_HEAD_NAME}"
     --build-arg "VCS_REF_TYPE=${VCS_REF_TYPE}"
     --build-arg "VCS_REF_HEAD_REVISION=${VCS_REF_HEAD_REVISION}"
+    --build-arg "IMAGE_VERSION=${IMAGE_VERSION}"
+    --build-arg "IMAGE_CREATED=${IMAGE_CREATED}"
 )
 # Files shared by several images (e.g. otel-env.sh), copied in the Dockerfiles with `COPY --from=shared`.
 SHARED_BUILD_CONTEXT=(--build-context "shared=${SCRIPT_DIR}/shared")

@@ -87,13 +87,13 @@ func (cs *checkoutServer) placeOrder(w http.ResponseWriter, r *http.Request) {
 
 	span.SetAttributes(
 		attribute.String("user.id", req.UserID),
-		attribute.String("demo.user_context.selected_currency", req.UserCurrency),
+		attribute.String("store.checkout.payment.currency", req.UserCurrency),
 		attribute.String("user.email", req.Email),
-		attribute.Int("demo.payment.card_cvv", int(req.CreditCard.CreditCardCvv)),
+		attribute.Int("store.checkout.payment.card_cvv", int(req.CreditCard.CreditCardCvv)),
 	)
 	logger.InfoContext(ctx, "PlaceOrder",
 		slog.String("user.id", req.UserID),
-		slog.String("user.currency", req.UserCurrency),
+		slog.String("store.checkout.payment.currency", req.UserCurrency),
 	)
 
 	orderID := uuid.NewString()
@@ -111,19 +111,19 @@ func (cs *checkoutServer) placeOrder(w http.ResponseWriter, r *http.Request) {
 	}
 
 	span.SetAttributes(
-		attribute.String("demo.order.id", orderID),
-		attribute.String("demo.shipping.tracking.id", shippingTrackingID),
+		attribute.String("store.checkout.order.id", orderID),
+		attribute.String("store.checkout.shipping.tracking.id", shippingTrackingID),
 	)
 	logger.InfoContext(ctx, "order placed",
-		slog.String("demo.order.id", orderID),
-		slog.String("demo.shipping.tracking.id", shippingTrackingID),
+		slog.String("store.checkout.order.id", orderID),
+		slog.String("store.checkout.shipping.tracking.id", shippingTrackingID),
 	)
 
 	if err := cs.publishOrder(ctx, result); err != nil {
 		span.RecordError(err)
 		span.SetStatus(codes.Error, "failed to publish order to Kafka")
 		logger.ErrorContext(ctx, "failed to publish order to Kafka",
-			slog.String("demo.order.id", orderID),
+			slog.String("store.checkout.order.id", orderID),
 			slog.Any("error", err),
 		)
 		http.Error(w, "failed to place order", http.StatusInternalServerError)

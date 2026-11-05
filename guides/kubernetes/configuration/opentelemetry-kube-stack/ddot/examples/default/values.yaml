@@ -1,0 +1,2 @@
+resourceAttributes:
+  deployment.environment.name: "staging"

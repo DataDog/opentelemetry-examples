@@ -617,14 +617,12 @@ collectors:
           metrics/cadvisor:
             receivers: [prometheus/cadvisor]
             processors:
-              [
-                resource_detection/env,
-                transform/cadvisor_labels,
-                groupbyattrs,
-                k8s_attributes,
-                cumulative_to_delta,
-                delta_to_rate/cadvisor,
-              ]
+              - resource_detection/env
+              - transform/cadvisor_labels
+              - groupbyattrs
+              - k8s_attributes
+              - cumulative_to_delta
+              - delta_to_rate/cadvisor
             exporters: [otlp_http]
   # Datadog's distribution of the OpenTelemetry eBPF profiler
   # see https://github.com/DataDog/datadog-agent/blob/main/cmd/host-profiler/deploy/README.md
@@ -792,6 +790,16 @@ collectors:
           # pipeline.
           profiles:
             exporters: [otlp_http]
+        # Loop the host profiler's own metrics through its OTLP receiver: with inheritDefaultCRConfig: false, it
+        # doesn't inherit defaultCRConfig's telemetry settings.
+        telemetry:
+          metrics:
+            readers:
+              - periodic:
+                  exporter:
+                    otlp:
+                      protocol: http/protobuf
+                      endpoint: http://localhost:4318
 instrumentation:
   enabled: true
   env:
@@ -804,7 +812,7 @@ instrumentation:
       value: http/protobuf
   exporter:
     # Daemon collector Service DNS. Update the collector name and namespace
-    # to match your install: http://<release>-daemon-collector.<namespace>.svc.cluster.local:4318
+    # to match your install: http://<helm-release-name>-daemon-collector.<namespace>.svc.cluster.local:4318
     endpoint: http://opentelemetry-kube-stack-daemon-collector.opentelemetry-operator-system.svc.cluster.local:4318
   sampler:
     type: parentbased_always_on
