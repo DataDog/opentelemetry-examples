@@ -42,12 +42,21 @@ jobs:
       - name: Regenerate examples
         run: make generate-examples
 
+      - name: Regenerate ddot examples
+        run: make -C ddot generate-otel-kube-stack-examples
+
       - name: Fail if rendered examples are out of date
         run: |
+          status=0
           if [ -n "$(git status --porcelain -- examples/ upstream/examples/)" ]; then
             echo "::error::examples/*/rendered-ddot or upstream/examples/*/rendered is out of date. Run make generate-examples locally with Helm ${HELM_VERSION}."
-            exit 1
+            status=1
           fi
+          if [ -n "$(git status --porcelain -- ddot/examples/)" ]; then
+            echo "::error::ddot/examples/*/rendered is out of date. Run make generate-otel-kube-stack-examples in ddot/ locally with Helm ${HELM_VERSION}."
+            status=1
+          fi
+          exit "${status}"
 
   validate:
     name: Validate collector configs and manifests
