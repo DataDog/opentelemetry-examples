@@ -259,7 +259,7 @@ configures one collector.
             # only set datadog.host.name when k8s.*, host.id, and cloud.* can't be reliably discovered
             - action: upsert
               key: datadog.host.name
-              value:` ${env:K8S_NODE_NAME}-${env:K8S_CLUSTER_NAME}`
+              value: ${env:K8S_NODE_NAME}-${env:K8S_CLUSTER_NAME}
     ```
 
 - **`k8s.container.name`:** extract it with the `k8s_attributes` processor, in its `extract.metadata`, as the
@@ -300,14 +300,14 @@ environment variable, typically through `OTEL_RESOURCE_ATTRIBUTES=datadog.host.n
 
 ### C-06: Convert cumulative metrics to delta
 
-- **Requirement:** the `cumulativetodelta` processor in the metrics pipelines receiving cumulative metrics (OTLP,
-  Prometheus receivers), and `deltatorate` for the counters that Datadog displays as rates.
+- **Requirement:** the `cumulative_to_delta` processor in the metrics pipelines receiving cumulative metrics (OTLP,
+  Prometheus receivers), and `delta_to_rate` for the counters that Datadog displays as rates.
 - **Reference:** `defaultCRConfig.config.processors` and `collectors.daemon.config.processors` in [`values.yaml`][values].
 - **Conflicts:** applications should also export delta metrics, see [S-04](#s-04-export-delta-metrics).
 - **Conflicts:** when a metrics pipeline also exports to destinations that require cumulative temporality, such as
   Prometheus remote write or another observability backend, don't convert to delta in that shared pipeline: split it
   with a `forward` connector into a fan-out with two ends. The cumulative end exports without conversion, and the
-  Datadog end adds `cumulativetodelta` and `deltatorate` before the Datadog exporter. Keep the shared processors
+  Datadog end adds `cumulative_to_delta` and `delta_to_rate` before the Datadog exporter. Keep the shared processors
   (`k8s_attributes`, `resource_detection`) in the upstream pipeline, and the `datadog/connector`
   as a receiver of the Datadog end only:
 
@@ -325,7 +325,7 @@ environment variable, typically through `OTEL_RESOURCE_ATTRIBUTES=datadog.host.n
         exporters: [prometheusremotewrite/other-backend]
       metrics/datadog:                 # Datadog requires delta temporality
         receivers: [forward/metrics, datadog/connector]
-        processors: [cumulativetodelta, deltatorate]
+        processors: [cumulative_to_delta, delta_to_rate]
         exporters: [datadog/exporter]
   ```
 
@@ -385,21 +385,18 @@ environment variable, typically through `OTEL_RESOURCE_ATTRIBUTES=datadog.host.n
 - **Requirement:** the `k8s.cluster.name` resource attribute of the Collectors equals the Datadog Agent's
   `clusterName` ([A-06](#a-06-use-the-same-kubernetes-cluster-name-as-the-opentelemetry-collectors)).
 - **Fix:** on EKS, GKE, and AKS, enable the cloud provider's resource detection preset, which discovers it.
-- **Fix:** on other platforms, where `k8s.cluster.name` is set manually instead of discovered, pass it to the
-  Collectors through the `OTEL_RESOURCE_ATTRIBUTES` environment variable, in addition to setting it on the telemetry
-  with a `resource` processor: the Collector's Datadog extension
-  ([C-07](#c-07-report-the-collectors-to-fleet-automation-with-the-datadog-extension)) reads it from
-  `OTEL_RESOURCE_ATTRIBUTES`, not from the pipelines' processors, to report the Collector under its Kubernetes cluster
-  in Fleet Automation. With the kube-stack chart, `resourceAttributes.k8s.cluster.name` in the values does both:
+- **Fix:** on other platforms, set `k8s.cluster.name` both on the telemetry and on the Collector's own telemetry. The
+  Collector's Datadog extension ([C-07](#c-07-report-the-collectors-to-fleet-automation-with-the-datadog-extension))
+  reports the Collector under the cluster name of its own telemetry in Fleet Automation. With the kube-stack chart,
+  `resourceAttributes.k8s.cluster.name` in the values does both:
 
   ```yaml
   resourceAttributes:
     k8s.cluster.name: <CLUSTER_NAME>
   ```
 
-  Otherwise, append `k8s.cluster.name=<CLUSTER_NAME>` to the Collector container's `OTEL_RESOURCE_ATTRIBUTES`, keeping
-  its existing comma-separated attributes, and add a `resource` processor that upserts `k8s.cluster.name` to the
-  pipelines.
+  Otherwise, add a `resource` processor that upserts `k8s.cluster.name` to the pipelines, and set `k8s.cluster.name`
+  under `service.telemetry.resource`, as the [Datadog extension documentation][dd-otel-extension-resource] describes.
 - **Constraints:** dot-separated tokens of lowercase letters, digits, and `-`, starting with a letter and ending with a
   letter or a digit, at most 80 characters. See [Kubernetes cluster name constraints][cluster-name].
 
@@ -444,7 +441,7 @@ environment variable, typically through `OTEL_RESOURCE_ATTRIBUTES=datadog.host.n
     pipelines:
       metrics/middleware:
         receivers: [receiver_creator/middleware]
-        processors: [k8s_attributes, resource_detection/env, cumulativetodelta]
+        processors: [k8s_attributes, resource_detection/env, cumulative_to_delta]
         exporters: [datadog/exporter]
   ```
 
@@ -464,7 +461,7 @@ environment variable, typically through `OTEL_RESOURCE_ATTRIBUTES=datadog.host.n
   telemetry always reaches the `daemon` collector running on its own Kubernetes node.
 - **Why:** with `internalTrafficPolicy: Cluster`, the Service load balances each connection across the `daemon`
   collectors of all the nodes:
-  - the points of a time series can reach different Collector instances, which breaks the stateful `cumulativetodelta`
+  - the points of a time series can reach different Collector instances, which breaks the stateful `cumulative_to_delta`
     conversion ([S-04](#s-04-export-delta-metrics));
   - the telemetry crosses nodes, and availability zones, for nothing;
   - the load of a `daemon` collector no longer depends on the workloads of its node, so its resource allocation no
@@ -541,7 +538,7 @@ environment variable, typically through `OTEL_RESOURCE_ATTRIBUTES=datadog.host.n
   isn't in its CRD schema yet: keep `volumeLimitSize` if you need it.
 - **Alpine/musl workloads:** add the pod-template annotation
   `instrumentation.opentelemetry.io/otel-python-platform: "musl"` (glibc is the default). See
-  [Auto-instrumenting a Python musl based container](https://opentelemetry.io/docs/platforms/kubernetes/operator/automatic/#auto-instrumenting-a-python-musl-based-container).
+  [Auto-instrumenting a Python musl based container](https://opentelemetry.io/docs/platforms/kubernetes/operator/automatic/#annotations-python-musl).
 
 ### O-04: Point the SDKs at the `daemon` collector
 
@@ -645,11 +642,11 @@ without the OpenTelemetry Operator, set them in their environment instead.
   in the downstream part of the Collector pipeline that exports to Datadog
   ([C-06](#c-06-convert-cumulative-metrics-to-delta)). Then make sure the Collectors have the resources for that
   conversion:
-  - `cumulativetodelta` keeps the last value of every time series in memory: size the Collectors' memory limit for
+  - `cumulative_to_delta` keeps the last value of every time series in memory: size the Collectors' memory limit for
     the number of time series of the workloads they receive from, and watch their memory usage on the
     **OpenTelemetry Collector** dashboard after the change. The reference [`values.yaml`][values] allocates `1Gi` of
     memory and `500m` of CPU per Collector: scale up for workloads with many time series.
-  - Set `max_staleness` on `cumulativetodelta`, for example `max_staleness: 1h`, so that the time series that stop
+  - Set `max_staleness` on `cumulative_to_delta`, for example `max_staleness: 1h`, so that the time series that stop
     reporting, such as the ones of deleted pods, are evicted from memory.
   - All the points of a time series must reach the same Collector instance for the conversion to be correct: keep the
     conversion in the `daemon` collector receiving the workload's telemetry, behind a node-local Service
@@ -815,7 +812,7 @@ values: this guide doesn't list them, and they aren't tested in this repository.
 
 - **Requirement:** `spec.global.clusterName` equals the OpenTelemetry Collectors' `k8s.cluster.name`
   ([C-10](#c-10-use-the-same-kubernetes-cluster-name-everywhere)). On EKS, GKE, and AKS, it can be omitted so the
-  Agent detects it, unless [Fleet Automation][fleet-automation] Remote Configuration is enabled, which requires it.
+  Agent detects it, unless [Fleet Automation][dd-fleet-automation] Remote Configuration is enabled, which requires it.
 - **Recommended on non-cloud Kubernetes clusters:** use `<node name>-<cluster name>` as the Agent hostname, unique
   across Kubernetes clusters:
 
@@ -874,8 +871,8 @@ See [TROUBLESHOOTING.md][troubleshooting] when something doesn't show up.
 [troubleshooting]: https://github.com/DataDog/opentelemetry-examples/blob/main/guides/kubernetes/configuration/opentelemetry-kube-stack/ddot/TROUBLESHOOTING.md
 [architecture]: https://raw.githubusercontent.com/DataDog/opentelemetry-examples/main/guides/kubernetes/configuration/opentelemetry-kube-stack/ddot/assets/deployment-architecture-diagram_k8s_ddot-with-dd-agent.svg.png
 [cluster-name]: https://github.com/DataDog/opentelemetry-examples/blob/main/guides/kubernetes/configuration/opentelemetry-kube-stack/ddot/README.md#kubernetes-cluster-name-constraints
-[fleet-automation]: https://github.com/DataDog/opentelemetry-examples/blob/main/guides/kubernetes/configuration/opentelemetry-kube-stack/ddot/README.md#fleet-automation-optional
 [dd-fleet-automation]: https://docs.datadoghq.com/agent/fleet_automation/
+[dd-otel-extension-resource]: https://docs.datadoghq.com/opentelemetry/integrations/datadog_extension/
 [dd-live-debugger-go]: https://docs.datadoghq.com/tracing/live_debugger/?prog_lang=go
 [dd-dbm]: https://docs.datadoghq.com/database_monitoring/
 [dd-dsm]: https://docs.datadoghq.com/data_streams/

@@ -27,7 +27,7 @@ Contents:
 
 - [Before you begin](#before-you-begin)
 - [1. Download the script](#1-download-the-script)
-- [2. Provide the Datadog credentials](#2-provide-the-datadog-credentials)
+- [2. Configure the installation](#2-configure-the-installation)
 - [3. Run the script](#3-run-the-script)
 - [4. Verify the installation](#4-verify-the-installation)
   - [Verify on the Kubernetes cluster](#verify-on-the-kubernetes-cluster)
@@ -356,7 +356,7 @@ runs `helm repo update`, and downloads the configuration files to a temporary di
 
 - **`Could not download ...`**: the configuration files couldn't be fetched from GitHub. Check the network access and
   the `--config-url`, or run from a clone of this repository with `--local`.
-- **`A host-profiler egress ... from a previous installation conflicts with the selected policy`**: a previous run
+- **`A host-profiler egress ... from a previous installation conflicts with DD_HOST_PROFILER_NETWORK_POLICY=...`**: a previous run
   applied the other kind of host-profiler egress NetworkPolicy. Run the `kubectl delete` command in the error message,
   then re-run the script.
 
@@ -490,10 +490,15 @@ export K8S_CLUSTER_NAME="my-k8s-cluster" # empty string on EKS/GKE/AKS
 
 helm repo add datadog https://helm.datadoghq.com
 helm repo update
+OPERATOR_HELM_ARGS=(--set apiKeyExistingSecret=datadog-secret --set-string site="$DD_SITE")
+if [[ -n "$K8S_CLUSTER_NAME" ]]; then
+  OPERATOR_HELM_ARGS+=(--set-string clusterName="$K8S_CLUSTER_NAME")
+fi
 helm upgrade --install datadog-operator \
   datadog/datadog-operator \
   --version 2.28.1 \
   --namespace datadog \
+  "${OPERATOR_HELM_ARGS[@]}" \
   --wait --timeout 5m
 
 # On EKS/GKE/AKS (empty K8S_CLUSTER_NAME), drop the clusterName line so the Agent auto-detects it.

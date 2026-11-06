@@ -24,7 +24,7 @@ Many of the metrics collected for the Kubernetes integration report on the _over
 | processor   | [transform][6]          | Modifies, adds, and deletes resource/datapoint attributes |
 | processor   | [groupbyattrs][7]       | Associates kube-state-metrics Pod datapoints with the correct OTel resource by Pod UID |
 | processor   | [k8s_attributes][8]     | Enriches Kubernetes metrics with additional metadata (ex: annotations/labels) |
-| connector   | [count][9]              | Counts Kubernetes metrics to generate `k8s.node.count`, `k8s.job.count`, `k8s.service.count`, `k8s.deployment.count`, `k8s.pod.count`, and `k8s.namespace.count` |
+| connector   | [count][9]              | Counts Kubernetes metrics to generate object counts such as `k8s.pod.count` and `k8s.node.count` |
 | exporter    | [datadog][10]           | Ships telemetry to Datadog |
 
 ### Node Collector
@@ -64,7 +64,7 @@ Unit: byte_in_binary_bytes_family per second
 ### k8s.pod.network.errors
 ```
 Metric Type: Gauge
-Unit: byte_in_binary_bytes_family per second
+Unit: error per second
 ```
 
 ### kube_pod_container_status_restarts_total
@@ -121,7 +121,7 @@ spec:
 
 ## Deployment
 
-<blockquote> NOTE: If you are incorporating the configuration files found in [/configuration](/documentation/kubernetes/configuration/) into your existing OpenTelemetry collector deployment, please be aware that they are specifically written for
+<blockquote> NOTE: If you are incorporating the configuration files found in [/configuration](configuration/) into your existing OpenTelemetry collector deployment, please be aware that they are specifically written for
 
 * [opentelemetry-collector](https://github.com/open-telemetry/opentelemetry-helm-charts/tree/main/charts/opentelemetry-collector) helm chart >= `0.156.2`
 * OTel image `otel/opentelemetry-collector-contrib` >= `0.154.0`
@@ -187,5 +187,5 @@ helm install otel-cluster-collector open-telemetry/opentelemetry-collector -f co
 [13]: https://github.com/open-telemetry/opentelemetry-collector-contrib/tree/main/processor/deltatorateprocessor
 [14]: https://github.com/open-telemetry/opentelemetry-collector-contrib/tree/main/processor/resourcedetectionprocessor
 [15]: https://github.com/open-telemetry/opentelemetry-collector-contrib/tree/main/connector/datadogconnector
-[16]: https://github.com/open-telemetry/opentelemetry-collector-contrib/tree/v0.153.0/processor/resourcedetectionprocessor#cluster-name
+[16]: https://github.com/open-telemetry/opentelemetry-collector-contrib/tree/v0.153.0/processor/resourcedetectionprocessor#supported-detectors
 
