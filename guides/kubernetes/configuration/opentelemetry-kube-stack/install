@@ -74,8 +74,8 @@ if [[ "$DD_HOST_PROFILER_ENABLED" == "true" ]]; then
     # whose CNI enforces NetworkPolicy.
     case "$DD_HOST_PROFILER_NETWORK_POLICY" in
         none) ;;
-        standard) HOST_PROFILER_NETWORK_POLICY_FILE="$SCRIPT_DIR/host-profiler-network-policy.yaml" ;;
-        cilium) HOST_PROFILER_NETWORK_POLICY_FILE="$SCRIPT_DIR/host-profiler-cilium-network-policy.yaml" ;;
+        standard) HOST_PROFILER_NETWORK_POLICY_FILE="$SCRIPT_DIR/ddot/host-profiler-network-policy.yaml" ;;
+        cilium) HOST_PROFILER_NETWORK_POLICY_FILE="$SCRIPT_DIR/ddot/host-profiler-cilium-network-policy.yaml" ;;
         *)
             echo "ERROR: DD_HOST_PROFILER_NETWORK_POLICY must be one of: none, standard, cilium (got '$DD_HOST_PROFILER_NETWORK_POLICY')" >&2
             exit 1
@@ -83,7 +83,7 @@ if [[ "$DD_HOST_PROFILER_ENABLED" == "true" ]]; then
     esac
     HOST_PROFILER_ENABLED_ARGS=(
         --set collectors.host-profiler.enabled=true
-        -f "$SCRIPT_DIR/host-profiler-rbac-values.yaml"
+        -f "$SCRIPT_DIR/ddot/host-profiler-rbac-values.yaml"
     )
 fi
 
