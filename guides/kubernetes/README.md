@@ -24,7 +24,7 @@ Many of the metrics collected for the Kubernetes integration report on the _over
 | processor   | [transform][6]          | Modifies, adds, and deletes resource/datapoint attributes |
 | processor   | [groupbyattrs][7]       | Associates kube-state-metrics Pod datapoints with the correct OTel resource by Pod UID |
 | processor   | [k8s_attributes][8]     | Enriches Kubernetes metrics with additional metadata (ex: annotations/labels) |
-| connector   | [count][9]              | Counts Kubernetes metrics to generate `k8s.node.count`, `k8s.job.count`, `k8s.service.count`, `k8s.deployment.count`, `k8s.pod.count`, and `k8s.namespace.count` |
+| connector   | [count][9]              | Counts Kubernetes metrics to generate `k8s.node.count`, `k8s.job.count`, `k8s.service.count`, `k8s.deployment.count`, `k8s.pod.count`, `k8s.namespace.count`, `k8s.statefulset.count`, `k8s.daemonset.count`, and `k8s.cronjob.count` |
 | exporter    | [datadog][10]           | Ships telemetry to Datadog |
 
 ### Node Collector
@@ -64,7 +64,7 @@ Unit: byte_in_binary_bytes_family per second
 ### k8s.pod.network.errors
 ```
 Metric Type: Gauge
-Unit: byte_in_binary_bytes_family per second
+Unit: error per second
 ```
 
 ### kube_pod_container_status_restarts_total
