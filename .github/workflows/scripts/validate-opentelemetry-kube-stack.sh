@@ -24,7 +24,7 @@ validate_collector_configs() {
 
   # Extract Collector image
   local collector_image
-  collector_image="$(yq '.opentelemetry-operator.manager.collectorImage.repository + ":" + .opentelemetry-operator.manager.collectorImage.tag' values-otlp-http.yaml)"
+  collector_image="$(yq '.opentelemetry-operator.manager.collectorImage.repository + ":" + .opentelemetry-operator.manager.collectorImage.tag' upstream/values.yaml)"
   echo "Validating collector configs against ${collector_image}"
 
   # Move each config into its own file.
