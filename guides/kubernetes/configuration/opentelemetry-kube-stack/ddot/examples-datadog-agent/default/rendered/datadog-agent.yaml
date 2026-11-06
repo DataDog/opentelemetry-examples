@@ -608,7 +608,7 @@ apiVersion: datadoghq.com/v1alpha1
 kind: DatadogAgentInternal
 metadata:
   annotations:
-    agent.datadoghq.com/ddaispechash: bac0eab40be7ba0502da8172750eac50
+    agent.datadoghq.com/ddaispechash: de4603db777c41f84401c6b24b70eb51
   finalizers:
   - finalizer.datadoghq.com/datadogagentinternal
   labels:
@@ -648,15 +648,6 @@ spec:
         injector: {}
         languageDetection:
           enabled: true
-        targets:
-        - ddTraceVersions:
-            dotnet: "3"
-            java: "1"
-            js: "5"
-            php: "1"
-            python: "4"
-            ruby: "2"
-          name: default-target
       unixDomainSocketConfig:
         enabled: true
         path: /var/run/datadog/apm.socket
@@ -772,14 +763,6 @@ spec:
       env:
       - name: DD_LOG_FORMAT_JSON
         value: "true"
-      - name: K8S_NODE_NAME
-        valueFrom:
-          fieldRef:
-            fieldPath: spec.nodeName
-      - name: K8S_CLUSTER_NAME
-        value: my-k8s-cluster
-      - name: DD_HOSTNAME
-        value: $(K8S_NODE_NAME)-$(K8S_CLUSTER_NAME)
       image:
         tag: 7.84.3-jmx
 ---
@@ -787,7 +770,7 @@ apiVersion: apps/v1
 kind: DaemonSet
 metadata:
   annotations:
-    agent.datadoghq.com/agentspechash: 9cbdaad82895ccf587a240493f55c93a
+    agent.datadoghq.com/agentspechash: 37eb47dfaf2ecac09f8f2474e523a891
   labels:
     agent.datadoghq.com/component: agent
     agent.datadoghq.com/name: datadog
@@ -895,14 +878,6 @@ spec:
           value: "false"
         - name: DD_LOG_FORMAT_JSON
           value: "true"
-        - name: K8S_NODE_NAME
-          valueFrom:
-            fieldRef:
-              fieldPath: spec.nodeName
-        - name: K8S_CLUSTER_NAME
-          value: my-k8s-cluster
-        - name: DD_HOSTNAME
-          value: $(K8S_NODE_NAME)-$(K8S_CLUSTER_NAME)
         - name: DD_ORCHESTRATOR_EXPLORER_KUBELET_CONFIG_CHECK_ENABLED
           value: "false"
         - name: DD_APM_DEBUGGER_LOGS_ENABLED_OVERRIDE
@@ -1039,14 +1014,6 @@ spec:
           value: "true"
         - name: DD_LOG_FORMAT_JSON
           value: "true"
-        - name: K8S_NODE_NAME
-          valueFrom:
-            fieldRef:
-              fieldPath: spec.nodeName
-        - name: K8S_CLUSTER_NAME
-          value: my-k8s-cluster
-        - name: DD_HOSTNAME
-          value: $(K8S_NODE_NAME)-$(K8S_CLUSTER_NAME)
         image: registry.datadoghq.com/agent:7.84.3-jmx
         livenessProbe:
           initialDelaySeconds: 15
@@ -1135,14 +1102,6 @@ spec:
           value: "true"
         - name: DD_LOG_FORMAT_JSON
           value: "true"
-        - name: K8S_NODE_NAME
-          valueFrom:
-            fieldRef:
-              fieldPath: spec.nodeName
-        - name: K8S_CLUSTER_NAME
-          value: my-k8s-cluster
-        - name: DD_HOSTNAME
-          value: $(K8S_NODE_NAME)-$(K8S_CLUSTER_NAME)
         image: registry.datadoghq.com/agent:7.84.3-jmx
         name: system-probe
         resources: {}
@@ -1324,7 +1283,7 @@ apiVersion: apps/v1
 kind: Deployment
 metadata:
   annotations:
-    agent.datadoghq.com/agentspechash: 339999cfcacdcaae87eaff8aa44a82b3
+    agent.datadoghq.com/agentspechash: 0682e6bc969fbaf9a10d17bc36465ca7
   labels:
     agent.datadoghq.com/component: cluster-agent
     agent.datadoghq.com/name: datadog
@@ -1462,8 +1421,6 @@ spec:
           value: /var/run/datadog/apm.socket
         - name: DD_APM_INSTRUMENTATION_ENABLED
           value: "false"
-        - name: DD_APM_INSTRUMENTATION_TARGETS
-          value: '[{"name":"default-target","ddTraceVersions":{"dotnet":"3","java":"1","js":"5","php":"1","python":"4","ruby":"2"}}]'
         - name: DD_DOGSTATSD_HOST_SOCKET_PATH
           value: /var/run/datadog
         - name: DD_DOGSTATSD_SOCKET

@@ -497,12 +497,10 @@ helm upgrade --install datadog-operator \
   --wait --timeout 5m
 
 # On EKS/GKE/AKS (empty K8S_CLUSTER_NAME), drop the clusterName line so the Agent auto-detects it.
-# Likewise, only set the Agent hostname from the Kubernetes node name and the Kubernetes cluster name on non-cloud
-# Kubernetes clusters.
 if [[ -n "$K8S_CLUSTER_NAME" ]]; then
-  CLUSTER_NAME_SED_ARGS=(-e "s|<CLUSTER_NAME>|$K8S_CLUSTER_NAME|" -e "/<HOSTNAME_FROM_NODE_NAME:/d")
+  CLUSTER_NAME_SED_ARGS=(-e "s|<CLUSTER_NAME>|$K8S_CLUSTER_NAME|")
 else
-  CLUSTER_NAME_SED_ARGS=(-e "/<CLUSTER_NAME>/d" -e "/<HOSTNAME_FROM_NODE_NAME:BEGIN>/,/<HOSTNAME_FROM_NODE_NAME:END>/d")
+  CLUSTER_NAME_SED_ARGS=(-e "/<CLUSTER_NAME>/d")
 fi
 
 sed \
