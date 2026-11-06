@@ -366,7 +366,7 @@ collectors:
       receivers:
         file_log:
           start_at: beginning
-          # Parse the JSON logs of the Datadog Agent and Operator, in the datadog namespace (see datadog-agent.yaml).
+          # Parse the JSON logs of the Datadog Agent and Operator, in the datadog namespace (see ddot/datadog-agent.yaml).
           # The operators only apply to that namespace: they do nothing without the Datadog Agent.
           # FIXME the Agent's JMXFetch lines are wrapped as {"msg": "<yyyy-MM-dd HH:mm:ss> UTC | JMX |
           # <LEVEL> | ..."} without a level field: their level would need a `regex_parser` on the

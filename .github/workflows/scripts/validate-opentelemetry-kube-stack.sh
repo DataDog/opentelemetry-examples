@@ -76,7 +76,7 @@ validate_manifests() {
     -schema-location default \
     -schema-location 'https://raw.githubusercontent.com/datreeio/CRDs-catalog/main/{{.Group}}/{{.ResourceKind}}_{{.ResourceAPIVersion}}.json' \
     examples/*/rendered-* \
-    datadog-agent.yaml
+    ddot/datadog-agent.yaml
 }
 
 status=0

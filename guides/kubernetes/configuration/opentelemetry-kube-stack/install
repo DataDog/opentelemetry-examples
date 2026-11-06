@@ -223,7 +223,7 @@ if [[ "$DD_INSTALL_FLOW" == "ddot" && "$DD_AGENT_ENABLED" == "true" ]]; then
         GLOBAL_JSON+=",\"clusterName\":\"$K8S_CLUSTER_NAME\""
     fi
     kubectl patch --local \
-      -f "$SCRIPT_DIR/datadog-agent.yaml" \
+      -f "$SCRIPT_DIR/ddot/datadog-agent.yaml" \
       --type merge \
       -p "{\"spec\":{\"global\":{$GLOBAL_JSON}}}" \
       -o yaml | kubectl apply --namespace datadog -f -
