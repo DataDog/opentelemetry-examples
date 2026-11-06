@@ -43,7 +43,7 @@ spec:
     addK8sUIDAttributes: true
     resourceAttributes:
       deployment.environment.name: production
-      k8s.cluster.name: my_k8s_cluster
+      k8s.cluster.name: my-k8s-cluster
   java:
     image: datadog/dd-otel-autoinstrumentation-java:1.68.0-preview
   nodejs:
