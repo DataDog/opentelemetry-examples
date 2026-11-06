@@ -1,10 +1,10 @@
 # Adapt an existing configuration for DDOT
 
-Already running an OpenTelemetry Collector, the OpenTelemetry Operator, OpenTelemetry SDKs, or a Datadog Agent on
-Kubernetes? This guide lists what to change in each of them so they work together with the DDOT SDKs, Datadog's version
-of the OpenTelemetry APM SDKs, without reinstalling from scratch with the [`install` script][install].
+If you already run an OpenTelemetry Collector, the OpenTelemetry Operator, OpenTelemetry SDKs, or a Datadog Agent on
+Kubernetes, this guide lists what to change in each of them to work with the DDOT SDKs, Datadog's version of the
+OpenTelemetry APM SDKs. You don't need to reinstall with the [`install` script][install].
 
-Each requirement is a rule with an ID, what to check, how to fix it, and how it can conflict with an existing setup. The
+Each rule has an ID, a requirement to check, a fix, and the conflicts it can have with an existing setup. The
 reference implementation of every rule is in this folder: [`values.yaml`][values] for the OpenTelemetry Kube Stack Helm
 chart, and [`datadog-agent.yaml`][dd-agent-yaml] for the Datadog Operator's `DatadogAgent` custom resource. When this
 guide and those files disagree, the files are right.
@@ -30,19 +30,7 @@ Contents:
 
 ## Target architecture
 
-![Deployment architecture: the OpenTelemetry Kube Stack deploys the DDOT SDKs, Collectors, and host profiler, next to a Datadog Agent acting as an enabler of the DDOT SDKs][architecture]
-
-After the changes in this guide:
-
-- **OpenTelemetry Collectors** collect the Kubernetes and application telemetry and export it to Datadog. A
-  `daemon` collector (DaemonSet) receives the applications' OTLP traces, metrics, and logs, and collects node-scope
-  telemetry, including the telemetry of the middleware running on its node. A `cluster` collector (single-replica Deployment) collects cluster-scope telemetry.
-- **The OpenTelemetry Operator** injects the DDOT SDKs into annotated workloads through an `Instrumentation` custom
-  resource, and points them at the `daemon` collector.
-- **The DDOT SDKs** export OTLP to the `daemon` collector.
-- **The Datadog Agent** only acts as an **enabler of the DDOT SDKs**: it enables their Datadog-specific features, such
-  as Live Debugger, Dynamic Instrumentation, Remote Configuration of head sampling, or Feature Flag Management. It
-  doesn't collect the Kubernetes telemetry or instrument the applications, so its overlapping features are disabled.
+After the changes in this guide, the deployment matches [What this deploys][what-this-deploys].
 
 ## Instructions for coding agents
 
@@ -50,23 +38,23 @@ After the changes in this guide:
    `opentelemetry-kube-stack` or `opentelemetry-collector` charts, `OpenTelemetryCollector` custom resources, raw
    Collector YAML), `Instrumentation` custom resources, workload manifests with `instrumentation.opentelemetry.io/*`
    annotations or `OTEL_*`/`DD_*` environment variables, `DatadogAgent` custom resources, and Helm values of the
-   `datadog` or `datadog-operator` charts. Only apply the rule sections of the components you found.
-2. **Merge, don't replace.** Keep the user's existing receivers, exporters, pipelines, and environment variables unless
-   a rule says otherwise. When a rule conflicts with an existing setting, follow the rule's **Conflicts** line, and if
-   it doesn't cover the case, ask the user.
+   `datadog` or `datadog-operator` charts. Apply only the rule sections of the components you find.
+2. **Merge with the existing configuration.** Keep the user's existing receivers, exporters, pipelines, and environment
+   variables unless a rule says otherwise. When a rule conflicts with an existing setting, follow the rule's
+   **Conflicts** line. If that line doesn't cover the case, ask the user.
 3. **Helm replaces lists.** When writing a Helm overlay, repeat every item of a list you override (pipeline
    `receivers`/`processors`/`exporters`, `env`, `operators`), or the items of the base values file are lost.
 4. **Don't invent values.** Use placeholders such as `<CLUSTER_NAME>` for the Kubernetes cluster name, namespaces, and
    Service names you can't find in the repository, and list them in your report. Never write API or application keys
    into files: reference a Kubernetes Secret.
-5. **Pin image versions** to the ones in [`values.yaml`][values] and [`datadog-agent.yaml`][dd-agent-yaml] at the time
-   you read them, not to the versions quoted in this guide, which can be older.
+5. **Pin image versions** to the current ones in [`values.yaml`][values] and [`datadog-agent.yaml`][dd-agent-yaml]. The
+   versions quoted in this guide can be older.
 6. **Report** a table of every rule: `applied`, `already satisfied`, `skipped` (with the reason), or `blocked` (by a
    [known gap](#known-gaps) or a missing value), followed by the placeholders the user must fill in.
 
 ## OpenTelemetry Collector rules
 
-These rules apply to the Collector configuration, whatever the way it's deployed. The paths refer to the
+These rules apply to the Collector configuration however it's deployed. The paths refer to the
 `opentelemetry-kube-stack` chart, where `defaultCRConfig` is merged into every collector and `collectors.<name>`
 configures one collector.
 
@@ -91,8 +79,7 @@ configures one collector.
           site: ${env:DD_SITE:-datadoghq.com}
   ```
 
-- **Conflicts:** keep the user's other exporters next to it, for example to export to another observability backend
-  too.
+- **Conflicts:** keep the user's other exporters, for example exporters to another observability backend.
 
 ### C-02: Compute APM trace metrics with the Datadog connector, before any sampling
 
@@ -122,71 +109,40 @@ configures one collector.
 
 ### C-03: Enrich the telemetry with the resource attributes Datadog needs
 
-- **Requirement:** the traces, metrics, and logs of a workload carry the same values of the following resource
-  attributes: Datadog correlates the telemetry on them, and can't link the signals of a workload when they differ.
-  `service.namespace` is strongly recommended rather than required.
+- **Requirement:** the traces, metrics, and logs of a workload carry the same values for the following resource
+  attributes. Datadog correlates the telemetry on these attributes and can't link the signals of a workload when the
+  values differ.
 
   | Resource attribute                                                                                                                                                                                                                  | Datadog use                                                                                           | Set by, in the reference configuration                                                                                                                                   |
   |-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|-------------------------------------------------------------------------------------------------------|--------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
   | `service.name`                                                                                                                                                                                                                      | `service` tag, needed for any correlation                                                             | OpenTelemetry Operator and `k8s_attributes`, following the [OpenTelemetry Kubernetes conventions][otel-semconv-k8s-attributes]: annotations, labels, workload names      |
-  | `service.namespace`                                                                                                                                                                                                                 | Groups the services of an application. Strongly recommended, not required                             | OpenTelemetry Operator and `k8s_attributes`, following the [OpenTelemetry Kubernetes conventions][otel-semconv-k8s-attributes]: annotations, Kubernetes namespace        |
+  | `service.namespace`                                                                                                                                                                                                                 | Groups the services of an application. Optional, strongly recommended                                 | OpenTelemetry Operator and `k8s_attributes`, following the [OpenTelemetry Kubernetes conventions][otel-semconv-k8s-attributes]: annotations, Kubernetes namespace        |
   | `deployment.environment.name`                                                                                                                                                                                                       | `env` tag                                                                                             | OpenTelemetry Operator and `resourceAttributes` of the kube-stack chart ([C-11](#c-11-set-the-deployment-environment)): annotations, OTel Collector pipeline             |
   | `service.version`                                                                                                                                                                                                                   | `version` tag                                                                                         | OpenTelemetry Operator and `k8s_attributes`, following the [OpenTelemetry Kubernetes conventions][otel-semconv-k8s-attributes]: annotations, labels, container image tag |
   | `container.id`                                                                                                                                                                                                                      | Links spans to the container metrics: without it, APM doesn't show the container metrics of a service | The SDK's container resource detector: not extracted by `k8s_attributes` in the reference                                                                                |
   | `host.name`                                                                                                                                                                                                                         | Links to the host metrics                                                                             | `resource/hostname`, from `k8s.node.name`                                                                                                                                |
   | `host.id`, `cloud.provider`, `cloud.account.id`                                                                                                                                                                                     | Datadog hostname of cloud hosts, cloud context                                                        | `resource_detection` with the cloud provider's detector                                                                                                                  |
   | `datadog.host.name`                                                                                                                                                                                                                 | Datadog hostname, when `host.id` can't be reliably discovered                                         | Not set in the reference as `k8s.cluster.name` is set when it can't be discovered                                                                                        |
-  | `k8s.pod.name`                                                                                                                                                                                                                      | Links the pod and container views                                                                     | OpenTelemetry Operator and OpenTelemetry Operator, `k8s_attributes`                                                                                                      |
+  | `k8s.pod.name`                                                                                                                                                                                                                      | Links the pod and container views                                                                     | OpenTelemetry Operator and `k8s_attributes`                                                                                                                              |
   | `k8s.container.name`                                                                                                                                                                                                                | Container name displayed in Datadog                                                                   | OpenTelemetry Operator (`OTEL_RESOURCE_ATTRIBUTES`), `k8s_attributes` for the other workloads                                                                            |
   | `k8s.cluster.name`                                                                                                                                                                                                                  | Kubernetes Explorer, Kubernetes dashboards                                                            | `resource_detection` (EKS, GKE, AKS) or `resourceAttributes` ([C-10](#c-10-use-the-same-kubernetes-cluster-name-everywhere))                                             |
   | `k8s.namespace.name`, `k8s.node.name`, `k8s.pod.uid`, `k8s.deployment.name`, `k8s.replicaset.name`, `k8s.daemonset.name`, `k8s.statefulset.name`, `k8s.job.name`, `k8s.cronjob.name`, `container.image.name`, `container.image.tag` | Kubernetes context of the telemetry                                                                   | `k8s_attributes`                                                                                                                                                         |
 
-- **Fix:** enrich the telemetry in the Collector with the `k8s_attributes` processor, in every pipeline that receives
-  telemetry from the workloads, rather than setting these attributes by hand in each application:
+- **Fix:** add the `k8s_attributes` processor to every Collector pipeline that receives telemetry from the workloads,
+  so you don't set these attributes by hand in each application:
   - with the kube-stack chart, `presets.kubernetesAttributes.enabled: true`. It extracts the attributes above, except
     `container.id` and `k8s.cluster.name`, and sets `otel_annotations: true`;
-  - otherwise, the `k8s_attributes` processor with its RBAC (`get`, `list`, and `watch` on pods, namespaces, nodes, and
-    replica sets), and the `metadata` to extract:
-
-    ```yaml
-    processors:
-      k8s_attributes:
-        passthrough: false
-        filter:
-          node_from_env_var: K8S_NODE_NAME   # on a DaemonSet: only watch the pods of its node
-        extract:
-          otel_annotations: true             # strongly recommended: resource.opentelemetry.io/<attribute> annotations
-          metadata:
-            - k8s.namespace.name
-            - k8s.pod.name
-            - k8s.pod.uid
-            - k8s.node.name
-            - k8s.deployment.name
-            - k8s.replicaset.name
-            - k8s.daemonset.name
-            - k8s.statefulset.name
-            - k8s.job.name
-            - k8s.cronjob.name
-            - k8s.container.name
-            - container.image.name
-            - container.image.tag
-            - service.name
-            - service.namespace
-            - service.version
-            - service.instance.id
-        pod_association:
-          - sources: [{ from: resource_attribute, name: k8s.pod.uid }]
-          - sources: [{ from: resource_attribute, name: k8s.pod.ip }]
-          - sources: [{ from: connection }]
-    ```
+  - otherwise, add the `k8s_attributes` processor ([config example][k8sattributes-config],
+    [RBAC][k8sattributes-rbac]) with the attributes above in `extract.metadata`. See
+    `spec.config.processors.k8s_attributes` of the `opentelemetry-kube-stack-daemon` collector in
+    [`examples/default/rendered/collector.yaml`][rendered-collector].
 
 - **Recommendations for the resource attributes on Kubernetes:**
   - **All attributes:** follow the OpenTelemetry [Specify resource attributes using Kubernetes
     annotations][otel-semconv-k8s-attributes] conventions, which `k8s_attributes` and the OpenTelemetry Operator
     implement.
-  - **`k8s_attributes`:** strongly recommended, set `extract.otel_annotations: true`, so that the processor adds the
-    `resource.opentelemetry.io/<attribute>` pod annotations to all the telemetry of the pod, including the container
-    metrics and logs that the Collectors collect.
+  - **`k8s_attributes`:** set `extract.otel_annotations: true` (strongly recommended). See
+    [Configuring recommended resource attributes][k8sattributes-recommended].
   - **`service.name` and `service.namespace`:** set them with the `resource.opentelemetry.io/service.name` and
     `resource.opentelemetry.io/service.namespace` annotations of the pod template:
 
@@ -199,25 +155,21 @@ configures one collector.
             resource.opentelemetry.io/service.namespace: my-application
     ```
 
-  - **`service.version`:** rely on the [OpenTelemetry conventions][otel-semconv-k8s-attributes], which derive it from
-    the container image tag: tag the images with the application version. The `app.kubernetes.io/version` pod label
-    and the `resource.opentelemetry.io/service.version` pod annotation also work, but require a more sophisticated
-    software delivery pipeline, which updates them on every release.
-  - **`deployment.environment.name`:** don't set it in the application's deployment manifests, so that the same
-    deployment pipeline and manifests serve all the environments. Set it in the Collector pipeline instead, typically
-    with the `resourceAttributes` of the kube-stack chart ([C-11](#c-11-set-the-deployment-environment)).
-  - **`k8s.node.name`:** set it with the `k8s_attributes` processor, from the pod the telemetry comes from.
+  - **`service.version`:** tag the images with the application version. See
+    [how `service.version` is calculated][otel-semconv-service-version].
+  - **`deployment.environment.name`:** set it in the Collector pipeline, typically with the `resourceAttributes` of the
+    kube-stack chart ([C-11](#c-11-set-the-deployment-environment)), so that the same deployment pipeline and manifests
+    serve all the environments. Don't set it in the application's deployment manifests.
   - **`host.id`, `cloud.provider`, and `cloud.account.id`:** set them whenever the Collector can discover them,
     typically with the `resource_detection` processor and the cloud provider's detector (`eks`, `aks`, `gke`...), so
     that Datadog attaches the telemetry to the right host
     ([hostname mapping][dd-hostname-mapping]). Check that the detector enables these attributes in its
-    `resource_attributes`, and only set `host.id` on the telemetry of the Collector's own node, that is, in the
-    `daemon` collector behind a node-local Service ([C-13](#c-13-keep-the-daemon-collectors-service-node-local)): not
-    on the cluster-scope telemetry of the `cluster` collector, which describes other nodes.
-  - **On EKS:** enable these resource attributes of the `eks` detector, because several of them are disabled by
-    default. The kube-stack preset (`presets.resourceDetection.eks.enabled: true`) only enables the detector, so the
-    [`install`][install] script also sets these attributes with `--set` flags on `defaultCRConfig` when the cluster is
-    EKS:
+    `resource_attributes`. Set `host.id` only on the telemetry of the Collector's own node, in the `daemon` collector
+    behind a node-local Service ([C-13](#c-13-keep-the-daemon-collectors-service-node-local)). Don't set it on the
+    cluster-scope telemetry of the `cluster` collector, which describes other nodes.
+  - **On EKS:** enable these resource attributes of the `eks` detector, several of which are disabled by default. The
+    kube-stack preset (`presets.resourceDetection.eks.enabled: true`) only enables the detector, and the
+    [`install`][install] script sets these attributes on `defaultCRConfig` when the cluster is EKS:
 
     ```yaml
     processors:
@@ -238,12 +190,13 @@ configures one collector.
             host.type:
               enabled: true
     ```
-  - **`datadog.host.name`:** don't set it where`k8s.cluster.name`, `k8s.node.name`, `host.id`, and the `cloud.*`
-    attributes can be reliably discovered, such as on EKS, AKS, and GKE: Datadog then derives the hostname from them.
-    Only set `datadog.host.name` when those can't be reliably discovered, for example on non-cloud Kubernetes clusters, set
-    `datadog.host.name` to `<node name>-<cluster name>` in the `daemon` collector, the same value as the Datadog
-    Agent's hostname ([A-06](#a-06-use-the-same-kubernetes-cluster-name-as-the-opentelemetry-collectors)), so that the 
-    Agent and the Collectors report the same host:
+
+  - **`datadog.host.name`:** set it only when `k8s.cluster.name`, `k8s.node.name`, `host.id`, and the `cloud.*`
+    attributes can't be reliably discovered, for example on non-cloud Kubernetes clusters. Where they can, such as on
+    EKS, AKS, and GKE, Datadog derives the hostname from them. When you set `datadog.host.name`, use
+    `<node name>-<cluster name>` in the `daemon` collector, the same value as the Datadog Agent's hostname
+    ([A-06](#a-06-use-the-same-kubernetes-cluster-name-as-the-opentelemetry-collectors)), so that the Agent and the
+    Collectors report the same host:
 
     ```yaml
     env:
@@ -256,23 +209,19 @@ configures one collector.
       processors:
         resource/datadog_hostname:
           attributes:
-            # only set datadog.host.name when k8s.*, host.id, and cloud.* can't be reliably discovered
             - action: upsert
               key: datadog.host.name
               value: ${env:K8S_NODE_NAME}-${env:K8S_CLUSTER_NAME}
     ```
 
-- **`k8s.container.name`:** extract it with the `k8s_attributes` processor, in its `extract.metadata`, as the
-  kube-stack preset does. The OpenTelemetry Operator injects it in `OTEL_RESOURCE_ATTRIBUTES` only for the workloads it
-  instruments: `k8s_attributes` sets it for the other ones, such as applications instrumented without the Operator.
-  In pods with several containers, the processor can only tell which container sent the telemetry from its
-  `container.id` resource attribute, and doesn't set `k8s.container.name` without it.
+- **`k8s.container.name`:** add it to the `extract.metadata` of the `k8s_attributes` processor, as the kube-stack
+  preset does.
 - **`container.id`:** check that the application traces carry it. If they don't, add `container.id` to the
-  `k8s_attributes` processor's `extract.metadata`: the processor then looks up the container ID from the pod's status,
-  using the `k8s.container.name` that the OpenTelemetry Operator injects in `OTEL_RESOURCE_ATTRIBUTES`.
-- **Conflicts:** `k8s_attributes` doesn't overwrite attributes the telemetry already has. Remove the hand-set values
-  that differ from the Kubernetes metadata, such as a `host.name` set to the container's hostname by the SDK's host
-  detector, rather than keeping two sources of truth.
+  `k8s_attributes` processor's `extract.metadata`. See the [`k8s_attributes` configuration][k8sattributes-configuration]
+  for how the processor resolves container attributes.
+- **Conflicts:** `k8s_attributes` doesn't overwrite attributes the telemetry already has. Remove hand-set values that
+  differ from the Kubernetes metadata, such as a `host.name` that the SDK's host detector sets to the container's
+  hostname.
 - **Docs:** [Correlate OpenTelemetry traces and metrics][dd-correlate-metrics-traces],
   [correlate traces with container metrics][dd-docker-metrics-correlate],
   [Monitor Kubernetes with OpenTelemetry][dd-k8s-otel], the [Collector's Kubernetes manifest
@@ -287,8 +236,8 @@ environment variable, typically through `OTEL_RESOURCE_ATTRIBUTES=datadog.host.n
   middleware, or host telemetry, and `override: false` on the `resource_detection` processors.
 - **Why:** the `env` detector adds the Collector pod's own `k8s.pod.name`, `k8s.namespace.name`, `node.name`, and
   `host.name` to the telemetry it receives, overwriting the application's identity.
-- **Fix:** with the kube-stack chart, `collectors.daemon.presets.resourceDetection.env.enabled: false` (enabled by the
-  chart's daemon defaults), and:
+- **Fix:** with the kube-stack chart, set `collectors.daemon.presets.resourceDetection.env.enabled: false`, because the
+  chart's `daemon` defaults enable it. Then set:
 
   ```yaml
   processors:
@@ -303,13 +252,12 @@ environment variable, typically through `OTEL_RESOURCE_ATTRIBUTES=datadog.host.n
 - **Requirement:** the `cumulative_to_delta` processor in the metrics pipelines receiving cumulative metrics (OTLP,
   Prometheus receivers), and `delta_to_rate` for the counters that Datadog displays as rates.
 - **Reference:** `defaultCRConfig.config.processors` and `collectors.daemon.config.processors` in [`values.yaml`][values].
-- **Conflicts:** applications should also export delta metrics, see [S-04](#s-04-export-delta-metrics).
+- **Conflicts:** applications should also export delta metrics ([S-04](#s-04-export-delta-metrics)).
 - **Conflicts:** when a metrics pipeline also exports to destinations that require cumulative temporality, such as
-  Prometheus remote write or another observability backend, don't convert to delta in that shared pipeline: split it
-  with a `forward` connector into a fan-out with two ends. The cumulative end exports without conversion, and the
-  Datadog end adds `cumulative_to_delta` and `delta_to_rate` before the Datadog exporter. Keep the shared processors
-  (`k8s_attributes`, `resource_detection`) in the upstream pipeline, and the `datadog/connector`
-  as a receiver of the Datadog end only:
+  Prometheus remote write or another observability backend, don't convert to delta in that shared pipeline. Split it
+  with a `forward` connector into two ends: the cumulative end exports without conversion, and the Datadog end adds
+  `cumulative_to_delta` and `delta_to_rate` before the Datadog exporter. Keep the shared processors (`k8s_attributes`,
+  `resource_detection`) in the upstream pipeline, and the `datadog/connector` as a receiver of the Datadog end only:
 
   ```yaml
   connectors:
@@ -329,14 +277,14 @@ environment variable, typically through `OTEL_RESOURCE_ATTRIBUTES=datadog.host.n
         exporters: [datadog/exporter]
   ```
 
-  In this case, the applications must export cumulative metrics, not delta ones as
-  [S-04](#s-04-export-delta-metrics) requires, so that the cumulative end receives cumulative metrics.
+  In this case, skip [S-04](#s-04-export-delta-metrics): the applications must export cumulative metrics so that the
+  cumulative end receives them.
 
 ### C-07: Report the Collectors to Fleet Automation with the Datadog extension
 
 - **Requirement:** the `datadog` extension, with `deployment_type: gateway` on Deployments and
   `deployment_type: daemonset` on DaemonSets, listed in `service.extensions`.
-- **Why:** it lists the Collectors in Datadog [Fleet Automation][dd-fleet-automation], with their version and
+- **Why:** Datadog [Fleet Automation][dd-fleet-automation] then lists the Collectors with their version and
   configuration.
 - **Fix:**
 
@@ -356,9 +304,9 @@ environment variable, typically through `OTEL_RESOURCE_ATTRIBUTES=datadog.host.n
 - **Requirement:** the Collector exports its internal metrics over OTLP to its own OTLP receiver, so that they get the
   same resource attributes and tags as the rest of the telemetry.
 - **Why:** the internal metrics then go through the Collector's processors, including the `resource_detection`
-  processor of the Kubernetes platform (EKS, AKS, GKE), and get enriched with resource attributes such as `host.id` and
-  `k8s.cluster.name`. Exported directly to Datadog, they would miss these attributes, and the Collector's health
-  metrics couldn't be correlated with its Kubernetes cluster and host.
+  processor of the Kubernetes platform (EKS, AKS, GKE), which add resource attributes such as `host.id` and
+  `k8s.cluster.name`. Without these attributes, Datadog can't correlate the Collector's health metrics with its
+  Kubernetes cluster and host.
 - **Fix:**
 
   ```yaml
@@ -374,7 +322,7 @@ environment variable, typically through `OTEL_RESOURCE_ATTRIBUTES=datadog.host.n
   ```
 
 - **Conflicts:** don't do the same for the Collector's own logs when the `daemon` collector's `filelog` receiver already
-  tails the container logs: it would duplicate them.
+  tails the container logs, because the logs would be duplicated.
 
 ### C-09: Receive OTLP over both gRPC and HTTP
 
@@ -397,8 +345,7 @@ environment variable, typically through `OTEL_RESOURCE_ATTRIBUTES=datadog.host.n
 
   Otherwise, add a `resource` processor that upserts `k8s.cluster.name` to the pipelines, and set `k8s.cluster.name`
   under `service.telemetry.resource`, as the [Datadog extension documentation][dd-otel-extension-resource] describes.
-- **Constraints:** dot-separated tokens of lowercase letters, digits, and `-`, starting with a letter and ending with a
-  letter or a digit, at most 80 characters. See [Kubernetes cluster name constraints][cluster-name].
+- **Constraints:** follow the [Kubernetes cluster name constraints][cluster-name].
 
 ### C-11: Set the deployment environment
 
@@ -407,13 +354,13 @@ environment variable, typically through `OTEL_RESOURCE_ATTRIBUTES=datadog.host.n
 
 ### C-12: Collect middleware telemetry from the `daemon` collector on the same node
 
-- **Requirement:** collect the telemetry of the middleware running in the Kubernetes cluster, such as database
-  servers, message brokers, or caches, with the `daemon` collector running on the same Kubernetes node as the observed
-  pod. Not with the `cluster` collector, a standalone Collector Deployment, or a `daemon` collector on another node.
+- **Requirement:** collect the telemetry of the middleware running in the Kubernetes cluster, such as database servers
+  or message brokers, with the `daemon` collector running on the same Kubernetes node as the observed pod. Don't use
+  the `cluster` collector, a standalone Collector Deployment, or a `daemon` collector on another node.
 - **Why:** the Collector enriches the telemetry it collects with the resource attributes of the observed pod, such as
-  its `k8s.node.name`. Collected from another node, or through a Kubernetes Service that load balances across pods,
-  the telemetry gets the wrong resource attributes, for example the Collector's node or another replica's
-  `k8s.pod.name`, and is attached to the wrong host in Datadog.
+  its `k8s.node.name`. When collected from another node, or through a Kubernetes Service that load balances across
+  pods, the telemetry gets the wrong resource attributes, for example the Collector's node or another replica's
+  `k8s.pod.name`, and Datadog attaches it to the wrong host.
 - **Fix:** in the `daemon` collector, discover the middleware pods of its own node with the `k8s_observer` extension,
   restricted to the node with `node: ${env:K8S_NODE_NAME}`, and create the receivers with `receiver_creator`, which
   adds the discovered pod's `k8s.pod.uid`, `k8s.pod.name`, and `k8s.namespace.name` to the telemetry. For example, for
@@ -445,14 +392,14 @@ environment variable, typically through `OTEL_RESOURCE_ATTRIBUTES=datadog.host.n
         exporters: [datadog/exporter]
   ```
 
-  For Prometheus scrapes of middleware exporters, use `kubernetes_sd_configs` with `role: pod`, restricted to the node
-  with a `spec.nodeName=${env:K8S_NODE_NAME}` field selector, instead of `static_configs` targeting a Service, and
-  delete the `service.name` and `service.instance.id` resource attributes the Prometheus receiver sets, as for
-  `prometheus/cadvisor` in [`values.yaml`][values].
+  For Prometheus scrapes of middleware exporters, replace `static_configs` targeting a Service with
+  `kubernetes_sd_configs` and `role: pod`, restricted to the node with a `spec.nodeName=${env:K8S_NODE_NAME}` field
+  selector. Delete the `service.name` and `service.instance.id` resource attributes that the Prometheus receiver sets,
+  as for `prometheus/cadvisor` in [`values.yaml`][values].
 - **Conflicts:** move existing middleware receivers from the `cluster` collector or a standalone Collector Deployment
-  to the `daemon` collector. Keep in the `cluster` collector the cluster-scope telemetry (kube-state-metrics,
-  Kubernetes objects) and the middleware running outside the Kubernetes cluster, such as managed cloud databases,
-  which has no Kubernetes node: don't set `host.name` on its telemetry from the Collector's node.
+  to the `daemon` collector. Keep the cluster-scope telemetry (kube-state-metrics, Kubernetes objects) in the `cluster`
+  collector, together with the middleware running outside the Kubernetes cluster, such as managed cloud databases.
+  That middleware has no Kubernetes node: don't set `host.name` on its telemetry from the Collector's node.
 
 ### C-13: Keep the `daemon` collector's Service node-local
 
@@ -463,9 +410,9 @@ environment variable, typically through `OTEL_RESOURCE_ATTRIBUTES=datadog.host.n
   collectors of all the nodes:
   - the points of a time series can reach different Collector instances, which breaks the stateful `cumulative_to_delta`
     conversion ([S-04](#s-04-export-delta-metrics));
-  - the telemetry crosses nodes, and availability zones, for nothing;
-  - the load of a `daemon` collector no longer depends on the workloads of its node, so its resource allocation no
-    longer matches it.
+  - the telemetry needlessly crosses nodes and availability zones;
+  - the load of a `daemon` collector no longer follows the workloads of its node, so its resource allocation no
+    longer matches its load.
 - **Detect:**
 
   ```sh
@@ -473,9 +420,9 @@ environment variable, typically through `OTEL_RESOURCE_ATTRIBUTES=datadog.host.n
     -o jsonpath='{.spec.internalTrafficPolicy}'   # expected: Local
   ```
 
-- **Fix:** the OpenTelemetry Operator already sets `internalTrafficPolicy: Local` on the Services of the collectors in
-  `daemonset` mode, and so does the `opentelemetry-collector` Helm chart in `daemonset` mode, unless
-  `service.internalTrafficPolicy` is set: remove any explicit `internalTrafficPolicy: Cluster` override. For a Collector
+- **Fix:** the OpenTelemetry Operator sets `internalTrafficPolicy: Local` on the Services of the collectors in
+  `daemonset` mode. The `opentelemetry-collector` Helm chart does the same in `daemonset` mode unless
+  `service.internalTrafficPolicy` is set. Remove any explicit `internalTrafficPolicy: Cluster` override. For a Collector
   DaemonSet deployed with plain manifests, set it on its Service:
 
   ```yaml
@@ -488,14 +435,14 @@ environment variable, typically through `OTEL_RESOURCE_ATTRIBUTES=datadog.host.n
 - **Conflicts:** with `Local`, there's no fallback to another node: the telemetry of a pod running on a node without a
   ready `daemon` collector is dropped. Make the `daemon` collector run on every node running instrumented workloads,
   with the `tolerations` and `nodeSelector` matching the nodes' taints and labels. Don't apply this rule to the
-  `cluster` collector, a Deployment.
+  `cluster` collector, which is a Deployment.
 
 ## OpenTelemetry Operator and `Instrumentation` rules
 
 ### O-01: Use the DDOT SDK images in the `Instrumentation` custom resource
 
-- **Requirement:** the `Instrumentation` custom resource uses the DDOT SDK images instead of the upstream OpenTelemetry
-  ones. Take the current tags from `instrumentation.<language>.image` in [`values.yaml`][values]:
+- **Requirement:** the `Instrumentation` custom resource uses the DDOT SDK images. Take the current tags from
+  `instrumentation.<language>.image` in [`values.yaml`][values]:
 
   | Language | Upstream image                          | DDOT SDK image                                    |
   |----------|-----------------------------------------|---------------------------------------------------|
@@ -504,9 +451,8 @@ environment variable, typically through `OTEL_RESOURCE_ATTRIBUTES=datadog.host.n
   | Node.js  | `otel/autoinstrumentation-nodejs`       | `datadog/dd-otel-autoinstrumentation-js`          |
   | Python   | `otel/autoinstrumentation-python`       | `datadog/dd-otel-autoinstrumentation-python`      |
 
-- **Conflicts:** to migrate workloads one at a time, create a second `Instrumentation` custom resource with the DDOT
-  SDK images instead of modifying the existing one, and point each migrated workload's annotation at it
-  (`<namespace>/<name>`).
+- **Conflicts:** to migrate workloads one at a time, keep the existing `Instrumentation` custom resource, create a
+  second one with the DDOT SDK images, and point each migrated workload's annotation at it (`<namespace>/<name>`).
 
 ### O-02: Configure the .NET CLR profiler
 
@@ -527,18 +473,18 @@ environment variable, typically through `OTEL_RESOURCE_ATTRIBUTES=datadog.host.n
   ```
 
 - FIXME Link to a github issue on the DDOT SDK .Net repository, id dd-trace-dotnet#issue-number, that tracks the fix.
-- 
+
 ### O-03: Size the Python auto-instrumentation volume
 
-- **Requirement:** use the DDOT SDK for Python image `4.16.1-preview` or later, which fits the OpenTelemetry Operator's
-  200 Mi default volume. With `4.16.0` or earlier, set `python.volumeLimitSize: 500Mi`.
-- **Why:** up to `4.16.0`, the DDOT SDK for Python image exceeds 200 Mi once copied into the auto-instrumentation
-  volume: the pod would be evicted.
+- **Requirement:** use the DDOT SDK for Python image `4.16.1-preview` or later. With `4.16.0` or earlier, set
+  `python.volumeLimitSize: 500Mi`.
+- **Why:** up to `4.16.0`, the image exceeds the OpenTelemetry Operator's 200 Mi default auto-instrumentation volume, and
+  the pod is evicted.
 - **Conflicts:** the OpenTelemetry Operator warns that `volumeLimitSize` is deprecated in favor of `volume.size`, which
   isn't in its CRD schema yet: keep `volumeLimitSize` if you need it.
 - **Alpine/musl workloads:** add the pod-template annotation
   `instrumentation.opentelemetry.io/otel-python-platform: "musl"` (glibc is the default). See
-  [Auto-instrumenting a Python musl based container](https://opentelemetry.io/docs/platforms/kubernetes/operator/automatic/#annotations-python-musl).
+  [Auto-instrumenting a Python musl based container][otel-operator-python-musl].
 
 ### O-04: Point the SDKs at the `daemon` collector
 
@@ -566,9 +512,7 @@ environment variable, typically through `OTEL_RESOURCE_ATTRIBUTES=datadog.host.n
           admission.datadoghq.com/enabled: "false" # label values are strings: keep the quotes
   ```
 
-- **Why:** the label stops the Datadog Agent's admission controller from also instrumenting the pod. It must be a
-  label: the Datadog admission controller only reads pod labels, so a `podSelector` keyed on the OpenTelemetry
-  annotations never matches.
+- **Why:** see [Hybrid OTel + Datadog APM instrumentation][hybrid].
 
 ### O-06: Instrument Go applications at compile time
 
@@ -583,8 +527,8 @@ environment variable, typically through `OTEL_RESOURCE_ATTRIBUTES=datadog.host.n
 ## DDOT SDK environment rules
 
 Set these variables in the `Instrumentation` custom resource's `spec.env`, so they apply to every instrumented workload.
-A variable set in a workload container's `env` takes precedence for that workload. When applications are configured
-without the OpenTelemetry Operator, set them in their environment instead.
+A variable set in a workload container's `env` takes precedence for that workload. For applications configured without
+the OpenTelemetry Operator, set the variables in the application's environment.
 
 ### S-01: Enable the OpenTelemetry mode of the DDOT SDKs
 
@@ -607,51 +551,46 @@ without the OpenTelemetry Operator, set them in their environment instead.
 
 - **Requirement:** `DD_AGENT_HOST` is the DNS name of the Datadog Agent's Service, for example
   `datadog-agent.datadog.svc.cluster.local` for a `DatadogAgent` named `datadog` in the `datadog` namespace.
-- **Why:** the DDOT SDKs export their telemetry over OTLP to the OpenTelemetry Collector, but rely on the Datadog Agent for their
-  Datadog-specific features, such as Remote Configuration and Live Debugger.
+- **Why:** the DDOT SDKs export their telemetry over OTLP to the OpenTelemetry Collector, but rely on the Datadog Agent
+  for their Datadog-specific features, such as Remote Configuration and Live Debugger.
 
 ### S-03: Export over OTLP/HTTP
 
-- **Requirement:** force the OTLP/HTTP protocol, whatever the SDK's default:
+- **Requirement:**
 
   ```yaml
   - name: OTEL_EXPORTER_OTLP_PROTOCOL
     value: http/protobuf
   ```
 
-- **Why:** the SDKs' default protocol differs per language, for example gRPC for Node.js. Forcing OTLP/HTTP makes
-  every SDK export to the same `daemon` collector port, 4318, the one of the `Instrumentation`'s endpoint
+- **Why:** the SDKs' default protocol differs per language, for example gRPC for Node.js. With OTLP/HTTP, every SDK
+  exports to port 4318 of the `daemon` collector, the port of the `Instrumentation`'s endpoint
   ([O-04](#o-04-point-the-sdks-at-the-daemon-collector)).
 - **Conflicts:** if the user's endpoint is the gRPC port 4317, change it to 4318 together with the protocol.
 - FIXME some DDOT SDKs don't support gRPC yet, so the user must use OTLP/HTTP for now. Indicate which ones, and when they will support gRPC.
 
 ### S-04: Export delta metrics
 
-- **Requirement:** use the delta temporality, the one Datadog requires:
+- **Requirement:** delta temporality, which Datadog requires:
 
   ```yaml
   - name: OTEL_EXPORTER_OTLP_METRICS_TEMPORALITY_PREFERENCE
     value: delta
   ```
 
-- **Why:** the SDKs then export delta metrics, which the Collector forwards to Datadog without converting them, so
-  without the memory and CPU cost of the conversion.
+- **Why:** the Collector then forwards the metrics to Datadog without converting them, which saves the memory and CPU
+  cost of the conversion.
 - **Conflicts:** when the user requires cumulative temporality, for example because the OpenTelemetry Collector also
   exports the metrics to destinations that require it, set
-  `OTEL_EXPORTER_OTLP_METRICS_TEMPORALITY_PREFERENCE=cumulative`, and convert all the metrics from cumulative to delta
-  in the downstream part of the Collector pipeline that exports to Datadog
-  ([C-06](#c-06-convert-cumulative-metrics-to-delta)). Then make sure the Collectors have the resources for that
+  `OTEL_EXPORTER_OTLP_METRICS_TEMPORALITY_PREFERENCE=cumulative`. Convert all the metrics from cumulative to delta in
+  the downstream part of the Collector pipeline that exports to Datadog
+  ([C-06](#c-06-convert-cumulative-metrics-to-delta)), and make sure the Collectors have the resources for that
   conversion:
-  - `cumulative_to_delta` keeps the last value of every time series in memory: size the Collectors' memory limit for
-    the number of time series of the workloads they receive from, and watch their memory usage on the
-    **OpenTelemetry Collector** dashboard after the change. The reference [`values.yaml`][values] allocates `1Gi` of
-    memory and `500m` of CPU per Collector: scale up for workloads with many time series.
-  - Set `max_staleness` on `cumulative_to_delta`, for example `max_staleness: 1h`, so that the time series that stop
-    reporting, such as the ones of deleted pods, are evicted from memory.
-  - All the points of a time series must reach the same Collector instance for the conversion to be correct: keep the
-    conversion in the `daemon` collector receiving the workload's telemetry, behind a node-local Service
-    ([C-13](#c-13-keep-the-daemon-collectors-service-node-local)), not in a Collector Deployment with several replicas
-    behind a load-balanced Service.
+  - Size the Collectors' memory for the number of time series they receive (see the processor's
+    [warnings][cumulativetodelta-warnings]), and watch their memory usage on the **OpenTelemetry Collector** dashboard
+    after the change. The reference [`values.yaml`][values] allocates `1Gi` of memory and `500m` of CPU per Collector.
+  - Keep the conversion in the `daemon` collector that receives the workload's telemetry, behind a node-local Service
+    ([C-13](#c-13-keep-the-daemon-collectors-service-node-local)).
 - FIXME call out that DDOT SDKs only support delta temporality for now, so the user must use delta metrics for now and the cumulative to delta processor in the collector
 
 ### S-05: Use the stable semantic conventions
@@ -660,8 +599,7 @@ without the OpenTelemetry Operator, set them in their environment instead.
 
 ### S-06: Enable optional Datadog features per workload
 
-These features are disabled by default. Enable them in the `Instrumentation`'s `env` for every workload, or in a
-workload's container `env` for that workload only:
+These features are disabled by default:
 
 | Feature                                    | Variables                                                                              |
 |--------------------------------------------|----------------------------------------------------------------------------------------|
@@ -672,8 +610,8 @@ workload's container `env` for that workload only:
 | [Code Security SCA][dd-sca]                | `DD_APPSEC_SCA_ENABLED=true`                                                           |
 
 - **Conflicts:** if the user's workloads already set any of these, keep their values.
-- **Precedence:** the same environment variable can be set in several places. Before changing one, find all the places
-  it's set for the workload, to know which value applies. From the highest to the lowest precedence:
+- **Precedence:** an environment variable can be set in several places. Before changing one, find every place that
+  sets it for the workload to know which value applies. From highest to lowest precedence:
   1. the `env` of the container in the pod manifest: the OpenTelemetry Operator doesn't inject a variable the
      container's `env` already defines;
   2. the language section of the `Instrumentation` custom resource, for example `spec.java.env`, only applied with the
@@ -697,8 +635,8 @@ workload's container `env` for that workload only:
 
   This order applies to the `DD_*` variables of this table and to the `OTEL_*` variables of the `Instrumentation`. The
   OpenTelemetry Operator handles a few variables differently: it appends its agent to `JAVA_TOOL_OPTIONS`,
-  `NODE_OPTIONS`, and `PYTHONPATH`, and merges its resource attributes into `OTEL_RESOURCE_ATTRIBUTES`, instead of
-  skipping them when the container's `env` sets them. It skips the injection of a language's SDK altogether when the
+  `NODE_OPTIONS`, and `PYTHONPATH`, and merges its resource attributes into `OTEL_RESOURCE_ATTRIBUTES`, even when the
+  container's `env` sets them. It skips the injection of a language's SDK altogether when the
   container sets `JAVA_TOOL_OPTIONS`, `NODE_OPTIONS`, or `PYTHONPATH` with `valueFrom`. See `injectCommonEnvVar` and
   `appendIfNotSet` in the OpenTelemetry Operator's [`internal/instrumentation/sdk.go`][otel-operator-sdk-go].
 
@@ -706,28 +644,27 @@ workload's container `env` for that workload only:
 
 These rules use the Datadog Operator's `DatadogAgent` custom resource (`datadoghq.com/v2alpha1`), as in
 [`datadog-agent.yaml`][dd-agent-yaml]. With the `datadog` Helm chart, apply the same changes with the chart's equivalent
-values: this guide doesn't list them, and they aren't tested in this repository.
+values. This guide doesn't list those values, and this repository doesn't test them.
 
 ### A-01: Disable the features that duplicate the OpenTelemetry Collectors
 
-- **Requirement:** disable a Datadog Agent feature only when its equivalent is enabled in the OpenTelemetry Collectors,
-  to avoid collecting the same telemetry twice. The reference [`values.yaml`][values] enables all these equivalents
-  except the Kubernetes events one, but the user may have changed the installer's defaults, or configured their own
-  Collectors without some of them: check each equivalent in the user's Collector configuration before disabling the
-  Agent feature, and keep the Agent feature when its equivalent isn't enabled. The presets add their receivers to the
-  pipelines: check the receivers in the rendered `OpenTelemetryCollector` custom resources, not only in the values.
+- **Requirement:** disable a Datadog Agent feature only when the user's Collector configuration enables its
+  equivalent, to avoid collecting the same telemetry twice. The reference [`values.yaml`][values] enables all these
+  equivalents except the Kubernetes events one. The presets add their receivers to
+  the pipelines, so check the receivers in the rendered `OpenTelemetryCollector` custom resources as well as in the
+  values.
 
   | Datadog Agent feature                                                                  | OpenTelemetry Collector equivalent, in the `opentelemetry-kube-stack` chart                                                                                                                                          |
   |----------------------------------------------------------------------------------------|----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
   | `kubeStateMetricsCore`, and the legacy `kubernetes_state` check (`DD_IGNORE_AUTOCONF`) | `cluster` collector scraping kube-state-metrics (`prometheus/ksm` receiver), and its `clusterMetrics` preset (`k8s_cluster` receiver)                                                                                |
   | `orchestratorExplorer`, `DD_ORCHESTRATOR_EXPLORER_KUBELET_CONFIG_CHECK_ENABLED`        | `cluster` collector's `kubernetesObjects` preset (`k8s_objects` receiver), and `orchestrator_explorer.enabled: true` on its Datadog exporter                                                                         |
-  | `eventCollection.collectKubernetesEvents`                                              | `kubernetesEvents` preset (`k8s_objects` receiver watching the `events.k8s.io` events), on one collector only. The `kubernetesObjects` preset doesn't collect events. **Not enabled in the reference `values.yaml`** |
+  | `eventCollection.collectKubernetesEvents`                                              | `kubernetesEvents` preset (`k8s_objects` receiver watching the `events.k8s.io` events), on one collector only. The `kubernetesObjects` preset doesn't collect events. |
   | `logCollection`                                                                        | `daemon` collector's `logsCollection` preset (`file_log` receiver), tailing the container logs, enabled by the chart's `daemon` defaults                                                                             |
   | `clusterChecks`                                                                        | Collector receivers for the cluster-level services, such as the middleware of [C-12](#c-12-collect-middleware-telemetry-from-the-daemon-collector-on-the-same-node)                                                  |
   | `liveProcessCollection`, `processDiscovery`, `DD_DISCOVERY_ENABLED`                    | No exact equivalent: disabled in the reference to keep the Agent to its enabler role. Keep them if the user uses them                                                                                                |
 
-  The reference configuration, which disables the Agent's Kubernetes events collection although the Collectors don't
-  collect them: to collect the Kubernetes events, enable the `kubernetesEvents` preset on the `cluster` collector, or
+  The reference configuration follows. It disables the Agent's Kubernetes events collection although the Collectors
+  don't collect Kubernetes events. To collect them, enable the `kubernetesEvents` preset on the `cluster` collector, or
   keep `eventCollection.collectKubernetesEvents` enabled in the Agent:
 
   ```yaml
@@ -749,15 +686,13 @@ values: this guide doesn't list them, and they aren't tested in this repository.
                 value: "false"
               - name: DD_DISCOVERY_ENABLED
                 value: "false"
-              # The legacy kubernetes_state check autodiscovers kube-state-metrics and duplicates its metrics.
               - name: DD_IGNORE_AUTOCONF
                 value: kubernetes_state
   ```
 
 - **Conflicts:** if the user relies on one of these features for something the OpenTelemetry Collectors don't collect,
   keep it, and say so in the report. If the user prefers to keep an Agent feature, disable its equivalent in the
-  Collectors instead, rather than collecting the telemetry twice. If `DD_IGNORE_AUTOCONF` is already set, append `kubernetes_state` to its space-separated
-  list.
+  Collectors instead. If `DD_IGNORE_AUTOCONF` is already set, append `kubernetes_state` to its space-separated list.
 - FIXME misalignment to check: with the reference configuration, no component collects the Kubernetes events.
   `datadog-agent.yaml` disables the Agent's `eventCollection.collectKubernetesEvents`, but the Collectors don't
   collect them either: `values.yaml` disables the `kubernetesEvents` preset on the `daemon` collector and doesn't enable
@@ -785,10 +720,12 @@ values: this guide doesn't list them, and they aren't tested in this repository.
         containers:
           agent:
             env:
-              # Required by Live Debugger, as log collection is disabled.
               - name: DD_APM_DEBUGGER_LOGS_ENABLED_OVERRIDE
                 value: "true"
   ```
+
+- **Why:** Live Debugger requires `DD_APM_DEBUGGER_LOGS_ENABLED_OVERRIDE` because log collection is disabled
+  ([A-01](#a-01-disable-the-features-that-duplicate-the-opentelemetry-collectors)).
 
 - **Note:** Live Debugger for Go needs the system-probe module that `dynamicInstrumentation` enables, and Linux
   kernel >= 5.17 ([Live Debugger for Go][dd-live-debugger-go]).
@@ -798,8 +735,8 @@ values: this guide doesn't list them, and they aren't tested in this repository.
 - **Requirement:** `spec.features.apm.instrumentation.enabled: false` when the OpenTelemetry Operator instruments all
   the workloads.
 - **Conflicts:** when the user keeps single-step APM instrumentation for some workloads (hybrid OpenTelemetry and
-  Datadog instrumentation, for example during a migration), keep it enabled, and make sure every
-  OpenTelemetry-instrumented pod has the `admission.datadoghq.com/enabled: "false"` label
+  Datadog instrumentation, for example during a migration), keep it enabled and add the
+  `admission.datadoghq.com/enabled: "false"` label to every OpenTelemetry-instrumented pod
   ([O-05](#o-05-annotate-workloads-and-prevent-double-instrumentation)). A pod must never be instrumented by both.
 
 ### A-05: Log in JSON
@@ -811,8 +748,8 @@ values: this guide doesn't list them, and they aren't tested in this repository.
 ### A-06: Use the same Kubernetes cluster name as the OpenTelemetry Collectors
 
 - **Requirement:** `spec.global.clusterName` equals the OpenTelemetry Collectors' `k8s.cluster.name`
-  ([C-10](#c-10-use-the-same-kubernetes-cluster-name-everywhere)). On EKS, GKE, and AKS, it can be omitted so the
-  Agent detects it, unless [Fleet Automation][dd-fleet-automation] Remote Configuration is enabled, which requires it.
+  ([C-10](#c-10-use-the-same-kubernetes-cluster-name-everywhere)). On EKS, GKE, and AKS, you can omit it and let the
+  Agent detect it, unless [Fleet Automation][dd-fleet-automation] Remote Configuration is enabled, which requires it.
 - **Recommended on non-cloud Kubernetes clusters:** use `<node name>-<cluster name>` as the Agent hostname, unique
   across Kubernetes clusters:
 
@@ -830,7 +767,8 @@ values: this guide doesn't list them, and they aren't tested in this repository.
           - name: DD_HOSTNAME
             value: "$(K8S_NODE_NAME)-$(K8S_CLUSTER_NAME)"
   ```
- - FIXME: verify this is needed
+
+- FIXME: verify this is needed
 
 ## Known gaps
 
@@ -869,10 +807,10 @@ See [TROUBLESHOOTING.md][troubleshooting] when something doesn't show up.
 [dd-agent-yaml]: https://raw.githubusercontent.com/DataDog/opentelemetry-examples/main/guides/kubernetes/configuration/opentelemetry-kube-stack/ddot/datadog-agent.yaml
 [examples-rendered]: https://github.com/DataDog/opentelemetry-examples/tree/main/guides/kubernetes/configuration/opentelemetry-kube-stack/ddot/examples/default/rendered
 [troubleshooting]: https://github.com/DataDog/opentelemetry-examples/blob/main/guides/kubernetes/configuration/opentelemetry-kube-stack/ddot/TROUBLESHOOTING.md
-[architecture]: https://raw.githubusercontent.com/DataDog/opentelemetry-examples/main/guides/kubernetes/configuration/opentelemetry-kube-stack/ddot/assets/deployment-architecture-diagram_k8s_ddot-with-dd-agent.svg.png
+[what-this-deploys]: https://github.com/DataDog/opentelemetry-examples/blob/main/guides/kubernetes/configuration/opentelemetry-kube-stack/ddot/README.md#what-this-deploys
+[hybrid]: https://github.com/DataDog/opentelemetry-examples/blob/main/guides/kubernetes/configuration/opentelemetry-kube-stack/ddot/README.md#hybrid-otel--datadog-apm-instrumentation
 [cluster-name]: https://github.com/DataDog/opentelemetry-examples/blob/main/guides/kubernetes/configuration/opentelemetry-kube-stack/ddot/README.md#kubernetes-cluster-name-constraints
 [dd-fleet-automation]: https://docs.datadoghq.com/agent/fleet_automation/
-[dd-otel-extension-resource]: https://docs.datadoghq.com/opentelemetry/integrations/datadog_extension/
 [dd-live-debugger-go]: https://docs.datadoghq.com/tracing/live_debugger/?prog_lang=go
 [dd-dbm]: https://docs.datadoghq.com/database_monitoring/
 [dd-dsm]: https://docs.datadoghq.com/data_streams/
@@ -881,7 +819,7 @@ See [TROUBLESHOOTING.md][troubleshooting] when something doesn't show up.
 [dd-sca]: https://docs.datadoghq.com/security/code_security/software_composition_analysis/
 [orchestrion]: https://github.com/DataDog/orchestrion
 [orchestrion-936]: https://github.com/DataDog/orchestrion/issues/936
-[dd-trace-go-5407]: https://github.com/DataDog/dd-trace-go/pull/5407  
+[dd-trace-go-5407]: https://github.com/DataDog/dd-trace-go/pull/5407
 [dd-operator-3521]: https://github.com/DataDog/datadog-operator/issues/3521
 [dd-agent-57314]: https://github.com/DataDog/datadog-agent/issues/57314
 [otel-operator-sdk-go]: https://github.com/open-telemetry/opentelemetry-operator/blob/v0.159.0/internal/instrumentation/sdk.go
@@ -891,4 +829,13 @@ See [TROUBLESHOOTING.md][troubleshooting] when something doesn't show up.
 [dd-collector-k8s-manifest]: https://docs.datadoghq.com/opentelemetry/setup/collector_exporter/?tab=kubernetesmanifestreference#2-configure-and-deploy-the-collector
 [dd-unified-service-tagging]: https://docs.datadoghq.com/getting_started/tagging/unified_service_tagging/?tab=kubernetes#configuration
 [otel-semconv-k8s-attributes]: https://opentelemetry.io/docs/specs/semconv/non-normative/k8s-attributes/
+[otel-semconv-service-version]: https://opentelemetry.io/docs/specs/semconv/non-normative/k8s-attributes/#how-serviceversion-should-be-calculated
+[k8sattributes-config]: https://github.com/open-telemetry/opentelemetry-collector-contrib/tree/main/processor/k8sattributesprocessor#config-example
+[k8sattributes-rbac]: https://github.com/open-telemetry/opentelemetry-collector-contrib/tree/main/processor/k8sattributesprocessor#cluster-scoped-rbac
+[k8sattributes-recommended]: https://github.com/open-telemetry/opentelemetry-collector-contrib/tree/main/processor/k8sattributesprocessor#configuring-recommended-resource-attributes
+[k8sattributes-configuration]: https://github.com/open-telemetry/opentelemetry-collector-contrib/tree/main/processor/k8sattributesprocessor#configuration
+[cumulativetodelta-warnings]: https://github.com/open-telemetry/opentelemetry-collector-contrib/tree/main/processor/cumulativetodeltaprocessor#warnings
+[dd-otel-extension-resource]: https://docs.datadoghq.com/opentelemetry/integrations/datadog_extension/
+[rendered-collector]: https://github.com/DataDog/opentelemetry-examples/blob/main/guides/kubernetes/configuration/opentelemetry-kube-stack/ddot/examples/default/rendered/collector.yaml
 [dd-hostname-mapping]: https://docs.datadoghq.com/opentelemetry/mapping/hostname/?tab=datadogexporter
+[otel-operator-python-musl]: https://opentelemetry.io/docs/platforms/kubernetes/operator/automatic/#annotations-python-musl
