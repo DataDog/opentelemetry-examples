@@ -1,10 +1,10 @@
 # kube-stack values.yaml
 
-Reference `values.yaml` for the [opentelemetry-kube-stack][chart] Helm chart, configured to send Kubernetes telemetry to Datadog. 
+Reference values files for the [opentelemetry-kube-stack][chart] Helm chart, configured to send Kubernetes telemetry to Datadog. 
 
 ## What this deploys
 
-The `opentelemetry-kube-stack` chart installs the OpenTelemetry Operator and renders one `OpenTelemetryCollector` CR for each entry under `collectors:`. This values file configures two of them:
+The `opentelemetry-kube-stack` chart installs the OpenTelemetry Operator and renders one `OpenTelemetryCollector` CR for each entry under `collectors:`. These values files configure two of them:
 
 - **`cluster`** — a single-replica Deployment responsible for cluster-scope telemetry: scraping kube-state-metrics and watching Kubernetes objects.
 - **`daemon`** — a DaemonSet running on every node, responsible for node-scope telemetry (host and kubelet metrics) and for terminating the OTLP endpoint that application workloads send traces, logs, and metrics to.
@@ -119,7 +119,7 @@ mkdir -p deployment
 cp examples/manually-set-k8s-cluster-name/values.yaml deployment/values.yaml
 ```
 
-The selected file is an overlay for this directory's base `values.yaml`; add any deployment-specific configuration to
+The selected file is an overlay for this directory's base `values-otlp-http.yaml`; add any deployment-specific configuration to
 `./deployment/values.yaml`. Install or upgrade the chart with both files:
 
 ```sh
@@ -129,7 +129,7 @@ helm upgrade --install opentelemetry-kube-stack \
   open-telemetry/opentelemetry-kube-stack \
   --version 0.26.1 \
   --namespace opentelemetry-operator-system \
-  --values ./values.yaml \
+  --values ./values-otlp-http.yaml \
   --values ./deployment/values.yaml
 ```
 
@@ -158,7 +158,7 @@ Both collectors default to `500m` CPU / `1Gi` memory limits and `200m` CPU / `50
 Verified against:
 
 - `opentelemetry-kube-stack` chart `>= 0.26.1`
-- Collector image `otel/opentelemetry-collector-contrib >= 0.154.0` (pinned in values.yaml under `opentelemetry-operator.manager.collectorImage`)
+- Collector image `otel/opentelemetry-collector-contrib >= 0.163.1` (set in the values files under `opentelemetry-operator.manager.collectorImage`)
 
 [chart]: https://github.com/open-telemetry/opentelemetry-helm-charts/tree/main/charts/opentelemetry-kube-stack
 [cm]: https://cert-manager.io/docs/installation/

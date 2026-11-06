@@ -140,9 +140,8 @@ The whole name must be at most 80 characters long. For example, `my-k8s-cluster`
 `my_k8s_cluster`, `My-k8s-cluster`, and `1-cluster` are not.
 
 The Datadog Agent rewrites `_` to `-` and ignores names containing uppercase letters, so an invalid name leaves the
-Agent's and the OpenTelemetry Collector's telemetry with different (or missing) Kubernetes cluster names. The installer
-lowercases the supplied name and replaces `_` with `-` (with a message if it does); when installing manually, choose a
-valid name and use it for both `k8s.cluster.name` and `K8S_CLUSTER_NAME`.
+Agent's and the OpenTelemetry Collector's telemetry with different (or missing) Kubernetes cluster names. Choose a
+valid name; when installing manually, use it for both `k8s.cluster.name` and `K8S_CLUSTER_NAME`.
 
 See `examples/` for rendered values and manifests for each deployment type. Regenerate them with
 `make generate-otel-kube-stack-examples`.
@@ -165,7 +164,7 @@ Kubernetes clusters.
 Verified against:
 
 - `opentelemetry-kube-stack` chart `>= 0.26.1`
-- Collector image `otel/opentelemetry-collector-contrib >= 0.161.0` (pinned in values.yaml under
+- Collector image `otel/opentelemetry-collector-contrib >= 0.163.1` (pinned in values.yaml under
   `opentelemetry-operator.manager.collectorImage`)
 
 For operator metrics troubleshooting, see [TROUBLESHOOTING.md](TROUBLESHOOTING.md).
