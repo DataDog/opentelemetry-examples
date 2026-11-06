@@ -111,7 +111,7 @@ cp examples/gcp-deployment/values.yaml deployment/values.yaml
 cp examples/aks-deployment/values.yaml deployment/values.yaml
 ```
 
-For other Kubernetes platforms, start with the manual cluster-name example and replace `my_k8s_cluster` and `production`
+For other Kubernetes platforms, start with the manual cluster-name example and replace `my-k8s-cluster` and `production`
 with the cluster name and deployment environment. `DD_SITE` continues to be sourced from `datadog-secret`.
 
 ```sh

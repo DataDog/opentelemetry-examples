@@ -34,7 +34,7 @@ spec:
     addK8sUIDAttributes: true
     resourceAttributes:
       deployment.environment.name: production
-      k8s.cluster.name: my_k8s_cluster
+      k8s.cluster.name: my-k8s-cluster
   java:
     image: ghcr.io/open-telemetry/opentelemetry-operator/autoinstrumentation-java:2.32.0
   nodejs:
