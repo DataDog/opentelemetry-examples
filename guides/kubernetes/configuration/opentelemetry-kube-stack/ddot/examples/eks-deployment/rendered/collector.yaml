@@ -7,7 +7,7 @@ metadata:
   namespace: opentelemetry-operator-system
   labels:
     helm.sh/chart: opentelemetry-kube-stack-0.26.1
-    app.kubernetes.io/version: "0.159.0"
+    app.kubernetes.io/version: "0.162.0"
     app.kubernetes.io/managed-by: Helm
     release: "opentelemetry-kube-stack"        
 spec:
@@ -486,6 +486,7 @@ spec:
         key: dd-site
         name: datadog-secret
         optional: true
+
 ---
 # Source: opentelemetry-kube-stack/templates/collector.yaml
 apiVersion: opentelemetry.io/v1beta1
@@ -495,7 +496,7 @@ metadata:
   namespace: opentelemetry-operator-system
   labels:
     helm.sh/chart: opentelemetry-kube-stack-0.26.1
-    app.kubernetes.io/version: "0.159.0"
+    app.kubernetes.io/version: "0.162.0"
     app.kubernetes.io/managed-by: Helm
     release: "opentelemetry-kube-stack"        
 spec:
@@ -503,7 +504,11 @@ spec:
   mode: daemonset
   config:
     connectors:
-      datadog/connector: {}
+      datadog/connector:
+        traces:
+          compute_stats_by_span_kind: true
+          compute_top_level_by_span_kind: true
+          peer_tags_aggregation: true
     exporters:
       datadog/exporter:
         api:
