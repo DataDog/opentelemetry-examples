@@ -36,6 +36,8 @@ spec:
               value: orders
             # Datadog features of the DDOT SDKs, enabled per service. They can also be enabled globally in the
             # `instrumentation.env` of the opentelemetry-kube-stack Helm values.
+            - name: DD_RUNTIME_METRICS_ENABLED
+              value: "true"
             # Datadog Dynamic Instrumentation (DDI). See https://docs.datadoghq.com/tracing/dd_instrumentation/ .
             - name: DD_DYNAMIC_INSTRUMENTATION_ENABLED
               value: "true"
