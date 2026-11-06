@@ -218,13 +218,18 @@ if [[ "$DD_INSTALL_FLOW" == "ddot" && "$DD_AGENT_ENABLED" == "true" ]]; then
 
     echo "Applying the DatadogAgent custom resource..."
 
-    GLOBAL_JSON="\"site\":\"$DD_SITE\",\"tags\":[\"env:$DEPLOYMENT_ENVIRONMENT_NAME\"]"
     if [[ -n "${K8S_CLUSTER_NAME:-}" ]]; then
-        GLOBAL_JSON+=",\"clusterName\":\"$K8S_CLUSTER_NAME\""
+        CLUSTER_NAME_SED_ARGS=(-e "s|<CLUSTER_NAME>|$K8S_CLUSTER_NAME|")
+    else
+        CLUSTER_NAME_SED_ARGS=(-e "/<CLUSTER_NAME>/d")
     fi
-    kubectl patch --local \
-      -f "$SCRIPT_DIR/datadog-agent.yaml" \
+    sed \
+      "${CLUSTER_NAME_SED_ARGS[@]}" \
+      -e "s|<DD_SITE>|$DD_SITE|" \
+      "$SCRIPT_DIR/ddot/datadog-agent.yaml" \
+      | kubectl patch --local \
+      -f - \
       --type merge \
-      -p "{\"spec\":{\"global\":{$GLOBAL_JSON}}}" \
+      -p "{\"spec\":{\"global\":{\"tags\":[\"env:$DEPLOYMENT_ENVIRONMENT_NAME\"]}}}" \
       -o yaml | kubectl apply --namespace datadog -f -
 fi
