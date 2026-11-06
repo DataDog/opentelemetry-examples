@@ -735,6 +735,23 @@ workload's container `env` for that workload only:
   container sets `JAVA_TOOL_OPTIONS`, `NODE_OPTIONS`, or `PYTHONPATH` with `valueFrom`. See `injectCommonEnvVar` and
   `appendIfNotSet` in the OpenTelemetry Operator's [`internal/instrumentation/sdk.go`][otel-operator-sdk-go].
 
+### S-07: Enable runtime metrics where supported
+
+- **Recommendation:** enable runtime metrics for supported workloads to help troubleshoot memory usage, garbage
+  collection, and thread activity. Configure this per workload; shared instrumentation defaults remain unchanged.
+- **Fix:** set `DD_RUNTIME_METRICS_ENABLED=true` in the workload's container `env`. For OTLP export, keep
+  `DD_METRICS_OTEL_ENABLED=true` and `OTEL_METRICS_EXPORTER=otlp` effective for that workload. Check the installed
+  SDK version's runtime support, required packages or imports, and export transport before applying the change.
+- **Compatibility:** check the [runtime metrics documentation][dd-runtime-metrics] for the installed SDK version,
+  and verify its implementation when its DDOT behavior is not covered. If the SDK sends runtime metrics only
+  through DogStatsD, they cannot reach the Collector through its OTLP endpoint. Keep the existing DogStatsD
+  destination, such as the Datadog Agent. For an Agent-free setup, report runtime-metrics delivery as `blocked`
+  until a supported delivery path is configured.
+- **Verify:** confirm that runtime metrics from the workload arrive in Datadog with the expected service and
+  environment tags through the intended transport. An enabled flag or successful trace export is insufficient.
+- **Conflicts:** preserve explicit runtime-metrics disables and existing runtime instrumentation. Ask before
+  enabling a disabled collector or adding another one that could duplicate the same measurements.
+
 ## Datadog Agent and Datadog Operator rules
 
 These rules use the Datadog Operator's `DatadogAgent` custom resource (`datadoghq.com/v2alpha1`), as in
@@ -926,3 +943,4 @@ See [TROUBLESHOOTING.md][troubleshooting] when something doesn't show up.
 [otel-semconv-k8s-attributes]: https://opentelemetry.io/docs/specs/semconv/non-normative/k8s-attributes/
 [dd-hostname-mapping]: https://docs.datadoghq.com/opentelemetry/mapping/hostname/?tab=datadogexporter
 [dd-otlp-trace-export]: https://docs.datadoghq.com/opentelemetry/instrument/dd_sdks/otlp_trace_export/
+[dd-runtime-metrics]: https://docs.datadoghq.com/tracing/metrics/runtime_metrics/
