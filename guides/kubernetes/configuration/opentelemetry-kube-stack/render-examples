@@ -1,7 +1,9 @@
 #!/usr/bin/env bash
 # Renders every guides/.../examples/<example>/values.yaml into a
-# rendered-<mode>/ subdirectory, once per exporter mode passed as an
-# argument. Called by `make generate-otel-kube-stack-examples`.
+# rendered-ddot/ subdirectory and every
+# guides/.../upstream/examples/<example>/values.yaml into a rendered/
+# subdirectory, for the exporter modes passed as arguments.
+# Called by `make generate-otel-kube-stack-examples`.
 set -euo pipefail
 
 cd "$(dirname "${BASH_SOURCE[0]}")"
@@ -10,48 +12,52 @@ TMP_DIRECTORY=./tmp
 EXAMPLES_DIR=./examples
 
 # Use Helm 4.2+ since rendering changes across versions.
-echo "Generating all examples into their rendered-<mode>/ subdirectories, one per exporter mode"
+echo "Generating all examples into their rendered/ and rendered-ddot/ subdirectories"
 mkdir -p "$TMP_DIRECTORY"
 
 EXAMPLES=$(find ${EXAMPLES_DIR} -maxdepth 1 -mindepth 1 -type d -exec basename {} \;)
 for example in ${EXAMPLES}; do
 	for mode in "$@"; do
 		echo "Generating example: ${example} (mode: ${mode})"
-		rm -rf "${EXAMPLES_DIR}/${example}/rendered-${mode}"
+		EXAMPLE_DIR=./upstream/examples/${example}
+		OUTPUT_DIR=${EXAMPLE_DIR}/rendered
 		VALUES_FILE=./upstream/values.yaml
 		MODE_VALUES_ARGS=()
 		if [ "${mode}" = "ddot" ]; then
+			EXAMPLE_DIR=${EXAMPLES_DIR}/${example}
+			OUTPUT_DIR=${EXAMPLE_DIR}/rendered-ddot
 			VALUES_FILE=./values-ddot.yaml
 			MODE_VALUES_ARGS=(--values ./dd-agent-kube-stack-values.yaml)
 		fi
+		rm -rf "${OUTPUT_DIR}"
 		helm template opentelemetry-kube-stack \
 			open-telemetry/opentelemetry-kube-stack \
 			--namespace opentelemetry-operator-system \
 			--version "0.26.1" \
-			--values ${VALUES_FILE} ${MODE_VALUES_ARGS[@]+"${MODE_VALUES_ARGS[@]}"} --values ${EXAMPLES_DIR}/${example}/values.yaml \
-			--output-dir "${EXAMPLES_DIR}/${example}/rendered-${mode}"
-		mv ${EXAMPLES_DIR}/${example}/rendered-${mode}/opentelemetry-kube-stack/templates/* "${EXAMPLES_DIR}/${example}/rendered-${mode}"
-		SUBCHARTS_DIR=${EXAMPLES_DIR}/${example}/rendered-${mode}/opentelemetry-kube-stack/charts
+			--values ${VALUES_FILE} ${MODE_VALUES_ARGS[@]+"${MODE_VALUES_ARGS[@]}"} --values ${EXAMPLE_DIR}/values.yaml \
+			--output-dir "${OUTPUT_DIR}"
+		mv ${OUTPUT_DIR}/opentelemetry-kube-stack/templates/* "${OUTPUT_DIR}"
+		SUBCHARTS_DIR=${OUTPUT_DIR}/opentelemetry-kube-stack/charts
 		if [ -d "${SUBCHARTS_DIR}" ]; then
 			SUBCHARTS=$(find ${SUBCHARTS_DIR} -maxdepth 1 -mindepth 1 -type d -exec basename {} \;)
 			for subchart in ${SUBCHARTS}; do
-				mkdir -p "${EXAMPLES_DIR}/${example}/rendered-${mode}/${subchart}"
-				mv ${SUBCHARTS_DIR}/${subchart}/templates/* "${EXAMPLES_DIR}/${example}/rendered-${mode}/${subchart}"
+				mkdir -p "${OUTPUT_DIR}/${subchart}"
+				mv ${SUBCHARTS_DIR}/${subchart}/templates/* "${OUTPUT_DIR}/${subchart}"
 			done
-			rm -rf ${EXAMPLES_DIR}/${example}/rendered-${mode}/opentelemetry-kube-stack
+			rm -rf ${OUTPUT_DIR}/opentelemetry-kube-stack
 		fi
 	done
 done
 
 echo "Normalizing auto-generated certificate values"
 if [ "$(uname)" = "Darwin" ]; then
-	find ${EXAMPLES_DIR} -name '*.yaml' -print0 | xargs -0 sed -i '' \
+	find ${EXAMPLES_DIR} ./upstream/examples -name '*.yaml' -print0 | xargs -0 sed -i '' \
 		-e 's/\(caBundle:\) [A-Za-z0-9+/=]\{44,\}/\1 AUTO_GENERATED/' \
 		-e 's/\(tls\.crt:\) [A-Za-z0-9+/=]\{44,\}/\1 AUTO_GENERATED/' \
 		-e 's/\(tls\.key:\) [A-Za-z0-9+/=]\{44,\}/\1 AUTO_GENERATED/' \
 		-e 's/\(ca\.crt:\) [A-Za-z0-9+/=]\{44,\}/\1 AUTO_GENERATED/'
 else
-	find ${EXAMPLES_DIR} -name '*.yaml' -exec sed -i'' \
+	find ${EXAMPLES_DIR} ./upstream/examples -name '*.yaml' -exec sed -i'' \
 		-e 's/\(caBundle:\) [A-Za-z0-9+/=]\{44,\}/\1 AUTO_GENERATED/' \
 		-e 's/\(tls\.crt:\) [A-Za-z0-9+/=]\{44,\}/\1 AUTO_GENERATED/' \
 		-e 's/\(tls\.key:\) [A-Za-z0-9+/=]\{44,\}/\1 AUTO_GENERATED/' \
