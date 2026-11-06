@@ -22,41 +22,57 @@ validate_collector_configs() {
     -days 1 -subj "/CN=ci" 2>/dev/null
   chmod -R a+rX "${stub_dir}"
 
-  # Extract Collector image
-  local collector_image
-  collector_image="$(yq '.opentelemetry-operator.manager.collectorImage.repository + ":" + .opentelemetry-operator.manager.collectorImage.tag' upstream/values.yaml)"
-  echo "Validating collector configs against ${collector_image}"
-
-  # Move each config into its own file.
-  local collector_file example mode doc_count i kind name
-  for collector_file in examples/*/rendered-ddot/collector.yaml upstream/examples/*/rendered/collector.yaml; do
-    example="$(basename "$(dirname "$(dirname "${collector_file}")")")"
-    mode="$(basename "$(dirname "${collector_file}")")"
-    doc_count="$(yq 'di' "${collector_file}" | tail -1)"
-    for i in $(seq 0 "${doc_count}"); do
-      kind="$(yq "select(di == ${i}) | .kind" "${collector_file}")"
-      [[ "${kind}" = "OpenTelemetryCollector" ]] || continue
-      name="$(yq "select(di == ${i}) | .metadata.name" "${collector_file}")"
-      yq "select(di == ${i}) | .spec.config" "${collector_file}" \
-        > "${work_dir}/${example}--${mode}--${name}.yaml"
+  # Move each config into its own file, next to the image it runs on.
+  # Collectors with a custom image are skipped.
+  local tree values_file collector_glob default_image
+  local collector_file prefix example mode doc_count i kind name custom_image
+  for tree in kube-stack ddot; do
+    if [[ "${tree}" = "ddot" ]]; then
+      values_file=ddot/values.yaml
+      collector_glob='ddot/examples/*/rendered/collector.yaml'
+      prefix="ddot--"
+    else
+      values_file=upstream/values.yaml
+      collector_glob='examples/*/rendered-ddot/collector.yaml upstream/examples/*/rendered/collector.yaml'
+      prefix=""
+    fi
+    default_image="$(yq '.opentelemetry-operator.manager.collectorImage.repository + ":" + .opentelemetry-operator.manager.collectorImage.tag' "${values_file}")"
+    for collector_file in ${collector_glob}; do
+      example="$(basename "$(dirname "$(dirname "${collector_file}")")")"
+      mode="$(basename "$(dirname "${collector_file}")")"
+      doc_count="$(yq 'di' "${collector_file}" | tail -1)"
+      for i in $(seq 0 "${doc_count}"); do
+        kind="$(yq "select(di == ${i}) | .kind" "${collector_file}")"
+        [[ "${kind}" = "OpenTelemetryCollector" ]] || continue
+        name="$(yq "select(di == ${i}) | .metadata.name" "${collector_file}")"
+        custom_image="$(yq "select(di == ${i}) | .spec.image // \"\"" "${collector_file}")"
+        if [[ -n "${custom_image}" ]]; then
+          echo "SKIP  ${prefix}${example}--${mode}--${name}.yaml (custom image ${custom_image})"
+          continue
+        fi
+        yq "select(di == ${i}) | .spec.config" "${collector_file}" \
+          > "${work_dir}/${prefix}${example}--${mode}--${name}.yaml"
+        echo "${default_image}" > "${work_dir}/${prefix}${example}--${mode}--${name}.image"
+      done
     done
   done
   chmod -R a+rX "${work_dir}"
 
   local failures=0
-  local config_file name output
+  local config_file name image output
   for config_file in "${work_dir}"/*.yaml; do
     name="$(basename "${config_file}")"
+    image="$(cat "${config_file%.yaml}.image")"
     if output=$(docker run --rm \
       --env-file "${DUMMY_ENV_FILE}" \
       -v "${stub_dir}/serviceaccount:/var/run/secrets/kubernetes.io/serviceaccount:ro" \
       -v "${stub_dir}/hostfs:/hostfs:ro" \
       -v "${stub_dir}/otelcol:/var/lib/otelcol:ro" \
       -v "${config_file}:/etc/otel/config.yaml:ro" \
-      "${collector_image}" validate --config=/etc/otel/config.yaml 2>&1); then
-      echo "PASS  ${name}"
+      "${image}" validate --config=/etc/otel/config.yaml 2>&1); then
+      echo "PASS  ${name} (${image})"
     else
-      echo "FAIL  ${name}"
+      echo "FAIL  ${name} (${image})"
       echo "      ${output//$'\n'/$'\n'      }"
       failures=$((failures + 1))
     fi
@@ -77,7 +93,10 @@ validate_manifests() {
     -schema-location 'https://raw.githubusercontent.com/datreeio/CRDs-catalog/main/{{.Group}}/{{.ResourceKind}}_{{.ResourceAPIVersion}}.json' \
     examples/*/rendered-ddot \
     upstream/examples/*/rendered \
-    datadog-agent.yaml
+    datadog-agent.yaml \
+    ddot/examples/*/rendered \
+    ddot/datadog-agent.yaml \
+    ddot/examples-datadog-agent
 }
 
 status=0
