@@ -58,7 +58,7 @@ It then:
 
 - creates the `opentelemetry-operator-system` namespace and the `datadog-secret` secret;
 - installs cert-manager when needed;
-- installs or upgrades the OpenTelemetry Kube Stack Helm chart with `upstream/values.yaml` (`upstream`) or `values-ddot.yaml` (`ddot`), and optionally enables the host profiler; and
+- installs or upgrades the OpenTelemetry Kube Stack Helm chart with `upstream/values.yaml` (`upstream`) or `ddot/values.yaml` (`ddot`), and optionally enables the host profiler; and
 - for `ddot`, unless `DD_AGENT_ENABLED=false`, installs or upgrades the Datadog Agent.
 
 ## Install with values files

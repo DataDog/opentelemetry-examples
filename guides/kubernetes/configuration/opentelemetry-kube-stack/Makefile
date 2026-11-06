@@ -11,7 +11,7 @@ validate:
 
 .PHONY: generate-base-values
 generate-base-values:
-	@echo "Generating upstream/values.yaml, values-ddot.yaml and ddot/values.yaml from values.yaml.tmpl"
+	@echo "Generating upstream/values.yaml and ddot/values.yaml from values.yaml.tmpl"
 	@cd $(REPO_ROOT)/generate && go run .
 
 .PHONY: generate-examples

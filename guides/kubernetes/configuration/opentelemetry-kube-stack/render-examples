@@ -26,7 +26,7 @@ for example in ${EXAMPLES}; do
 		if [ "${mode}" = "ddot" ]; then
 			EXAMPLE_DIR=${EXAMPLES_DIR}/${example}
 			OUTPUT_DIR=${EXAMPLE_DIR}/rendered-ddot
-			VALUES_FILE=./values-ddot.yaml
+			VALUES_FILE=./ddot/values.yaml
 			MODE_VALUES_ARGS=(--values ./dd-agent-kube-stack-values.yaml)
 		fi
 		rm -rf "${OUTPUT_DIR}"
