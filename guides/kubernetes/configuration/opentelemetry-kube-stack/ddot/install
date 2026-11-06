@@ -259,27 +259,19 @@ helm upgrade datadog-operator \
 
 echo "Applying the DatadogAgent custom resource..."
 
-# Without a cluster name (EKS/GKE/AKS), drop the `clusterName` line so
+# Without a cluster name (EKS/GKE/AKS), leave `clusterName` unset so
 # the Datadog Agent auto-detects the cluster name from the cloud provider. An empty `clusterName: ""`
 # isn't enough, the Operator would still set DD_CLUSTER_NAME on the agent containers.
-# Only set the Agent hostname from the Kubernetes node name and the cluster name on non-cloud
-# clusters: on EKS/GKE/AKS, the cloud provider hostname is preferred.
+GLOBAL_JSON="\"site\":\"$DD_SITE\""
 if [[ -n "$K8S_CLUSTER_NAME" ]]; then
-    CLUSTER_NAME_SED_ARGS=(-e "s|<CLUSTER_NAME>|$K8S_CLUSTER_NAME|")
-else
-    CLUSTER_NAME_SED_ARGS=(-e "/<CLUSTER_NAME>/d")
-fi
-if [[ "$K8S_CLUSTER_TYPE" == other ]]; then
-    CLUSTER_NAME_SED_ARGS+=(-e "/<HOSTNAME_FROM_NODE_NAME:/d")
-else
-    CLUSTER_NAME_SED_ARGS+=(-e "/<HOSTNAME_FROM_NODE_NAME:BEGIN>/,/<HOSTNAME_FROM_NODE_NAME:END>/d")
+    GLOBAL_JSON+=",\"clusterName\":\"$K8S_CLUSTER_NAME\""
 fi
 
-sed \
-  "${CLUSTER_NAME_SED_ARGS[@]}" \
-  -e "s|<DD_SITE>|$DD_SITE|" \
-  "$CONFIG_DIR/datadog-agent.yaml" \
-  | kubectl apply --namespace datadog -f -
+kubectl patch --local \
+  -f "$CONFIG_DIR/datadog-agent.yaml" \
+  --type merge \
+  -p "{\"spec\":{\"global\":{$GLOBAL_JSON}}}" \
+  -o yaml | kubectl apply --namespace datadog -f -
 
 if [[ -n "$HOST_PROFILER_NETWORK_POLICY_FILE" ]]; then
     echo "Applying the host-profiler egress NetworkPolicy..."
