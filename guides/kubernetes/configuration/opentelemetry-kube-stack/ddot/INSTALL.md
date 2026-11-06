@@ -27,7 +27,7 @@ Contents:
 
 - [Before you begin](#before-you-begin)
 - [1. Download the script](#1-download-the-script)
-- [2. Provide the Datadog credentials](#2-provide-the-datadog-credentials)
+- [2. Configure the installation](#2-configure-the-installation)
 - [3. Run the script](#3-run-the-script)
 - [4. Verify the installation](#4-verify-the-installation)
   - [Verify on the Kubernetes cluster](#verify-on-the-kubernetes-cluster)

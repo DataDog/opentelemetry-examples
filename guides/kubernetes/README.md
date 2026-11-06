@@ -121,7 +121,7 @@ spec:
 
 ## Deployment
 
-<blockquote> NOTE: If you are incorporating the configuration files found in [/configuration](/documentation/kubernetes/configuration/) into your existing OpenTelemetry collector deployment, please be aware that they are specifically written for
+<blockquote> NOTE: If you are incorporating the configuration files found in [/configuration](configuration/) into your existing OpenTelemetry collector deployment, please be aware that they are specifically written for
 
 * [opentelemetry-collector](https://github.com/open-telemetry/opentelemetry-helm-charts/tree/main/charts/opentelemetry-collector) helm chart >= `0.156.2`
 * OTel image `otel/opentelemetry-collector-contrib` >= `0.154.0`
@@ -187,5 +187,5 @@ helm install otel-cluster-collector open-telemetry/opentelemetry-collector -f co
 [13]: https://github.com/open-telemetry/opentelemetry-collector-contrib/tree/main/processor/deltatorateprocessor
 [14]: https://github.com/open-telemetry/opentelemetry-collector-contrib/tree/main/processor/resourcedetectionprocessor
 [15]: https://github.com/open-telemetry/opentelemetry-collector-contrib/tree/main/connector/datadogconnector
-[16]: https://github.com/open-telemetry/opentelemetry-collector-contrib/tree/v0.153.0/processor/resourcedetectionprocessor#cluster-name
+[16]: https://github.com/open-telemetry/opentelemetry-collector-contrib/tree/v0.153.0/processor/resourcedetectionprocessor#supported-detectors
 

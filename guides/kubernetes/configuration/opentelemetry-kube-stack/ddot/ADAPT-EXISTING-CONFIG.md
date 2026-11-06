@@ -541,7 +541,7 @@ environment variable, typically through `OTEL_RESOURCE_ATTRIBUTES=datadog.host.n
   isn't in its CRD schema yet: keep `volumeLimitSize` if you need it.
 - **Alpine/musl workloads:** add the pod-template annotation
   `instrumentation.opentelemetry.io/otel-python-platform: "musl"` (glibc is the default). See
-  [Auto-instrumenting a Python musl based container](https://opentelemetry.io/docs/platforms/kubernetes/operator/automatic/#auto-instrumenting-a-python-musl-based-container).
+  [Auto-instrumenting a Python musl based container](https://opentelemetry.io/docs/platforms/kubernetes/operator/automatic/#annotations-python-musl).
 
 ### O-04: Point the SDKs at the `daemon` collector
 
@@ -815,7 +815,7 @@ values: this guide doesn't list them, and they aren't tested in this repository.
 
 - **Requirement:** `spec.global.clusterName` equals the OpenTelemetry Collectors' `k8s.cluster.name`
   ([C-10](#c-10-use-the-same-kubernetes-cluster-name-everywhere)). On EKS, GKE, and AKS, it can be omitted so the
-  Agent detects it, unless [Fleet Automation][fleet-automation] Remote Configuration is enabled, which requires it.
+  Agent detects it, unless [Fleet Automation][dd-fleet-automation] Remote Configuration is enabled, which requires it.
 - **Recommended on non-cloud Kubernetes clusters:** use `<node name>-<cluster name>` as the Agent hostname, unique
   across Kubernetes clusters:
 
@@ -874,7 +874,6 @@ See [TROUBLESHOOTING.md][troubleshooting] when something doesn't show up.
 [troubleshooting]: https://github.com/DataDog/opentelemetry-examples/blob/main/guides/kubernetes/configuration/opentelemetry-kube-stack/ddot/TROUBLESHOOTING.md
 [architecture]: https://raw.githubusercontent.com/DataDog/opentelemetry-examples/main/guides/kubernetes/configuration/opentelemetry-kube-stack/ddot/assets/deployment-architecture-diagram_k8s_ddot-with-dd-agent.svg.png
 [cluster-name]: https://github.com/DataDog/opentelemetry-examples/blob/main/guides/kubernetes/configuration/opentelemetry-kube-stack/ddot/README.md#kubernetes-cluster-name-constraints
-[fleet-automation]: https://github.com/DataDog/opentelemetry-examples/blob/main/guides/kubernetes/configuration/opentelemetry-kube-stack/ddot/README.md#fleet-automation-optional
 [dd-fleet-automation]: https://docs.datadoghq.com/agent/fleet_automation/
 [dd-live-debugger-go]: https://docs.datadoghq.com/tracing/live_debugger/?prog_lang=go
 [dd-dbm]: https://docs.datadoghq.com/database_monitoring/
