@@ -1,19 +1,21 @@
 # Common OpenTelemetry setup mistakes
 
-This document lists the most common mistakes when setting up an OpenTelemetry pipeline to send data to Datadog.
+This document lists common mistakes when setting up an OpenTelemetry pipeline that sends data to Datadog.
 
 ## 1. Using the incorrect OpenTelemetry distro
 
-The Datadog exporter is not present in all OpenTelemetry distros, for example, the *core* OpenTelemetry distro does not include
-vendor-specific exporters. It is common for people to confuse in which distro our exporter is present.
+Not every OpenTelemetry Collector [distribution](https://opentelemetry.io/docs/collector/distributions/) includes the Datadog exporter.
+The *core* distribution excludes vendor-specific exporters.
 
-For example, people may try to use the `otel/opentelemetry-collector` Docker image instead of the `otel/opentelemetry-collector-contrib` image.
-This will make the Collector fail to start.
+For example, if you configure the Datadog exporter with the `otel/opentelemetry-collector` Docker image, the Collector fails to start.
+Use the `otel/opentelemetry-collector-contrib` image instead.
 
 ## 2. Forgetting to include defined components in the pipeline
 
-The OpenTelemetry Collector does not error out if a component is defined but not used in any pipeline.
-In the following configuration, the OTLP receiver is configured but not used in any pipeline:
+The OpenTelemetry Collector only enables components that are part of a pipeline, and it doesn't report an error for a component that no pipeline uses.
+See the [`service` section](https://opentelemetry.io/docs/collector/configuration/#service) of the Collector configuration docs.
+
+In the following configuration, the OTLP receiver is defined but missing from the `metrics` pipeline:
 
 ```yaml
 receivers:
@@ -33,5 +35,3 @@ service:
       receivers: [statsd] # MISSING otlp
       exporters: [datadog]
 ```
-
-If the component is not added to the pipeline, it won't work.
