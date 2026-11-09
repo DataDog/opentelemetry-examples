@@ -111,6 +111,17 @@ if [[ "$DD_HOST_PROFILER_ENABLED" == "true" ]]; then
     )
 fi
 
+KUBE_STACK_INSTALLED=false
+if helm status opentelemetry-kube-stack --namespace opentelemetry-operator-system >/dev/null 2>&1; then
+    KUBE_STACK_INSTALLED=true
+fi
+
+if [[ "$KUBE_STACK_INSTALLED" == "true" && ( "$DD_AUTOINSTRUMENTATION_ENABLED" == "false" || "$DD_COLLECTOR_ENABLED" == "false" ) ]] \
+    && helm get manifest opentelemetry-kube-stack --namespace opentelemetry-operator-system | grep -x 'kind: Instrumentation' >/dev/null; then
+    echo "ERROR: This cluster was installed by an earlier version of this script. Run it once with DD_AUTOINSTRUMENTATION_ENABLED=true and DD_COLLECTOR_ENABLED=true, or run ./uninstall first." >&2
+    exit 1
+fi
+
 #### BEGINNING OF INSTALLATION SCRIPT
 
 # WARNING: dont change "namespace=opentelemetry-operator-system" as it is used in the 'instrumentation' CRD defined in values-otlp-http.yaml and values-ddot.yaml
@@ -166,49 +177,73 @@ if [[ -n "${K8S_CLUSTER_NAME:-}" ]]; then
     HELM_SET_ARGS+=(--set-string "resourceAttributes.k8s\.cluster\.name=$K8S_CLUSTER_NAME")
 fi
 
-if [[ "$DD_AUTOINSTRUMENTATION_ENABLED" == "false" ]]; then
-    HELM_SET_ARGS+=(--set instrumentation.enabled=false)
+helm_upgrade_kube_stack() {
+    local release="$1"
+    shift
+    helm upgrade "$release" \
+        open-telemetry/opentelemetry-kube-stack \
+        --version 0.26.1 \
+        --install \
+        --namespace opentelemetry-operator-system \
+        "${HELM_SET_ARGS[@]}" \
+        -f "$SCRIPT_DIR/$VALUES_FILE" \
+        ${DD_AGENT_VALUES_ARGS[@]+"${DD_AGENT_VALUES_ARGS[@]}"} \
+        "$@" \
+        ${OVERLAY_VALUES_ARGS[@]+"${OVERLAY_VALUES_ARGS[@]}"}
+}
+
+if [[ "$DD_COLLECTOR_ENABLED" == "true" ]]; then
+    helm_upgrade_kube_stack opentelemetry-kube-stack \
+        --set instrumentation.enabled=false \
+        ${HOST_PROFILER_ENABLED_ARGS[@]+"${HOST_PROFILER_ENABLED_ARGS[@]}"}
+
+    # The standard and Cilium policies select the same pods and Kubernetes
+    # NetworkPolicies are additive: remove both NetworkPolicy before applying
+    # the selected one (or none), so a policy from a previous run cannot widen
+    # the requested egress.
+    kubectl delete networkpolicy \
+      --namespace opentelemetry-operator-system \
+      --ignore-not-found=true \
+      opentelemetry-kube-stack-host-profiler-egress \
+      || echo "WARNING: Could not delete the host-profiler NetworkPolicy. Continuing..."
+    kubectl delete ciliumnetworkpolicy \
+      --namespace opentelemetry-operator-system \
+      --ignore-not-found=true \
+      opentelemetry-kube-stack-host-profiler-egress \
+      || echo "WARNING: CiliumNetworkPolicy CRD not installed. Continuing..."
+
+    if [[ -n "$HOST_PROFILER_NETWORK_POLICY_FILE" ]]; then
+        echo "Applying the host-profiler egress NetworkPolicy..."
+        kubectl apply -f "$HOST_PROFILER_NETWORK_POLICY_FILE" \
+          || echo "WARNING: Could not apply the host-profiler egress NetworkPolicy (is Cilium installed if you chose the Cilium policy?). Continuing..."
+    fi
+elif [[ "$KUBE_STACK_INSTALLED" == "false" ]]; then
+    helm_upgrade_kube_stack opentelemetry-kube-stack \
+        --set instrumentation.enabled=false \
+        --set collectors.cluster.enabled=false \
+        --set collectors.daemon.enabled=false \
+        --set kubeStateMetrics.enabled=false
 fi
 
-if [[ "$DD_COLLECTOR_ENABLED" == "false" ]]; then
-    HELM_SET_ARGS+=(
+if [[ "$DD_AUTOINSTRUMENTATION_ENABLED" == "true" ]]; then
+    echo "Installing OpenTelemetry autoinstrumentation..."
+
+    INSTRUMENTATION_ARGS=(
+        --set opentelemetry-operator.enabled=false
+        --set crds.installOtel=false
+        --set crds.installPrometheus=false
+        --set cleanupJob.enabled=false
+        --set clusterRole.enabled=false
         --set collectors.cluster.enabled=false
         --set collectors.daemon.enabled=false
         --set kubeStateMetrics.enabled=false
-        --set-string "instrumentation.exporter.endpoint=$OTEL_EXPORTER_OTLP_ENDPOINT"
+        --set instrumentation.name=opentelemetry-kube-stack
     )
-fi
+    if [[ "$DD_COLLECTOR_ENABLED" == "false" ]]; then
+        INSTRUMENTATION_ARGS+=(--set-string "instrumentation.exporter.endpoint=$OTEL_EXPORTER_OTLP_ENDPOINT")
+    fi
 
-helm upgrade opentelemetry-kube-stack \
-    open-telemetry/opentelemetry-kube-stack \
-    --version 0.26.1 \
-    --install \
-    --namespace opentelemetry-operator-system \
-    "${HELM_SET_ARGS[@]}" \
-    -f "$SCRIPT_DIR/$VALUES_FILE" \
-    ${DD_AGENT_VALUES_ARGS[@]+"${DD_AGENT_VALUES_ARGS[@]}"} \
-    ${HOST_PROFILER_ENABLED_ARGS[@]+"${HOST_PROFILER_ENABLED_ARGS[@]}"} \
-    ${OVERLAY_VALUES_ARGS[@]+"${OVERLAY_VALUES_ARGS[@]}"}
-
-# The standard and Cilium policies select the same pods and Kubernetes
-# NetworkPolicies are additive: remove both NetworkPolicy before applying
-# the selected one (or none), so a policy from a previous run cannot widen
-# the requested egress.
-kubectl delete networkpolicy \
-  --namespace opentelemetry-operator-system \
-  --ignore-not-found=true \
-  opentelemetry-kube-stack-host-profiler-egress \
-  || echo "WARNING: Could not delete the host-profiler NetworkPolicy. Continuing..."
-kubectl delete ciliumnetworkpolicy \
-  --namespace opentelemetry-operator-system \
-  --ignore-not-found=true \
-  opentelemetry-kube-stack-host-profiler-egress \
-  || echo "WARNING: CiliumNetworkPolicy CRD not installed. Continuing..."
-
-if [[ -n "$HOST_PROFILER_NETWORK_POLICY_FILE" ]]; then
-    echo "Applying the host-profiler egress NetworkPolicy..."
-    kubectl apply -f "$HOST_PROFILER_NETWORK_POLICY_FILE" \
-      || echo "WARNING: Could not apply the host-profiler egress NetworkPolicy (is Cilium installed if you chose the Cilium policy?). Continuing..."
+    helm_upgrade_kube_stack opentelemetry-kube-stack-instrumentation "${INSTRUMENTATION_ARGS[@]}"
 fi
 
 if [[ "$DD_INSTALL_FLOW" == "ddot" && "$DD_AGENT_ENABLED" == "true" ]]; then

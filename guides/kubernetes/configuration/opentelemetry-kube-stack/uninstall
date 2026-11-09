@@ -5,8 +5,8 @@ cat <<'EOF'
 WARNING: This uninstall script is for development purposes only.
 
 It deletes:
-  - the opentelemetry-kube-stack Helm release in the
-    opentelemetry-operator-system namespace;
+  - the opentelemetry-kube-stack and opentelemetry-kube-stack-instrumentation
+    Helm releases in the opentelemetry-operator-system namespace;
   - the cert-manager Helm release in the cert-manager namespace;
   - cert-manager CRDs: issuers, clusterissuers, certificates,
     certificaterequests, orders, and challenges;
@@ -45,6 +45,11 @@ kubectl delete ciliumnetworkpolicy \
   --ignore-not-found=true \
   opentelemetry-kube-stack-host-profiler-egress \
   || echo "WARNING: CiliumNetworkPolicy CRD not installed. Continuing..."
+
+helm uninstall opentelemetry-kube-stack-instrumentation \
+  --namespace opentelemetry-operator-system  \
+  --ignore-not-found \
+  || echo "WARNING: Could not uninstall opentelemetry-kube-stack-instrumentation. Continuing..."
 
 helm uninstall opentelemetry-kube-stack \
   --namespace opentelemetry-operator-system  \

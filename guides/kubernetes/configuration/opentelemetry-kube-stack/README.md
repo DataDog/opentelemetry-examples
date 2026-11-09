@@ -33,8 +33,8 @@ Configure the installer with environment variables, then run it from this direct
 | `DEPLOYMENT_ENVIRONMENT_NAME` | Value of the `deployment.environment.name` resource attribute. | `production` |
 | `DD_AGENT_ENABLED` | Install the Datadog Agent in the `ddot` flow: `true` or `false`. | `true` |
 | `DD_APP_KEY` | Datadog application key. Enables Fleet Automation for the Datadog Agent. Requires `K8S_CLUSTER_NAME`. | Unset |
-| `DD_AUTOINSTRUMENTATION_ENABLED` | Enable autoinstrumentation: `true` or `false`. | `true` |
-| `DD_COLLECTOR_ENABLED` | Install the OpenTelemetry Collectors: `true` or `false`. | `true` |
+| `DD_AUTOINSTRUMENTATION_ENABLED` | Install or upgrade autoinstrumentation: `true` or `false`. When `false`, existing autoinstrumentation is left unchanged. | `true` |
+| `DD_COLLECTOR_ENABLED` | Install or upgrade the OpenTelemetry Collectors: `true` or `false`. When `false`, existing Collectors are left unchanged. | `true` |
 | `OTEL_EXPORTER_OTLP_ENDPOINT` | OTLP/HTTP endpoint of the Collector that autoinstrumented workloads send telemetry to, for example `http://my-collector.my-namespace.svc.cluster.local:4318`. Required when `DD_COLLECTOR_ENABLED` is `false`. | Unset |
 | `DD_HOST_PROFILER_ENABLED` | Enable the eBPF host profiler: `true` or `false`. See [Host profiler (optional)](#host-profiler-optional). | `false` |
 | `DD_HOST_PROFILER_NETWORK_POLICY` | Host profiler egress NetworkPolicy: `none`, `standard`, or `cilium`. | `none` |
