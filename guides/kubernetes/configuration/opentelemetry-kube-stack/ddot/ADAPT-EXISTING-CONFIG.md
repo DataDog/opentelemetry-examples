@@ -591,7 +591,9 @@ without the OpenTelemetry Operator, set them in their environment instead.
 
 ### S-01: Enable the OpenTelemetry mode of the DDOT SDKs
 
-- **Requirement:**
+- **Requirement:** configure all of the following for workloads adopting DDOT SDKs with OpenTelemetry semantic
+  conventions and OTLP export, whether starting from Datadog-native instrumentation or an existing OpenTelemetry
+  setup. Verify the effective configuration at runtime; the variables' presence in `spec.env` is insufficient:
 
   ```yaml
   - name: OTEL_TRACES_EXPORTER
@@ -606,6 +608,32 @@ without the OpenTelemetry Operator, set them in their environment instead.
     value: "true"
   ```
 
+- **Why:** together, these settings configure OpenTelemetry semantic conventions and OTLP export for the supported
+  signals:
+  - `DD_TRACE_OTEL_ENABLED=true` enables OpenTelemetry tracing support, which can also be used with Datadog-native
+    export. This flag alone leaves traces exported with the Datadog protocol (the default). It does not switch to
+    OTLP, so set `OTEL_TRACES_EXPORTER=otlp` explicitly. See
+    [Export traces from Datadog SDKs in OTLP format][dd-otlp-trace-export] for supported versions and configuration,
+    and check the SDK versions pinned in [`values.yaml`][values].
+  - `DD_LOGS_OTEL_ENABLED=true` and `DD_METRICS_OTEL_ENABLED=true` enable the SDK's supported OTel logs and metrics
+    pipelines with OTLP export. The configuration above enables both signals by default. If application code
+    already creates its own OTel logs or metrics provider, check that provider's exporter separately: these flags
+    may leave the existing setup unchanged.
+  - `DD_TRACE_OTEL_SEMANTICS_ENABLED=true` switches instrumentation from Datadog semantic conventions to
+    OpenTelemetry semantic conventions, including span names and attributes. It is also intended to enforce OTLP
+    trace export. The reverse does not apply: `OTEL_TRACES_EXPORTER=otlp` does not by itself switch from Datadog
+    to OpenTelemetry semantics. Keep both settings explicit, and verify that the pinned SDK version supports them
+    and that workload-specific overrides do not disable either behavior.
+- **Fix:** merge the variables above into the `Instrumentation` configuration, preserving existing list entries.
+  Before reporting `already satisfied` or `applied`, check that each workload uses this configuration and that its
+  container, language-specific, or application settings do not override it. Keep `OTEL_TRACES_EXPORTER=otlp`
+  explicitly set; `DD_TRACE_OTEL_ENABLED=true` alone does not satisfy this rule.
+  For logs and metrics, verify that the pinned SDK's required OTel packages are available and that each enabled
+  signal's pipeline exports to the intended collector before reporting the rule as satisfied.
+- **Conflicts:** preserve explicitly disabled signals (`DD_*_OTEL_ENABLED=false`, `OTEL_SDK_DISABLED=true`, or
+  `OTEL_*_EXPORTER=none`) and alternative exporters until the user confirms the intended migration.
+  Report the conflict and ask whether to keep the existing setting or migrate to DDOT with OTLP export.
+
 ### S-02: Point the DDOT SDKs at the Datadog Agent
 
 - **Requirement:** `DD_AGENT_HOST` is the DNS name of the Datadog Agent's Service, for example
@@ -615,18 +643,20 @@ without the OpenTelemetry Operator, set them in their environment instead.
 
 ### S-03: Export over OTLP/HTTP
 
-- **Requirement:** force the OTLP/HTTP protocol, whatever the SDK's default:
+- **Requirement:** use OTLP/HTTP on port 4318. Keep the shared protocol from [`values.yaml`][values]:
 
   ```yaml
   - name: OTEL_EXPORTER_OTLP_PROTOCOL
     value: http/protobuf
   ```
 
-- **Why:** the SDKs' default protocol differs per language, for example gRPC for Node.js. Forcing OTLP/HTTP makes
-  every SDK export to the same `daemon` collector port, 4318, the one of the `Instrumentation`'s endpoint
-  ([O-04](#o-04-point-the-sdks-at-the-daemon-collector)).
-- **Conflicts:** if the user's endpoint is the gRPC port 4317, change it to 4318 together with the protocol.
-- FIXME some DDOT SDKs don't support gRPC yet, so the user must use OTLP/HTTP for now. Indicate which ones, and when they will support gRPC.
+- **Why:** these settings direct the SDKs to the `daemon` collector's OTLP/HTTP endpoint on port 4318
+  ([O-04](#o-04-point-the-sdks-at-the-daemon-collector)). Check which HTTP encodings each pinned SDK version
+  supports. If a signal does not support the shared `http/protobuf` setting, configure a supported HTTP encoding
+  for that signal without changing the others.
+- **Conflicts:** check signal-specific protocol and endpoint overrides as well as the shared settings. If the user's
+  endpoint is the gRPC port 4317, change it to 4318 together with the protocol. Use the
+  [OTLP trace export guide][dd-otlp-trace-export] and the installed SDK version to check supported protocols.
 
 ### S-04: Export delta metrics
 
@@ -704,6 +734,23 @@ workload's container `env` for that workload only:
   skipping them when the container's `env` sets them. It skips the injection of a language's SDK altogether when the
   container sets `JAVA_TOOL_OPTIONS`, `NODE_OPTIONS`, or `PYTHONPATH` with `valueFrom`. See `injectCommonEnvVar` and
   `appendIfNotSet` in the OpenTelemetry Operator's [`internal/instrumentation/sdk.go`][otel-operator-sdk-go].
+
+### S-07: Enable runtime metrics where supported
+
+- **Recommendation:** enable runtime metrics for supported workloads to help troubleshoot memory usage, garbage
+  collection, and thread activity. Configure this per workload; shared instrumentation defaults remain unchanged.
+- **Fix:** set `DD_RUNTIME_METRICS_ENABLED=true` in the workload's container `env`. For OTLP export, keep
+  `DD_METRICS_OTEL_ENABLED=true` and `OTEL_METRICS_EXPORTER=otlp` effective for that workload. Check the installed
+  SDK version's runtime support, required packages or imports, and export transport before applying the change.
+- **Compatibility:** check the [runtime metrics documentation][dd-runtime-metrics] for the installed SDK version,
+  and verify its implementation when its DDOT behavior is not covered. If the SDK sends runtime metrics only
+  through DogStatsD, they cannot reach the Collector through its OTLP endpoint. Keep the existing DogStatsD
+  destination, such as the Datadog Agent. For an Agent-free setup, report runtime-metrics delivery as `blocked`
+  until a supported delivery path is configured.
+- **Verify:** confirm that runtime metrics from the workload arrive in Datadog with the expected service and
+  environment tags through the intended transport. An enabled flag or successful trace export is insufficient.
+- **Conflicts:** preserve explicit runtime-metrics disables and existing runtime instrumentation. Ask before
+  enabling a disabled collector or adding another one that could duplicate the same measurements.
 
 ## Datadog Agent and Datadog Operator rules
 
@@ -895,3 +942,5 @@ See [TROUBLESHOOTING.md][troubleshooting] when something doesn't show up.
 [dd-unified-service-tagging]: https://docs.datadoghq.com/getting_started/tagging/unified_service_tagging/?tab=kubernetes#configuration
 [otel-semconv-k8s-attributes]: https://opentelemetry.io/docs/specs/semconv/non-normative/k8s-attributes/
 [dd-hostname-mapping]: https://docs.datadoghq.com/opentelemetry/mapping/hostname/?tab=datadogexporter
+[dd-otlp-trace-export]: https://docs.datadoghq.com/opentelemetry/instrument/dd_sdks/otlp_trace_export/
+[dd-runtime-metrics]: https://docs.datadoghq.com/tracing/metrics/runtime_metrics/
