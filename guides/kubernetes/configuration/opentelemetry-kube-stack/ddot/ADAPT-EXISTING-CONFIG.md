@@ -168,6 +168,7 @@ configures one collector.
             - k8s.job.name
             - k8s.cronjob.name
             - k8s.container.name
+            - container.id
             - container.image.name
             - container.image.tag
             - service.name
