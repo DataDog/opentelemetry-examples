@@ -145,15 +145,13 @@ lowercases the supplied name and replaces `_` with `-` (with a message if it doe
 valid name and use it for both `k8s.cluster.name` and `K8S_CLUSTER_NAME`.
 
 See `examples/` for rendered values and manifests for each deployment type. Regenerate them with
-`make generate-otel-kube-stack-examples`.
+`make generate-examples` in the parent folder.
 
 The Datadog Agent is installed as its own step, via the Datadog Operator's `DatadogAgent` custom resource
 (`datadog-agent.yaml`), in the `datadog` namespace — see [What this deploys](#what-this-deploys) and
 [Install without the `install` script](INSTALL.md#install-without-the-install-script). See `examples-datadog-agent/`
 for the manifests the Datadog Operator generates from it, rendered offline with the [datadog-operator][dd-operator]'s
-`operator-render` CLI (built on the fly from a shallow clone under `tmp/`). Regenerate it with `make generate-datadog-operator-examples`.
-
-Run `make generate-examples` to regenerate both sets of examples in one step.
+`operator-render` CLI (built on the fly from a shallow clone under `../tmp/`). Regenerate it with `make generate-datadog-operator-examples` in the parent folder.
 
 ## Resource allocation
 
