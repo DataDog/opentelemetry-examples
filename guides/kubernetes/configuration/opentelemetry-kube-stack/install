@@ -26,6 +26,48 @@ if [[ -z "${DD_API_KEY:-}" ]]; then
     exit 1
 fi
 
+INSTALL_OPTIONS_CONFIGMAP=opentelemetry-kube-stack-install-options
+INSTALL_OPTIONS=(
+    DD_INSTALL_FLOW
+    DD_SITE
+    K8S_CLUSTER_TYPE
+    K8S_CLUSTER_NAME
+    DEPLOYMENT_ENVIRONMENT_NAME
+    DD_AGENT_ENABLED
+    DD_AUTOINSTRUMENTATION_ENABLED
+    DD_COLLECTOR_ENABLED
+    DD_HOST_PROFILER_ENABLED
+    DD_HOST_PROFILER_NETWORK_POLICY
+)
+
+PREVIOUS_OPTIONS=$(kubectl get configmap "$INSTALL_OPTIONS_CONFIGMAP" \
+    --namespace opentelemetry-operator-system \
+    --ignore-not-found \
+    -o go-template='{{range $k, $v := .data}}{{$k}}={{$v}}{{"\n"}}{{end}}') || {
+    echo "ERROR: Could not read the options of the previous run from the cluster" >&2
+    exit 1
+}
+
+while IFS='=' read -r key value; do
+    for option in "${INSTALL_OPTIONS[@]}"; do
+        if [[ "$key" == "$option" ]]; then
+            printf -v "PREVIOUS_$option" '%s' "$value"
+        fi
+    done
+done <<< "$PREVIOUS_OPTIONS"
+
+use_previous() {
+    local previous="PREVIOUS_$1"
+    if [[ -z "${!1+x}" && -n "${!previous:-}" ]]; then
+        printf -v "$1" '%s' "${!previous}"
+        echo "Using $1=${!1} from the previous run"
+    fi
+}
+
+for option in "${INSTALL_OPTIONS[@]}"; do
+    use_previous "$option"
+done
+
 case "${DD_INSTALL_FLOW:-}" in
     upstream) VALUES_FILE=values-otlp-http.yaml ;;
     ddot) VALUES_FILE=values-ddot.yaml ;;
@@ -266,3 +308,16 @@ if [[ "$DD_INSTALL_FLOW" == "ddot" && "$DD_AGENT_ENABLED" == "true" ]]; then
       -p "{\"spec\":{\"global\":{$GLOBAL_JSON}}}" \
       -o yaml | kubectl apply --namespace datadog -f -
 fi
+
+echo "Saving the installation options..."
+
+INSTALL_OPTIONS_ARGS=()
+for option in "${INSTALL_OPTIONS[@]}"; do
+    if [[ -n "${!option:-}" ]]; then
+        INSTALL_OPTIONS_ARGS+=(--from-literal="$option=${!option}")
+    fi
+done
+kubectl create configmap "$INSTALL_OPTIONS_CONFIGMAP" \
+  --namespace opentelemetry-operator-system \
+  "${INSTALL_OPTIONS_ARGS[@]}" \
+  --dry-run=client -o yaml | kubectl apply -f -
