@@ -6,10 +6,10 @@ resourceAttributes:
 opentelemetry-operator:
   manager:
     collectorImage:
-      repository: otel/opentelemetry-collector-contrib
-      tag: "0.163.1"
-      #repository: datadog/ddot-collector
-      #tag: "7.85.0-rc.2"
+      #repository: otel/opentelemetry-collector-contrib
+      #tag: "0.163.1"
+      repository: datadog/ddot-collector
+      tag: "7.86.0-rc.5"
       #repository: datadog/otel-agent-dev
       #tag: "agagniere-nodefilter-7"
 
