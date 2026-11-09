@@ -137,7 +137,7 @@ helm upgrade --install opentelemetry-kube-stack \
 
 This collector runs the [Datadog host profiler][dd-host-profiler], Datadog's distribution of the [OpenTelemetry eBPF profiler][ebpf-profiler], as a DaemonSet on every node and exports profiles to Datadog's OTLP intake.
 
-The host profiler is opt-in because its pods need more privileges than the other collectors. To enable it, set `DD_HOST_PROFILER_ENABLED=true` before you run the installer. The installer then also applies `host-profiler-rbac-values.yaml` and, on clusters that enforce NetworkPolicy, the policy that `DD_HOST_PROFILER_NETWORK_POLICY` selects: `host-profiler-network-policy.yaml` (`standard`, any enforcing CNI) or `host-profiler-cilium-network-policy.yaml` (`cilium`, FQDN-scoped egress).
+The host profiler is opt-in because its pods need more privileges than the other collectors. To enable it, set `DD_HOST_PROFILER_ENABLED=true` before you run the installer. The installer then also applies `ddot/host-profiler-rbac-values.yaml` and, on clusters that enforce NetworkPolicy, the policy that `DD_HOST_PROFILER_NETWORK_POLICY` selects: `ddot/host-profiler-network-policy.yaml` (`standard`, any enforcing CNI) or `ddot/host-profiler-cilium-network-policy.yaml` (`cilium`, FQDN-scoped egress).
 
 ## Cluster name detection
 
