@@ -64,6 +64,10 @@ defaultCRConfig:
             endpoint: 0.0.0.0:4318
     processors:
       cumulative_to_delta: {}
+      # The kubernetesAttributes preset's metadata list, with container.image.tags instead of the
+      # deprecated container.image.tag, which k8s_attributes doesn't emit when the
+      # processor.k8sattributes.DontEmitV0K8sConventions feature gate is enabled. See
+      # https://github.com/open-telemetry/opentelemetry-helm-charts/issues/2538
       k8s_attributes:
         extract:
           metadata:
@@ -84,7 +88,7 @@ defaultCRConfig:
             - k8s.statefulset.name
             - k8s.statefulset.uid
             - container.id
-            - container.image.tag
+            - container.image.tags
             - container.image.name
             - k8s.cluster.uid
             - service.namespace
@@ -738,6 +742,38 @@ collectors:
             symbol_endpoints:
               - site: ${env:DD_SITE:-datadoghq.com}
                 api_key: ${env:DD_API_KEY}
+
+      processors:
+        # The kubernetesAttributes preset's metadata list, with container.image.tags instead of the
+        # deprecated container.image.tag, which k8s_attributes doesn't emit when the
+        # processor.k8sattributes.DontEmitV0K8sConventions feature gate is enabled. See
+        # https://github.com/open-telemetry/opentelemetry-helm-charts/issues/2538
+        k8s_attributes:
+          extract:
+            metadata:
+              - k8s.namespace.name
+              - k8s.pod.name
+              - k8s.pod.uid
+              - k8s.node.name
+              - k8s.pod.start_time
+              - k8s.deployment.name
+              - k8s.replicaset.name
+              - k8s.replicaset.uid
+              - k8s.daemonset.name
+              - k8s.daemonset.uid
+              - k8s.job.name
+              - k8s.job.uid
+              - k8s.container.name
+              - k8s.cronjob.name
+              - k8s.statefulset.name
+              - k8s.statefulset.uid
+              - container.image.tags
+              - container.image.name
+              - k8s.cluster.uid
+              - service.namespace
+              - service.name
+              - service.version
+              - service.instance.id
 
       exporters:
         # Export profiles and metrics to Datadog through OTLP HTTP.

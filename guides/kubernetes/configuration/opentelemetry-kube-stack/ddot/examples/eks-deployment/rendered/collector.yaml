@@ -118,7 +118,7 @@ spec:
           - k8s.statefulset.name
           - k8s.statefulset.uid
           - container.id
-          - container.image.tag
+          - container.image.tags
           - container.image.name
           - k8s.cluster.uid
           - service.namespace
@@ -587,7 +587,7 @@ spec:
           - k8s.statefulset.name
           - k8s.statefulset.uid
           - container.id
-          - container.image.tag
+          - container.image.tags
           - container.image.name
           - k8s.cluster.uid
           - service.namespace
@@ -1076,4 +1076,3 @@ spec:
   - name: hostfs
     hostPath:
       path: /
-
