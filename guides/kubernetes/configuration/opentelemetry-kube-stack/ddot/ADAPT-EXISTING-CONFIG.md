@@ -333,24 +333,13 @@ environment variable, typically through `OTEL_RESOURCE_ATTRIBUTES=datadog.host.n
   In this case, the applications must export cumulative metrics, not delta ones as
   [S-04](#s-04-export-delta-metrics) requires, so that the cumulative end receives cumulative metrics.
 
-### C-07: Report the Collectors to Fleet Automation with the Datadog extension
+### C-07: Don't configure the Datadog extension
 
-- **Requirement:** the `datadog` extension, with `deployment_type: gateway` on Deployments and
-  `deployment_type: daemonset` on DaemonSets, listed in `service.extensions`.
-- **Why:** it lists the Collectors in Datadog [Fleet Automation][dd-fleet-automation], with their version and
-  configuration.
-- **Fix:**
-
-  ```yaml
-  extensions:
-    datadog:
-      api:
-        key: ${env:DD_API_KEY}
-        site: ${env:DD_SITE:-datadoghq.com}
-      deployment_type: daemonset
-  service:
-    extensions: [health_check, datadog]
-  ```
+- **Requirement:** no `datadog` extension in the Collector configuration.
+- **Why:** the DDOT Collector adds an [OpAMP][otel-opamp] extension to its configuration, which lists the Collector in
+  Datadog [Fleet Automation][dd-fleet-automation], with its version and configuration. A `datadog` extension would
+  report the Collector a second time, under a host named after the Kubernetes node alone, without the cluster name.
+- **Fix:** remove `datadog` from `extensions` and from `service.extensions`.
 
 ### C-08: Export the Collector's internal metrics through its own pipeline
 
@@ -386,9 +375,9 @@ environment variable, typically through `OTEL_RESOURCE_ATTRIBUTES=datadog.host.n
 - **Requirement:** the `k8s.cluster.name` resource attribute of the Collectors equals the Datadog Agent's
   `clusterName` ([A-06](#a-06-use-the-same-kubernetes-cluster-name-as-the-opentelemetry-collectors)).
 - **Fix:** on EKS, GKE, and AKS, enable the cloud provider's resource detection preset, which discovers it.
-- **Fix:** on other platforms, set `k8s.cluster.name` both on the telemetry and on the Collector's own telemetry. The
-  Collector's Datadog extension ([C-07](#c-07-report-the-collectors-to-fleet-automation-with-the-datadog-extension))
-  reports the Collector under the cluster name of its own telemetry in Fleet Automation. With the kube-stack chart,
+- **Fix:** on other platforms, set `k8s.cluster.name` both on the telemetry and on the Collector itself. The DDOT
+  Collector names its own host `<node name>-<cluster name>`, with the `k8s.cluster.name` of `service.telemetry.resource`
+  or of the `OTEL_RESOURCE_ATTRIBUTES` environment variable. With the kube-stack chart,
   `resourceAttributes.k8s.cluster.name` in the values does both:
 
   ```yaml
@@ -397,7 +386,8 @@ environment variable, typically through `OTEL_RESOURCE_ATTRIBUTES=datadog.host.n
   ```
 
   Otherwise, add a `resource` processor that upserts `k8s.cluster.name` to the pipelines, and set `k8s.cluster.name`
-  under `service.telemetry.resource`, as the [Datadog extension documentation][dd-otel-extension-resource] describes.
+  under `service.telemetry.resource`, as the [Collector internal telemetry documentation][otel-internal-telemetry]
+  describes.
 - **Constraints:** dot-separated tokens of lowercase letters, digits, and `-`, starting with a letter and ending with a
   letter or a digit, at most 80 characters. See [Kubernetes cluster name constraints][cluster-name].
 
@@ -920,7 +910,8 @@ See [TROUBLESHOOTING.md][troubleshooting] when something doesn't show up.
 [architecture]: https://raw.githubusercontent.com/DataDog/opentelemetry-examples/main/guides/kubernetes/configuration/opentelemetry-kube-stack/ddot/assets/deployment-architecture-diagram_k8s_ddot-with-dd-agent.svg.png
 [cluster-name]: https://github.com/DataDog/opentelemetry-examples/blob/main/guides/kubernetes/configuration/opentelemetry-kube-stack/ddot/README.md#kubernetes-cluster-name-constraints
 [dd-fleet-automation]: https://docs.datadoghq.com/agent/fleet_automation/
-[dd-otel-extension-resource]: https://docs.datadoghq.com/opentelemetry/integrations/datadog_extension/
+[otel-opamp]: https://opentelemetry.io/docs/specs/opamp/
+[otel-internal-telemetry]: https://opentelemetry.io/docs/collector/internal-telemetry/
 [dd-live-debugger-go]: https://docs.datadoghq.com/tracing/live_debugger/?prog_lang=go
 [dd-dbm]: https://docs.datadoghq.com/database_monitoring/
 [dd-dsm]: https://docs.datadoghq.com/data_streams/

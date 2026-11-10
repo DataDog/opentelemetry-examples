@@ -126,6 +126,12 @@ defaultCRConfig:
     extensions:
       health_check:
         endpoint: "[${env:OTEL_K8S_POD_IP}]:13133"
+{{- if .DDOT}}
+      # No `datadog` extension: the DDOT Collector adds an OpAMP extension that reports it to
+      # Fleet Automation. A `datadog` extension would report it again, under the bare node name.
+    service:
+      extensions: [health_check]
+{{- else}}
       datadog:
         api:
           key: ${env:DD_API_KEY}
@@ -133,6 +139,7 @@ defaultCRConfig:
         deployment_type: gateway
     service:
       extensions: [health_check, datadog]
+{{- end}}
       # Loop collector metrics through the OTLP receiver for unified tagging.
       # Logs are picked up by the daemon's filelog receiver — no loopback (avoids dup).
       telemetry:
@@ -711,10 +718,12 @@ collectors:
 
       exporters:
         debug: null
+{{- if not .DDOT}}
 
       extensions:
         datadog:
           deployment_type: daemonset
+{{- end}}
 
       service:
         pipelines:
