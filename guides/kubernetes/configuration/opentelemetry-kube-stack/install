@@ -162,11 +162,14 @@ kubectl delete networkpolicy \
   --ignore-not-found=true \
   opentelemetry-kube-stack-host-profiler-egress \
   || echo "WARNING: Could not delete the host-profiler NetworkPolicy. Continuing..."
-kubectl delete ciliumnetworkpolicy \
-  --namespace opentelemetry-operator-system \
-  --ignore-not-found=true \
-  opentelemetry-kube-stack-host-profiler-egress \
-  || echo "WARNING: CiliumNetworkPolicy CRD not installed. Continuing..."
+# The CiliumNetworkPolicy CRD only exists on Cilium clusters.
+if kubectl get crd ciliumnetworkpolicies.cilium.io >/dev/null 2>&1; then
+    kubectl delete ciliumnetworkpolicy \
+      --namespace opentelemetry-operator-system \
+      --ignore-not-found=true \
+      opentelemetry-kube-stack-host-profiler-egress \
+      || echo "WARNING: Could not delete the host-profiler CiliumNetworkPolicy. Continuing..."
+fi
 
 if [[ -n "$HOST_PROFILER_NETWORK_POLICY_FILE" ]]; then
     echo "Applying the host-profiler egress NetworkPolicy..."
