@@ -486,16 +486,12 @@ spec:
   - name: DD_AGENT_HOST
     value: "datadog-agent.datadog.svc.cluster.local"
   - name: DD_OTELCOLLECTOR_CONVERTER_FEATURES
-    value: "datadog,pprof,zpages,infraattributes"
+    value: "pprof,zpages"
   - name: DD_API_KEY
     valueFrom:
       secretKeyRef:
         key: api-key
         name: datadog-secret
-  - name: DD_HOSTNAME
-    valueFrom:
-      fieldRef:
-        fieldPath: spec.nodeName
   - name: DD_SITE
     valueFrom:
       secretKeyRef:
@@ -1050,16 +1046,12 @@ spec:
   - name: DD_AGENT_HOST
     value: "datadog-agent.datadog.svc.cluster.local"
   - name: DD_OTELCOLLECTOR_CONVERTER_FEATURES
-    value: "datadog,pprof,zpages,infraattributes"
+    value: "infraattributes,pprof,zpages"
   - name: DD_API_KEY
     valueFrom:
       secretKeyRef:
         key: api-key
         name: datadog-secret
-  - name: DD_HOSTNAME
-    valueFrom:
-      fieldRef:
-        fieldPath: spec.nodeName
   - name: DD_SITE
     valueFrom:
       secretKeyRef:

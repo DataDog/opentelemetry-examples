@@ -38,14 +38,6 @@ defaultCRConfig:
           name: datadog-secret
           key: dd-site
           optional: true
-{{- if .DDOT}}
-    - name: DD_HOSTNAME # FIXME required on K3S with datadog/ddot-collector:7.82.3 to prevent "Error: unable to reliably determine the host name."
-      valueFrom:
-        fieldRef:
-          fieldPath: spec.nodeName
-    - name: DD_OTELCOLLECTOR_CONVERTER_FEATURES
-      value: datadog,pprof,zpages,infraattributes
-{{- end}}
 
   # Starting-point resource allocation. Scale up for large clusters.
   resources:
@@ -159,6 +151,27 @@ collectors:
     suffix: cluster
     mode: deployment
     replicas: 1
+{{- if .DDOT}}
+
+    # Lists are not merged with defaultCRConfig: repeat DD_API_KEY and DD_SITE.
+    env:
+      - name: DD_API_KEY
+        valueFrom:
+          secretKeyRef:
+            name: datadog-secret
+            key: api-key
+      - name: DD_SITE # e.g. datadoghq.com, us3.datadoghq.com, datadoghq.eu. Defaults to datadoghq.com.
+        valueFrom:
+          secretKeyRef:
+            name: datadog-secret
+            key: dd-site
+            optional: true
+      # No infraattributes: the local tagger only knows the pods
+      # of this pod's node, so cluster-wide data would be tagged
+      # inconsistently.
+      - name: DD_OTELCOLLECTOR_CONVERTER_FEATURES
+        value: "pprof,zpages"
+{{- end}}
 
     presets:
       kubernetesObjects:
@@ -357,6 +370,31 @@ collectors:
   daemon:
     # Disable the chart-default daemon_scrape_configs.yaml Prometheus scrape.
     scrape_configs_file: ""
+{{- if .DDOT}}
+
+    # Lists are not merged with defaultCRConfig: repeat DD_API_KEY and DD_SITE.
+    env:
+      - name: DD_API_KEY
+        valueFrom:
+          secretKeyRef:
+            name: datadog-secret
+            key: api-key
+      - name: DD_SITE # e.g. datadoghq.com, us3.datadoghq.com, datadoghq.eu. Defaults to datadoghq.com.
+        valueFrom:
+          secretKeyRef:
+            name: datadog-secret
+            key: dd-site
+            optional: true
+      # Components the converter adds to the config:
+      #   infraattributes - Datadog container/pod tags from the local tagger
+      #   pprof, zpages   - debug endpoints collected by `otel-agent flare`
+      # Left out: prometheus (self-metrics are looped through OTLP, so its
+      # scrape of :8888 would fail), cumulativetodelta (already declared as
+      # cumulative_to_delta), health_check and datadog (already declared),
+      # ddflare (only used by the Agent's flare in connected mode).
+      - name: DD_OTELCOLLECTOR_CONVERTER_FEATURES
+        value: "infraattributes,pprof,zpages"
+{{- end}}
 
     # Chart's daemon defaults set lower limits; raise to match defaultCRConfig.
     resources:
