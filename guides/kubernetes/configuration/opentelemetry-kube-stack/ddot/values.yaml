@@ -66,13 +66,21 @@ defaultCRConfig:
         api:
           key: ${env:DD_API_KEY}
           site: ${env:DD_SITE:-datadoghq.com}
-    # No `datadog` extension: the DDOT Collector adds an OpAMP extension that reports it to
-    # Fleet Automation. A `datadog` extension would report it again, under the bare node name.
     extensions:
       health_check:
         endpoint: 0.0.0.0:13133
+      # Reports the Collector to Fleet Automation. Declared here so that it doesn't depend on
+      # DD_OTELCOLLECTOR_CONVERTER_FEATURES. No `datadog` extension: it would report the
+      # Collector a second time, under the bare node name.
+      opamp:
+        server:
+          http:
+            endpoint: https://opamp.${env:DD_SITE:-datadoghq.com}/v1/opamp
+            headers:
+              DD-API-KEY: ${env:DD_API_KEY}
+        reports_raw_config: true
     service:
-      extensions: [health_check]
+      extensions: [health_check, opamp]
       # Loop collector metrics through the OTLP receiver for unified tagging.
       # Logs are picked up by the daemon's filelog receiver — no loopback (avoids dup).
       telemetry:

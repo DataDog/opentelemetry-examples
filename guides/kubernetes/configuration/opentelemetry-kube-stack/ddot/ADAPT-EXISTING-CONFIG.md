@@ -333,13 +333,15 @@ environment variable, typically through `OTEL_RESOURCE_ATTRIBUTES=datadog.host.n
   In this case, the applications must export cumulative metrics, not delta ones as
   [S-04](#s-04-export-delta-metrics) requires, so that the cumulative end receives cumulative metrics.
 
-### C-07: Don't configure the Datadog extension
+### C-07: Report the Collectors to Fleet Automation with the OpAMP extension
 
-- **Requirement:** no `datadog` extension in the Collector configuration.
-- **Why:** the DDOT Collector adds an [OpAMP][otel-opamp] extension to its configuration, which lists the Collector in
-  Datadog [Fleet Automation][dd-fleet-automation], with its version and configuration. A `datadog` extension would
-  report the Collector a second time, under a host named after the Kubernetes node alone, without the cluster name.
-- **Fix:** remove `datadog` from `extensions` and from `service.extensions`.
+- **Requirement:** the `opamp` extension of `defaultCRConfig.config.extensions` in [`values.yaml`][values], listed in
+  `service.extensions`, and no `datadog` extension.
+- **Why:** the [OpAMP extension][otel-opamp-extension] lists the Collector in Datadog
+  [Fleet Automation][dd-fleet-automation], with its version and configuration. A `datadog` extension would report the
+  Collector a second time, under a host named after the Kubernetes node alone, without the cluster name.
+- **Fix:** add the `opamp` extension to `extensions` and to `service.extensions`, and remove `datadog` from both.
+- **Conflicts:** when an `opamp` extension already reports to another OpAMP server, ask the user.
 
 ### C-08: Export the Collector's internal metrics through its own pipeline
 
@@ -910,7 +912,7 @@ See [TROUBLESHOOTING.md][troubleshooting] when something doesn't show up.
 [architecture]: https://raw.githubusercontent.com/DataDog/opentelemetry-examples/main/guides/kubernetes/configuration/opentelemetry-kube-stack/ddot/assets/deployment-architecture-diagram_k8s_ddot-with-dd-agent.svg.png
 [cluster-name]: https://github.com/DataDog/opentelemetry-examples/blob/main/guides/kubernetes/configuration/opentelemetry-kube-stack/ddot/README.md#kubernetes-cluster-name-constraints
 [dd-fleet-automation]: https://docs.datadoghq.com/agent/fleet_automation/
-[otel-opamp]: https://opentelemetry.io/docs/specs/opamp/
+[otel-opamp-extension]: https://github.com/open-telemetry/opentelemetry-collector-contrib/tree/main/extension/opampextension
 [otel-internal-telemetry]: https://opentelemetry.io/docs/collector/internal-telemetry/
 [dd-live-debugger-go]: https://docs.datadoghq.com/tracing/live_debugger/?prog_lang=go
 [dd-dbm]: https://docs.datadoghq.com/database_monitoring/

@@ -154,11 +154,11 @@ After a few minutes, the installation shows up in Datadog, under the Kubernetes 
 detected on EKS, GKE, and AKS):
 
 - **[Fleet Automation][dd-fleet-automation]** lists the Datadog Agents, and the `cluster` and `daemon` OpenTelemetry
-  Collectors, which report to it over [OpAMP][otel-opamp]: the DDOT Collector adds the OpAMP extension to its
-  configuration. Filter for the OpenTelemetry Collector hosts with the Collector facets, and check that each node runs
-  one Datadog Agent and one `daemon` OpenTelemetry Collector, plus one `cluster` OpenTelemetry Collector. Click a host
-  to see the OpenTelemetry Collector's version and build information in the **Info** tab, and its configuration, as
-  YAML or as a pipeline visualization, in the **Configurations** tab.
+  Collectors, which report to it through their [OpAMP extension][otel-opamp-extension]. Filter for the OpenTelemetry
+  Collector hosts with the Collector facets, and check that each node runs one Datadog Agent and one `daemon`
+  OpenTelemetry Collector, plus one `cluster` OpenTelemetry Collector. Click a host to see the OpenTelemetry
+  Collector's version and build information in the **Info** tab, and its configuration, as YAML or as a pipeline
+  visualization, in the **Configurations** tab.
 - **The default OpenTelemetry Collector dashboard** (in **Dashboards**, search for `OpenTelemetry Collector`) shows
   the [health metrics][dd-otel-collector-health] that the OpenTelemetry Collectors export to Datadog through their own
   pipelines: accepted, refused, and sent telemetry, queue sizes, and resource usage. Check that the OpenTelemetry
@@ -527,4 +527,4 @@ sed \
 [orchestrion]: https://github.com/DataDog/orchestrion
 [dd-fleet-automation]: https://docs.datadoghq.com/agent/fleet_automation/
 [dd-otel-collector-health]: https://docs.datadoghq.com/opentelemetry/integrations/collector_health_metrics/
-[otel-opamp]: https://opentelemetry.io/docs/specs/opamp/
+[otel-opamp-extension]: https://github.com/open-telemetry/opentelemetry-collector-contrib/tree/main/extension/opampextension

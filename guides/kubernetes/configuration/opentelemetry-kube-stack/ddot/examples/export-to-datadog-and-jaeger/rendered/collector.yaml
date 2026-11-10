@@ -81,6 +81,13 @@ spec:
         auth_type: serviceAccount
         lease_name: k8s.cluster.receiver.opentelemetry.io
         lease_namespace: opentelemetry-operator-system
+      opamp:
+        reports_raw_config: true
+        server:
+          http:
+            endpoint: https://opamp.${env:DD_SITE:-datadoghq.com}/v1/opamp
+            headers:
+              DD-API-KEY: ${env:DD_API_KEY}
     processors:
       cumulative_to_delta: {}
       groupbyattrs:
@@ -354,6 +361,7 @@ spec:
     service:
       extensions:
       - health_check
+      - opamp
       - k8s_leader_elector/k8s_cluster
       pipelines:
         logs:
@@ -497,6 +505,13 @@ spec:
     extensions:
       health_check:
         endpoint: 0.0.0.0:13133
+      opamp:
+        reports_raw_config: true
+        server:
+          http:
+            endpoint: https://opamp.${env:DD_SITE:-datadoghq.com}/v1/opamp
+            headers:
+              DD-API-KEY: ${env:DD_API_KEY}
     processors:
       batch:
         send_batch_max_size: 1500
@@ -850,6 +865,7 @@ spec:
     service:
       extensions:
       - health_check
+      - opamp
       pipelines:
         logs:
           exporters:
