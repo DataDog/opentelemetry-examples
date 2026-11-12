@@ -7,19 +7,14 @@ app that is part of the OpenTelemetry Demo while being similar.
 
 The demo includes a single-node Kafka broker at `kafka:9092`.
 
-## Kafka forwarder chain
+## Data Streams Monitoring pipeline
 
-A chain of forwarders, one per Datadog SDK language, passes each order that `checkout` publishes through Kafka. Each
-forwarder consumes a topic, waits a short normally distributed processing delay (mean 500ms, under 1s), and produces
-to the next topic, so every SDK's Kafka consume and produce instrumentation, and the Datadog Data Streams Monitoring
-pathway through it, can be checked end to end:
+[`dsm-pipeline`](dsm-pipeline/README.md) is a Java producer, forwarder, and consumer for checking Datadog Data Streams
+Monitoring end to end with OpenTelemetry Java auto-instrumentation:
 
 ```
-checkout (Go) -> orders -> python-forwarder -> python-forwarder-orders -> java-forwarder -> java-forwarder-orders
-  -> node-forwarder -> node-forwarder-orders -> dotnet-forwarder -> dotnet-forwarder-orders -> go-forwarder -> go-forwarder-orders
+dsm-producer -> dsm-orders -> dsm-forwarder -> dsm-orders-forwarded -> dsm-consumer
 ```
-
-`python-forwarder` reads `orders` with its own consumer group, so `fraud-detection` keeps receiving every order.
 
 ## Git/VCS metadata
 

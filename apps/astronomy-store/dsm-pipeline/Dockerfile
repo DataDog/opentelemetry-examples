@@ -1,12 +1,16 @@
-FROM node:24-alpine
+FROM gradle:8.14-jdk17 AS build
+
+WORKDIR /src
+COPY build.gradle settings.gradle ./
+RUN gradle dependencies --no-daemon
+
+COPY src ./src
+RUN gradle installDist --no-daemon
+
+FROM eclipse-temurin:17-jre
 
 WORKDIR /app
-ENV NODE_ENV=production
-
-COPY package.json package-lock.json ./
-RUN npm ci
-
-COPY index.js ./
+COPY --from=build /src/build/install/dsm-pipeline ./
 
 ARG VCS_REPOSITORY_URL_FULL
 ARG VCS_REF_HEAD_NAME
@@ -20,5 +24,4 @@ ENV VCS_REPOSITORY_URL_FULL=${VCS_REPOSITORY_URL_FULL}
 ENV VCS_REF_HEAD_REVISION=${VCS_REF_HEAD_REVISION}
 COPY --from=shared otel-env.sh /usr/local/bin/otel-env.sh
 
-ENTRYPOINT ["/usr/local/bin/otel-env.sh"]
-CMD ["node", "index.js"]
+ENTRYPOINT ["/usr/local/bin/otel-env.sh", "/app/bin/dsm-pipeline"]

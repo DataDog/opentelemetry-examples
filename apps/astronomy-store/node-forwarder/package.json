@@ -1,9 +1,0 @@
-{
-  "name": "astronomy-store-node-forwarder",
-  "version": "1.0.0",
-  "private": true,
-  "main": "index.js",
-  "dependencies": {
-    "kafkajs": "2.2.4"
-  }
-}

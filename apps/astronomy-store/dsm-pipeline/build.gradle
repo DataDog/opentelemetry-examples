@@ -22,5 +22,5 @@ dependencies {
 }
 
 application {
-    mainClass = 'com.astronomystore.javaforwarder.JavaForwarderApplication'
+    mainClass = 'com.astronomystore.dsmpipeline.DsmPipelineApplication'
 }
