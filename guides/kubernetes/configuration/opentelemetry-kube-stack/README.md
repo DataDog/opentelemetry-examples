@@ -1,10 +1,10 @@
 # kube-stack values.yaml
 
-Reference `values.yaml` for the [opentelemetry-kube-stack][chart] Helm chart, configured to send Kubernetes telemetry to Datadog. 
+Reference values files for the [opentelemetry-kube-stack][chart] Helm chart, configured to send Kubernetes telemetry to Datadog. 
 
 ## What this deploys
 
-The `opentelemetry-kube-stack` chart installs the OpenTelemetry Operator and renders one `OpenTelemetryCollector` CR for each entry under `collectors:`. This values file configures two of them:
+The `opentelemetry-kube-stack` chart installs the OpenTelemetry Operator and renders one `OpenTelemetryCollector` CR for each entry under `collectors:`. These values files configure two of them:
 
 - **`cluster`** — a single-replica Deployment responsible for cluster-scope telemetry: scraping kube-state-metrics and watching Kubernetes objects.
 - **`daemon`** — a DaemonSet running on every node, responsible for node-scope telemetry (host and kubelet metrics) and for terminating the OTLP endpoint that application workloads send traces, logs, and metrics to.
@@ -119,7 +119,7 @@ mkdir -p deployment
 cp examples/manually-set-k8s-cluster-name/values.yaml deployment/values.yaml
 ```
 
-The selected file is an overlay for this directory's base `values.yaml`; add any deployment-specific configuration to
+The selected file is an overlay for this directory's base `values-otlp-http.yaml`; add any deployment-specific configuration to
 `./deployment/values.yaml`. Install or upgrade the chart with both files:
 
 ```sh
@@ -129,7 +129,7 @@ helm upgrade --install opentelemetry-kube-stack \
   open-telemetry/opentelemetry-kube-stack \
   --version 0.26.1 \
   --namespace opentelemetry-operator-system \
-  --values ./values.yaml \
+  --values ./values-otlp-http.yaml \
   --values ./deployment/values.yaml
 ```
 
@@ -137,7 +137,7 @@ helm upgrade --install opentelemetry-kube-stack \
 
 This collector runs the [Datadog host profiler][dd-host-profiler], Datadog's distribution of the [OpenTelemetry eBPF profiler][ebpf-profiler], as a DaemonSet on every node and exports profiles to Datadog's OTLP intake.
 
-The host profiler is opt-in because its pods need more privileges than the other collectors. To enable it, set `DD_HOST_PROFILER_ENABLED=true` before you run the installer. The installer then also applies `host-profiler-rbac-values.yaml` and, on clusters that enforce NetworkPolicy, the policy that `DD_HOST_PROFILER_NETWORK_POLICY` selects: `host-profiler-network-policy.yaml` (`standard`, any enforcing CNI) or `host-profiler-cilium-network-policy.yaml` (`cilium`, FQDN-scoped egress).
+The host profiler is opt-in because its pods need more privileges than the other collectors. To enable it, set `DD_HOST_PROFILER_ENABLED=true` before you run the installer. The installer then also applies `ddot/host-profiler-rbac-values.yaml` and, on clusters that enforce NetworkPolicy, the policy that `DD_HOST_PROFILER_NETWORK_POLICY` selects: `ddot/host-profiler-network-policy.yaml` (`standard`, any enforcing CNI) or `ddot/host-profiler-cilium-network-policy.yaml` (`cilium`, FQDN-scoped egress).
 
 ## Cluster name detection
 
@@ -158,7 +158,7 @@ Both collectors default to `500m` CPU / `1Gi` memory limits and `200m` CPU / `50
 Verified against:
 
 - `opentelemetry-kube-stack` chart `>= 0.26.1`
-- Collector image `otel/opentelemetry-collector-contrib >= 0.154.0` (pinned in values.yaml under `opentelemetry-operator.manager.collectorImage`)
+- Collector image `otel/opentelemetry-collector-contrib >= 0.163.1` (set in the values files under `opentelemetry-operator.manager.collectorImage`)
 
 [chart]: https://github.com/open-telemetry/opentelemetry-helm-charts/tree/main/charts/opentelemetry-kube-stack
 [cm]: https://cert-manager.io/docs/installation/
