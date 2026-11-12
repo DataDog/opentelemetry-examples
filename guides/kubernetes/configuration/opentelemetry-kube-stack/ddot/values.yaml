@@ -69,13 +69,18 @@ defaultCRConfig:
     extensions:
       health_check:
         endpoint: 0.0.0.0:13133
-      datadog:
-        api:
-          key: ${env:DD_API_KEY}
-          site: ${env:DD_SITE:-datadoghq.com}
-        deployment_type: gateway
+      # Reports the Collector to Fleet Automation. Declared here so that it doesn't depend on
+      # DD_OTELCOLLECTOR_CONVERTER_FEATURES. No `datadog` extension: it would report the
+      # Collector a second time, under the bare node name.
+      opamp:
+        server:
+          http:
+            endpoint: https://opamp.${env:DD_SITE:-datadoghq.com}/v1/opamp
+            headers:
+              DD-API-KEY: ${env:DD_API_KEY}
+        reports_raw_config: true
     service:
-      extensions: [health_check, datadog]
+      extensions: [health_check, opamp]
       # Loop collector metrics through the OTLP receiver for unified tagging.
       # Logs are picked up by the daemon's filelog receiver — no loopback (avoids dup).
       telemetry:
@@ -488,10 +493,6 @@ collectors:
             compute_top_level_by_span_kind: true
             peer_tags_aggregation: true
             compute_stats_by_span_kind: true
-
-      extensions:
-        datadog:
-          deployment_type: daemonset
 
       service:
         pipelines:

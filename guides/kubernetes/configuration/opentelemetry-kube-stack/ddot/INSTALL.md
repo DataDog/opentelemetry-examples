@@ -154,7 +154,7 @@ After a few minutes, the installation shows up in Datadog, under the Kubernetes 
 detected on EKS, GKE, and AKS):
 
 - **[Fleet Automation][dd-fleet-automation]** lists the Datadog Agents, and the `cluster` and `daemon` OpenTelemetry
-  Collectors, which report to it through their [Datadog extension][dd-otel-extension]. Filter for the OpenTelemetry
+  Collectors, which report to it through their [OpAMP extension][otel-opamp-extension]. Filter for the OpenTelemetry
   Collector hosts with the Collector facets, and check that each node runs one Datadog Agent and one `daemon`
   OpenTelemetry Collector, plus one `cluster` OpenTelemetry Collector. Click a host to see the OpenTelemetry
   Collector's version and build information in the **Info** tab, and its configuration, as YAML or as a pipeline
@@ -527,4 +527,4 @@ sed \
 [orchestrion]: https://github.com/DataDog/orchestrion
 [dd-fleet-automation]: https://docs.datadoghq.com/agent/fleet_automation/
 [dd-otel-collector-health]: https://docs.datadoghq.com/opentelemetry/integrations/collector_health_metrics/
-[dd-otel-extension]: https://docs.datadoghq.com/opentelemetry/integrations/datadog_extension/
+[otel-opamp-extension]: https://github.com/open-telemetry/opentelemetry-collector-contrib/tree/main/extension/opampextension
