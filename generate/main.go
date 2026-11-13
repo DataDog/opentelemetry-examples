@@ -1,5 +1,5 @@
 // Command generate renders the opentelemetry-kube-stack guide's
-// upstream/values.yaml and values-ddot.yaml files from its values.yaml.tmpl,
+// upstream/values.yaml and ddot/values.yaml files from its values.yaml.tmpl,
 // one per exporter mode.
 // Run via `make generate-base-values` in
 // guides/kubernetes/configuration/opentelemetry-kube-stack (cds into this
@@ -37,8 +37,8 @@ func (m mode) Exporter() string {
 	return "otlp_http"
 }
 
-func render(tmpl *template.Template, m mode, path string) error {
-	out, err := os.Create(path)
+func render(tmpl *template.Template, m mode) error {
+	out, err := os.Create(filepath.Join(guideDir, string(m), "values.yaml"))
 	if err != nil {
 		return err
 	}
@@ -50,12 +50,8 @@ func render(tmpl *template.Template, m mode, path string) error {
 func main() {
 	tmpl := template.Must(template.ParseFiles(filepath.Join(guideDir, "values.yaml.tmpl")))
 	for _, m := range modes {
-		path := filepath.Join(guideDir, string(m), "values.yaml")
-		if m == ddot {
-			path = filepath.Join(guideDir, "values-ddot.yaml")
-		}
-		if err := render(tmpl, m, path); err != nil {
-			fmt.Fprintf(os.Stderr, "failed to render %s: %s\n", path, err)
+		if err := render(tmpl, m); err != nil {
+			fmt.Fprintf(os.Stderr, "failed to render %s/values.yaml: %s\n", m, err)
 			os.Exit(1)
 		}
 	}

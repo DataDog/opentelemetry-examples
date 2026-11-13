@@ -28,7 +28,7 @@ fi
 
 case "${DD_INSTALL_FLOW:-}" in
     upstream) VALUES_FILE=upstream/values.yaml ;;
-    ddot) VALUES_FILE=values-ddot.yaml ;;
+    ddot) VALUES_FILE=ddot/values.yaml ;;
     *)
         echo "ERROR: DD_INSTALL_FLOW must be one of: upstream, ddot (got '${DD_INSTALL_FLOW:-}')" >&2
         exit 1
@@ -89,7 +89,7 @@ fi
 
 #### BEGINNING OF INSTALLATION SCRIPT
 
-# WARNING: dont change "namespace=opentelemetry-operator-system" as it is used in the 'instrumentation' CRD defined in upstream/values.yaml and values-ddot.yaml
+# WARNING: dont change "namespace=opentelemetry-operator-system" as it is used in the 'instrumentation' CRD defined in upstream/values.yaml and ddot/values.yaml
 
 echo "Creating Kubernetes namespace..."
 
@@ -187,7 +187,7 @@ if [[ "$DD_INSTALL_FLOW" == "ddot" && "$DD_AGENT_ENABLED" == "true" ]]; then
         GLOBAL_JSON+=",\"clusterName\":\"$K8S_CLUSTER_NAME\""
     fi
     kubectl patch --local \
-      -f "$SCRIPT_DIR/datadog-agent.yaml" \
+      -f "$SCRIPT_DIR/ddot/datadog-agent.yaml" \
       --type merge \
       -p "{\"spec\":{\"global\":{$GLOBAL_JSON}}}" \
       -o yaml | kubectl apply --namespace datadog -f -
