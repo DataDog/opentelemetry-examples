@@ -271,6 +271,36 @@ configures one collector.
 - **`container.id`:** check that the application traces carry it. If they don't, add `container.id` to the
   `k8s_attributes` processor's `extract.metadata`: the processor then looks up the container ID from the pod's status,
   using the `k8s.container.name` that the OpenTelemetry Operator injects in `OTEL_RESOURCE_ATTRIBUTES`.
+- **`container.image.tags`:** extract it with the `k8s_attributes` processor. Only extract the deprecated
+  `container.image.tag` for the Collectors and the consumers of the telemetry that don't support
+  `container.image.tags` yet:
+  - **History:** [semantic conventions v1.22.0][otel-semconv-v1-22-0] (October 2023) replaced the
+    `container.image.tag` string attribute with the `container.image.tags` string array. The `k8s_attributes` processor
+    added `container.image.tags` in Collector v0.146.0, with two feature gates that [switch the processor to the stable
+    Kubernetes conventions][otel-k8sattributes-semconv]: `processor.k8sattributes.EmitV1K8sConventions` emits the
+    stable attribute names, and `processor.k8sattributes.DontEmitV0K8sConventions` stops emitting the legacy names.
+    The same gates also rename the label and annotation attributes, for example `k8s.pod.labels.<key>` to
+    `k8s.pod.label.<key>`.
+  - **Since Collector v0.161.0:** both feature gates are enabled by default. `k8s_attributes` emits
+    `container.image.tags`, and ignores `container.image.tag` in `extract.metadata` with a startup warning:
+    `container.image.tag is configured but will NOT be emitted`. The kube-stack chart's `kubernetesAttributes` preset
+    still extracts `container.image.tag` ([opentelemetry-helm-charts#2538][otel-helm-charts-2538]), so the reference
+    configuration replaces the preset's list in `defaultCRConfig.config.processors.k8s_attributes.extract.metadata` and
+    `collectors.host-profiler.config.processors.k8s_attributes.extract.metadata` in [`values.yaml`][values].
+  - **Datadog:** since Collector v0.161.0, the Datadog exporter and connector map `container.image.tags` to the
+    `image_tag` tag, using the first element of the array. Earlier versions only map `container.image.tag`. For DDOT,
+    the Collector version is the upstream version that the DDOT Collector is built on: the `otel-agent` reports it as
+    `service.version` in its logs.
+  - **When to extract `container.image.tag`:**
+    - **Collector older than v0.146.0:** `container.image.tag` is the only image tag attribute that `k8s_attributes`
+      supports.
+    - **Collector v0.146.0 to v0.160.x:** keep `container.image.tag`. `k8s_attributes` only emits
+      `container.image.tags` when `processor.k8sattributes.EmitV1K8sConventions` is enabled, and the Datadog exporter
+      of these versions doesn't map it.
+    - **Collector v0.161.0 or later, with consumers that still read `container.image.tag`,** such as dashboards,
+      monitors, or other observability backends: emit both attributes during the migration. List both in
+      `extract.metadata`, and disable the legacy gate with
+      `--feature-gates=-processor.k8sattributes.DontEmitV0K8sConventions`.
 - **Conflicts:** `k8s_attributes` doesn't overwrite attributes the telemetry already has. Remove the hand-set values
   that differ from the Kubernetes metadata, such as a `host.name` set to the container's hostname by the SDK's host
   detector, rather than keeping two sources of truth.
@@ -939,6 +969,9 @@ See [TROUBLESHOOTING.md][troubleshooting] when something doesn't show up.
 [dd-collector-k8s-manifest]: https://docs.datadoghq.com/opentelemetry/setup/collector_exporter/?tab=kubernetesmanifestreference#2-configure-and-deploy-the-collector
 [dd-unified-service-tagging]: https://docs.datadoghq.com/getting_started/tagging/unified_service_tagging/?tab=kubernetes#configuration
 [otel-semconv-k8s-attributes]: https://opentelemetry.io/docs/specs/semconv/non-normative/k8s-attributes/
+[otel-semconv-v1-22-0]: https://github.com/open-telemetry/semantic-conventions/releases/tag/v1.22.0
+[otel-k8sattributes-semconv]: https://github.com/open-telemetry/opentelemetry-collector-contrib/blob/main/processor/k8sattributesprocessor/README.md#semantic-conventions-compatibility
+[otel-helm-charts-2538]: https://github.com/open-telemetry/opentelemetry-helm-charts/issues/2538
 [dd-hostname-mapping]: https://docs.datadoghq.com/opentelemetry/mapping/hostname/?tab=datadogexporter
 [dd-otlp-trace-export]: https://docs.datadoghq.com/opentelemetry/instrument/dd_sdks/otlp_trace_export/
 [dd-runtime-metrics]: https://docs.datadoghq.com/tracing/metrics/runtime_metrics/
