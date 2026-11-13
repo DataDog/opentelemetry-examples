@@ -112,3 +112,142 @@ jobs:
           kubectl logs deployment/opentelemetry-kube-stack-cluster-collector --all-containers --tail=-1 || true
           echo "--- daemon collector logs ---"
           kubectl logs daemonset/opentelemetry-kube-stack-daemon-collector --all-containers --tail=-1 || true
+
+  deploy-kind-rerun:
+    name: Install the Collector, then autoinstrumentation, on a kind cluster (${{ matrix.flow }})
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - flow: upstream
+            exporter: otlp_http
+          - flow: ddot
+            exporter: datadog/exporter
+    defaults:
+      run:
+        working-directory: guides/kubernetes/configuration/opentelemetry-kube-stack
+    env:
+      OVERLAY_VALUES_FILE: /tmp/jaeger-traces-values.yaml
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          persist-credentials: false
+
+      - name: Create cluster
+        uses: helm/kind-action@06c1ae10762d3b9c1644e7fe69596ae519e015a2 # v1.15.0
+
+      - name: Set default namespace
+        run: kubectl config set-context --current --namespace=opentelemetry-operator-system
+
+      - name: Deploy Jaeger as a mock trace backend
+        run: kubectl apply -f "$GITHUB_WORKSPACE/.github/workflows/scripts/kube-stack-e2e-jaeger.yaml"
+
+      - name: Write overlay values that also export traces to Jaeger
+        env:
+          EXPORTER: ${{ matrix.exporter }}
+        run: |
+          cat > "$OVERLAY_VALUES_FILE" <<EOF
+          collectors:
+            daemon:
+              config:
+                exporters:
+                  otlp_http/jaeger:
+                    endpoint: http://jaeger.default.svc.cluster.local:4318
+                service:
+                  pipelines:
+                    traces/sampling:
+                      exporters: [$EXPORTER, otlp_http/jaeger]
+          EOF
+
+      - name: Install the Collector without autoinstrumentation
+        env:
+          DD_API_KEY: "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+          DD_INSTALL_FLOW: ${{ matrix.flow }}
+          DD_AUTOINSTRUMENTATION_ENABLED: "false"
+        run: ./install "$OVERLAY_VALUES_FILE"
+
+      - name: Wait for the collectors to roll out
+        run: |
+          kubectl wait --for=create --timeout=2m deployment/opentelemetry-kube-stack-cluster-collector
+          kubectl wait --for=create --timeout=2m daemonset/opentelemetry-kube-stack-daemon-collector
+          kubectl rollout status --timeout=5m deployment/opentelemetry-kube-stack-cluster-collector
+          kubectl rollout status --timeout=5m daemonset/opentelemetry-kube-stack-daemon-collector
+
+      - name: Check that autoinstrumentation is not installed
+        run: |
+          instrumentations=$(kubectl get instrumentations -o name)
+          test -z "$instrumentations"
+
+      - name: Re-run the installer to enable autoinstrumentation
+        env:
+          DD_AUTOINSTRUMENTATION_ENABLED: "true"
+        run: ./install "$OVERLAY_VALUES_FILE"
+
+      - name: Deploy an autoinstrumented application
+        run: kubectl apply -f "$GITHUB_WORKSPACE/.github/workflows/scripts/kube-stack-e2e-app.yaml"
+
+      - name: Check that the application's traces reach Jaeger
+        timeout-minutes: 5
+        run: |
+          until kubectl get --raw /api/v1/namespaces/default/services/jaeger:16686/proxy/api/v3/services | jq -e '.services | any(. == "kube-stack-e2e")' >/dev/null; do
+            sleep 5
+          done
+
+      - name: Diagnostics on failure
+        if: failure()
+        run: |
+          kubectl get pods -A
+          echo "--- application pod ---"
+          kubectl describe pod --namespace default kube-stack-e2e || true
+          kubectl logs --namespace default kube-stack-e2e --all-containers || true
+          echo "--- operator logs ---"
+          kubectl logs deployment/opentelemetry-kube-stack-opentelemetry-operator --all-containers || true
+          echo "--- daemon collector logs ---"
+          kubectl logs daemonset/opentelemetry-kube-stack-daemon-collector --all-containers --tail=-1 || true
+
+  deploy-kind-instrumentation-only:
+    name: Install only autoinstrumentation on a kind cluster (${{ matrix.flow }})
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        flow: [upstream, ddot]
+    defaults:
+      run:
+        working-directory: guides/kubernetes/configuration/opentelemetry-kube-stack
+    env:
+      OTEL_EXPORTER_OTLP_ENDPOINT: http://otel-collector.example.svc.cluster.local:4318
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          persist-credentials: false
+
+      - name: Create cluster
+        uses: helm/kind-action@06c1ae10762d3b9c1644e7fe69596ae519e015a2 # v1.15.0
+
+      - name: Set default namespace
+        run: kubectl config set-context --current --namespace=opentelemetry-operator-system
+
+      - name: Install autoinstrumentation without an API key
+        env:
+          DD_INSTALL_FLOW: ${{ matrix.flow }}
+          DD_COLLECTOR_ENABLED: "false"
+        run: ./install
+
+      - name: Check that only autoinstrumentation is installed
+        run: |
+          endpoint=$(kubectl get instrumentation opentelemetry-kube-stack -o jsonpath='{.spec.exporter.endpoint}')
+          test "$endpoint" = "$OTEL_EXPORTER_OTLP_ENDPOINT"
+          collectors=$(kubectl get opentelemetrycollectors --all-namespaces -o name)
+          test -z "$collectors"
+          secrets=$(kubectl get secrets --all-namespaces --field-selector metadata.name=datadog-secret -o name)
+          test -z "$secrets"
+
+      - name: Diagnostics on failure
+        if: failure()
+        run: |
+          kubectl get pods -A
+          kubectl get instrumentations,opentelemetrycollectors -A -o yaml || true
