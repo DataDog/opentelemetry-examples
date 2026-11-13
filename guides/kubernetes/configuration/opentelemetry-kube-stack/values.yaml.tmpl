@@ -952,6 +952,7 @@ instrumentation:
       value: "otlp"
     - name: "DD_TRACE_OTEL_ENABLED"
       value: "true"
+    # Astronomy Store demo default: override or omit these switches for workloads that do not own both signals.
     - name: "DD_LOGS_OTEL_ENABLED"
       value: "true"
     - name: "DD_METRICS_OTEL_ENABLED"
@@ -1032,6 +1033,10 @@ instrumentation:
   nodejs:
     # image: otel/autoinstrumentation-nodejs:0.78.0
     image: datadog/dd-otel-autoinstrumentation-js:6.20-preview
+    env:
+      # The pinned Node.js SDK exports traces as OTLP/HTTP JSON. Its metrics and logs use the shared protobuf setting.
+      - name: OTEL_EXPORTER_OTLP_TRACES_PROTOCOL
+        value: http/json
   python:
     # image: otel/autoinstrumentation-python:0.66b1
     image: datadog/dd-otel-autoinstrumentation-python:4.16.1-preview
