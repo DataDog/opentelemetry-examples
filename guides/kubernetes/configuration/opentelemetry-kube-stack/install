@@ -106,6 +106,8 @@ fi
 
 #### BEGINNING OF INSTALLATION SCRIPT
 
+trap 'if (( $? != 0 )); then echo "ERROR: The installation did not finish. Fix the error above, run ./uninstall, and run this script again." >&2; fi' EXIT
+
 # WARNING: dont change "namespace=opentelemetry-operator-system" as it is used in the 'instrumentation' CRD defined in values-otlp-http.yaml and values-ddot.yaml
 
 echo "Creating Kubernetes namespace..."
@@ -222,6 +224,7 @@ helm upgrade opentelemetry-kube-stack \
     --version 0.26.1 \
     --install \
     --namespace opentelemetry-operator-system \
+    --wait --timeout 5m \
     "${HELM_SET_ARGS[@]}" \
     -f "$SCRIPT_DIR/$VALUES_FILE" \
     ${DD_AGENT_VALUES_ARGS[@]+"${DD_AGENT_VALUES_ARGS[@]}"} \
