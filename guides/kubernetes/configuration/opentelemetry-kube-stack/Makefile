@@ -20,7 +20,7 @@ generate-examples:
 	@./render-examples --examples-dir ./upstream/examples --output-name rendered \
 		--values ./upstream/values.yaml
 	@./render-examples --examples-dir ./ddot/examples --output-name rendered \
-		--values ./ddot/values.yaml
+		--values ./ddot/values.yaml --values ./dd-agent-kube-stack-values.yaml
 
 # operator-render reads the Datadog Operator CRDs from the absolute path of the checkout it was built from
 # (runtime.Caller): it's rebuilt when that path changes, for example after moving or renaming a parent folder.
