@@ -129,10 +129,22 @@ func initMetricProvider(ctx context.Context, res *resource.Resource) (*metric.Me
 		return nil, err
 	}
 
+	// Configure exponential histogram for all histogram instruments
+	exponentialHistogramView := metric.NewView(
+		metric.Instrument{Kind: metric.InstrumentKindHistogram},
+		metric.Stream{
+			Aggregation: metric.AggregationBase2ExponentialHistogram{
+				MaxSize:  160, // Maximum number of buckets
+				MaxScale: 20,  // Maximum scale factor
+			},
+		},
+	)
+
 	meterProvider := metric.NewMeterProvider(
 		metric.WithReader(reader),
 		metric.WithReader(metric.NewPeriodicReader(stdout, metric.WithInterval(5*time.Second))),
 		metric.WithResource(res),
+		metric.WithView(exponentialHistogramView),
 	)
 	return meterProvider, nil
 }
