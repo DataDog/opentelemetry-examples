@@ -1,6 +1,6 @@
 TMP_DIRECTORY = ./tmp
 chart_name = opentelemetry-kube-stack
-EXPORTER_MODES = otlp-http ddot
+EXPORTER_MODES = otlp-http
 
 REPO_ROOT := $(shell git rev-parse --show-toplevel)
 CI_SCRIPTS := $(REPO_ROOT)/.github/workflows/scripts
