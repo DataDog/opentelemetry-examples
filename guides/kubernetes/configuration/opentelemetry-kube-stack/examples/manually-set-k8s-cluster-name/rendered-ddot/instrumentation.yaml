@@ -47,6 +47,9 @@ spec:
   java:
     image: datadog/dd-otel-autoinstrumentation-java:1.68.0-preview
   nodejs:
+    env:
+    - name: OTEL_EXPORTER_OTLP_TRACES_PROTOCOL
+      value: http/json
     image: datadog/dd-otel-autoinstrumentation-js:6.20-preview
   python:
     image: datadog/dd-otel-autoinstrumentation-python:4.16.1-preview
