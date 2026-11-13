@@ -116,7 +116,7 @@ echo "Creating or updating Datadog secret..."
 
 kubectl create secret generic datadog-secret \
   --namespace opentelemetry-operator-system  \
-  --from-literal="api-key=$DD_API_KEY" \
+  --from-file=api-key=<(printf '%s' "$DD_API_KEY") \
   --from-literal="dd-site=$DD_SITE" \
   --dry-run=client -o yaml | kubectl apply -f -
 
@@ -140,14 +140,14 @@ if [[ "$DD_INSTALL_FLOW" == "ddot" && "$DD_AGENT_ENABLED" == "true" ]]; then
 
     kubectl create namespace datadog || echo "WARNING: Could not create namespace 'datadog' (may already exist or insufficient permissions). Continuing..."
 
-    DD_APP_KEY_SECRET_ARGS=()
-    if [[ -n "${DD_APP_KEY:-}" ]]; then
-        DD_APP_KEY_SECRET_ARGS=(--from-literal="app-key=$DD_APP_KEY")
-    fi
     kubectl create secret generic datadog-secret \
       --namespace datadog \
-      --from-literal="api-key=$DD_API_KEY" \
-      ${DD_APP_KEY_SECRET_ARGS[@]+"${DD_APP_KEY_SECRET_ARGS[@]}"} \
+      --from-env-file=<(
+          printf 'api-key=%s\n' "$DD_API_KEY"
+          if [[ -n "${DD_APP_KEY:-}" ]]; then
+              printf 'app-key=%s\n' "$DD_APP_KEY"
+          fi
+      ) \
       --dry-run=client -o yaml | kubectl apply -f -
 
     OPERATOR_HELM_ARGS=(
