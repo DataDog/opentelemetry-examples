@@ -207,25 +207,17 @@ Create a signal inventory before setting enablement variables:
 Do not infer metrics or logs support from successful trace export. Do not enable an unused signal to make the
 configuration look uniform across languages.
 
-For supported signals, set the matching DDOT switches before process startup:
-
-```text
-OTEL_TRACES_EXPORTER=otlp
-DD_TRACE_OTEL_ENABLED=true
-DD_TRACE_OTEL_SEMANTICS_ENABLED=true
-OTEL_SEMCONV_STABILITY_OPT_IN=http,database,rpc,messaging
-DD_METRICS_OTEL_ENABLED=true
-DD_LOGS_OTEL_ENABLED=true
-```
+For supported signals, set the matching DDOT switches before process startup. For the repository's reference
+configuration, see `instrumentation.env` in [`values.yaml`][k8s-values].
 
 Keep `DD_METRICS_OTEL_ENABLED` or `DD_LOGS_OTEL_ENABLED` unset when that signal is outside the application contract.
 Keep an explicit `false` or `none` unless the application owner approves changing it. The switches do not install
 missing packages, initialize application-owned providers, or prove that data was exported.
 
 The Kubernetes reference values enable both switches globally because the Astronomy Store showcase exercises those
-signals. Treat that as a demo default, not as a support claim for every injected workload. Override an unowned or
-unsupported signal in the workload's container environment, or use a separate `Instrumentation` resource whose
-`spec.env` omits the switch.
+signals. This demo default applies only to workloads whose SDK supports both signals. Override an unowned or unsupported
+signal in the workload's container environment, or use a separate `Instrumentation` resource whose `spec.env` omits the
+switch.
 
 ### Set service identity
 
