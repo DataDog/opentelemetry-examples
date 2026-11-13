@@ -318,7 +318,6 @@ Then run the script with `--local`, optionally with an overlay values file, reso
 ./install --local my-overlay-values.yaml
 ```
 
-- Keep the `<CLUSTER_NAME>` and `<DD_SITE>` placeholders of `datadog-agent.yaml`: the script substitutes them.
 - Keep the `opentelemetry-operator-system` and `datadog` namespaces: the script and the DDOT SDK instrumentation
   annotations rely on them.
 - Your local copies don't receive the fixes and updates of this guide: compare them with the newer versions when you
@@ -479,8 +478,8 @@ kubectl apply -f ./host-profiler-network-policy.yaml          # any enforcing CN
 kubectl apply -f ./host-profiler-cilium-network-policy.yaml   # Cilium, FQDN-scoped egress
 ```
 
-Finally, install the [Datadog Operator][dd-operator] and apply the `DatadogAgent` custom resource, substituting the
-Kubernetes cluster name and site placeholders (`<CLUSTER_NAME>` / `<DD_SITE>`) in `datadog-agent.yaml`. Use the same
+Finally, install the [Datadog Operator][dd-operator] and apply the `DatadogAgent` custom resource, setting the
+Kubernetes cluster name and site in `datadog-agent.yaml`. Use the same
 Kubernetes cluster name as `deployment/values.yaml` above, following the
 [Kubernetes cluster name constraints](README.md#kubernetes-cluster-name-constraints) (leave `K8S_CLUSTER_NAME` empty on
 EKS/GKE/AKS, where it's auto-detected instead):
@@ -501,20 +500,17 @@ helm upgrade --install datadog-operator \
   "${OPERATOR_HELM_ARGS[@]}" \
   --wait --timeout 5m
 
-# On EKS/GKE/AKS (empty K8S_CLUSTER_NAME), drop the clusterName line so the Agent auto-detects it.
-# Likewise, only set the Agent hostname from the Kubernetes node name and the Kubernetes cluster name on non-cloud
-# Kubernetes clusters.
+# On EKS/GKE/AKS (empty K8S_CLUSTER_NAME), leave clusterName unset so the Agent auto-detects it.
+GLOBAL_JSON="\"site\":\"$DD_SITE\""
 if [[ -n "$K8S_CLUSTER_NAME" ]]; then
-  CLUSTER_NAME_SED_ARGS=(-e "s|<CLUSTER_NAME>|$K8S_CLUSTER_NAME|" -e "/<HOSTNAME_FROM_NODE_NAME:/d")
-else
-  CLUSTER_NAME_SED_ARGS=(-e "/<CLUSTER_NAME>/d" -e "/<HOSTNAME_FROM_NODE_NAME:BEGIN>/,/<HOSTNAME_FROM_NODE_NAME:END>/d")
+  GLOBAL_JSON+=",\"clusterName\":\"$K8S_CLUSTER_NAME\""
 fi
 
-sed \
-  "${CLUSTER_NAME_SED_ARGS[@]}" \
-  -e "s|<DD_SITE>|$DD_SITE|" \
-  ./datadog-agent.yaml \
-  | kubectl apply --namespace datadog -f -
+kubectl patch --local \
+  -f ./datadog-agent.yaml \
+  --type merge \
+  -p "{\"spec\":{\"global\":{$GLOBAL_JSON}}}" \
+  -o yaml | kubectl apply --namespace datadog -f -
 ```
 
 [chart]: https://github.com/open-telemetry/opentelemetry-helm-charts/tree/main/charts/opentelemetry-kube-stack

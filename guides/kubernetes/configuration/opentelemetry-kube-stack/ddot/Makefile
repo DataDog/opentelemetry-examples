@@ -70,11 +70,11 @@ generate-datadog-operator-examples:
 	EXAMPLE_DIR=./examples-datadog-agent/default; \
 	rm -rf $${EXAMPLE_DIR}; \
 	mkdir -p $${EXAMPLE_DIR}/rendered; \
-	sed \
-		-e "s|<CLUSTER_NAME>|my-k8s-cluster|" \
-		-e "/<HOSTNAME_FROM_NODE_NAME:/d" \
-		-e "s|<DD_SITE>|datadoghq.com|" \
-		./datadog-agent.yaml \
+	kubectl patch --local \
+		-f ./datadog-agent.yaml \
+		--type merge \
+		-p '{"spec":{"global":{"clusterName":"my-k8s-cluster","site":"datadoghq.com"}}}' \
+		-o yaml \
 		> $${EXAMPLE_DIR}/datadog-agent.yaml; \
 	$${OPERATOR_RENDER_BIN} \
 		--dda $${EXAMPLE_DIR}/datadog-agent.yaml \
