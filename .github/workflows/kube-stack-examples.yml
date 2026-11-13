@@ -75,6 +75,7 @@ jobs:
     env:
       DD_API_KEY: "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
       DD_INSTALL_FLOW: ${{ matrix.flow }}
+      TESTING_REPORT_URL: http://127.0.0.1:8126/api/v2/apmtelemetry
     defaults:
       run:
         working-directory: guides/kubernetes/configuration/opentelemetry-kube-stack
@@ -90,6 +91,9 @@ jobs:
       - name: Set default namespace
         run: kubectl config set-context --current --namespace=opentelemetry-operator-system
 
+      - name: Start a mock telemetry backend
+        run: python3 "$GITHUB_WORKSPACE/.github/workflows/scripts/telemetry-mock.py" > /tmp/telemetry-mock.log 2>&1 &
+
       - name: Install opentelemetry-kube-stack
         if: matrix.bash == 'default'
         run: ./install
@@ -99,14 +103,22 @@ jobs:
         if: matrix.bash == '3.2'
         run: |
           docker run --rm --network host \
-            -e DD_API_KEY -e DD_INSTALL_FLOW \
+            -e DD_API_KEY -e DD_INSTALL_FLOW -e TESTING_REPORT_URL \
             -e KUBECONFIG=/kubeconfig \
             -v "${KUBECONFIG:-$HOME/.kube/config}:/kubeconfig:ro" \
             -v "$(command -v kubectl):/usr/local/bin/kubectl:ro" \
             -v "$(command -v helm):/usr/local/bin/helm:ro" \
             -v "$PWD:/work:ro" -w /work \
             bash:3.2@sha256:b6252c62fc86114f93f02104a486c71e6569371d95950ea7479a2ffd6b47f16a \
-            ./install
+            sh -c 'apk add --no-cache curl > /dev/null && ./install'
+
+      - name: Check the install telemetry
+        run: |
+          jq 'del(.tracer_time, .runtime_id)
+            | .payload.traces[0][0] |= del(.trace_id, .span_id, .start, .duration)
+            | .payload.traces[0][0].meta |= del(.bash_version, .helm_version, .kubectl_version, .k8s_version)' \
+            /tmp/telemetry.json \
+            | diff -u "$GITHUB_WORKSPACE/.github/workflows/scripts/telemetry-$DD_INSTALL_FLOW.golden.json" -
 
       - name: Wait for the collectors to roll out
         run: |
@@ -145,6 +157,7 @@ jobs:
         working-directory: guides/kubernetes/configuration/opentelemetry-kube-stack
     env:
       OVERLAY_VALUES_FILE: /tmp/jaeger-traces-values.yaml
+      DD_INSTRUMENTATION_TELEMETRY_ENABLED: "false"
     steps:
       - name: Checkout repository
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
@@ -235,6 +248,7 @@ jobs:
         working-directory: guides/kubernetes/configuration/opentelemetry-kube-stack
     env:
       OTEL_EXPORTER_OTLP_ENDPOINT: http://otel-collector.example.svc.cluster.local:4318
+      DD_INSTRUMENTATION_TELEMETRY_ENABLED: "false"
     steps:
       - name: Checkout repository
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2

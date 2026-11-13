@@ -5,6 +5,104 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 INSTALLER_VERSION=v0.0.1-pre
 echo "Datadog OpenTelemetry Install Script $INSTALLER_VERSION"
 
+INSTALLED_BY=datadog-otel-onboarding-script
+
+# Keeps only characters that are safe in a JSON string, or prints unknown.
+telemetry_value() {
+    local value
+    value=$(printf '%s' "$1" | tr -cd 'A-Za-z0-9._+-' | cut -c1-64)
+    printf '%s' "${value:-unknown}"
+}
+
+# The payload follows report_installer_telemetry in the Datadog Agent install script.
+report_install_telemetry() {
+    local exit_code=$1 end_time helm_version kubectl_versions kubectl_version k8s_version failed_step=none rerun=false app_key_used=false site=${DD_SITE:-datadoghq.com}
+    if [[ -z "${DD_API_KEY:-}" || "${DD_INSTRUMENTATION_TELEMETRY_ENABLED:-true}" == "false" || "$site" == "ddog-gov.com" ]]; then
+        return 0
+    fi
+    helm_version=$(telemetry_value "$(helm version --short 2>/dev/null || true)")
+    kubectl_versions=$(kubectl version --request-timeout=5s 2>/dev/null || true)
+    kubectl_version=$(telemetry_value "$(sed -n 's/^Client Version: //p' <<<"$kubectl_versions")")
+    k8s_version=$(telemetry_value "$(sed -n 's/^Server Version: //p' <<<"$kubectl_versions")")
+    if (( exit_code != 0 )); then
+        failed_step=$(printf '%s' "$STEP" | tr 'A-Z ' 'a-z_')
+    fi
+    if [[ -n "${PREVIOUS_OPTIONS:-}" ]]; then
+        rerun=true
+    fi
+    if [[ "${DD_INSTALL_FLOW:-}" == "ddot" && "${DD_AGENT_ENABLED:-}" == "true" && -n "${DD_APP_KEY:-}" ]]; then
+        app_key_used=true
+    fi
+    end_time=$(( $(date +%s) * 1000000000 ))
+    curl -s --max-time 10 -o /dev/null \
+      "${TESTING_REPORT_URL:-https://instrumentation-telemetry-intake.$site/api/v2/apmtelemetry}" \
+      --header "Content-Type: application/json" \
+      --header @<(printf 'DD-Api-Key: %s\n' "$DD_API_KEY") \
+      --data @- <<END || true
+{
+  "api_version": "v2",
+  "request_type": "traces",
+  "tracer_time": $(( end_time / 1000000000 )),
+  "runtime_id": "$TRACE_ID",
+  "seq_id": 1,
+  "origin": "otel-onboarding-script",
+  "host": {"hostname": "n/a"},
+  "application": {
+    "service_name": "$INSTALLED_BY",
+    "service_version": "$INSTALLER_VERSION",
+    "language_name": "UNKNOWN",
+    "language_version": "n/a",
+    "tracer_version": "n/a"
+  },
+  "payload": {"traces": [[{
+    "service": "$INSTALLED_BY",
+    "name": "otel_onboarding_script",
+    "resource": "otel_onboarding_script",
+    "trace_id": $TRACE_ID,
+    "span_id": $TRACE_ID,
+    "parent_id": 0,
+    "start": $START_TIME,
+    "duration": $(( end_time - START_TIME )),
+    "error": $exit_code,
+    "meta": {
+      "exit_code": "$exit_code",
+      "failed_step": "$failed_step",
+      "rerun": "$rerun",
+      "version": "$INSTALLER_VERSION",
+      "script_source": "$(telemetry_value "${DD_INSTALL_SOURCE:-unset}")",
+      "install_flow": "$(telemetry_value "${DD_INSTALL_FLOW:-}")",
+      "k8s_cluster_type": "$(telemetry_value "${K8S_CLUSTER_TYPE:-}")",
+      "dd_agent_enabled": "$(telemetry_value "${DD_AGENT_ENABLED:-}")",
+      "dd_collector_enabled": "$(telemetry_value "${DD_COLLECTOR_ENABLED:-}")",
+      "dd_autoinstrumentation_enabled": "$(telemetry_value "${DD_AUTOINSTRUMENTATION_ENABLED:-}")",
+      "dd_host_profiler_enabled": "$(telemetry_value "${DD_HOST_PROFILER_ENABLED:-}")",
+      "dd_app_key_used": "$app_key_used",
+      "bash_version": "${BASH_VERSINFO[0]}.${BASH_VERSINFO[1]}.${BASH_VERSINFO[2]}",
+      "helm_version": "$helm_version",
+      "kubectl_version": "$kubectl_version",
+      "k8s_version": "$k8s_version"
+    },
+    "metrics": {"_trace_root": 1, "_top_level": 1, "_dd.top_level": 1, "_sampling_priority_v1": 2}
+  }]]}
+}
+END
+}
+
+on_exit() {
+    local exit_code=$?
+    if [[ "$INSTALLATION_STARTED" == "true" ]] && (( exit_code != 0 )); then
+        echo "ERROR: The installation did not finish. Fix the error above and run this script again." >&2
+    fi
+    report_install_telemetry "$exit_code"
+}
+
+TRACE_ID=$(od -An -N8 -tu8 < /dev/urandom | tr -d ' ')
+START_TIME=$(( $(date +%s) * 1000000000 ))
+INSTALLATION_STARTED=false
+trap on_exit EXIT
+
+STEP="Check Prerequisites"
+
 fail() {
     echo "ERROR: $*" >&2
     exit 1
@@ -61,6 +159,8 @@ KUBE_CONTEXT=$("$KUBECTL" config current-context) || {
 kubectl() { "$KUBECTL" --context "$KUBE_CONTEXT" "$@"; }
 helm() { "$HELM" --kube-context "$KUBE_CONTEXT" "$@"; }
 echo "Installing into the kubectl context '$KUBE_CONTEXT' ($(kubectl config view --minify -o jsonpath='{.clusters[0].cluster.server}'))"
+
+STEP="Read Previous Options"
 
 INSTALL_OPTIONS_CONFIGMAP=opentelemetry-kube-stack-install-options
 INSTALL_OPTIONS=(
@@ -120,6 +220,8 @@ previous_secret_key() {
         -o go-template="{{with index .data \"$2\"}}{{base64decode .}}{{end}}" \
         || fail "Could not read the $2 of the previous run from the cluster"
 }
+
+STEP="Validate Options"
 
 require_set DD_INSTALL_FLOW
 require_one_of DD_INSTALL_FLOW upstream ddot
@@ -209,9 +311,8 @@ fi
 
 #### BEGINNING OF INSTALLATION SCRIPT
 
-trap 'if (( $? != 0 )); then echo "ERROR: The installation did not finish. Fix the error above and run this script again." >&2; fi' EXIT
+INSTALLATION_STARTED=true
 
-INSTALLED_BY=datadog-otel-onboarding-script
 INSTALLED_BY_LABEL="install.datadoghq.com/installed-by=$INSTALLED_BY"
 PROVENANCE_ANNOTATIONS=(
     "install.datadoghq.com/installer-version=$INSTALLER_VERSION"
@@ -230,6 +331,7 @@ stamp_provenance() {
 
 # WARNING: dont change "namespace=opentelemetry-operator-system" as it is used in the 'instrumentation' CRD defined in upstream/values.yaml and ddot/values.yaml
 
+STEP="Create Namespace"
 echo "Creating Kubernetes namespace..."
 
 kubectl create namespace opentelemetry-operator-system --dry-run=client -o yaml \
@@ -237,6 +339,7 @@ kubectl create namespace opentelemetry-operator-system --dry-run=client -o yaml 
   || echo "WARNING: Could not create namespace 'opentelemetry-operator-system' (may already exist or insufficient permissions). Continuing..."
 
 if [[ "$DD_COLLECTOR_ENABLED" == "true" ]]; then
+    STEP="Create Datadog Secret"
     echo "Creating or updating Datadog secret..."
 
     kubectl create secret generic datadog-secret \
@@ -246,6 +349,7 @@ if [[ "$DD_COLLECTOR_ENABLED" == "true" ]]; then
       --dry-run=client -o yaml | stamp_provenance | kubectl apply -f -
 fi
 
+STEP="Install cert-manager"
 echo "Installing cert-manager (if not already installed)..."
 
 helm install cert-manager cert-manager \
@@ -257,6 +361,7 @@ helm install cert-manager cert-manager \
   --wait --timeout 5m \
   || echo "WARNING: Could not install cert-manager (may already exist or insufficient permissions). Continuing..."
 
+STEP="Configure Host Profiler Network Policy"
 # The standard and Cilium policies select the same pods and Kubernetes
 # NetworkPolicies are additive: remove both NetworkPolicy before applying
 # the selected one (or none), so a policy from a previous run cannot widen
@@ -282,6 +387,7 @@ if [[ -n "$HOST_PROFILER_NETWORK_POLICY_FILE" ]]; then
 fi
 
 if [[ "$DD_INSTALL_FLOW" == "ddot" && "$DD_AGENT_ENABLED" == "true" ]]; then
+    STEP="Install Datadog Operator"
     echo "Installing Datadog Operator..."
 
     kubectl create namespace datadog --dry-run=client -o yaml \
@@ -325,6 +431,7 @@ if [[ "$DD_INSTALL_FLOW" == "ddot" && "$DD_AGENT_ENABLED" == "true" ]]; then
         "${HELM_PROVENANCE_ARGS[@]}" \
         --wait --timeout 5m
 
+    STEP="Apply DatadogAgent Resource"
     echo "Applying the DatadogAgent custom resource..."
 
     GLOBAL_JSON="\"site\":\"$DD_SITE\",\"tags\":[\"env:$DEPLOYMENT_ENVIRONMENT_NAME\"]"
@@ -338,6 +445,7 @@ if [[ "$DD_INSTALL_FLOW" == "ddot" && "$DD_AGENT_ENABLED" == "true" ]]; then
       -o yaml | stamp_provenance | kubectl apply --namespace datadog -f -
 fi
 
+STEP="Save Install Options"
 echo "Saving the installation options..."
 
 kubectl create configmap "$INSTALL_OPTIONS_CONFIGMAP" \
@@ -346,6 +454,7 @@ kubectl create configmap "$INSTALL_OPTIONS_CONFIGMAP" \
   --dry-run=client -o yaml | stamp_provenance | kubectl apply -f -
 
 # Installed last so the Helm release notes are the last output the user sees.
+STEP="Install Kube Stack"
 echo "Installing OpenTelemetry Kube Stack Helm Chart..."
 
 HELM_SET_ARGS=(
