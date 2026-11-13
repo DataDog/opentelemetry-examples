@@ -26,6 +26,18 @@ if [[ -z "${DD_API_KEY:-}" ]]; then
     exit 1
 fi
 
+for tool in kubectl helm; do
+    command -v "$tool" >/dev/null || { echo "ERROR: $tool is not installed" >&2; exit 1; }
+done
+
+KUBE_CONTEXT=$(command kubectl config current-context) || {
+    echo "ERROR: No current kubectl context is set" >&2
+    exit 1
+}
+kubectl() { command kubectl --context "$KUBE_CONTEXT" "$@"; }
+helm() { command helm --kube-context "$KUBE_CONTEXT" "$@"; }
+echo "Installing into the kubectl context '$KUBE_CONTEXT' ($(kubectl config view --minify -o jsonpath='{.clusters[0].cluster.server}'))"
+
 case "${DD_INSTALL_FLOW:-}" in
     upstream) VALUES_FILE=values-otlp-http.yaml ;;
     ddot) VALUES_FILE=values-ddot.yaml ;;
