@@ -117,9 +117,8 @@ kubectl create secret generic datadog-secret \
 
 echo "Installing cert-manager (if not already installed)..."
 
-helm repo add jetstack https://charts.jetstack.io
-helm repo update
-helm install cert-manager jetstack/cert-manager \
+helm install cert-manager cert-manager \
+  --repo https://charts.jetstack.io \
   --namespace cert-manager --create-namespace \
   --set crds.enabled=true  \
   --wait --timeout 5m \
@@ -164,9 +163,6 @@ if [[ "$DD_INSTALL_FLOW" == "ddot" && "$DD_AGENT_ENABLED" == "true" ]]; then
       ${DD_APP_KEY_SECRET_ARGS[@]+"${DD_APP_KEY_SECRET_ARGS[@]}"} \
       --dry-run=client -o yaml | kubectl apply -f -
 
-    helm repo add datadog https://helm.datadoghq.com
-    helm repo update
-
     OPERATOR_HELM_ARGS=(
         --set apiKeyExistingSecret=datadog-secret
         --set-string site="$DD_SITE"
@@ -185,7 +181,8 @@ if [[ "$DD_INSTALL_FLOW" == "ddot" && "$DD_AGENT_ENABLED" == "true" ]]; then
     fi
 
     helm upgrade datadog-operator \
-        datadog/datadog-operator \
+        datadog-operator \
+        --repo https://helm.datadoghq.com \
         --version 2.28.1 \
         --install \
         --namespace datadog \
@@ -207,9 +204,6 @@ fi
 
 # Installed last so the Helm release notes are the last output the user sees.
 echo "Installing OpenTelemetry Kube Stack Helm Chart..."
-
-helm repo add open-telemetry https://open-telemetry.github.io/opentelemetry-helm-charts
-helm repo update
 
 HELM_SET_ARGS=(
     --set-string "resourceAttributes.deployment\.environment\.name=$DEPLOYMENT_ENVIRONMENT_NAME"
@@ -236,7 +230,8 @@ if [[ -n "${K8S_CLUSTER_NAME:-}" ]]; then
 fi
 
 helm upgrade opentelemetry-kube-stack \
-    open-telemetry/opentelemetry-kube-stack \
+    opentelemetry-kube-stack \
+    --repo https://open-telemetry.github.io/opentelemetry-helm-charts \
     --version 0.26.1 \
     --install \
     --namespace opentelemetry-operator-system \
