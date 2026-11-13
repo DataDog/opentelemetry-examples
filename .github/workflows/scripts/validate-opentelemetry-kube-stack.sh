@@ -24,12 +24,14 @@ validate_collector_configs() {
 
   # Extract Collector image
   local collector_image
-  collector_image="$(yq '.opentelemetry-operator.manager.collectorImage.repository + ":" + .opentelemetry-operator.manager.collectorImage.tag' values-otlp-http.yaml)"
+  collector_image="$(yq '.opentelemetry-operator.manager.collectorImage.repository + ":" + .opentelemetry-operator.manager.collectorImage.tag' upstream/values.yaml)"
   echo "Validating collector configs against ${collector_image}"
 
-  # Move each config into its own file.
-  local collector_file example mode doc_count i kind name
-  for collector_file in examples/*/rendered-*/collector.yaml; do
+  # Move each config into its own file. Collectors with a custom image are skipped.
+  local collector_file prefix example mode doc_count i kind name custom_image
+  for collector_file in upstream/examples/*/rendered/collector.yaml ddot/examples/*/rendered/collector.yaml; do
+    prefix=""
+    [[ "${collector_file}" = ddot/* ]] && prefix="ddot--"
     example="$(basename "$(dirname "$(dirname "${collector_file}")")")"
     mode="$(basename "$(dirname "${collector_file}")")"
     doc_count="$(yq 'di' "${collector_file}" | tail -1)"
@@ -37,8 +39,13 @@ validate_collector_configs() {
       kind="$(yq "select(di == ${i}) | .kind" "${collector_file}")"
       [[ "${kind}" = "OpenTelemetryCollector" ]] || continue
       name="$(yq "select(di == ${i}) | .metadata.name" "${collector_file}")"
+      custom_image="$(yq "select(di == ${i}) | .spec.image // \"\"" "${collector_file}")"
+      if [[ -n "${custom_image}" ]]; then
+        echo "SKIP  ${prefix}${example}--${mode}--${name}.yaml (custom image ${custom_image})"
+        continue
+      fi
       yq "select(di == ${i}) | .spec.config" "${collector_file}" \
-        > "${work_dir}/${example}--${mode}--${name}.yaml"
+        > "${work_dir}/${prefix}${example}--${mode}--${name}.yaml"
     done
   done
   chmod -R a+rX "${work_dir}"
@@ -75,8 +82,10 @@ validate_manifests() {
     -strict -summary \
     -schema-location default \
     -schema-location 'https://raw.githubusercontent.com/datreeio/CRDs-catalog/main/{{.Group}}/{{.ResourceKind}}_{{.ResourceAPIVersion}}.json' \
-    examples/*/rendered-* \
-    datadog-agent.yaml
+    upstream/examples/*/rendered \
+    ddot/examples/*/rendered \
+    ddot/datadog-agent.yaml \
+    ddot/examples-datadog-agent
 }
 
 status=0

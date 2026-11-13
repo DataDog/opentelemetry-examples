@@ -21,12 +21,12 @@ jobs:
         with:
           go-version-file: generate/go.mod
 
-      - name: Regenerate values-<mode>.yaml
+      - name: Regenerate upstream/values.yaml and ddot/values.yaml
         run: make generate-base-values
 
-      - name: Fail if values-<mode>.yaml is out of date
+      - name: Fail if upstream/values.yaml or ddot/values.yaml is out of date
         run: |
-          if [ -n "$(git status --porcelain -- 'values-*.yaml')" ]; then
-            echo "::error::values-<mode>.yaml is out of date. Run make generate-base-values locally."
+          if [ -n "$(git status --porcelain -- upstream/values.yaml ddot/values.yaml)" ]; then
+            echo "::error::upstream/values.yaml or ddot/values.yaml is out of date. Run make generate-base-values locally."
             exit 1
           fi
