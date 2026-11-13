@@ -81,7 +81,7 @@ spec:
           site: ${env:DD_SITE:-datadoghq.com}
         deployment_type: gateway
       health_check:
-        endpoint: 0.0.0.0:13133
+        endpoint: '[${env:OTEL_K8S_POD_IP}]:13133'
       k8s_leader_elector/k8s_cluster:
         auth_type: serviceAccount
         lease_name: k8s.cluster.receiver.opentelemetry.io
@@ -117,6 +117,7 @@ spec:
           - k8s.cronjob.name
           - k8s.statefulset.name
           - k8s.statefulset.uid
+          - container.id
           - container.image.tag
           - container.image.name
           - k8s.cluster.uid
@@ -141,9 +142,14 @@ spec:
             k8s.cluster.name:
               enabled: true
         detectors:
+        - system
         - aks
         - k8s_api
         override: false
+        system:
+          resource_attributes:
+            host.name:
+              enabled: false
       transform/ksm_to_dd:
         metric_statements:
         - context: datapoint
@@ -166,6 +172,9 @@ spec:
           - delete_key(attributes, "service")
           - set(attributes["kube_cronjob"], attributes["cronjob"])
           - delete_key(attributes, "cronjob")
+        - context: metric
+          statements:
+          - convert_sum_to_gauge() where metric.name == "kube_pod_container_status_restarts_total"
       transform/rename_uid:
         metric_statements:
         - context: datapoint
@@ -187,7 +196,6 @@ spec:
         - convert_sum_to_gauge() where metric.name == "k8s.statefulset.count"
         - convert_sum_to_gauge() where metric.name == "k8s.daemonset.count"
         - convert_sum_to_gauge() where metric.name == "k8s.cronjob.count"
-        - convert_sum_to_gauge() where metric.name == "kube_pod_container_status_restarts_total"
     receivers:
       k8s_cluster:
         allocatable_types_to_report:
@@ -461,11 +469,17 @@ spec:
   - name: OTEL_RESOURCE_ATTRIBUTES
     value: "k8s.pod.name=$(OTEL_K8S_POD_NAME),k8s.namespace.name=$(OTEL_K8S_NAMESPACE),k8s.node.name=$(OTEL_K8S_NODE_NAME),host.name=$(OTEL_K8S_NODE_NAME),k8s.node.ip=$(OTEL_K8S_NODE_IP),k8s.pod.ip=$(OTEL_K8S_POD_IP),deployment.environment.name=production"
   
+  - name: DD_OTELCOLLECTOR_CONVERTER_FEATURES
+    value: "datadog,pprof,zpages,infraattributes"
   - name: DD_API_KEY
     valueFrom:
       secretKeyRef:
         key: api-key
         name: datadog-secret
+  - name: DD_HOSTNAME
+    valueFrom:
+      fieldRef:
+        fieldPath: spec.nodeName
   - name: DD_SITE
     valueFrom:
       secretKeyRef:
@@ -500,20 +514,17 @@ spec:
         api:
           key: ${env:DD_API_KEY}
           site: ${env:DD_SITE:-datadoghq.com}
-      debug: {}
     extensions:
       datadog:
         api:
           key: ${env:DD_API_KEY}
           site: ${env:DD_SITE:-datadoghq.com}
         deployment_type: daemonset
+      file_storage:
+        directory: /var/lib/otelcol
       health_check:
-        endpoint: 0.0.0.0:13133
+        endpoint: '[${env:OTEL_K8S_POD_IP}]:13133'
     processors:
-      batch:
-        send_batch_max_size: 1500
-        send_batch_size: 1000
-        timeout: 1s
       cumulative_to_delta: {}
       delta_to_rate:
         metrics:
@@ -561,6 +572,7 @@ spec:
           - k8s.cronjob.name
           - k8s.statefulset.name
           - k8s.statefulset.uid
+          - container.id
           - container.image.tag
           - container.image.name
           - k8s.cluster.uid
@@ -598,20 +610,20 @@ spec:
         - action: upsert
           key: deployment.environment.name
           value: production
-      resource/hostname:
-        attributes:
-        - action: insert
-          from_attribute: k8s.node.name
-          key: host.name
       resource_detection/env:
         aks:
           resource_attributes:
             k8s.cluster.name:
               enabled: true
         detectors:
+        - system
         - aks
         - k8s_api
         override: false
+        system:
+          resource_attributes:
+            host.name:
+              enabled: false
       transform/cadvisor_labels:
         metric_statements:
         - context: datapoint
@@ -702,14 +714,19 @@ spec:
           type: flatten
         retry_on_failure:
           enabled: true
-        start_at: end
+        start_at: beginning
+        storage: file_storage
       host_metrics:
         collection_interval: 10s
         root_path: /hostfs
         scrapers:
           cpu:
             metrics:
+              system.cpu.frequency:
+                enabled: true
               system.cpu.logical.count:
+                enabled: true
+              system.cpu.physical.count:
                 enabled: true
               system.cpu.utilization:
                 enabled: true
@@ -766,6 +783,9 @@ spec:
             metrics:
               system.paging.usage:
                 enabled: true
+              system.paging.utilization:
+                enabled: true
+          processes: {}
           system:
             metrics:
               system.uptime:
@@ -796,6 +816,7 @@ spec:
             enabled: true
           k8s.pod.uptime:
             enabled: true
+        node: ${env:K8S_NODE_NAME}
       otlp:
         protocols:
           grpc:
@@ -868,6 +889,7 @@ spec:
       extensions:
       - health_check
       - datadog
+      - file_storage
       pipelines:
         logs:
           exporters:
@@ -875,7 +897,6 @@ spec:
           processors:
           - k8s_attributes
           - resource_detection/env
-          - resource/hostname
           - resource/global
           receivers:
           - otlp
@@ -886,12 +907,10 @@ spec:
           processors:
           - k8s_attributes
           - resource_detection/env
-          - resource/hostname
           - cumulative_to_delta
           - delta_to_rate
           - resource/global
           receivers:
-          - datadog/connector
           - otlp
           - host_metrics
           - kubelet_stats
@@ -908,13 +927,19 @@ spec:
           - resource/global
           receivers:
           - prometheus/cadvisor
+        metrics/span_metrics:
+          exporters:
+          - datadog/exporter
+          processors:
+          - resource/global
+          receivers:
+          - datadog/connector
         traces:
           exporters:
           - datadog/connector
           processors:
           - k8s_attributes
           - resource_detection/env
-          - resource/hostname
           - resource/global
           receivers:
           - otlp
@@ -944,7 +969,8 @@ spec:
       cpu: 200m
       memory: 500Mi
   securityContext:
-    {}
+    runAsUser: 0
+    runAsGroup: 0
   volumeMounts:
   - name: varlogpods
     mountPath: /var/log/pods
@@ -952,6 +978,8 @@ spec:
   - name: varlibdockercontainers
     mountPath: /var/lib/docker/containers
     readOnly: true
+  - name: varlibotelcol
+    mountPath: /var/lib/otelcol
   - name: hostfs
     mountPath: /hostfs
     readOnly: true
@@ -987,11 +1015,17 @@ spec:
   - name: OTEL_RESOURCE_ATTRIBUTES
     value: "k8s.pod.name=$(OTEL_K8S_POD_NAME),k8s.namespace.name=$(OTEL_K8S_NAMESPACE),k8s.node.name=$(OTEL_K8S_NODE_NAME),host.name=$(OTEL_K8S_NODE_NAME),k8s.node.ip=$(OTEL_K8S_NODE_IP),k8s.pod.ip=$(OTEL_K8S_POD_IP),deployment.environment.name=production"
   
+  - name: DD_OTELCOLLECTOR_CONVERTER_FEATURES
+    value: "datadog,pprof,zpages,infraattributes"
   - name: DD_API_KEY
     valueFrom:
       secretKeyRef:
         key: api-key
         name: datadog-secret
+  - name: DD_HOSTNAME
+    valueFrom:
+      fieldRef:
+        fieldPath: spec.nodeName
   - name: DD_SITE
     valueFrom:
       secretKeyRef:
@@ -1002,6 +1036,10 @@ spec:
   - name: varlogpods
     hostPath:
       path: /var/log/pods
+  - name: varlibotelcol
+    hostPath:
+      path: /var/lib/otelcol
+      type: DirectoryOrCreate
   - name: varlibdockercontainers
     hostPath:
       path: /var/lib/docker/containers

@@ -61,12 +61,6 @@ defaultCRConfig:
     resourceDetection:
       k8s_api:
         enabled: true
-      eks:
-        enabled: false
-      aks:
-        enabled: false
-      gcp:
-        enabled: false
   config:
     receivers:
       otlp:
@@ -139,7 +133,7 @@ defaultCRConfig:
 {{- end}}
     extensions:
       health_check:
-        endpoint: ${env:OTEL_K8S_POD_IP}:13133
+        endpoint: "[${env:OTEL_K8S_POD_IP}]:13133"
       datadog:
         api:
           key: ${env:DD_API_KEY}

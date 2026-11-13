@@ -6,12 +6,10 @@ resourceAttributes:
 opentelemetry-operator:
   manager:
     collectorImage:
-      #repository: otel/opentelemetry-collector-contrib
-      #tag: "0.163.1"
+      #  repository: otel/opentelemetry-collector-contrib
+      #  tag: "0.163.1"
       repository: datadog/ddot-collector
-      tag: "7.86.0-rc.5"
-      #repository: datadog/otel-agent-dev
-      #tag: "agagniere-nodefilter-7"
+      tag: 7.86.0-rc.5
 
 kubeStateMetrics:
   enabled: true
@@ -35,6 +33,13 @@ defaultCRConfig:
           name: datadog-secret
           key: dd-site
           optional: true
+    - name: DD_HOSTNAME # FIXME required on K3S with datadog/ddot-collector:7.82.3 to prevent "Error: unable to reliably determine the host name."
+      valueFrom:
+        fieldRef:
+          fieldPath: spec.nodeName
+    - name: DD_OTELCOLLECTOR_CONVERTER_FEATURES
+      value: datadog,pprof,zpages,infraattributes
+
   # Starting-point resource allocation. Scale up for large clusters.
   resources:
     limits:
@@ -59,8 +64,40 @@ defaultCRConfig:
             endpoint: 0.0.0.0:4318
     processors:
       cumulative_to_delta: {}
+      k8s_attributes:
+        extract:
+          metadata:
+            - k8s.namespace.name
+            - k8s.pod.name
+            - k8s.pod.uid
+            - k8s.node.name
+            - k8s.pod.start_time
+            - k8s.deployment.name
+            - k8s.replicaset.name
+            - k8s.replicaset.uid
+            - k8s.daemonset.name
+            - k8s.daemonset.uid
+            - k8s.job.name
+            - k8s.job.uid
+            - k8s.container.name
+            - k8s.cronjob.name
+            - k8s.statefulset.name
+            - k8s.statefulset.uid
+            - container.id
+            - container.image.tag
+            - container.image.name
+            - k8s.cluster.uid
+            - service.namespace
+            - service.name
+            - service.version
+            - service.instance.id
       resource_detection/env:
+        detectors: [system]
         override: false
+        system:
+          resource_attributes:
+            host.name:
+              enabled: false
     exporters:
       datadog/exporter:
         api:
@@ -68,7 +105,7 @@ defaultCRConfig:
           site: ${env:DD_SITE:-datadoghq.com}
     extensions:
       health_check:
-        endpoint: 0.0.0.0:13133
+        endpoint: "[${env:OTEL_K8S_POD_IP}]:13133"
       datadog:
         api:
           key: ${env:DD_API_KEY}
@@ -177,6 +214,11 @@ collectors:
                 - delete_key(attributes, "service")
                 - set(attributes["kube_cronjob"], attributes["cronjob"])
                 - delete_key(attributes, "cronjob")
+            # Report the running restart total as a gauge, matching the Agent's
+            # kubernetes_state.container.restarts. Must run before cumulative_to_delta.
+            - context: metric
+              statements:
+                - convert_sum_to_gauge() where metric.name == "kube_pod_container_status_restarts_total"
 
         # Pin pod_association to k8s.pod.uid so KSM metrics are associated
         # with their target pod (uid set by transform/rename_uid), not the
@@ -198,7 +240,6 @@ collectors:
             - convert_sum_to_gauge() where metric.name == "k8s.statefulset.count"
             - convert_sum_to_gauge() where metric.name == "k8s.daemonset.count"
             - convert_sum_to_gauge() where metric.name == "k8s.cronjob.count"
-            - convert_sum_to_gauge() where metric.name == "kube_pod_container_status_restarts_total"
 
       connectors:
         count/k8s_entities:
@@ -311,15 +352,19 @@ collectors:
       resourceDetection:
         env:
           enabled: false
+      logsCollection:
+        enabled: true
+        storeCheckpoints: true
 
     config:
       receivers:
-        # Parse the JSON logs of the Datadog Agent and Operator, in the datadog namespace (see datadog-agent.yaml).
-        # The operators only apply to that namespace: they do nothing without the Datadog Agent.
-        # FIXME the Agent's JMXFetch lines are wrapped as {"msg": "<yyyy-MM-dd HH:mm:ss> UTC | JMX |
-        # <LEVEL> | ..."} without a level field: their level would need a `regex_parser` on the
-        # message, see https://github.com/DataDog/datadog-agent/issues/57387.
         file_log:
+          start_at: beginning
+          # Parse the JSON logs of the Datadog Agent and Operator, in the datadog namespace (see datadog-agent.yaml).
+          # The operators only apply to that namespace: they do nothing without the Datadog Agent.
+          # FIXME the Agent's JMXFetch lines are wrapped as {"msg": "<yyyy-MM-dd HH:mm:ss> UTC | JMX |
+          # <LEVEL> | ..."} without a level field: their level would need a `regex_parser` on the
+          # message, see https://github.com/DataDog/datadog-agent/issues/57387.
           operators:
             # The preset's container parser (Helm replaces lists, so it's repeated here).
             - type: container
@@ -375,6 +420,24 @@ collectors:
               id: datadog-json-flatten
               if: 'attributes["datadog_log"] != nil'
               field: attributes.datadog_log
+
+        host_metrics:
+          scrapers:
+            cpu:
+              metrics:
+                system.cpu.physical.count:
+                  enabled: true
+                system.cpu.frequency:
+                  enabled: true
+            paging:
+              metrics:
+                system.paging.utilization:
+                  enabled: true
+            processes: {}
+
+        kubelet_stats:
+          node: ${env:K8S_NODE_NAME}
+
         # cAdvisor metrics from the kubelet.
         prometheus/cadvisor:
           config:
@@ -434,6 +497,9 @@ collectors:
                     action: drop
 
       processors:
+        batch: null
+        resource/hostname: null
+
         delta_to_rate:
           metrics:
             - k8s.pod.network.io
@@ -489,6 +555,9 @@ collectors:
             peer_tags_aggregation: true
             compute_stats_by_span_kind: true
 
+      exporters:
+        debug: null
+
       extensions:
         datadog:
           deployment_type: daemonset
@@ -497,12 +566,12 @@ collectors:
         pipelines:
           logs:
             receivers: [otlp]
-            processors: [resource_detection/env, resource/hostname]
+            processors: [resource_detection/env]
             exporters: [datadog/exporter]
 
           traces:
             receivers: [otlp]
-            processors: [resource_detection/env, resource/hostname]
+            processors: [resource_detection/env]
             exporters: [datadog/connector]
 
           # Add sampling processors here if needed.
@@ -510,11 +579,14 @@ collectors:
             receivers: [datadog/connector]
             exporters: [datadog/exporter]
 
+          metrics/span_metrics:
+            receivers: [datadog/connector]
+            exporters: [datadog/exporter]
+
           metrics:
-            receivers: [datadog/connector, otlp]
+            receivers: [otlp]
             processors:
               - resource_detection/env
-              - resource/hostname
               - cumulative_to_delta
               - delta_to_rate
             exporters: [datadog/exporter]
@@ -534,9 +606,6 @@ collectors:
   host-profiler:
     enabled: false
     suffix: host-profiler
-    # The host-profiler is only supported on Linux nodes
-    nodeSelector:
-      kubernetes.io/os: linux
     # Recommended: run as a DaemonSet to collect profiles from every supported node
     # and provide a cluster-wide view.
     mode: daemonset
@@ -546,10 +615,10 @@ collectors:
     # config, presets, and targetAllocator from being merged into this collector.
     inheritDefaultCRConfig: false
 
-    # Host Profiler preview image. Update the tag when using a newer preview build.
+    # Host Profiler release candidate image. Update the tag when using a newer RC.
     image:
-      repository: datadog/ddot-ebpf-dev
-      tag: mackjmr-hp-preview-v2
+      repository: datadog/ddot-ebpf
+      tag: 7.86.0-rc.3
 
     env:
       - name: DD_API_KEY
@@ -563,10 +632,6 @@ collectors:
             name: datadog-secret
             key: dd-site
             optional: true
-      - name: MY_POD_IP
-        valueFrom:
-          fieldRef:
-            fieldPath: status.podIP
 
     # Enable the chart integrations the Host Profiler relies on. The profiling
     # preset configures host-level profiling settings such as hostPID and the
@@ -658,7 +723,7 @@ collectors:
     config:
       extensions:
         health_check:
-          endpoint: "[${env:MY_POD_IP}]:13133"
+          endpoint: "[${env:OTEL_K8S_POD_IP}]:13133"
 
       receivers:
         # OTLP receiver for collector self-telemetry metrics forwarded to Datadog.
@@ -666,7 +731,7 @@ collectors:
           protocols:
             grpc: {}
             http: {}
-        # Host Profiler receiver. DD_SITE and DD_API_KEY are provided by collector-values.yaml.
+        # Host Profiler receiver.
         profiling:
           symbol_uploader:
             enabled: true
@@ -680,7 +745,6 @@ collectors:
           endpoint: https://otlp.${env:DD_SITE:-datadoghq.com}
           headers:
             dd-api-key: ${env:DD_API_KEY}
-            dd-otel-metric-config: '{"resource_attributes_as_tags": true}'
 
       service:
         extensions: [health_check]
@@ -765,7 +829,6 @@ instrumentation:
     # See https://docs.datadoghq.com/security/code_security/software_composition_analysis/ .
     # - name: DD_APPSEC_SCA_ENABLED
     #   value: "true"
-
   exporter:
     # Daemon collector Service DNS. Update the collector name and namespace
     # to match your install: http://<helm-release-name>-daemon-collector.<namespace>.svc.cluster.local:4318

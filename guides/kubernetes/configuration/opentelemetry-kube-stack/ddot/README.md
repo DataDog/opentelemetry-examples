@@ -164,7 +164,7 @@ Kubernetes clusters.
 Verified against:
 
 - `opentelemetry-kube-stack` chart `>= 0.26.1`
-- Collector image `otel/opentelemetry-collector-contrib >= 0.163.1` (pinned in values.yaml under
+- Collector image `datadog/ddot-collector:7.86.0-rc.5` (pinned in values.yaml under
   `opentelemetry-operator.manager.collectorImage`)
 
 For operator metrics troubleshooting, see [TROUBLESHOOTING.md](TROUBLESHOOTING.md).
