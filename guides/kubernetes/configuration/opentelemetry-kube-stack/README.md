@@ -35,6 +35,7 @@ Configure the installer with environment variables, then run it from this direct
 | `DD_APP_KEY` | Datadog application key. Enables Fleet Automation for the Datadog Agent. Requires `K8S_CLUSTER_NAME`. | Unset |
 | `DD_HOST_PROFILER_ENABLED` | Enable the eBPF host profiler: `true` or `false`. See [Host profiler (optional)](#host-profiler-optional). | `false` |
 | `DD_HOST_PROFILER_NETWORK_POLICY` | Host profiler egress NetworkPolicy: `none`, `standard`, or `cilium`. | `none` |
+| `DD_INSTRUMENTATION_TELEMETRY_ENABLED` | Send install telemetry to Datadog when the installation exits: `true` or `false`. The telemetry records only the exit code and installer version. Nothing is sent on `ddog-gov.com`. | `true` |
 
 ```sh
 export DD_API_KEY="<your-datadog-api-key>"

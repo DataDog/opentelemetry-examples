@@ -2,6 +2,7 @@
 set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+INSTALLER_VERSION=v0.0.1-pre
 
 require_bool() {
     case "${!1}" in
@@ -88,6 +89,103 @@ if [[ "$DD_HOST_PROFILER_ENABLED" == "true" ]]; then
 fi
 
 #### BEGINNING OF INSTALLATION SCRIPT
+
+INSTALLED_BY=datadog-otel-onboarding-script
+
+# The payload follows report_installer_telemetry in the Datadog Agent install script.
+report_install_telemetry() {
+    local exit_code=$1 end_time
+    [[ "${DD_INSTRUMENTATION_TELEMETRY_ENABLED:-true}" != "false" && "$DD_SITE" != "ddog-gov.com" ]] || return 0
+    end_time=$(( $(date +%s) * 1000000000 ))
+    curl -s --max-time 10 -o /dev/null \
+      "${TESTING_REPORT_URL:-https://instrumentation-telemetry-intake.$DD_SITE/api/v2/apmtelemetry}" \
+      --header "Content-Type: application/json" \
+      --header "DD-Api-Key: $DD_API_KEY" \
+      --data @- <<END || true
+{
+  "api_version": "v2",
+  "request_type": "traces",
+  "tracer_time": $(( end_time / 1000000000 )),
+  "runtime_id": "$TRACE_ID",
+  "seq_id": 1,
+  "origin": "otel-onboarding-script",
+  "host": {"hostname": "n/a"},
+  "application": {
+    "service_name": "$INSTALLED_BY",
+    "service_version": "$INSTALLER_VERSION",
+    "language_name": "UNKNOWN",
+    "language_version": "n/a",
+    "tracer_version": "n/a"
+  },
+  "payload": {"traces": [[{
+    "service": "$INSTALLED_BY",
+    "name": "install_script",
+    "resource": "install_script",
+    "trace_id": $TRACE_ID,
+    "span_id": $TRACE_ID,
+    "parent_id": 0,
+    "start": $START_TIME,
+    "duration": $(( end_time - START_TIME )),
+    "error": $exit_code,
+    "meta": {"exit_code": "$exit_code", "version": "$INSTALLER_VERSION"},
+    "metrics": {"_trace_root": 1, "_top_level": 1, "_dd.top_level": 1, "_sampling_priority_v1": 2}
+  }]]}
+}
+END
+}
+
+TRACE_ID=$(od -An -N8 -tu8 < /dev/urandom | tr -d ' ')
+START_TIME=$(( $(date +%s) * 1000000000 ))
+
+# Failure report, adapted from on_error in the Datadog Agent install script.
+fallback_msg() {
+    printf "
+If you are still having problems, please send an email to support@datadoghq.com
+with the contents of %s and any information you think would be
+useful and we will do our very best to help you solve your problem.\n" "$LOG_FILE"
+}
+
+offer_failure_report() {
+    local yn="" email="" email_regex='^[a-zA-Z0-9][a-zA-Z0-9._%+-]{0,63}@[a-zA-Z0-9.-]+\.[a-zA-Z]+'
+    read -t 60 -p "Do you want to send a failure report to Datadog (including $LOG_FILE)? (y/[n]) " -r yn || true
+    case "$yn" in
+        [Yy]*)
+            read -p "Enter an email address so we can follow up: " -r email || true
+            if [[ "$email" =~ $email_regex ]]; then
+                if curl -f -sSL --retry 5 -o /dev/null \
+                  --data-urlencode "os=$(uname -s)" \
+                  --data-urlencode "version=$INSTALLER_VERSION" \
+                  --data-urlencode "log@$LOG_FILE" \
+                  --data-urlencode "email=$email" \
+                  --data-urlencode "apikey=$DD_API_KEY" \
+                  --data-urlencode "variant=$INSTALLED_BY" \
+                  "${TESTING_REPORT_URL:-https://api.$DD_SITE/agent_stats/report_failure}"; then
+                    echo "A notification has been sent to Datadog with the contents of $LOG_FILE"
+                else
+                    echo "Unable to send the notification"
+                fi
+            else
+                echo "Email address invalid: $email. The failure report was not sent."
+            fi
+            ;;
+    esac
+    fallback_msg
+}
+
+on_exit() {
+    local exit_code=$?
+    report_install_telemetry "$exit_code"
+    if [[ "$exit_code" -ne 0 && -n "$LOG_FILE" ]]; then
+        offer_failure_report || true
+    fi
+}
+
+LOG_FILE=""
+if tty -s && [[ "$DD_SITE" != "ddog-gov.com" ]]; then
+    LOG_FILE=datadog-otel-onboarding-script.log
+    exec > >(tee "$LOG_FILE") 2>&1
+fi
+trap on_exit EXIT
 
 # WARNING: dont change "namespace=opentelemetry-operator-system" as it is used in the 'instrumentation' CRD defined in values-otlp-http.yaml and values-ddot.yaml
 
