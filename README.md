@@ -1,8 +1,16 @@
 # OpenTelemetry Examples
 
-The repository includes example applications and configurations for Datadog users, engineers, and support to understand how Datadog support of [OpenTelemetry][1] works today. These examples provide reference material for integrating OpenTelemetry instrumented applications with Datadog products and allow independent experimentation with OpenTelemetry behaviors. The available resources include:
+The repository includes example applications and configurations for Datadog users, engineers, and support to
+understand how Datadog support of [OpenTelemetry][1] works today. These examples provide reference material for
+integrating OpenTelemetry instrumented applications with Datadog products and allow independent experimentation with
+OpenTelemetry behaviors. The available resources include:
+
 - [Common mistakes][14] for common mistakes or confusions end-users face when using OpenTelemetry.
+- [Adapt applications for DDOT][19] for installing or adapting DDOT SDK instrumentation with or without the
+  OpenTelemetry Operator.
 - [Configurations][15] for configuration examples of the Datadog Agent and the OpenTelemetry Collector.
+- [Astronomy Store][20] for a five-language application that exercises upstream OpenTelemetry and DDOT
+  instrumentation.
 
 ## Index
 
@@ -42,3 +50,5 @@ The repository includes example applications and configurations for Datadog user
 [16]: ./apps/kubernetes-express-otel/
 [17]: ./apps/rolldice-game/
 [18]: ./apps/kafka-metrics/
+[19]: ./guides/ddot/ADAPT-APPLICATIONS.md
+[20]: ./apps/astronomy-store/
