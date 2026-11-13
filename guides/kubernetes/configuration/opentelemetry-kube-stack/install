@@ -21,11 +21,6 @@ if [[ -n "$OVERLAY_VALUES_FILE" ]]; then
     OVERLAY_VALUES_ARGS=(-f "$OVERLAY_VALUES_FILE")
 fi
 
-if [[ -z "${DD_API_KEY:-}" ]]; then
-    echo "ERROR: DD_API_KEY is not set" >&2
-    exit 1
-fi
-
 case "${DD_INSTALL_FLOW:-}" in
     upstream) VALUES_FILE=values-otlp-http.yaml ;;
     ddot) VALUES_FILE=values-ddot.yaml ;;
@@ -38,8 +33,27 @@ esac
 DD_SITE=${DD_SITE:-datadoghq.com}
 K8S_CLUSTER_TYPE=${K8S_CLUSTER_TYPE:-other}
 DEPLOYMENT_ENVIRONMENT_NAME=${DEPLOYMENT_ENVIRONMENT_NAME:-production}
-DD_AGENT_ENABLED=${DD_AGENT_ENABLED:-true}
+DD_AUTOINSTRUMENTATION_ENABLED=${DD_AUTOINSTRUMENTATION_ENABLED:-true}
+require_bool DD_AUTOINSTRUMENTATION_ENABLED
+DD_COLLECTOR_ENABLED=${DD_COLLECTOR_ENABLED:-true}
+require_bool DD_COLLECTOR_ENABLED
+DD_AGENT_ENABLED=${DD_AGENT_ENABLED:-$DD_COLLECTOR_ENABLED}
 require_bool DD_AGENT_ENABLED
+
+if [[ "$DD_AUTOINSTRUMENTATION_ENABLED" == "false" && "$DD_COLLECTOR_ENABLED" == "false" ]]; then
+    echo "ERROR: DD_AUTOINSTRUMENTATION_ENABLED and DD_COLLECTOR_ENABLED cannot both be false" >&2
+    exit 1
+fi
+
+if [[ "$DD_COLLECTOR_ENABLED" == "false" && -z "${OTEL_EXPORTER_OTLP_ENDPOINT:-}" ]]; then
+    echo "ERROR: OTEL_EXPORTER_OTLP_ENDPOINT must be set when DD_COLLECTOR_ENABLED=false" >&2
+    exit 1
+fi
+
+if [[ -z "${DD_API_KEY:-}" ]] && [[ "$DD_COLLECTOR_ENABLED" == "true" || ( "$DD_INSTALL_FLOW" == "ddot" && "$DD_AGENT_ENABLED" == "true" ) ]]; then
+    echo "ERROR: DD_API_KEY is not set" >&2
+    exit 1
+fi
 
 DD_AGENT_VALUES_ARGS=()
 if [[ "$DD_INSTALL_FLOW" == "ddot" && "$DD_AGENT_ENABLED" == "true" ]]; then
@@ -69,6 +83,11 @@ HOST_PROFILER_ENABLED_ARGS=()
 
 require_bool DD_HOST_PROFILER_ENABLED
 
+if [[ "$DD_HOST_PROFILER_ENABLED" == "true" && "$DD_COLLECTOR_ENABLED" == "false" ]]; then
+    echo "ERROR: DD_HOST_PROFILER_ENABLED=true requires DD_COLLECTOR_ENABLED=true" >&2
+    exit 1
+fi
+
 if [[ "$DD_HOST_PROFILER_ENABLED" == "true" ]]; then
     # Egress policy for the profiler, only useful on default-deny clusters
     # whose CNI enforces NetworkPolicy.
@@ -95,13 +114,15 @@ echo "Creating Kubernetes namespace..."
 
 kubectl create namespace opentelemetry-operator-system || echo "WARNING: Could not create namespace 'opentelemetry-operator-system' (may already exist or insufficient permissions). Continuing..."
 
-echo "Creating or updating Datadog secret..."
+if [[ "$DD_COLLECTOR_ENABLED" == "true" ]]; then
+    echo "Creating or updating Datadog secret..."
 
-kubectl create secret generic datadog-secret \
-  --namespace opentelemetry-operator-system  \
-  --from-literal="api-key=$DD_API_KEY" \
-  --from-literal="dd-site=$DD_SITE" \
-  --dry-run=client -o yaml | kubectl apply -f -
+    kubectl create secret generic datadog-secret \
+      --namespace opentelemetry-operator-system  \
+      --from-literal="api-key=$DD_API_KEY" \
+      --from-literal="dd-site=$DD_SITE" \
+      --dry-run=client -o yaml | kubectl apply -f -
+fi
 
 echo "Installing cert-manager (if not already installed)..."
 
@@ -221,6 +242,19 @@ fi
 
 if [[ -n "${K8S_CLUSTER_NAME:-}" ]]; then
     HELM_SET_ARGS+=(--set-string "resourceAttributes.k8s\.cluster\.name=$K8S_CLUSTER_NAME")
+fi
+
+if [[ "$DD_AUTOINSTRUMENTATION_ENABLED" == "false" ]]; then
+    HELM_SET_ARGS+=(--set instrumentation.enabled=false)
+fi
+
+if [[ "$DD_COLLECTOR_ENABLED" == "false" ]]; then
+    HELM_SET_ARGS+=(
+        --set collectors.cluster.enabled=false
+        --set collectors.daemon.enabled=false
+        --set kubeStateMetrics.enabled=false
+        --set-string "instrumentation.exporter.endpoint=$OTEL_EXPORTER_OTLP_ENDPOINT"
+    )
 fi
 
 helm upgrade opentelemetry-kube-stack \

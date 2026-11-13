@@ -25,14 +25,17 @@ Configure the installer with environment variables, then run it from this direct
 
 | Variable | Description | Default |
 |---|---|---|
-| `DD_API_KEY` | Datadog API key. | None (required) |
+| `DD_API_KEY` | Datadog API key. Required unless only autoinstrumentation is installed. | None |
 | `DD_INSTALL_FLOW` | Installation flow: `upstream` (OTLP/HTTP exporter and upstream OpenTelemetry SDKs) or `ddot` (Datadog exporter, DDOT SDKs, and the Datadog Agent). | None (required) |
 | `DD_SITE` | Datadog site, for example `datadoghq.eu`. | `datadoghq.com` |
 | `K8S_CLUSTER_TYPE` | Kubernetes platform: `eks` (EKS), `gcp` (GKE), `aks` (AKS), or `other`. | `other` |
 | `K8S_CLUSTER_NAME` | Kubernetes cluster name. For `eks`, `gcp`, and `aks`, overrides the auto-detected name. | Auto-detected for `eks`, `gcp`, and `aks`; unset otherwise |
 | `DEPLOYMENT_ENVIRONMENT_NAME` | Value of the `deployment.environment.name` resource attribute. | `production` |
-| `DD_AGENT_ENABLED` | Install the Datadog Agent in the `ddot` flow: `true` or `false`. | `true` |
+| `DD_AGENT_ENABLED` | Install the Datadog Agent in the `ddot` flow: `true` or `false`. | `true`, or `false` when `DD_COLLECTOR_ENABLED` is `false` |
 | `DD_APP_KEY` | Datadog application key. Enables Fleet Automation for the Datadog Agent. Requires `K8S_CLUSTER_NAME`. | Unset |
+| `DD_AUTOINSTRUMENTATION_ENABLED` | Enable autoinstrumentation: `true` or `false`. | `true` |
+| `DD_COLLECTOR_ENABLED` | Install the OpenTelemetry Collectors: `true` or `false`. | `true` |
+| `OTEL_EXPORTER_OTLP_ENDPOINT` | OTLP/HTTP endpoint of the Collector that autoinstrumented workloads send telemetry to, for example `http://my-collector.my-namespace.svc.cluster.local:4318`. Required when `DD_COLLECTOR_ENABLED` is `false`. | Unset |
 | `DD_HOST_PROFILER_ENABLED` | Enable the eBPF host profiler: `true` or `false`. See [Host profiler (optional)](#host-profiler-optional). | `false` |
 | `DD_HOST_PROFILER_NETWORK_POLICY` | Host profiler egress NetworkPolicy: `none`, `standard`, or `cilium`. | `none` |
 
@@ -56,7 +59,7 @@ For EKS, GKE, and AKS, the installer enables the matching resource-detection pre
 
 It then:
 
-- creates the `opentelemetry-operator-system` namespace and the `datadog-secret` secret;
+- creates the `opentelemetry-operator-system` namespace and, when it installs the Collectors, the `datadog-secret` secret;
 - installs cert-manager when needed;
 - installs or upgrades the OpenTelemetry Kube Stack Helm chart with `values-otlp-http.yaml` (`upstream`) or `values-ddot.yaml` (`ddot`), and optionally enables the host profiler; and
 - for `ddot`, unless `DD_AGENT_ENABLED=false`, installs or upgrades the Datadog Agent.
