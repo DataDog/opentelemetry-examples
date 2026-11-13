@@ -26,6 +26,18 @@ if [[ -z "${DD_API_KEY:-}" ]]; then
     exit 1
 fi
 
+for tool in kubectl helm; do
+    command -v "$tool" >/dev/null || { echo "ERROR: $tool is not installed" >&2; exit 1; }
+done
+
+KUBE_CONTEXT=$(command kubectl config current-context) || {
+    echo "ERROR: No current kubectl context is set" >&2
+    exit 1
+}
+kubectl() { command kubectl --context "$KUBE_CONTEXT" "$@"; }
+helm() { command helm --kube-context "$KUBE_CONTEXT" "$@"; }
+echo "Installing into the kubectl context '$KUBE_CONTEXT' ($(kubectl config view --minify -o jsonpath='{.clusters[0].cluster.server}'))"
+
 case "${DD_INSTALL_FLOW:-}" in
     upstream) VALUES_FILE=values-otlp-http.yaml ;;
     ddot) VALUES_FILE=values-ddot.yaml ;;
@@ -87,7 +99,14 @@ if [[ "$DD_HOST_PROFILER_ENABLED" == "true" ]]; then
     )
 fi
 
+if [[ "$DD_HOST_PROFILER_ENABLED" == "true" && "$DD_HOST_PROFILER_NETWORK_POLICY" == "cilium" ]] && ! kubectl get crd ciliumnetworkpolicies.cilium.io >/dev/null 2>&1; then
+    echo "ERROR: DD_HOST_PROFILER_NETWORK_POLICY=cilium requires Cilium (the ciliumnetworkpolicies.cilium.io CRD was not found)" >&2
+    exit 1
+fi
+
 #### BEGINNING OF INSTALLATION SCRIPT
+
+trap 'if (( $? != 0 )); then echo "ERROR: The installation did not finish. Fix the error above, run ./uninstall, and run this script again." >&2; fi' EXIT
 
 # WARNING: dont change "namespace=opentelemetry-operator-system" as it is used in the 'instrumentation' CRD defined in values-otlp-http.yaml and values-ddot.yaml
 
@@ -99,42 +118,23 @@ echo "Creating or updating Datadog secret..."
 
 kubectl create secret generic datadog-secret \
   --namespace opentelemetry-operator-system  \
-  --from-literal="api-key=$DD_API_KEY" \
+  --from-file=api-key=<(printf '%s' "$DD_API_KEY") \
   --from-literal="dd-site=$DD_SITE" \
   --dry-run=client -o yaml | kubectl apply -f -
 
 echo "Installing cert-manager (if not already installed)..."
 
-helm repo add jetstack https://charts.jetstack.io
-helm repo update
-helm install cert-manager jetstack/cert-manager \
+helm install cert-manager cert-manager \
+  --repo https://charts.jetstack.io \
+  --version v1.21.3 \
   --namespace cert-manager --create-namespace \
   --set crds.enabled=true  \
   --wait --timeout 5m \
   || echo "WARNING: Could not install cert-manager (may already exist or insufficient permissions). Continuing..."
 
-# The standard and Cilium policies select the same pods and Kubernetes
-# NetworkPolicies are additive: remove both NetworkPolicy before applying
-# the selected one (or none), so a policy from a previous run cannot widen
-# the requested egress.
-kubectl delete networkpolicy \
-  --namespace opentelemetry-operator-system \
-  --ignore-not-found=true \
-  opentelemetry-kube-stack-host-profiler-egress \
-  || echo "WARNING: Could not delete the host-profiler NetworkPolicy. Continuing..."
-# The CiliumNetworkPolicy CRD only exists on Cilium clusters.
-if kubectl get crd ciliumnetworkpolicies.cilium.io >/dev/null 2>&1; then
-    kubectl delete ciliumnetworkpolicy \
-      --namespace opentelemetry-operator-system \
-      --ignore-not-found=true \
-      opentelemetry-kube-stack-host-profiler-egress \
-      || echo "WARNING: Could not delete the host-profiler CiliumNetworkPolicy. Continuing..."
-fi
-
 if [[ -n "$HOST_PROFILER_NETWORK_POLICY_FILE" ]]; then
     echo "Applying the host-profiler egress NetworkPolicy..."
-    kubectl apply -f "$HOST_PROFILER_NETWORK_POLICY_FILE" \
-      || echo "WARNING: Could not apply the host-profiler egress NetworkPolicy (is Cilium installed if you chose the Cilium policy?). Continuing..."
+    kubectl apply -f "$HOST_PROFILER_NETWORK_POLICY_FILE"
 fi
 
 if [[ "$DD_INSTALL_FLOW" == "ddot" && "$DD_AGENT_ENABLED" == "true" ]]; then
@@ -142,18 +142,15 @@ if [[ "$DD_INSTALL_FLOW" == "ddot" && "$DD_AGENT_ENABLED" == "true" ]]; then
 
     kubectl create namespace datadog || echo "WARNING: Could not create namespace 'datadog' (may already exist or insufficient permissions). Continuing..."
 
-    DD_APP_KEY_SECRET_ARGS=()
-    if [[ -n "${DD_APP_KEY:-}" ]]; then
-        DD_APP_KEY_SECRET_ARGS=(--from-literal="app-key=$DD_APP_KEY")
-    fi
     kubectl create secret generic datadog-secret \
       --namespace datadog \
-      --from-literal="api-key=$DD_API_KEY" \
-      ${DD_APP_KEY_SECRET_ARGS[@]+"${DD_APP_KEY_SECRET_ARGS[@]}"} \
+      --from-env-file=<(
+          printf 'api-key=%s\n' "$DD_API_KEY"
+          if [[ -n "${DD_APP_KEY:-}" ]]; then
+              printf 'app-key=%s\n' "$DD_APP_KEY"
+          fi
+      ) \
       --dry-run=client -o yaml | kubectl apply -f -
-
-    helm repo add datadog https://helm.datadoghq.com
-    helm repo update
 
     OPERATOR_HELM_ARGS=(
         --set apiKeyExistingSecret=datadog-secret
@@ -173,7 +170,8 @@ if [[ "$DD_INSTALL_FLOW" == "ddot" && "$DD_AGENT_ENABLED" == "true" ]]; then
     fi
 
     helm upgrade datadog-operator \
-        datadog/datadog-operator \
+        datadog-operator \
+        --repo https://helm.datadoghq.com \
         --version 2.28.1 \
         --install \
         --namespace datadog \
@@ -195,9 +193,6 @@ fi
 
 # Installed last so the Helm release notes are the last output the user sees.
 echo "Installing OpenTelemetry Kube Stack Helm Chart..."
-
-helm repo add open-telemetry https://open-telemetry.github.io/opentelemetry-helm-charts
-helm repo update
 
 HELM_SET_ARGS=(
     --set-string "resourceAttributes.deployment\.environment\.name=$DEPLOYMENT_ENVIRONMENT_NAME"
@@ -224,10 +219,12 @@ if [[ -n "${K8S_CLUSTER_NAME:-}" ]]; then
 fi
 
 helm upgrade opentelemetry-kube-stack \
-    open-telemetry/opentelemetry-kube-stack \
+    opentelemetry-kube-stack \
+    --repo https://open-telemetry.github.io/opentelemetry-helm-charts \
     --version 0.26.1 \
     --install \
     --namespace opentelemetry-operator-system \
+    --wait --timeout 5m \
     "${HELM_SET_ARGS[@]}" \
     -f "$SCRIPT_DIR/$VALUES_FILE" \
     ${DD_AGENT_VALUES_ARGS[@]+"${DD_AGENT_VALUES_ARGS[@]}"} \
