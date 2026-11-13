@@ -113,46 +113,6 @@ helm install cert-manager jetstack/cert-manager \
   --wait --timeout 5m \
   || echo "WARNING: Could not install cert-manager (may already exist or insufficient permissions). Continuing..."
 
-echo "Installing OpenTelemetry Kube Stack Helm Chart..."
-
-helm repo add open-telemetry https://open-telemetry.github.io/opentelemetry-helm-charts
-helm repo update
-
-HELM_SET_ARGS=(
-    --set-string "resourceAttributes.deployment\.environment\.name=$DEPLOYMENT_ENVIRONMENT_NAME"
-)
-
-if [[ "$K8S_CLUSTER_TYPE" != "other" ]]; then
-    HELM_SET_ARGS+=(--set "defaultCRConfig.presets.resourceDetection.$K8S_CLUSTER_TYPE.enabled=true")
-fi
-
-if [[ "$K8S_CLUSTER_TYPE" == "eks" ]]; then
-    HELM_SET_ARGS+=(--set "defaultCRConfig.config.processors.resource_detection/env.eks.node_from_env_var=K8S_NODE_NAME")
-    HELM_SET_ARGS+=(--set "defaultCRConfig.config.processors.resource_detection/env.eks.resource_attributes.host\.id.enabled=true")
-    HELM_SET_ARGS+=(--set "defaultCRConfig.config.processors.resource_detection/env.eks.resource_attributes.cloud\.region.enabled=true")
-    HELM_SET_ARGS+=(--set "defaultCRConfig.config.processors.resource_detection/env.eks.resource_attributes.cloud\.availability_zone.enabled=true")
-    HELM_SET_ARGS+=(--set "defaultCRConfig.config.processors.resource_detection/env.eks.resource_attributes.cloud\.account\.id.enabled=true")
-    HELM_SET_ARGS+=(--set "defaultCRConfig.config.processors.resource_detection/env.eks.resource_attributes.host\.image\.id.enabled=true")
-    HELM_SET_ARGS+=(--set "defaultCRConfig.config.processors.resource_detection/env.eks.resource_attributes.host\.type.enabled=true")
-    HELM_SET_ARGS+=(--set "collectors.daemon.config.processors.resource_detection/env.override=true")
-    HELM_SET_ARGS+=(--set "collectors.daemon.config.processors.resource_detection/env.eks.resource_attributes.host\.name.enabled=true")
-fi
-
-if [[ -n "${K8S_CLUSTER_NAME:-}" ]]; then
-    HELM_SET_ARGS+=(--set-string "resourceAttributes.k8s\.cluster\.name=$K8S_CLUSTER_NAME")
-fi
-
-helm upgrade opentelemetry-kube-stack \
-    open-telemetry/opentelemetry-kube-stack \
-    --version 0.26.1 \
-    --install \
-    --namespace opentelemetry-operator-system \
-    "${HELM_SET_ARGS[@]}" \
-    -f "$SCRIPT_DIR/$VALUES_FILE" \
-    ${DD_AGENT_VALUES_ARGS[@]+"${DD_AGENT_VALUES_ARGS[@]}"} \
-    ${HOST_PROFILER_ENABLED_ARGS[@]+"${HOST_PROFILER_ENABLED_ARGS[@]}"} \
-    ${OVERLAY_VALUES_ARGS[@]+"${OVERLAY_VALUES_ARGS[@]}"}
-
 # The standard and Cilium policies select the same pods and Kubernetes
 # NetworkPolicies are additive: remove both NetworkPolicy before applying
 # the selected one (or none), so a policy from a previous run cannot widen
@@ -189,7 +149,8 @@ if [[ "$DD_INSTALL_FLOW" == "ddot" && "$DD_AGENT_ENABLED" == "true" ]]; then
     kubectl create secret generic datadog-secret \
       --namespace datadog \
       --from-literal="api-key=$DD_API_KEY" \
-      ${DD_APP_KEY_SECRET_ARGS[@]+"${DD_APP_KEY_SECRET_ARGS[@]}"}
+      ${DD_APP_KEY_SECRET_ARGS[@]+"${DD_APP_KEY_SECRET_ARGS[@]}"} \
+      --dry-run=client -o yaml | kubectl apply -f -
 
     helm repo add datadog https://helm.datadoghq.com
     helm repo update
@@ -231,3 +192,44 @@ if [[ "$DD_INSTALL_FLOW" == "ddot" && "$DD_AGENT_ENABLED" == "true" ]]; then
       -p "{\"spec\":{\"global\":{$GLOBAL_JSON}}}" \
       -o yaml | kubectl apply --namespace datadog -f -
 fi
+
+# Installed last so the Helm release notes are the last output the user sees.
+echo "Installing OpenTelemetry Kube Stack Helm Chart..."
+
+helm repo add open-telemetry https://open-telemetry.github.io/opentelemetry-helm-charts
+helm repo update
+
+HELM_SET_ARGS=(
+    --set-string "resourceAttributes.deployment\.environment\.name=$DEPLOYMENT_ENVIRONMENT_NAME"
+)
+
+if [[ "$K8S_CLUSTER_TYPE" != "other" ]]; then
+    HELM_SET_ARGS+=(--set "defaultCRConfig.presets.resourceDetection.$K8S_CLUSTER_TYPE.enabled=true")
+fi
+
+if [[ "$K8S_CLUSTER_TYPE" == "eks" ]]; then
+    HELM_SET_ARGS+=(--set "defaultCRConfig.config.processors.resource_detection/env.eks.node_from_env_var=K8S_NODE_NAME")
+    HELM_SET_ARGS+=(--set "defaultCRConfig.config.processors.resource_detection/env.eks.resource_attributes.host\.id.enabled=true")
+    HELM_SET_ARGS+=(--set "defaultCRConfig.config.processors.resource_detection/env.eks.resource_attributes.cloud\.region.enabled=true")
+    HELM_SET_ARGS+=(--set "defaultCRConfig.config.processors.resource_detection/env.eks.resource_attributes.cloud\.availability_zone.enabled=true")
+    HELM_SET_ARGS+=(--set "defaultCRConfig.config.processors.resource_detection/env.eks.resource_attributes.cloud\.account\.id.enabled=true")
+    HELM_SET_ARGS+=(--set "defaultCRConfig.config.processors.resource_detection/env.eks.resource_attributes.host\.image\.id.enabled=true")
+    HELM_SET_ARGS+=(--set "defaultCRConfig.config.processors.resource_detection/env.eks.resource_attributes.host\.type.enabled=true")
+    HELM_SET_ARGS+=(--set "collectors.daemon.config.processors.resource_detection/env.override=true")
+    HELM_SET_ARGS+=(--set "collectors.daemon.config.processors.resource_detection/env.eks.resource_attributes.host\.name.enabled=true")
+fi
+
+if [[ -n "${K8S_CLUSTER_NAME:-}" ]]; then
+    HELM_SET_ARGS+=(--set-string "resourceAttributes.k8s\.cluster\.name=$K8S_CLUSTER_NAME")
+fi
+
+helm upgrade opentelemetry-kube-stack \
+    open-telemetry/opentelemetry-kube-stack \
+    --version 0.26.1 \
+    --install \
+    --namespace opentelemetry-operator-system \
+    "${HELM_SET_ARGS[@]}" \
+    -f "$SCRIPT_DIR/$VALUES_FILE" \
+    ${DD_AGENT_VALUES_ARGS[@]+"${DD_AGENT_VALUES_ARGS[@]}"} \
+    ${HOST_PROFILER_ENABLED_ARGS[@]+"${HOST_PROFILER_ENABLED_ARGS[@]}"} \
+    ${OVERLAY_VALUES_ARGS[@]+"${OVERLAY_VALUES_ARGS[@]}"}
