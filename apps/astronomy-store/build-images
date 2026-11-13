@@ -41,7 +41,7 @@ fi
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 IMAGE_PREFIX="${IMAGE_PREFIX:-astronomy-store}"
 IMAGE_PREFIX="${IMAGE_PREFIX%/}"
-SERVICES=(ad checkout fraud-detection frontend product-catalog)
+SERVICES=(ad checkout dsm-pipeline fraud-detection frontend product-catalog)
 CHECKOUT_UPSTREAM_OTEL_TAG_SUFFIX="-upstream-otel"
 CHECKOUT_UPSTREAM_OTEL_DOCKERFILE="${SCRIPT_DIR}/checkout/Dockerfile.upstream-otel"
 

@@ -66,6 +66,7 @@ SERVICE_MANIFESTS=(
     ad/kubernetes.yaml
     product-catalog/kubernetes.yaml
     fraud-detection/kubernetes.yaml
+    dsm-pipeline/kubernetes.yaml
     checkout/kubernetes.yaml
     frontend/kubernetes.yaml
 )
@@ -107,7 +108,7 @@ for manifest in "${SERVICE_MANIFESTS[@]}"; do
     apply_service_manifest "${manifest}"
 done
 
-for deployment in astronomy-db kafka ad product-catalog fraud-detection checkout frontend; do
+for deployment in astronomy-db kafka ad product-catalog fraud-detection dsm-producer dsm-forwarder dsm-consumer checkout frontend; do
     kubectl rollout status "deployment/${deployment}" \
         --namespace "${NAMESPACE}" \
         --timeout="${ROLLOUT_TIMEOUT}"
