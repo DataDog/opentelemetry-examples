@@ -1,54 +1,83 @@
 #!/usr/bin/env bash
-# Renders every guides/.../upstream/examples/<example>/values.yaml into a
-# rendered/ subdirectory, for the exporter modes passed as arguments.
-# Called by `make generate-otel-kube-stack-examples`.
+# Renders every <examples-dir>/<example>/values.yaml into an
+# <examples-dir>/<example>/<output-name>/ subdirectory, on top of the
+# --values files in the order given. Paths are relative to the current
+# directory.
+#
+# Usage: render-examples --examples-dir DIR --output-name NAME --values FILE [--values FILE]...
 set -euo pipefail
 
-cd "$(dirname "${BASH_SOURCE[0]}")"
+CHART_VERSION=0.26.1
 
-TMP_DIRECTORY=./tmp
-EXAMPLES_DIR=./upstream/examples
+usage() {
+	echo "Usage: $0 --examples-dir DIR --output-name NAME --values FILE [--values FILE]..." >&2
+	exit 2
+}
+
+EXAMPLES_DIR=
+OUTPUT_NAME=
+VALUES_ARGS=()
+while [ $# -gt 0 ]; do
+	case "$1" in
+	--examples-dir)
+		[ $# -ge 2 ] || usage
+		EXAMPLES_DIR=$2
+		shift 2
+		;;
+	--output-name)
+		[ $# -ge 2 ] || usage
+		OUTPUT_NAME=$2
+		shift 2
+		;;
+	--values)
+		[ $# -ge 2 ] || usage
+		VALUES_ARGS+=(--values "$2")
+		shift 2
+		;;
+	*)
+		usage
+		;;
+	esac
+done
+if [ -z "${EXAMPLES_DIR}" ] || [ -z "${OUTPUT_NAME}" ] || [ ${#VALUES_ARGS[@]} -eq 0 ]; then
+	usage
+fi
 
 # Use Helm 4.2+ since rendering changes across versions.
-echo "Generating all examples into their rendered/ subdirectories"
-mkdir -p "$TMP_DIRECTORY"
+echo "Generating all examples in ${EXAMPLES_DIR} into their ${OUTPUT_NAME}/ subdirectory"
 
-EXAMPLES=$(find ${EXAMPLES_DIR} -maxdepth 1 -mindepth 1 -type d -exec basename {} \;)
+EXAMPLES=$(find "${EXAMPLES_DIR}" -maxdepth 1 -mindepth 1 -type d -exec basename {} \;)
 for example in ${EXAMPLES}; do
-	for mode in "$@"; do
-		echo "Generating example: ${example} (mode: ${mode})"
-		EXAMPLE_DIR=${EXAMPLES_DIR}/${example}
-		OUTPUT_DIR=${EXAMPLE_DIR}/rendered
-		VALUES_FILE=./upstream/values.yaml
-		rm -rf "${OUTPUT_DIR}"
-		helm template opentelemetry-kube-stack \
-			open-telemetry/opentelemetry-kube-stack \
-			--namespace opentelemetry-operator-system \
-			--version "0.26.1" \
-			--values ${VALUES_FILE} --values ${EXAMPLE_DIR}/values.yaml \
-			--output-dir "${OUTPUT_DIR}"
-		mv ${OUTPUT_DIR}/opentelemetry-kube-stack/templates/* "${OUTPUT_DIR}"
-		SUBCHARTS_DIR=${OUTPUT_DIR}/opentelemetry-kube-stack/charts
-		if [ -d "${SUBCHARTS_DIR}" ]; then
-			SUBCHARTS=$(find ${SUBCHARTS_DIR} -maxdepth 1 -mindepth 1 -type d -exec basename {} \;)
-			for subchart in ${SUBCHARTS}; do
-				mkdir -p "${OUTPUT_DIR}/${subchart}"
-				mv ${SUBCHARTS_DIR}/${subchart}/templates/* "${OUTPUT_DIR}/${subchart}"
-			done
-			rm -rf ${OUTPUT_DIR}/opentelemetry-kube-stack
-		fi
-	done
+	echo "Generating example: ${example} (${OUTPUT_NAME})"
+	OUTPUT_DIR=${EXAMPLES_DIR}/${example}/${OUTPUT_NAME}
+	rm -rf "${OUTPUT_DIR}"
+	helm template opentelemetry-kube-stack \
+		open-telemetry/opentelemetry-kube-stack \
+		--namespace opentelemetry-operator-system \
+		--version "${CHART_VERSION}" \
+		"${VALUES_ARGS[@]}" --values "${EXAMPLES_DIR}/${example}/values.yaml" \
+		--output-dir "${OUTPUT_DIR}"
+	mv "${OUTPUT_DIR}"/opentelemetry-kube-stack/templates/* "${OUTPUT_DIR}"
+	SUBCHARTS_DIR=${OUTPUT_DIR}/opentelemetry-kube-stack/charts
+	if [ -d "${SUBCHARTS_DIR}" ]; then
+		SUBCHARTS=$(find "${SUBCHARTS_DIR}" -maxdepth 1 -mindepth 1 -type d -exec basename {} \;)
+		for subchart in ${SUBCHARTS}; do
+			mkdir -p "${OUTPUT_DIR}/${subchart}"
+			mv "${SUBCHARTS_DIR}/${subchart}"/templates/* "${OUTPUT_DIR}/${subchart}"
+		done
+		rm -rf "${OUTPUT_DIR}/opentelemetry-kube-stack"
+	fi
 done
 
 echo "Normalizing auto-generated certificate values"
 if [ "$(uname)" = "Darwin" ]; then
-	find ${EXAMPLES_DIR} -name '*.yaml' -print0 | xargs -0 sed -i '' \
+	find "${EXAMPLES_DIR}" -name '*.yaml' -print0 | xargs -0 sed -i '' \
 		-e 's/\(caBundle:\) [A-Za-z0-9+/=]\{44,\}/\1 AUTO_GENERATED/' \
 		-e 's/\(tls\.crt:\) [A-Za-z0-9+/=]\{44,\}/\1 AUTO_GENERATED/' \
 		-e 's/\(tls\.key:\) [A-Za-z0-9+/=]\{44,\}/\1 AUTO_GENERATED/' \
 		-e 's/\(ca\.crt:\) [A-Za-z0-9+/=]\{44,\}/\1 AUTO_GENERATED/'
 else
-	find ${EXAMPLES_DIR} -name '*.yaml' -exec sed -i'' \
+	find "${EXAMPLES_DIR}" -name '*.yaml' -exec sed -i'' \
 		-e 's/\(caBundle:\) [A-Za-z0-9+/=]\{44,\}/\1 AUTO_GENERATED/' \
 		-e 's/\(tls\.crt:\) [A-Za-z0-9+/=]\{44,\}/\1 AUTO_GENERATED/' \
 		-e 's/\(tls\.key:\) [A-Za-z0-9+/=]\{44,\}/\1 AUTO_GENERATED/' \
