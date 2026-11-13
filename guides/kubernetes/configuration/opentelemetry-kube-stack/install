@@ -21,6 +21,61 @@ if [[ -n "$OVERLAY_VALUES_FILE" ]]; then
     OVERLAY_VALUES_ARGS=(-f "$OVERLAY_VALUES_FILE")
 fi
 
+INSTALL_OPTIONS_CONFIGMAP=opentelemetry-kube-stack-install-options
+INSTALL_OPTIONS=(
+    DD_INSTALL_FLOW
+    DD_SITE
+    K8S_CLUSTER_TYPE
+    K8S_CLUSTER_NAME
+    DEPLOYMENT_ENVIRONMENT_NAME
+    DD_AGENT_ENABLED
+    DD_AUTOINSTRUMENTATION_ENABLED
+    DD_COLLECTOR_ENABLED
+    DD_HOST_PROFILER_ENABLED
+    DD_HOST_PROFILER_NETWORK_POLICY
+)
+
+PREVIOUS_OPTIONS=$(kubectl get configmap "$INSTALL_OPTIONS_CONFIGMAP" \
+    --namespace opentelemetry-operator-system \
+    --ignore-not-found \
+    -o go-template='{{range $k, $v := .data}}{{$k}}={{$v}}{{"\n"}}{{end}}') || {
+    echo "ERROR: Could not read the options of the previous run from the cluster" >&2
+    exit 1
+}
+
+while IFS= read -r line; do
+    key=${line%%=*}
+    value=${line#*=}
+    for option in "${INSTALL_OPTIONS[@]}"; do
+        if [[ "$key" == "$option" ]]; then
+            printf -v "PREVIOUS_$option" '%s' "$value"
+        fi
+    done
+done <<< "$PREVIOUS_OPTIONS"
+
+use_previous() {
+    local previous="PREVIOUS_$1"
+    if [[ -z "${!1+x}" && -n "${!previous:-}" ]]; then
+        printf -v "$1" '%s' "${!previous}"
+        echo "Using $1=${!1} from the previous run"
+    fi
+}
+
+for option in "${INSTALL_OPTIONS[@]}"; do
+    use_previous "$option"
+done
+
+previous_secret_key() {
+    [[ -n "$PREVIOUS_OPTIONS" ]] || return 0
+    kubectl get secret datadog-secret \
+        --namespace "$1" \
+        --ignore-not-found \
+        -o go-template="{{with index .data \"$2\"}}{{base64decode .}}{{end}}" || {
+        echo "ERROR: Could not read the $2 of the previous run from the cluster" >&2
+        exit 1
+    }
+}
+
 case "${DD_INSTALL_FLOW:-}" in
     upstream) VALUES_FILE=values-otlp-http.yaml ;;
     ddot) VALUES_FILE=values-ddot.yaml ;;
@@ -50,14 +105,30 @@ if [[ "$DD_COLLECTOR_ENABLED" == "false" && -z "${OTEL_EXPORTER_OTLP_ENDPOINT:-}
     exit 1
 fi
 
-if [[ -z "${DD_API_KEY:-}" ]] && [[ "$DD_COLLECTOR_ENABLED" == "true" || ( "$DD_INSTALL_FLOW" == "ddot" && "$DD_AGENT_ENABLED" == "true" ) ]]; then
-    echo "ERROR: DD_API_KEY is not set" >&2
-    exit 1
+if [[ "$DD_COLLECTOR_ENABLED" == "true" || ( "$DD_INSTALL_FLOW" == "ddot" && "$DD_AGENT_ENABLED" == "true" ) ]]; then
+    if [[ -z "${DD_API_KEY:-}" ]]; then
+        DD_API_KEY=$(previous_secret_key opentelemetry-operator-system api-key)
+        [[ -n "$DD_API_KEY" ]] || DD_API_KEY=$(previous_secret_key datadog api-key)
+        if [[ -n "$DD_API_KEY" ]]; then
+            echo "Using DD_API_KEY from the previous run"
+        fi
+    fi
+    if [[ -z "$DD_API_KEY" ]]; then
+        echo "ERROR: DD_API_KEY is not set" >&2
+        exit 1
+    fi
 fi
 
 DD_AGENT_VALUES_ARGS=()
 if [[ "$DD_INSTALL_FLOW" == "ddot" && "$DD_AGENT_ENABLED" == "true" ]]; then
     DD_AGENT_VALUES_ARGS=(-f "$SCRIPT_DIR/dd-agent-kube-stack-values.yaml")
+
+    if [[ -z "${DD_APP_KEY:-}" ]]; then
+        DD_APP_KEY=$(previous_secret_key datadog app-key)
+        if [[ -n "$DD_APP_KEY" ]]; then
+            echo "Using DD_APP_KEY from the previous run"
+        fi
+    fi
 
     if [[ -n "${DD_APP_KEY:-}" && -z "${K8S_CLUSTER_NAME:-}" ]]; then
         echo "ERROR: K8S_CLUSTER_NAME must be set when DD_APP_KEY is set (Fleet Automation requires a cluster name)" >&2
@@ -213,6 +284,19 @@ if [[ "$DD_INSTALL_FLOW" == "ddot" && "$DD_AGENT_ENABLED" == "true" ]]; then
       -p "{\"spec\":{\"global\":{$GLOBAL_JSON}}}" \
       -o yaml | kubectl apply --namespace datadog -f -
 fi
+
+echo "Saving the installation options..."
+
+INSTALL_OPTIONS_ARGS=()
+for option in "${INSTALL_OPTIONS[@]}"; do
+    if [[ -n "${!option:-}" ]]; then
+        INSTALL_OPTIONS_ARGS+=(--from-literal="$option=${!option}")
+    fi
+done
+kubectl create configmap "$INSTALL_OPTIONS_CONFIGMAP" \
+  --namespace opentelemetry-operator-system \
+  "${INSTALL_OPTIONS_ARGS[@]}" \
+  --dry-run=client -o yaml | kubectl apply -f -
 
 # Installed last so the Helm release notes are the last output the user sees.
 echo "Installing OpenTelemetry Kube Stack Helm Chart..."

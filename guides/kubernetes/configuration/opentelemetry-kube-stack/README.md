@@ -55,6 +55,8 @@ source .env
 ./install
 ```
 
+When you re-run the installer, variables that are not set, except `OTEL_EXPORTER_OTLP_ENDPOINT`, take their value from the previous run.
+
 For EKS, GKE, and AKS, the installer enables the matching resource-detection preset.
 
 It then:
