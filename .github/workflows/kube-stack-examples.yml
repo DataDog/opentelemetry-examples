@@ -90,6 +90,7 @@ jobs:
         env:
           DD_API_KEY: "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
           DD_INSTALL_FLOW: ${{ matrix.flow }}
+          DD_INSTRUMENTATION_TELEMETRY_ENABLED: "false"
         run: ./install
 
       - name: Wait for the collectors to roll out
