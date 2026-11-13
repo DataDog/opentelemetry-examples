@@ -267,26 +267,16 @@ Signal-specific endpoints must include the signal path. A signal-specific value 
 pinned Go setup needs `OTEL_EXPORTER_OTLP_TRACES_ENDPOINT` because its trace exporter does not honor the shared
 endpoint. Keep credentials in Secrets and preserve existing `OTEL_EXPORTER_OTLP_*_HEADERS` values.
 
-Configure a protocol supported by the pinned SDK and Collector receiver. For the repository pins:
-
-```text
-# Java, Python, Go, and .NET 3.45 or later
-OTEL_EXPORTER_OTLP_PROTOCOL=http/protobuf
-
-# Node.js traces
-OTEL_EXPORTER_OTLP_TRACES_PROTOCOL=http/json
-```
+Configure a protocol supported by the pinned SDK and Collector receiver. For the repository pins, the shared protocol
+and metrics temporality are owned by `instrumentation.env` in [`values.yaml`][k8s-values]. The Node.js trace override is
+owned by `instrumentation.nodejs.env` in the same file.
 
 Node.js metrics and logs support OTLP/HTTP protobuf at the pinned version, so use signal-specific protocol settings
 when traces, metrics, and logs are enabled together. Do not change an endpoint from port `4317` to `4318` without also
 changing `grpc` to an HTTP protocol. See the [OTLP exporter specification][otel-otlp-config] and the
 [Datadog SDK OTLP matrix][dd-otlp-export].
 
-Datadog requires delta metrics. Set the preference when the SDK supports it:
-
-```text
-OTEL_EXPORTER_OTLP_METRICS_TEMPORALITY_PREFERENCE=delta
-```
+Datadog requires delta metrics. Use the repository's metrics temporality preference when the SDK supports it.
 
 If another destination requires cumulative metrics, preserve cumulative export and convert only the Datadog branch
 with the Collector's `cumulative_to_delta` processor. Account for the processor's state and ensure all points in a
