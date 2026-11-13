@@ -99,6 +99,11 @@ if [[ "$DD_HOST_PROFILER_ENABLED" == "true" ]]; then
     )
 fi
 
+if [[ "$DD_HOST_PROFILER_ENABLED" == "true" && "$DD_HOST_PROFILER_NETWORK_POLICY" == "cilium" ]] && ! kubectl get crd ciliumnetworkpolicies.cilium.io >/dev/null 2>&1; then
+    echo "ERROR: DD_HOST_PROFILER_NETWORK_POLICY=cilium requires Cilium (the ciliumnetworkpolicies.cilium.io CRD was not found)" >&2
+    exit 1
+fi
+
 #### BEGINNING OF INSTALLATION SCRIPT
 
 # WARNING: dont change "namespace=opentelemetry-operator-system" as it is used in the 'instrumentation' CRD defined in values-otlp-http.yaml and values-ddot.yaml
@@ -125,28 +130,9 @@ helm install cert-manager cert-manager \
   --wait --timeout 5m \
   || echo "WARNING: Could not install cert-manager (may already exist or insufficient permissions). Continuing..."
 
-# The standard and Cilium policies select the same pods and Kubernetes
-# NetworkPolicies are additive: remove both NetworkPolicy before applying
-# the selected one (or none), so a policy from a previous run cannot widen
-# the requested egress.
-kubectl delete networkpolicy \
-  --namespace opentelemetry-operator-system \
-  --ignore-not-found=true \
-  opentelemetry-kube-stack-host-profiler-egress \
-  || echo "WARNING: Could not delete the host-profiler NetworkPolicy. Continuing..."
-# The CiliumNetworkPolicy CRD only exists on Cilium clusters.
-if kubectl get crd ciliumnetworkpolicies.cilium.io >/dev/null 2>&1; then
-    kubectl delete ciliumnetworkpolicy \
-      --namespace opentelemetry-operator-system \
-      --ignore-not-found=true \
-      opentelemetry-kube-stack-host-profiler-egress \
-      || echo "WARNING: Could not delete the host-profiler CiliumNetworkPolicy. Continuing..."
-fi
-
 if [[ -n "$HOST_PROFILER_NETWORK_POLICY_FILE" ]]; then
     echo "Applying the host-profiler egress NetworkPolicy..."
-    kubectl apply -f "$HOST_PROFILER_NETWORK_POLICY_FILE" \
-      || echo "WARNING: Could not apply the host-profiler egress NetworkPolicy (is Cilium installed if you chose the Cilium policy?). Continuing..."
+    kubectl apply -f "$HOST_PROFILER_NETWORK_POLICY_FILE"
 fi
 
 if [[ "$DD_INSTALL_FLOW" == "ddot" && "$DD_AGENT_ENABLED" == "true" ]]; then
