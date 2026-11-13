@@ -3,6 +3,7 @@ set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 INSTALLER_VERSION=v0.0.1-pre
+echo "Datadog OpenTelemetry Install Script $INSTALLER_VERSION"
 
 require_bool() {
     case "${!1}" in
