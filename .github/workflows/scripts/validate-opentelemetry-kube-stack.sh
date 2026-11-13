@@ -24,12 +24,12 @@ validate_collector_configs() {
 
   # Extract Collector image
   local collector_image
-  collector_image="$(yq '.opentelemetry-operator.manager.collectorImage.repository + ":" + .opentelemetry-operator.manager.collectorImage.tag' values-otlp-http.yaml)"
+  collector_image="$(yq '.opentelemetry-operator.manager.collectorImage.repository + ":" + .opentelemetry-operator.manager.collectorImage.tag' upstream/values.yaml)"
   echo "Validating collector configs against ${collector_image}"
 
   # Move each config into its own file.
   local collector_file example mode doc_count i kind name
-  for collector_file in examples/*/rendered-*/collector.yaml; do
+  for collector_file in upstream/examples/*/rendered/collector.yaml; do
     example="$(basename "$(dirname "$(dirname "${collector_file}")")")"
     mode="$(basename "$(dirname "${collector_file}")")"
     doc_count="$(yq 'di' "${collector_file}" | tail -1)"
@@ -75,7 +75,7 @@ validate_manifests() {
     -strict -summary \
     -schema-location default \
     -schema-location 'https://raw.githubusercontent.com/datreeio/CRDs-catalog/main/{{.Group}}/{{.ResourceKind}}_{{.ResourceAPIVersion}}.json' \
-    examples/*/rendered-* \
+    upstream/examples/*/rendered \
     datadog-agent.yaml
 }
 
