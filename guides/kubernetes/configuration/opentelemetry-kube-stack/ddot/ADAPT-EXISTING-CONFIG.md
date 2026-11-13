@@ -288,9 +288,8 @@ configures one collector.
     configuration replaces the preset's list in `defaultCRConfig.config.processors.k8s_attributes.extract.metadata` and
     `collectors.host-profiler.config.processors.k8s_attributes.extract.metadata` in [`values.yaml`][values].
   - **Datadog:** since Collector v0.161.0, the Datadog exporter and connector map `container.image.tags` to the
-    `image_tag` tag, using the first element of the array. Earlier versions only map `container.image.tag`. For DDOT,
-    the Collector version is the upstream version that the DDOT Collector is built on: the `otel-agent` reports it as
-    `service.version` in its logs.
+    `image_tag` tag, using the first element of the array. Earlier versions only map `container.image.tag`. The DDOT
+    Collector maps `container.image.tags` since Datadog Agent v7.85.0.
   - **When to extract `container.image.tag`:**
     - **Collector older than v0.146.0:** `container.image.tag` is the only image tag attribute that `k8s_attributes`
       supports.
