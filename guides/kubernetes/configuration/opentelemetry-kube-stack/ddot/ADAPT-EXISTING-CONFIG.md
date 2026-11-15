@@ -124,13 +124,13 @@ configures one collector.
 
 - **Requirement:** the traces, metrics, and logs of a workload carry the same values of the following resource
   attributes: Datadog correlates the telemetry on them, and can't link the signals of a workload when they differ.
-  `service.namespace` is strongly recommended rather than required.
+  `service.namespace` and `deployment.environment.name` are strongly recommended rather than required.
 
   | Resource attribute                                                                                                                                                                                                                  | Datadog use                                                                                           | Set by, in the reference configuration                                                                                                                                   |
   |-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|-------------------------------------------------------------------------------------------------------|--------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
   | `service.name`                                                                                                                                                                                                                      | `service` tag, needed for any correlation                                                             | OpenTelemetry Operator and `k8s_attributes`, following the [OpenTelemetry Kubernetes conventions][otel-semconv-k8s-attributes]: annotations, labels, workload names      |
   | `service.namespace`                                                                                                                                                                                                                 | Groups the services of an application. Strongly recommended, not required                             | OpenTelemetry Operator and `k8s_attributes`, following the [OpenTelemetry Kubernetes conventions][otel-semconv-k8s-attributes]: annotations, Kubernetes namespace        |
-  | `deployment.environment.name`                                                                                                                                                                                                       | `env` tag                                                                                             | OpenTelemetry Operator and `resourceAttributes` of the kube-stack chart ([C-11](#c-11-set-the-deployment-environment)): annotations, OTel Collector pipeline             |
+  | `deployment.environment.name`                                                                                                                                                                                                       | `env` tag. Strongly recommended                                                                       | OpenTelemetry Operator and `resourceAttributes` of the kube-stack chart ([C-11](#c-11-set-the-deployment-environment)): annotations, OTel Collector pipeline             |
   | `service.version`                                                                                                                                                                                                                   | `version` tag                                                                                         | OpenTelemetry Operator and `k8s_attributes`, following the [OpenTelemetry Kubernetes conventions][otel-semconv-k8s-attributes]: annotations, labels, container image tag |
   | `container.id`                                                                                                                                                                                                                      | Links spans to the container metrics: without it, APM doesn't show the container metrics of a service | The SDK's container resource detector: not extracted by `k8s_attributes` in the reference                                                                                |
   | `host.name`                                                                                                                                                                                                                         | Links to the host metrics                                                                             | `resource/hostname`, from `k8s.node.name`                                                                                                                                |
@@ -266,6 +266,8 @@ configures one collector.
 - **`k8s.container.name`:** extract it with the `k8s_attributes` processor, in its `extract.metadata`, as the
   kube-stack preset does. The OpenTelemetry Operator injects it in `OTEL_RESOURCE_ATTRIBUTES` only for the workloads it
   instruments: `k8s_attributes` sets it for the other ones, such as applications instrumented without the Operator.
+  For those applications, also set it in the container's `OTEL_RESOURCE_ATTRIBUTES`
+  ([S-08](#s-08-configure-the-sdks-of-workloads-without-the-opentelemetry-operator)).
   In pods with several containers, the processor can only tell which container sent the telemetry from its
   `container.id` resource attribute, and doesn't set `k8s.container.name` without it.
 - **`container.id`:** check that the application traces carry it. If they don't, add `container.id` to the
@@ -403,8 +405,9 @@ environment variable, typically through `OTEL_RESOURCE_ATTRIBUTES=datadog.host.n
 
 ### C-11: Set the deployment environment
 
-- **Requirement:** `deployment.environment.name` on all the telemetry, for example with `resourceAttributes` in the
-  kube-stack chart's values.
+- **Recommendation:** strongly recommended, set `deployment.environment.name` on all the telemetry, for example with
+  `resourceAttributes` in the kube-stack chart's values. Datadog maps it to the `env` tag of
+  [Unified Service Tagging][dd-unified-service-tagging].
 
 ### C-12: Collect middleware telemetry from the `daemon` collector on the same node
 
@@ -573,12 +576,31 @@ environment variable, typically through `OTEL_RESOURCE_ATTRIBUTES=datadog.host.n
 
 ### O-06: Instrument Go applications at compile time
 
-- **Requirement:** Go applications are instrumented at build time with [Orchestrion][orchestrion] for the DDOT SDK for
-  Go, and use the `instrumentation.opentelemetry.io/inject-sdk` annotation, which only injects the `OTEL_*`
-  configuration.
-- **Workaround:** set `OTEL_EXPORTER_OTLP_TRACES_ENDPOINT` to `<daemon collector endpoint>/v1/traces` in the
-  `Instrumentation`'s `env`, as the DDOT SDK for Go ignores `OTEL_EXPORTER_OTLP_ENDPOINT`
-  ([dd-trace-go#5407][dd-trace-go-5407]).
+- **Recommendation:** instrument Go applications at build time with [Orchestrion][orchestrion] for the DDOT SDK for
+  Go. Compile-time instrumentation is recommended and optional: see the alternative below.
+- **Requirement:** when the OpenTelemetry Operator configures Go applications, use the
+  `instrumentation.opentelemetry.io/inject-sdk` annotation, which only injects the `OTEL_*` configuration.
+- **Requirement:** use the DDOT SDK for Go `v2.12.0` or later, which falls back to `OTEL_EXPORTER_OTLP_ENDPOINT` for
+  traces ([dd-trace-go#5407][dd-trace-go-5407]).
+- **Workaround:** with earlier versions, which ignore `OTEL_EXPORTER_OTLP_ENDPOINT`, set
+  `OTEL_EXPORTER_OTLP_TRACES_ENDPOINT` to `<daemon collector endpoint>/v1/traces` in the `Instrumentation`'s `env`.
+- **Alternative:** when you don't use compile-time instrumentation with Orchestrion, configure the
+  [OpenTelemetry SDK for Go][otel-go] from the standard
+  [OpenTelemetry environment variables][otel-sdk-env-vars] instead of hard-coding the configuration in the
+  application. The OpenTelemetry Operator's `inject-sdk` annotation, or an equivalent mechanism such as the container
+  `env` of [S-08](#s-08-configure-the-sdks-of-workloads-without-the-opentelemetry-operator),
+  can then inject the configuration. For example:
+  - build the resource with `resource.New` and the `resource.WithFromEnv()` option, which reads `OTEL_SERVICE_NAME`
+    and `OTEL_RESOURCE_ATTRIBUTES`, or merge it with `resource.Default()`, which includes them;
+  - create the exporters with the OTLP exporters' default options, which read the `OTEL_EXPORTER_OTLP_*` variables,
+    or with the [`autoexport`][otel-go-autoexport] package, which also reads `OTEL_TRACES_EXPORTER`,
+    `OTEL_METRICS_EXPORTER`, and `OTEL_LOGS_EXPORTER`;
+  - set the propagators with the [`autoprop`][otel-go-autoprop] package, which reads `OTEL_PROPAGATORS`;
+  - don't set an endpoint, protocol, or sampler in the code, because a value set in the code overrides the
+    environment variable.
+
+  The DDOT SDK features that the OpenTelemetry SDK for Go doesn't have, such as the `DD_*` features of
+  [S-06](#s-06-enable-optional-datadog-features-per-workload), aren't available with this alternative.
 - See also the [known gaps](#known-gaps) for Go.
 
 ## DDOT SDK environment rules
@@ -604,6 +626,8 @@ without the OpenTelemetry Operator, set them in their environment instead.
     value: "true"
   - name: DD_TRACE_OTEL_SEMANTICS_ENABLED
     value: "true"
+  - name: OTEL_TRACES_SPAN_METRICS_ENABLED
+    value: "false"
   ```
 
 - **Why:** together, these settings configure OpenTelemetry semantic conventions and OTLP export for the supported
@@ -622,6 +646,9 @@ without the OpenTelemetry Operator, set them in their environment instead.
     trace export. The reverse does not apply: `OTEL_TRACES_EXPORTER=otlp` does not by itself switch from Datadog
     to OpenTelemetry semantics. Keep both settings explicit, and verify that the pinned SDK version supports them
     and that workload-specific overrides do not disable either behavior.
+  - `OTEL_TRACES_SPAN_METRICS_ENABLED=false` stops the SDK from computing span stats, so the Datadog connector of
+    the Collector computes the APM trace metrics of every service
+    ([C-02](#c-02-compute-apm-trace-metrics-with-the-datadog-connector-before-any-sampling)).
 - **Fix:** merge the variables above into the `Instrumentation` configuration, preserving existing list entries.
   Before reporting `already satisfied` or `applied`, check that each workload uses this configuration and that its
   container, language-specific, or application settings do not override it. Keep `OTEL_TRACES_EXPORTER=otlp`
@@ -691,12 +718,14 @@ without the OpenTelemetry Operator, set them in their environment instead.
 
 ### S-06: Enable optional Datadog features per workload
 
-These features are disabled by default. Enable them in the `Instrumentation`'s `env` for every workload, or in a
-workload's container `env` for that workload only:
+These features of the DDOT SDKs are disabled by default. Enable them in the `Instrumentation`'s `env` for every
+workload, or in a workload's container `env` for that workload only. The commented-out entries of `instrumentation.env`
+in [`values.yaml`][values] list them:
 
 | Feature                                    | Variables                                                                              |
 |--------------------------------------------|----------------------------------------------------------------------------------------|
-| [Database Monitoring][dd-dbm]              | `DD_DBM_PROPAGATION_MODE=full`, `DD_DBM_TRACE_PREPARED_STATEMENTS=true`                |
+| [Dynamic Instrumentation][dd-ddi]          | `DD_DYNAMIC_INSTRUMENTATION_ENABLED=true`, with the Datadog Agent configuration of [A-03](#a-03-enable-live-debugger-and-dynamic-instrumentation) |
+| [Database Monitoring][dd-dbm]              | `DD_DBM_PROPAGATION_MODE=service` (other supported values: `full`, `disabled`), `DD_DBM_TRACE_PREPARED_STATEMENTS=true` |
 | [Data Streams Monitoring][dd-dsm]          | `DD_DATA_STREAMS_ENABLED=true`, `DD_TRACE_REMOVE_INTEGRATION_SERVICE_NAMES_ENABLED=true` |
 | [App & API Protection][dd-aap]             | `DD_APPSEC_ENABLED=true`                                                               |
 | [Code Security IAST][dd-iast]              | `DD_IAST_ENABLED=true`                                                                 |
@@ -749,6 +778,130 @@ workload's container `env` for that workload only:
   environment tags through the intended transport. An enabled flag or successful trace export is insufficient.
 - **Conflicts:** preserve explicit runtime-metrics disables and existing runtime instrumentation. Ask before
   enabling a disabled collector or adding another one that could duplicate the same measurements.
+
+### S-08: Configure the SDKs of workloads without the OpenTelemetry Operator
+
+- **Requirement:** when the OpenTelemetry Operator doesn't inject the OpenTelemetry configuration into a workload,
+  add these variables to the `env` of the application container, replacing the `<...>` placeholders. This is
+  typically the case when the OpenTelemetry SDKs are managed manually: the SDK is included in the container image of
+  the service, and its OpenTelemetry configuration is managed in the Kubernetes deployment. The variables form the
+  following groups:
+  - **OpenTelemetry SDK configuration**, for all OpenTelemetry SDKs: the `daemon` collector endpoint
+    ([O-04](#o-04-point-the-sdks-at-the-daemon-collector)), the OTLP/HTTP protocol
+    ([S-03](#s-03-export-over-otlphttp)), the delta temporality ([S-04](#s-04-export-delta-metrics)), and the stable
+    semantic conventions ([S-05](#s-05-use-the-stable-semantic-conventions)).
+  - **Resource attributes**, for all OpenTelemetry SDKs, following the
+    [OpenTelemetry Kubernetes conventions][otel-semconv-k8s-attributes].
+  - **DDOT SDK configuration**, only for the DDOT SDKs: the OpenTelemetry mode
+    ([S-01](#s-01-enable-the-opentelemetry-mode-of-the-ddot-sdks)), the Datadog Agent host
+    ([S-02](#s-02-point-the-ddot-sdks-at-the-datadog-agent)), and `OTEL_TRACES_SPAN_METRICS_ENABLED=false`, which
+    leaves the computation of the APM trace metrics to the Datadog connector of the Collector
+    ([C-02](#c-02-compute-apm-trace-metrics-with-the-datadog-connector-before-any-sampling)). To also enable optional Datadog features, such as
+    Dynamic Instrumentation, Database Monitoring, Data Streams Monitoring, App & API Protection, and Code Security,
+    add their variables to this group ([S-06](#s-06-enable-optional-datadog-features-per-workload)).
+
+  ```yaml
+  spec:
+    containers:
+      - env:
+          ## OpenTelemetry SDK configuration
+          - name: OTEL_EXPORTER_OTLP_ENDPOINT
+            value: http://<helm-release-name>-daemon-collector.<namespace>.svc.cluster.local:4318
+          - name: OTEL_EXPORTER_OTLP_PROTOCOL
+            value: http/protobuf
+          - name: OTEL_EXPORTER_OTLP_METRICS_TEMPORALITY_PREFERENCE
+            value: delta
+          - name: OTEL_SEMCONV_STABILITY_OPT_IN
+            value: http,database,rpc,messaging
+
+          ## Resource attributes
+          - name: OTEL_SERVICE_NAME
+            value: <service name>
+          - name: OTEL_RESOURCE_ATTRIBUTES_DEPLOYMENT_ENVIRONMENT_NAME
+            value: <deployment environment name>
+          - name: OTEL_RESOURCE_ATTRIBUTES_SERVICE_VERSION
+            value: <service version>
+          - name: OTEL_RESOURCE_ATTRIBUTES_CONTAINER_NAME
+            value: <name of this container>
+          - name: OTEL_RESOURCE_ATTRIBUTES_POD_NAME
+            valueFrom:
+              fieldRef:
+                apiVersion: v1
+                fieldPath: metadata.name
+          - name: OTEL_RESOURCE_ATTRIBUTES_POD_UID
+            valueFrom:
+              fieldRef:
+                apiVersion: v1
+                fieldPath: metadata.uid
+          - name: OTEL_RESOURCE_ATTRIBUTES_NODE_NAME
+            valueFrom:
+              fieldRef:
+                apiVersion: v1
+                fieldPath: spec.nodeName
+          - name: OTEL_RESOURCE_ATTRIBUTES_POD_NAMESPACE
+            valueFrom:
+              fieldRef:
+                apiVersion: v1
+                fieldPath: metadata.namespace
+          - name: OTEL_RESOURCE_ATTRIBUTES
+            value: deployment.environment.name=$(OTEL_RESOURCE_ATTRIBUTES_DEPLOYMENT_ENVIRONMENT_NAME),k8s.namespace.name=$(OTEL_RESOURCE_ATTRIBUTES_POD_NAMESPACE),k8s.node.name=$(OTEL_RESOURCE_ATTRIBUTES_NODE_NAME),k8s.pod.name=$(OTEL_RESOURCE_ATTRIBUTES_POD_NAME),k8s.pod.uid=$(OTEL_RESOURCE_ATTRIBUTES_POD_UID),k8s.container.name=$(OTEL_RESOURCE_ATTRIBUTES_CONTAINER_NAME),service.instance.id=$(OTEL_RESOURCE_ATTRIBUTES_POD_NAMESPACE).$(OTEL_RESOURCE_ATTRIBUTES_POD_NAME).$(OTEL_RESOURCE_ATTRIBUTES_CONTAINER_NAME),service.namespace=$(OTEL_RESOURCE_ATTRIBUTES_POD_NAMESPACE),service.version=$(OTEL_RESOURCE_ATTRIBUTES_SERVICE_VERSION)
+
+          ## DDOT SDK configuration, only for the DDOT SDKs
+          - name: OTEL_TRACES_EXPORTER
+            value: otlp
+          - name: DD_TRACE_OTEL_ENABLED
+            value: "true"
+          - name: DD_LOGS_OTEL_ENABLED
+            value: "true"
+          - name: DD_METRICS_OTEL_ENABLED
+            value: "true"
+          - name: DD_TRACE_OTEL_SEMANTICS_ENABLED
+            value: "true"
+          - name: DD_AGENT_HOST
+            value: <Datadog Agent Service DNS name, typically datadog-agent.datadog.svc.cluster.local>
+          # Let the Collector compute the span stats, so every service gets trace.* metrics
+          - name: OTEL_TRACES_SPAN_METRICS_ENABLED
+            value: "false"
+  ```
+
+- **Requirement:** in addition to the resource attribute variables above, which only configure the SDK, annotate
+  the pod template with the `resource.opentelemetry.io/*` annotations, such as
+  `resource.opentelemetry.io/service.name` and `resource.opentelemetry.io/service.namespace`
+  ([C-03](#c-03-enrich-the-telemetry-with-the-resource-attributes-datadog-needs)). Use the same values as in the
+  environment variables. The OpenTelemetry Collector produces telemetry about the same pod, such as its logs,
+  metrics, and Kubernetes events, and can't read the SDK's environment variables. With the `k8s_attributes`
+  processor and `extract.otel_annotations: true`, the Collector reads the annotations and enriches this telemetry
+  with the same resource attributes, following the [OpenTelemetry Kubernetes conventions][otel-semconv-k8s-attributes].
+- **Why:** on Kubernetes, the OpenTelemetry Operator sets the resource attributes of the SDKs it configures, following
+  the [OpenTelemetry Kubernetes conventions][otel-semconv-k8s-attributes]. Without the Operator, the resource
+  attribute variables above and the pod annotations follow the same conventions. These resource attributes serve the
+  following goals:
+  - **Correlation with the rest of the telemetry:** the SDKs' telemetry must carry the same resource attributes as the
+    telemetry that other components collect about the same workload. These components include the OpenTelemetry
+    Collector, for pod logs, metrics, and Kubernetes events, the OpenTelemetry eBPF profiler, and OpenTelemetry eBPF
+    instrumentation. The attributes that link them include `service.name`, `service.namespace`,
+    `service.instance.id`, `k8s.pod.name`, `k8s.pod.uid`, `k8s.deployment.name`, `k8s.cluster.name`, and
+    `k8s.node.name`. With `k8s.pod.uid`, the `k8s_attributes` processor associates the telemetry with its pod, and with
+    `k8s.container.name`, it finds the container in pods that have several containers.
+  - **Organization of the telemetry:** `service.name`, `service.namespace`, `deployment.environment.name`, and the
+    custom resource attributes that classify services let you group and filter the telemetry, for example by
+    application and environment.
+  - **APM troubleshooting:** some APM capabilities depend on specific attributes. For example, `service.version`
+    enables [Deployment Tracking][dd-deployment-tracking], which compares the behavior of a service across its
+    versions.
+- **`deployment.environment.name`:** strongly recommended. When the Collector pipeline already sets it
+  ([C-11](#c-11-set-the-deployment-environment)), you can remove `OTEL_RESOURCE_ATTRIBUTES_DEPLOYMENT_ENVIRONMENT_NAME`
+  and the `deployment.environment.name` entry of `OTEL_RESOURCE_ATTRIBUTES`. The same manifests then serve all the
+  environments.
+- **Fix:** keep `OTEL_RESOURCE_ATTRIBUTES` after the variables it references. Kubernetes only expands a `$(VAR)`
+  reference to a variable defined earlier in the same container's `env`, and leaves the other references as literal
+  text ([dependent environment variables][k8s-dependent-env-vars]). For Go workloads that use a DDOT SDK for Go
+  version earlier than `v2.12.0`, also set `OTEL_EXPORTER_OTLP_TRACES_ENDPOINT`
+  ([O-06](#o-06-instrument-go-applications-at-compile-time)). With the upstream OpenTelemetry SDKs, leave out the
+  DDOT SDK configuration group.
+- **Conflicts:** if the container already sets `OTEL_RESOURCE_ATTRIBUTES`, merge its attributes into the new value
+  and keep the user's values when they differ. For the other variables, follow the conflicts of the rules each group
+  links to, such as [S-01](#s-01-enable-the-opentelemetry-mode-of-the-ddot-sdks) for explicitly disabled signals.
 
 ## Datadog Agent and Datadog Operator rules
 
@@ -922,6 +1075,7 @@ See [TROUBLESHOOTING.md][troubleshooting] when something doesn't show up.
 [dd-fleet-automation]: https://docs.datadoghq.com/agent/fleet_automation/
 [dd-otel-extension-resource]: https://docs.datadoghq.com/opentelemetry/integrations/datadog_extension/
 [dd-live-debugger-go]: https://docs.datadoghq.com/tracing/live_debugger/?prog_lang=go
+[dd-ddi]: https://docs.datadoghq.com/tracing/trace_collection/dynamic_instrumentation/
 [dd-dbm]: https://docs.datadoghq.com/database_monitoring/
 [dd-dsm]: https://docs.datadoghq.com/data_streams/
 [dd-aap]: https://docs.datadoghq.com/security/application_security/
@@ -942,3 +1096,9 @@ See [TROUBLESHOOTING.md][troubleshooting] when something doesn't show up.
 [dd-hostname-mapping]: https://docs.datadoghq.com/opentelemetry/mapping/hostname/?tab=datadogexporter
 [dd-otlp-trace-export]: https://docs.datadoghq.com/opentelemetry/instrument/dd_sdks/otlp_trace_export/
 [dd-runtime-metrics]: https://docs.datadoghq.com/tracing/metrics/runtime_metrics/
+[dd-deployment-tracking]: https://docs.datadoghq.com/tracing/services/deployment_tracking/
+[otel-go]: https://opentelemetry.io/docs/languages/go/
+[otel-sdk-env-vars]: https://opentelemetry.io/docs/specs/otel/configuration/sdk-environment-variables/
+[otel-go-autoexport]: https://pkg.go.dev/go.opentelemetry.io/contrib/exporters/autoexport
+[otel-go-autoprop]: https://pkg.go.dev/go.opentelemetry.io/contrib/propagators/autoprop
+[k8s-dependent-env-vars]: https://kubernetes.io/docs/tasks/inject-data-application/define-interdependent-environment-variables/
