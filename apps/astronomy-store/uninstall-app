@@ -24,6 +24,7 @@ SERVICE_MANIFESTS=(
     ad/kubernetes.yaml
     product-catalog/kubernetes.yaml
     fraud-detection/kubernetes.yaml
+    dsm-pipeline/kubernetes.yaml
     checkout/kubernetes.yaml
     frontend/kubernetes.yaml
     astronomy-db/kubernetes.yaml
