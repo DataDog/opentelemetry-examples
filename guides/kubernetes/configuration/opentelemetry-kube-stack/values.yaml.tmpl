@@ -1009,7 +1009,7 @@ instrumentation:
     - baggage
   dotnet:
     # image: otel/autoinstrumentation-dotnet:1.17.0
-    image: datadog/dd-otel-autoinstrumentation-dotnet:3.56.0-preview
+    image: datadog/dd-otel-autoinstrumentation-dotnet:3.57.0-preview
     # Unlike the other languages, .NET needs more setup to instrument an application:
     # - The CORECLR_PROFILER_PATH env variable must be set (matching other languages)
     # - The .NET Tracer's DD_DOTNET_TRACER_HOME env variable must be set
@@ -1028,13 +1028,13 @@ instrumentation:
         value: /otel-auto-instrumentation-dotnet
   java:
     # image: otel/autoinstrumentation-java:2.32.0
-    image: datadog/dd-otel-autoinstrumentation-java:1.68.0-preview
+    image: datadog/dd-otel-autoinstrumentation-java:1.69.0-preview
   nodejs:
     # image: otel/autoinstrumentation-nodejs:0.78.0
-    image: datadog/dd-otel-autoinstrumentation-js:6.20-preview
+    image: datadog/dd-otel-autoinstrumentation-js:6.25-preview
   python:
     # image: otel/autoinstrumentation-python:0.66b1
-    image: datadog/dd-otel-autoinstrumentation-python:4.16.1-preview
+    image: datadog/dd-otel-autoinstrumentation-python:4.17.0-preview
     # For Alpine/musl workloads, add this pod-template annotation (glibc is the default):
     # instrumentation.opentelemetry.io/otel-python-platform: "musl"
     # https://opentelemetry.io/docs/platforms/kubernetes/operator/automatic/#auto-instrumenting-a-python-musl-based-container
