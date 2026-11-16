@@ -319,7 +319,7 @@ echo "Saving the installation options..."
 kubectl create configmap "$INSTALL_OPTIONS_CONFIGMAP" \
   --namespace opentelemetry-operator-system \
   "${INSTALL_OPTIONS_ARGS[@]}" \
-  --dry-run=client -o yaml | kubectl apply -f -
+  --dry-run=client -o yaml | stamp_provenance | kubectl apply -f -
 
 # Installed last so the Helm release notes are the last output the user sees.
 echo "Installing OpenTelemetry Kube Stack Helm Chart..."
