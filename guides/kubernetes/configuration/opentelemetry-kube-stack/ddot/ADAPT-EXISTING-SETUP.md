@@ -730,11 +730,11 @@ values: this guide doesn't list them, and they aren't tested in this repository.
 ### A-01: Disable the features that duplicate the OpenTelemetry Collectors
 
 - **Requirement:** disable a Datadog Agent feature only when its equivalent is enabled in the OpenTelemetry Collectors,
-  to avoid collecting the same telemetry twice. The reference [`values.yaml`][values] enables these equivalents, but
-  the user may have changed the installer's defaults or configured Collectors without some of them: check each
-  equivalent in the user's Collector configuration before disabling the Agent feature, and keep the Agent feature when
-  its equivalent isn't enabled. The presets add their receivers to the pipelines: check the receivers in the rendered
-  `OpenTelemetryCollector` custom resources, not only in the values.
+  to avoid collecting the same telemetry twice. The reference [`values.yaml`][values] enables all these equivalents
+  except Kubernetes events, but the user may have changed the installer's defaults or configured Collectors without
+  some of them: check each equivalent in the user's Collector configuration before disabling the Agent feature, and
+  keep the Agent feature when its equivalent isn't enabled. The presets add their receivers to the pipelines: check the
+  receivers in the rendered `OpenTelemetryCollector` custom resources, not only in the values.
 
   | Datadog Agent feature                                                                  | OpenTelemetry Collector equivalent, in the `opentelemetry-kube-stack` chart                                                                                                                                          |
   |----------------------------------------------------------------------------------------|----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
