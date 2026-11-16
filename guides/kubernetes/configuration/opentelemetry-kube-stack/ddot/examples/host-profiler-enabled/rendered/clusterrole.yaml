@@ -120,6 +120,9 @@ rules:
     - get
     - list
     - watch
+- apiGroups: ["events.k8s.io"]
+  resources: ["events"]
+  verbs: ["watch", "list"]
 - apiGroups: [""]
   resources: ["nodes"]
   verbs: ["get", "list"]

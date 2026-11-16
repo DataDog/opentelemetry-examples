@@ -26,8 +26,6 @@ spec:
   env:
     - name: OTEL_EXPORTER_OTLP_METRICS_TEMPORALITY_PREFERENCE
       value: "delta"
-    - name: OTEL_EXPORTER_OTLP_PROTOCOL
-      value: "http/protobuf"
     - name: OTEL_SEMCONV_STABILITY_OPT_IN
       value: "http,database,rpc,messaging"
   resource:

@@ -12,12 +12,12 @@ These rules apply to Markdown documentation in this repository, including README
 
 ## DDOT guide ownership
 
-- `guides/ddot/ADAPT-APPLICATIONS.md` owns application-level adaptation in every deployment environment: inventory,
-  SDK installation and activation, signal ownership, identity, exporter configuration, version compatibility, and
-  per-application verification.
-- `guides/kubernetes/configuration/opentelemetry-kube-stack/ddot/ADAPT-EXISTING-CONFIG.md` owns Kubernetes platform
-  integration: Collector topology and pipelines, OpenTelemetry Operator injection and precedence, Datadog Agent
-  overlap, Kubernetes enrichment, node-local routing, and cluster-level verification.
-- `guides/kubernetes/configuration/opentelemetry-kube-stack/ddot/values.yaml` is the executable reference for the
-  Kubernetes guide. Keep exact environment-variable lists and Collector configuration there. Describe intent in the
-  guides and link to the owning key path instead of duplicating the configuration.
+- `guides/kubernetes/configuration/opentelemetry-kube-stack/ddot/ADAPT-EXISTING-CONFIG.md` owns adaptation for existing
+  setups. Its application workflow applies to every deployment. Its platform rules apply only when the corresponding
+  Kubernetes components are present. It covers cross-language migration decisions, Collector topology and pipelines,
+  OpenTelemetry Operator injection and precedence, Datadog Agent overlap, Kubernetes enrichment, node-local routing,
+  and end-to-end verification. Link to the public Datadog tracing documentation for language-specific SDK installation
+  and activation.
+- `guides/kubernetes/configuration/opentelemetry-kube-stack/ddot/values.yaml` is the executable reference for this
+  repository's Kubernetes architecture and shared environment-variable lists. Describe intent in the guide and link
+  to the owning key path instead of duplicating the configuration.

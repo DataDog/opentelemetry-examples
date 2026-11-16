@@ -86,6 +86,10 @@ spec:
         auth_type: serviceAccount
         lease_name: k8s.cluster.receiver.opentelemetry.io
         lease_namespace: opentelemetry-operator-system
+      k8s_leader_elector/k8s_objects:
+        auth_type: serviceAccount
+        lease_name: k8s.objects.receiver.opentelemetry.io
+        lease_namespace: opentelemetry-operator-system
     processors:
       cumulative_to_delta: {}
       groupbyattrs:
@@ -210,6 +214,7 @@ spec:
         - NetworkUnavailable
       k8s_objects:
         interval: 3m
+        k8s_leader_elector: k8s_leader_elector/k8s_objects
         objects:
         - mode: pull
           name: namespaces
@@ -335,6 +340,11 @@ spec:
         - group: apiextensions.k8s.io
           mode: watch
           name: customresourcedefinitions
+        - exclude_watch_type:
+          - DELETED
+          group: events.k8s.io
+          mode: watch
+          name: events
       otlp:
         protocols:
           grpc:
