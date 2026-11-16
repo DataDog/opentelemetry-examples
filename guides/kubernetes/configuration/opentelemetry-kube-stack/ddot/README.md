@@ -144,7 +144,8 @@ Agent's and the OpenTelemetry Collector's telemetry with different (or missing) 
 valid name; when installing manually, use it for both `k8s.cluster.name` and `K8S_CLUSTER_NAME`.
 
 See `examples/` for rendered values and manifests for each deployment type. Regenerate them with
-`make generate-examples` in the parent folder.
+`make generate-examples` in the parent folder, or with `make generate` to also regenerate `values.yaml` from
+`values.yaml.tmpl` first.
 
 The Datadog Agent is installed as its own step, via the Datadog Operator's `DatadogAgent` custom resource
 (`datadog-agent.yaml`), in the `datadog` namespace — see [What this deploys](#what-this-deploys) and
