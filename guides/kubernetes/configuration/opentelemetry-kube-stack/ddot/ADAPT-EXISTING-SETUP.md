@@ -78,13 +78,13 @@ of the team operating the application. Refactor application code only when an en
 behavior. Keep code that implements custom processors, readers, exporters, or other behavior that environment
 variables cannot express, and do not register a second global provider.
 
-Keep OpenTelemetry API calls. Follow the language-and-signal-specific [OpenTelemetry API migration
-documentation][dd-otel-api] to determine which provider, SDK package, or exporter DDOT replaces. Remove only the
-components that documentation identifies; for example, some signals retain the upstream OpenTelemetry provider while
-DDOT configures its export. Prefer Collector fan-out for an intentional secondary backend. If a custom in-process
-processor, reader, or exporter has no DDOT or Collector equivalent, report the migration as blocked instead of
-registering a second global provider. For Operator injection, confirm which provider the injected SDK owns before
-retaining application bootstrap code.
+Keep OpenTelemetry API calls. Apply the language-and-signal-specific [OpenTelemetry API migration
+documentation][dd-otel-api] separately to traces, metrics, and logs because provider and exporter ownership varies by
+language and signal. Remove only the provider, SDK package, or exporter that the relevant section assigns to the
+Datadog SDK. If a signal must also reach another backend, send it once to the Collector and add another Collector
+exporter when possible. This avoids maintaining two in-process export pipelines for the same signal. If a custom
+in-process processor, reader, or exporter has no DDOT or Collector equivalent, report the migration as blocked. For
+Operator injection, confirm which providers the injected SDK owns before retaining application bootstrap code.
 
 Set the service identity explicitly and use the same values for every signal:
 
