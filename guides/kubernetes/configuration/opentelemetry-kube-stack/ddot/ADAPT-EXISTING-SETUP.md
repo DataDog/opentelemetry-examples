@@ -21,7 +21,7 @@ Contents:
 - [Target architecture](#target-architecture)
 - [OpenTelemetry Collector rules](#opentelemetry-collector-rules)
 - [OpenTelemetry Operator and `Instrumentation` rules](#opentelemetry-operator-and-instrumentation-rules)
-- [Place shared SDK configuration in Kubernetes](#place-shared-sdk-configuration-in-kubernetes)
+- [DDOT SDK environment rules](#ddot-sdk-environment-rules)
 - [Datadog Agent and Datadog Operator rules](#datadog-agent-and-datadog-operator-rules)
 - [Known gaps](#known-gaps)
 - [Verify and report](#verify-and-report)
@@ -183,10 +183,9 @@ These rules apply to the Collector configuration, whatever the way it's deployed
 `opentelemetry-kube-stack` chart, where `defaultCRConfig` is merged into every collector and `collectors.<name>`
 configures one collector.
 
-### C-01: Export the reference deployment to Datadog
+### C-01: Export to Datadog with the Datadog exporter
 
-- **Requirement for this repository's target architecture:** a `datadog` exporter, with the API key and site read from
-  a Kubernetes Secret. Other Collector architectures can keep their existing exporter and routing choices.
+- **Requirement:** a `datadog` exporter, with the API key and site read from a Kubernetes Secret.
 - **Fix:**
 
   ```yaml
@@ -393,6 +392,9 @@ configures one collector.
   [Monitor Kubernetes with OpenTelemetry][dd-k8s-otel], the [Collector's Kubernetes manifest
   reference][dd-collector-k8s-manifest], and [Unified Service Tagging][dd-unified-service-tagging].
 
+FIXME verify that the Datadog OTel Contrib exporter and extension can discover `datadog.host.name` passed as an
+environment variable, typically through `OTEL_RESOURCE_ATTRIBUTES=datadog.host.name=<node name>-<cluster name>`.
+
 ### C-04: Don't stamp the Collector's own identity on incoming telemetry
 
 - **Requirement:** no `env` detector of the `resource_detection` processor on collectors that receive application,
@@ -415,8 +417,7 @@ configures one collector.
 - **Requirement:** the `cumulative_to_delta` processor in the metrics pipelines receiving cumulative metrics (OTLP,
   Prometheus receivers), and `delta_to_rate` for the counters that Datadog displays as rates.
 - **Reference:** `defaultCRConfig.config.processors` and `collectors.daemon.config.processors` in [`values.yaml`][values].
-- **Conflicts:** configure application metric temporality through the standard `OTEL_*` environment variables described
-  in [Adapt applications](#3-move-compatible-configuration-to-environment-variables).
+- **Conflicts:** applications should also export delta metrics, see [S-04](#s-04-export-delta-metrics).
 - **Conflicts:** when a metrics pipeline also exports to destinations that require cumulative temporality, such as
   Prometheus remote write or another observability backend, don't convert to delta in that shared pipeline: split it
   with a `forward` connector into a fan-out with two ends. The cumulative end exports without conversion, and the
@@ -443,7 +444,7 @@ configures one collector.
   ```
 
   In this case, the applications must export cumulative metrics, not delta ones as
-  application configuration uses, so that the cumulative end receives cumulative metrics.
+  [S-04](#s-04-export-delta-metrics) requires, so that the cumulative end receives cumulative metrics.
 
 ### C-07: Report the Collectors to Fleet Automation with the Datadog extension
 
@@ -575,7 +576,7 @@ configures one collector.
 - **Why:** with `internalTrafficPolicy: Cluster`, the Service load balances each connection across the `daemon`
   collectors of all the nodes:
   - the points of a time series can reach different Collector instances, which breaks the stateful `cumulative_to_delta`
-    conversion (see [Configure destinations and preserve optional features](#4-configure-destinations-and-preserve-optional-features));
+    conversion ([S-04](#s-04-export-delta-metrics));
   - the telemetry crosses nodes, and availability zones, for nothing;
   - the load of a `daemon` collector no longer depends on the workloads of its node, so its resource allocation no
     longer matches it.
@@ -689,37 +690,127 @@ configures one collector.
   ([dd-trace-go#5407][dd-trace-go-5407]).
 - See also the [known gaps](#known-gaps) for Go.
 
-## Place shared SDK configuration in Kubernetes
+## DDOT SDK environment rules
 
 The [application workflow](#adapt-applications) owns DDOT SDK installation, activation, signal configuration,
-destinations, compatibility, and verification. Put the resulting environment variables in the `Instrumentation`
+destinations, compatibility, and verification. Put its resulting environment variables in the `Instrumentation`
 custom resource's `spec.env` when the Operator configures the workload. Put them in the workload container's
 environment when the SDK is installed and configured manually.
 
-The same variable can be set in several places. Before changing one, find every definition for the workload. The
-effective order, from highest to lowest precedence, is:
+### S-01: Enable the OpenTelemetry mode of the DDOT SDKs
 
-1. The container's `env` in the pod manifest. The OpenTelemetry Operator doesn't inject a variable already defined
-   there.
-2. The language section of the `Instrumentation` resource, such as `spec.java.env`. This only applies to the
-   `inject-<language>` annotations; `inject-sdk`, used for Go and manually installed SDKs, ignores it.
-3. The `Instrumentation` resource's `spec.env`.
-4. The container's `envFrom` ConfigMaps and Secrets. The Operator only checks `env`, so an injected value wins over a
-   value from `envFrom`.
-5. The image's `Dockerfile` `ENV` instructions.
+- **Requirement:** configure all of the following for workloads adopting DDOT SDKs with OpenTelemetry semantic
+  conventions and OTLP export. Verify the effective configuration at runtime; presence in `spec.env` is insufficient:
 
-The Operator appends its agent to `JAVA_TOOL_OPTIONS`, `NODE_OPTIONS`, and `PYTHONPATH`, and merges resource
-attributes into `OTEL_RESOURCE_ATTRIBUTES`. It skips a language SDK injection when the container sets that language's
-loader variable with `valueFrom`. See the Operator's [SDK injection implementation][otel-operator-sdk-go].
+  ```yaml
+  - name: OTEL_TRACES_EXPORTER
+    value: otlp
+  - name: DD_TRACE_OTEL_ENABLED
+    value: "true"
+  - name: DD_LOGS_OTEL_ENABLED
+    value: "true"
+  - name: DD_METRICS_OTEL_ENABLED
+    value: "true"
+  - name: DD_TRACE_OTEL_SEMANTICS_ENABLED
+    value: "true"
+  ```
 
-After changing an `Instrumentation` resource, restart its workloads and inspect the running process environment:
+- **Why:** together, these settings enable OpenTelemetry semantics and OTLP export for the signals supported by the
+  selected SDK. `DD_TRACE_OTEL_ENABLED=true` alone does not switch trace export from the Datadog protocol to OTLP.
+- **Fix:** merge the variables from `instrumentation.env` in [`values.yaml`][values], preserving other list entries.
+  Enable only signals that the application owns and the selected SDK supports.
+- **Conflicts:** preserve explicit disables, application-owned providers, and alternative exporters until their owners
+  approve the migration. Use the [OpenTelemetry API support][dd-otel-api] and [OTLP export support
+  matrix][dd-otlp-export] for the selected SDK rather than copying version-specific behavior into this guide.
 
-```sh
-kubectl exec <pod> --namespace <namespace> -- env | grep -E '^(DD|OTEL)_'
-```
+### S-02: Point optional Datadog features at the Datadog Agent
 
-The pod spec does not show values inherited from the image or `envFrom`. Treat the runtime output as sensitive because
-exporter headers can contain credentials. Record names and non-secret effective values in the validation report.
+- **Requirement:** set `DD_AGENT_HOST` to a reachable Datadog Agent only when the workload uses an Agent-backed feature,
+  such as Remote Configuration, Live Debugger, Dynamic Instrumentation, or DogStatsD runtime metrics.
+- **Conflicts:** do not require an Agent for the basic OTLP path from the SDK to a Collector. Preserve an existing Agent
+  destination while a feature still uses it, and avoid sending the same signal through both Collector and Agent paths.
+
+### S-03: Use a compatible OTLP transport
+
+- **Requirement:** point each enabled signal at the `daemon` collector endpoint from
+  [O-04](#o-04-point-the-sdks-at-the-daemon-collector). Use the SDK's documented protocol default when the receiver
+  accepts it. Set a shared or signal-specific protocol only when the selected SDK and receiver require an override.
+- **Conflicts:** inspect signal-specific endpoint and protocol settings as well as the shared settings. Change a gRPC
+  endpoint on port `4317` to HTTP on port `4318` only together with a compatible HTTP protocol. Check the current
+  [OTLP export support matrix][dd-otlp-export].
+
+### S-04: Export delta metrics
+
+- **Requirement:** use the delta temporality that Datadog requires:
+
+  ```yaml
+  - name: OTEL_EXPORTER_OTLP_METRICS_TEMPORALITY_PREFERENCE
+    value: delta
+  ```
+
+- **Why:** the SDKs then export delta metrics, which the Collector forwards to Datadog without the memory and CPU cost
+  of cumulative-to-delta conversion.
+- **Conflicts:** when another destination requires cumulative temporality, export cumulative metrics and convert only
+  the Datadog branch with the Collector's `cumulative_to_delta` processor
+  ([C-06](#c-06-convert-cumulative-metrics-to-delta)). Size the Collector for the processor's state, set an appropriate
+  `max_staleness`, and ensure every point in a time series reaches the same Collector instance through the node-local
+  Service ([C-13](#c-13-keep-the-daemon-collectors-service-node-local)).
+- FIXME call out that DDOT SDKs only support delta temporality for now, so the user must use delta metrics for now and
+  the cumulative to delta processor in the collector.
+
+### S-05: Use the stable semantic conventions
+
+- **Requirement:** `OTEL_SEMCONV_STABILITY_OPT_IN=http,database,rpc,messaging`.
+
+### S-06: Enable optional Datadog features per workload
+
+These features are disabled by default. Enable them in the `Instrumentation` resource's `env` for every workload, or in
+a workload's container `env` for that workload only:
+
+| Feature | Variables |
+|---|---|
+| [Database Monitoring][dd-dbm] | `DD_DBM_PROPAGATION_MODE=full`, `DD_DBM_TRACE_PREPARED_STATEMENTS=true` |
+| [Data Streams Monitoring][dd-dsm] | `DD_DATA_STREAMS_ENABLED=true`, `DD_TRACE_REMOVE_INTEGRATION_SERVICE_NAMES_ENABLED=true` |
+| [App & API Protection][dd-aap] | `DD_APPSEC_ENABLED=true` |
+| [Code Security IAST][dd-iast] | `DD_IAST_ENABLED=true` |
+| [Code Security SCA][dd-sca] | `DD_APPSEC_SCA_ENABLED=true` |
+
+- **Conflicts:** if the user's workloads already set any of these, keep their values.
+- **Precedence:** before changing a variable, find every definition for the workload. The effective order, from highest
+  to lowest precedence, is:
+  1. the container's `env` in the pod manifest;
+  2. the language section of the `Instrumentation` resource, such as `spec.java.env`, for `inject-<language>`;
+  3. the `Instrumentation` resource's `spec.env`;
+  4. the container's `envFrom` ConfigMaps and Secrets;
+  5. the image's `Dockerfile` `ENV` instructions.
+
+  The Operator appends its agent to `JAVA_TOOL_OPTIONS`, `NODE_OPTIONS`, and `PYTHONPATH`, and merges resource
+  attributes into `OTEL_RESOURCE_ATTRIBUTES`. It skips a language SDK injection when the container sets that language's
+  loader variable with `valueFrom`. See the Operator's [SDK injection implementation][otel-operator-sdk-go].
+
+  After changing an `Instrumentation` resource, restart its workloads and inspect the running process environment:
+
+  ```sh
+  kubectl exec <pod> --namespace <namespace> -- env | grep -E '^(DD|OTEL)_'
+  ```
+
+  The pod spec does not show values inherited from the image or `envFrom`. Treat runtime output as sensitive because
+  exporter headers can contain credentials. Record only names and non-secret effective values in the validation report.
+
+### S-07: Enable runtime metrics where supported
+
+- **Recommendation:** enable runtime metrics for supported workloads to help troubleshoot memory usage, garbage
+  collection, and thread activity. Configure this per workload; shared instrumentation defaults remain unchanged.
+- **Fix:** set `DD_RUNTIME_METRICS_ENABLED=true` in the workload's container `env`. For OTLP export, keep
+  `DD_METRICS_OTEL_ENABLED=true` and `OTEL_METRICS_EXPORTER=otlp` effective for that workload. Check the installed SDK's
+  runtime support, required packages or imports, and export transport before applying the change.
+- **Compatibility:** follow the [runtime metrics documentation][dd-runtime-metrics]. If the SDK sends runtime metrics
+  only through DogStatsD, keep the existing reachable Agent path. For an Agent-free setup, report runtime-metrics
+  delivery as `blocked` until a supported delivery path is configured.
+- **Verify:** confirm that runtime metrics arrive in Datadog with the expected service and environment tags through the
+  intended transport. An enabled flag or successful trace export is insufficient.
+- **Conflicts:** preserve explicit runtime-metrics disables and existing runtime instrumentation. Ask before enabling a
+  disabled collector or adding another one that could duplicate the same measurements.
 
 ## Datadog Agent and Datadog Operator rules
 
@@ -740,12 +831,14 @@ values: this guide doesn't list them, and they aren't tested in this repository.
   |----------------------------------------------------------------------------------------|----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
   | `kubeStateMetricsCore`, and the legacy `kubernetes_state` check (`DD_IGNORE_AUTOCONF`) | `cluster` collector scraping kube-state-metrics (`prometheus/ksm` receiver), and its `clusterMetrics` preset (`k8s_cluster` receiver)                                                                                |
   | `orchestratorExplorer`, `DD_ORCHESTRATOR_EXPLORER_KUBELET_CONFIG_CHECK_ENABLED`        | `cluster` collector's `kubernetesObjects` preset (`k8s_objects` receiver), and `orchestrator_explorer.enabled: true` on its Datadog exporter                                                                         |
-  | `eventCollection.collectKubernetesEvents`                                              | `cluster` collector's `kubernetesEvents` preset (`k8s_objects` receiver watching the `events.k8s.io` events). The `kubernetesObjects` preset doesn't collect events.                                                      |
+  | `eventCollection.collectKubernetesEvents`                                              | `kubernetesEvents` preset (`k8s_objects` receiver watching the `events.k8s.io` events), on one collector only. The `kubernetesObjects` preset doesn't collect events. **Not enabled in the reference `values.yaml`**       |
   | `logCollection`                                                                        | `daemon` collector's `logsCollection` preset (`file_log` receiver), tailing the container logs, enabled by the chart's `daemon` defaults                                                                             |
   | `clusterChecks`                                                                        | Collector receivers for the cluster-level services, such as the middleware of [C-12](#c-12-collect-middleware-telemetry-from-the-daemon-collector-on-the-same-node)                                                  |
   | `liveProcessCollection`, `processDiscovery`, `DD_DISCOVERY_ENABLED`                    | No exact equivalent: disabled in the reference to keep the Agent to its enabler role. Keep them if the user uses them                                                                                                |
 
-  The reference configuration disables the Agent features above because their Collector equivalents are enabled:
+  The reference configuration disables the Agent's Kubernetes events collection although the Collectors don't collect
+  them. To collect Kubernetes events, enable the `kubernetesEvents` preset on the `cluster` collector, or keep
+  `eventCollection.collectKubernetesEvents` enabled in the Agent:
 
   ```yaml
   spec:
@@ -775,6 +868,7 @@ values: this guide doesn't list them, and they aren't tested in this repository.
   keep it, and say so in the report. If the user prefers to keep an Agent feature, disable its equivalent in the
   Collectors instead, rather than collecting the telemetry twice. If `DD_IGNORE_AUTOCONF` is already set, append `kubernetes_state` to its space-separated
   list.
+
 ### A-02: Keep the Cluster Agent
 
 - **Requirement:** don't disable the Datadog Cluster Agent: the node Agent relies on it for cluster-level metadata, and
@@ -901,6 +995,11 @@ does not appear.
 [dd-fleet-automation]: https://docs.datadoghq.com/agent/fleet_automation/
 [dd-otel-extension-resource]: https://docs.datadoghq.com/opentelemetry/integrations/datadog_extension/
 [dd-live-debugger-go]: https://docs.datadoghq.com/tracing/live_debugger/?prog_lang=go
+[dd-dbm]: https://docs.datadoghq.com/database_monitoring/
+[dd-dsm]: https://docs.datadoghq.com/data_streams/
+[dd-aap]: https://docs.datadoghq.com/security/application_security/
+[dd-iast]: https://docs.datadoghq.com/security/code_security/iast/
+[dd-sca]: https://docs.datadoghq.com/security/code_security/software_composition_analysis/
 [orchestrion]: https://github.com/DataDog/orchestrion
 [orchestrion-936]: https://github.com/DataDog/orchestrion/issues/936
 [dd-operator-3521]: https://github.com/DataDog/datadog-operator/issues/3521
