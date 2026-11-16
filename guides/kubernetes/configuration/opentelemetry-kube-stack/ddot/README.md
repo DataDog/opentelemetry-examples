@@ -56,7 +56,7 @@ To export to another observability backend in addition to Datadog, or to modify 
 [Customize the installation](INSTALL.md#customize-the-installation).
 
 Already running an OpenTelemetry Collector, the OpenTelemetry Operator, OpenTelemetry SDKs, or a Datadog Agent? See
-[Adapt an existing configuration for DDOT](ADAPT-EXISTING-CONFIG.md) to adapt them instead of reinstalling. The guide
+[Adapt an existing setup to DDOT](ADAPT-EXISTING-SETUP.md) to adapt them instead of reinstalling. The guide
 is written so that coding agents can follow it too.
 
 ### Instrument Kubernetes workloads with DDOT SDKs

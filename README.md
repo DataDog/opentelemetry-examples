@@ -51,4 +51,4 @@ OpenTelemetry behaviors. The available resources include:
 [17]: ./apps/rolldice-game/
 [18]: ./apps/kafka-metrics/
 [20]: ./apps/astronomy-store/
-[21]: ./guides/kubernetes/configuration/opentelemetry-kube-stack/ddot/ADAPT-EXISTING-CONFIG.md
+[21]: ./guides/kubernetes/configuration/opentelemetry-kube-stack/ddot/ADAPT-EXISTING-SETUP.md

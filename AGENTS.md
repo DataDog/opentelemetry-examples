@@ -12,7 +12,7 @@ These rules apply to Markdown documentation in this repository, including README
 
 ## DDOT guide ownership
 
-- `guides/kubernetes/configuration/opentelemetry-kube-stack/ddot/ADAPT-EXISTING-CONFIG.md` owns adaptation for existing
+- `guides/kubernetes/configuration/opentelemetry-kube-stack/ddot/ADAPT-EXISTING-SETUP.md` owns adaptation for existing
   setups. Its application workflow applies to every deployment. Its platform rules apply only when the corresponding
   Kubernetes components are present. It covers cross-language migration decisions, Collector topology and pipelines,
   OpenTelemetry Operator injection and precedence, Datadog Agent overlap, Kubernetes enrichment, node-local routing,

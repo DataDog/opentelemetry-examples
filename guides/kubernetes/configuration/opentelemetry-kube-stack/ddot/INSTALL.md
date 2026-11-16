@@ -21,7 +21,7 @@ See [What this deploys](README.md#what-this-deploys) for the architecture, and
 (not recommended).
 
 Already running an OpenTelemetry Collector, the OpenTelemetry Operator, OpenTelemetry SDKs, or a Datadog Agent? See
-[Adapt an existing configuration for DDOT](ADAPT-EXISTING-CONFIG.md) to adapt them instead of reinstalling.
+[Adapt an existing setup to DDOT](ADAPT-EXISTING-SETUP.md) to adapt them instead of reinstalling.
 
 Contents:
 
