@@ -2,6 +2,8 @@
 set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+INSTALLER_VERSION=v0.0.1-pre
+echo "Datadog OpenTelemetry Install Script $INSTALLER_VERSION"
 
 require_bool() {
     case "${!1}" in
@@ -21,14 +23,71 @@ if [[ -n "$OVERLAY_VALUES_FILE" ]]; then
     OVERLAY_VALUES_ARGS=(-f "$OVERLAY_VALUES_FILE")
 fi
 
-if [[ -z "${DD_API_KEY:-}" ]]; then
-    echo "ERROR: DD_API_KEY is not set" >&2
+INSTALL_OPTIONS_CONFIGMAP=opentelemetry-kube-stack-install-options
+INSTALL_OPTIONS=(
+    DD_INSTALL_FLOW
+    DD_SITE
+    K8S_CLUSTER_TYPE
+    K8S_CLUSTER_NAME
+    DEPLOYMENT_ENVIRONMENT_NAME
+    DD_AGENT_ENABLED
+    DD_AUTOINSTRUMENTATION_ENABLED
+    DD_COLLECTOR_ENABLED
+    DD_HOST_PROFILER_ENABLED
+    DD_HOST_PROFILER_NETWORK_POLICY
+)
+
+PREVIOUS_OPTIONS=$(kubectl get configmap "$INSTALL_OPTIONS_CONFIGMAP" \
+    --namespace opentelemetry-operator-system \
+    --ignore-not-found \
+    -o go-template='{{range $k, $v := .data}}{{$k}}={{$v}}{{"\n"}}{{end}}') || {
+    echo "ERROR: Could not read the options of the previous run from the cluster" >&2
     exit 1
-fi
+}
+
+while IFS= read -r line; do
+    key=${line%%=*}
+    value=${line#*=}
+    for option in "${INSTALL_OPTIONS[@]}"; do
+        if [[ "$key" == "$option" ]]; then
+            printf -v "PREVIOUS_$option" '%s' "$value"
+        fi
+    done
+done <<< "$PREVIOUS_OPTIONS"
+
+use_previous() {
+    local previous="PREVIOUS_$1"
+    if [[ -z "${!1+x}" && -n "${!previous:-}" ]]; then
+        printf -v "$1" '%s' "${!previous}"
+        echo "Using $1=${!1} from the previous run"
+    fi
+}
+
+for option in "${INSTALL_OPTIONS[@]}"; do
+    use_previous "$option"
+done
+
+INSTALL_OPTIONS_ARGS=()
+for option in "${INSTALL_OPTIONS[@]}"; do
+    if [[ -n "${!option:-}" ]]; then
+        INSTALL_OPTIONS_ARGS+=(--from-literal="$option=${!option}")
+    fi
+done
+
+previous_secret_key() {
+    [[ -n "$PREVIOUS_OPTIONS" ]] || return 0
+    kubectl get secret datadog-secret \
+        --namespace "$1" \
+        --ignore-not-found \
+        -o go-template="{{with index .data \"$2\"}}{{base64decode .}}{{end}}" || {
+        echo "ERROR: Could not read the $2 of the previous run from the cluster" >&2
+        exit 1
+    }
+}
 
 case "${DD_INSTALL_FLOW:-}" in
-    upstream) VALUES_FILE=values-otlp-http.yaml ;;
-    ddot) VALUES_FILE=values-ddot.yaml ;;
+    upstream) VALUES_FILE=upstream/values.yaml ;;
+    ddot) VALUES_FILE=ddot/values.yaml ;;
     *)
         echo "ERROR: DD_INSTALL_FLOW must be one of: upstream, ddot (got '${DD_INSTALL_FLOW:-}')" >&2
         exit 1
@@ -38,12 +97,44 @@ esac
 DD_SITE=${DD_SITE:-datadoghq.com}
 K8S_CLUSTER_TYPE=${K8S_CLUSTER_TYPE:-other}
 DEPLOYMENT_ENVIRONMENT_NAME=${DEPLOYMENT_ENVIRONMENT_NAME:-production}
-DD_AGENT_ENABLED=${DD_AGENT_ENABLED:-true}
+DD_AUTOINSTRUMENTATION_ENABLED=${DD_AUTOINSTRUMENTATION_ENABLED:-true}
+require_bool DD_AUTOINSTRUMENTATION_ENABLED
+DD_COLLECTOR_ENABLED=${DD_COLLECTOR_ENABLED:-true}
+require_bool DD_COLLECTOR_ENABLED
+DD_AGENT_ENABLED=${DD_AGENT_ENABLED:-$DD_COLLECTOR_ENABLED}
 require_bool DD_AGENT_ENABLED
 
-DD_AGENT_VALUES_ARGS=()
+if [[ "$DD_AUTOINSTRUMENTATION_ENABLED" == "false" && "$DD_COLLECTOR_ENABLED" == "false" ]]; then
+    echo "ERROR: DD_AUTOINSTRUMENTATION_ENABLED and DD_COLLECTOR_ENABLED cannot both be false" >&2
+    exit 1
+fi
+
+if [[ "$DD_COLLECTOR_ENABLED" == "false" && -z "${OTEL_EXPORTER_OTLP_ENDPOINT:-}" ]]; then
+    echo "ERROR: OTEL_EXPORTER_OTLP_ENDPOINT must be set when DD_COLLECTOR_ENABLED=false" >&2
+    exit 1
+fi
+
+if [[ "$DD_COLLECTOR_ENABLED" == "true" || ( "$DD_INSTALL_FLOW" == "ddot" && "$DD_AGENT_ENABLED" == "true" ) ]]; then
+    if [[ -z "${DD_API_KEY:-}" ]]; then
+        DD_API_KEY=$(previous_secret_key opentelemetry-operator-system api-key)
+        [[ -n "$DD_API_KEY" ]] || DD_API_KEY=$(previous_secret_key datadog api-key)
+        if [[ -n "$DD_API_KEY" ]]; then
+            echo "Using DD_API_KEY from the previous run"
+        fi
+    fi
+    if [[ -z "$DD_API_KEY" ]]; then
+        echo "ERROR: DD_API_KEY is not set" >&2
+        exit 1
+    fi
+fi
+
 if [[ "$DD_INSTALL_FLOW" == "ddot" && "$DD_AGENT_ENABLED" == "true" ]]; then
-    DD_AGENT_VALUES_ARGS=(-f "$SCRIPT_DIR/dd-agent-kube-stack-values.yaml")
+    if [[ -z "${DD_APP_KEY:-}" ]]; then
+        DD_APP_KEY=$(previous_secret_key datadog app-key)
+        if [[ -n "$DD_APP_KEY" ]]; then
+            echo "Using DD_APP_KEY from the previous run"
+        fi
+    fi
 
     if [[ -n "${DD_APP_KEY:-}" && -z "${K8S_CLUSTER_NAME:-}" ]]; then
         echo "ERROR: K8S_CLUSTER_NAME must be set when DD_APP_KEY is set (Fleet Automation requires a cluster name)" >&2
@@ -69,6 +160,11 @@ HOST_PROFILER_ENABLED_ARGS=()
 
 require_bool DD_HOST_PROFILER_ENABLED
 
+if [[ "$DD_HOST_PROFILER_ENABLED" == "true" && "$DD_COLLECTOR_ENABLED" == "false" ]]; then
+    echo "ERROR: DD_HOST_PROFILER_ENABLED=true requires DD_COLLECTOR_ENABLED=true" >&2
+    exit 1
+fi
+
 if [[ "$DD_HOST_PROFILER_ENABLED" == "true" ]]; then
     # Egress policy for the profiler, only useful on default-deny clusters
     # whose CNI enforces NetworkPolicy.
@@ -89,19 +185,40 @@ fi
 
 #### BEGINNING OF INSTALLATION SCRIPT
 
-# WARNING: dont change "namespace=opentelemetry-operator-system" as it is used in the 'instrumentation' CRD defined in values-otlp-http.yaml and values-ddot.yaml
+INSTALLED_BY=datadog-otel-onboarding-script
+INSTALLED_BY_LABEL="install.datadoghq.com/installed-by=$INSTALLED_BY"
+PROVENANCE_ANNOTATIONS=(
+    "install.datadoghq.com/installer-version=$INSTALLER_VERSION"
+    "install.datadoghq.com/install-flow=$DD_INSTALL_FLOW"
+    "install.datadoghq.com/installed-at=$(date -u +%Y-%m-%dT%H:%M:%SZ)"
+)
+HELM_PROVENANCE_ARGS=(
+    --labels "$INSTALLED_BY_LABEL,install.datadoghq.com/installer-version=$INSTALLER_VERSION,install.datadoghq.com/install-flow=$DD_INSTALL_FLOW"
+    --description "$INSTALLED_BY $INSTALLER_VERSION"
+)
+
+stamp_provenance() {
+    kubectl label --local -f - -o yaml "$INSTALLED_BY_LABEL" \
+      | kubectl annotate --local -f - -o yaml "${PROVENANCE_ANNOTATIONS[@]}"
+}
+
+# WARNING: dont change "namespace=opentelemetry-operator-system" as it is used in the 'instrumentation' CRD defined in upstream/values.yaml and ddot/values.yaml
 
 echo "Creating Kubernetes namespace..."
 
-kubectl create namespace opentelemetry-operator-system || echo "WARNING: Could not create namespace 'opentelemetry-operator-system' (may already exist or insufficient permissions). Continuing..."
+kubectl create namespace opentelemetry-operator-system --dry-run=client -o yaml \
+  | stamp_provenance | kubectl create -f - \
+  || echo "WARNING: Could not create namespace 'opentelemetry-operator-system' (may already exist or insufficient permissions). Continuing..."
 
-echo "Creating or updating Datadog secret..."
+if [[ "$DD_COLLECTOR_ENABLED" == "true" ]]; then
+    echo "Creating or updating Datadog secret..."
 
-kubectl create secret generic datadog-secret \
-  --namespace opentelemetry-operator-system  \
-  --from-literal="api-key=$DD_API_KEY" \
-  --from-literal="dd-site=$DD_SITE" \
-  --dry-run=client -o yaml | kubectl apply -f -
+    kubectl create secret generic datadog-secret \
+      --namespace opentelemetry-operator-system  \
+      --from-literal="api-key=$DD_API_KEY" \
+      --from-literal="dd-site=$DD_SITE" \
+      --dry-run=client -o yaml | stamp_provenance | kubectl apply -f -
+fi
 
 echo "Installing cert-manager (if not already installed)..."
 
@@ -110,6 +227,7 @@ helm repo update
 helm install cert-manager jetstack/cert-manager \
   --namespace cert-manager --create-namespace \
   --set crds.enabled=true  \
+  "${HELM_PROVENANCE_ARGS[@]}" \
   --wait --timeout 5m \
   || echo "WARNING: Could not install cert-manager (may already exist or insufficient permissions). Continuing..."
 
@@ -133,14 +251,16 @@ fi
 
 if [[ -n "$HOST_PROFILER_NETWORK_POLICY_FILE" ]]; then
     echo "Applying the host-profiler egress NetworkPolicy..."
-    kubectl apply -f "$HOST_PROFILER_NETWORK_POLICY_FILE" \
+    stamp_provenance <"$HOST_PROFILER_NETWORK_POLICY_FILE" | kubectl apply -f - \
       || echo "WARNING: Could not apply the host-profiler egress NetworkPolicy (is Cilium installed if you chose the Cilium policy?). Continuing..."
 fi
 
 if [[ "$DD_INSTALL_FLOW" == "ddot" && "$DD_AGENT_ENABLED" == "true" ]]; then
     echo "Installing Datadog Operator..."
 
-    kubectl create namespace datadog || echo "WARNING: Could not create namespace 'datadog' (may already exist or insufficient permissions). Continuing..."
+    kubectl create namespace datadog --dry-run=client -o yaml \
+      | stamp_provenance | kubectl create -f - \
+      || echo "WARNING: Could not create namespace 'datadog' (may already exist or insufficient permissions). Continuing..."
 
     DD_APP_KEY_SECRET_ARGS=()
     if [[ -n "${DD_APP_KEY:-}" ]]; then
@@ -150,7 +270,7 @@ if [[ "$DD_INSTALL_FLOW" == "ddot" && "$DD_AGENT_ENABLED" == "true" ]]; then
       --namespace datadog \
       --from-literal="api-key=$DD_API_KEY" \
       ${DD_APP_KEY_SECRET_ARGS[@]+"${DD_APP_KEY_SECRET_ARGS[@]}"} \
-      --dry-run=client -o yaml | kubectl apply -f -
+      --dry-run=client -o yaml | stamp_provenance | kubectl apply -f -
 
     helm repo add datadog https://helm.datadoghq.com
     helm repo update
@@ -178,6 +298,7 @@ if [[ "$DD_INSTALL_FLOW" == "ddot" && "$DD_AGENT_ENABLED" == "true" ]]; then
         --install \
         --namespace datadog \
         "${OPERATOR_HELM_ARGS[@]}" \
+        "${HELM_PROVENANCE_ARGS[@]}" \
         --wait --timeout 5m
 
     echo "Applying the DatadogAgent custom resource..."
@@ -187,11 +308,18 @@ if [[ "$DD_INSTALL_FLOW" == "ddot" && "$DD_AGENT_ENABLED" == "true" ]]; then
         GLOBAL_JSON+=",\"clusterName\":\"$K8S_CLUSTER_NAME\""
     fi
     kubectl patch --local \
-      -f "$SCRIPT_DIR/datadog-agent.yaml" \
+      -f "$SCRIPT_DIR/ddot/datadog-agent.yaml" \
       --type merge \
       -p "{\"spec\":{\"global\":{$GLOBAL_JSON}}}" \
-      -o yaml | kubectl apply --namespace datadog -f -
+      -o yaml | stamp_provenance | kubectl apply --namespace datadog -f -
 fi
+
+echo "Saving the installation options..."
+
+kubectl create configmap "$INSTALL_OPTIONS_CONFIGMAP" \
+  --namespace opentelemetry-operator-system \
+  "${INSTALL_OPTIONS_ARGS[@]}" \
+  --dry-run=client -o yaml | stamp_provenance | kubectl apply -f -
 
 # Installed last so the Helm release notes are the last output the user sees.
 echo "Installing OpenTelemetry Kube Stack Helm Chart..."
@@ -223,13 +351,26 @@ if [[ -n "${K8S_CLUSTER_NAME:-}" ]]; then
     HELM_SET_ARGS+=(--set-string "resourceAttributes.k8s\.cluster\.name=$K8S_CLUSTER_NAME")
 fi
 
+if [[ "$DD_AUTOINSTRUMENTATION_ENABLED" == "false" ]]; then
+    HELM_SET_ARGS+=(--set instrumentation.enabled=false)
+fi
+
+if [[ "$DD_COLLECTOR_ENABLED" == "false" ]]; then
+    HELM_SET_ARGS+=(
+        --set collectors.cluster.enabled=false
+        --set collectors.daemon.enabled=false
+        --set kubeStateMetrics.enabled=false
+        --set-string "instrumentation.exporter.endpoint=$OTEL_EXPORTER_OTLP_ENDPOINT"
+    )
+fi
+
 helm upgrade opentelemetry-kube-stack \
     open-telemetry/opentelemetry-kube-stack \
     --version 0.26.1 \
     --install \
     --namespace opentelemetry-operator-system \
     "${HELM_SET_ARGS[@]}" \
+    "${HELM_PROVENANCE_ARGS[@]}" \
     -f "$SCRIPT_DIR/$VALUES_FILE" \
-    ${DD_AGENT_VALUES_ARGS[@]+"${DD_AGENT_VALUES_ARGS[@]}"} \
     ${HOST_PROFILER_ENABLED_ARGS[@]+"${HOST_PROFILER_ENABLED_ARGS[@]}"} \
     ${OVERLAY_VALUES_ARGS[@]+"${OVERLAY_VALUES_ARGS[@]}"}

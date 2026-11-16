@@ -1,10 +1,6 @@
 # OpenTelemetry Examples
 
-The repository includes example applications and configurations for Datadog users, engineers, and support to
-understand how Datadog support of [OpenTelemetry][1] works today. These examples provide reference material for
-integrating OpenTelemetry instrumented applications with Datadog products and allow independent experimentation with
-OpenTelemetry behaviors. The available resources include:
-
+The repository includes example applications and configurations for Datadog users, engineers, and support to understand how Datadog support of [OpenTelemetry][1] works today. These examples provide reference material for integrating OpenTelemetry instrumented applications with Datadog products and allow independent experimentation with OpenTelemetry behaviors. The available resources include:
 - [Common mistakes][14] for common mistakes or confusions end-users face when using OpenTelemetry.
 - [Adapt an existing setup to DDOT][21] for application migration, Collector topology, OpenTelemetry Operator
   injection, Datadog Agent overlap, and end-to-end verification.
