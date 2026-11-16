@@ -65,6 +65,13 @@ for option in "${INSTALL_OPTIONS[@]}"; do
     use_previous "$option"
 done
 
+INSTALL_OPTIONS_ARGS=()
+for option in "${INSTALL_OPTIONS[@]}"; do
+    if [[ -n "${!option:-}" ]]; then
+        INSTALL_OPTIONS_ARGS+=(--from-literal="$option=${!option}")
+    fi
+done
+
 previous_secret_key() {
     [[ -n "$PREVIOUS_OPTIONS" ]] || return 0
     kubectl get secret datadog-secret \
@@ -284,12 +291,6 @@ fi
 
 echo "Saving the installation options..."
 
-INSTALL_OPTIONS_ARGS=()
-for option in "${INSTALL_OPTIONS[@]}"; do
-    if [[ -n "${!option:-}" ]]; then
-        INSTALL_OPTIONS_ARGS+=(--from-literal="$option=${!option}")
-    fi
-done
 kubectl create configmap "$INSTALL_OPTIONS_CONFIGMAP" \
   --namespace opentelemetry-operator-system \
   "${INSTALL_OPTIONS_ARGS[@]}" \
