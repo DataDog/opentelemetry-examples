@@ -1,10 +1,11 @@
 # Adapt an existing configuration for DDOT
 
 Already running an OpenTelemetry Collector, the OpenTelemetry Operator, OpenTelemetry SDKs, or a Datadog Agent on
-Kubernetes? Start with the shared [application adaptation workflow][application-workflow]. It covers inspecting an
-application, installing and activating its DDOT SDK, configuring telemetry, and verifying every enabled signal. Then
-use the Kubernetes rules in this guide for the Collector, OpenTelemetry Operator, and Datadog Agent. This path adapts
-the existing installation without reinstalling it with the [`install` script][install].
+Kubernetes? Start with the shared [application adaptation workflow][application-workflow]. It owns SDK installation
+and activation, signal ownership, identity, exporter configuration, version compatibility, and per-application
+verification. This guide owns Kubernetes platform wiring: Collector topology and pipelines, Operator injection and
+precedence, Datadog Agent overlap, Kubernetes enrichment, node-local routing, and cluster-level verification. This
+path adapts the existing installation without reinstalling it with the [`install` script][install].
 
 Each requirement is a rule with an ID, what to check, how to fix it, and how it can conflict with an existing setup. The
 reference implementation of every rule is in this folder: [`values.yaml`][values] for the OpenTelemetry Kube Stack Helm
@@ -589,10 +590,9 @@ environment variable, typically through `OTEL_RESOURCE_ATTRIBUTES=datadog.host.n
 
 - **Requirement:** Go applications are instrumented at build time with [Orchestrion][orchestrion] for the DDOT SDK for
   Go, and use the `instrumentation.opentelemetry.io/inject-sdk` annotation, which only injects the `OTEL_*`
-  configuration.
-- **Workaround:** set `OTEL_EXPORTER_OTLP_TRACES_ENDPOINT` to `<daemon collector endpoint>/v1/traces` in the
-  `Instrumentation`'s `env`, as the DDOT SDK for Go ignores `OTEL_EXPORTER_OTLP_ENDPOINT`
-  ([dd-trace-go#5407][dd-trace-go-5407]).
+  configuration. Set the shared `OTEL_EXPORTER_OTLP_ENDPOINT` to the local daemon Collector endpoint. The pinned Go
+  SDK derives the trace signal path from that shared endpoint. Use a signal-specific endpoint only when its destination
+  differs.
 - See also the [known gaps](#known-gaps) for Go.
 
 ## Place shared SDK configuration in Kubernetes
@@ -809,7 +809,6 @@ See [TROUBLESHOOTING.md][troubleshooting] when something doesn't show up.
 [dd-live-debugger-go]: https://docs.datadoghq.com/tracing/live_debugger/?prog_lang=go
 [orchestrion]: https://github.com/DataDog/orchestrion
 [orchestrion-936]: https://github.com/DataDog/orchestrion/issues/936
-[dd-trace-go-5407]: https://github.com/DataDog/dd-trace-go/pull/5407  
 [dd-operator-3521]: https://github.com/DataDog/datadog-operator/issues/3521
 [dd-agent-57314]: https://github.com/DataDog/datadog-agent/issues/57314
 [otel-operator-sdk-go]: https://github.com/open-telemetry/opentelemetry-operator/blob/v0.159.0/internal/instrumentation/sdk.go

@@ -942,7 +942,7 @@ instrumentation:
       value: "http,database,rpc,messaging"
     - name: OTEL_EXPORTER_OTLP_METRICS_TEMPORALITY_PREFERENCE
       value: delta
-    # Node.js defaults to gRPC; use HTTP so every service exports to port 4318.
+    # Use the Collector's OTLP/HTTP receiver for signals that otherwise default to gRPC.
     - name: OTEL_EXPORTER_OTLP_PROTOCOL
       value: http/protobuf
 {{- if .DDOT}}
@@ -1034,7 +1034,8 @@ instrumentation:
     # image: otel/autoinstrumentation-nodejs:0.78.0
     image: datadog/dd-otel-autoinstrumentation-js:6.20-preview
     env:
-      # The pinned Node.js SDK exports traces as OTLP/HTTP JSON. Its metrics and logs use the shared protobuf setting.
+      # The shared protobuf value also becomes the effective trace setting. The pinned Node.js trace exporter only
+      # supports HTTP/JSON, so keep this signal-specific override until the pin supports protobuf consistently.
       - name: OTEL_EXPORTER_OTLP_TRACES_PROTOCOL
         value: http/json
   python:

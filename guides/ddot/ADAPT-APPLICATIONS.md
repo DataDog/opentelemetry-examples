@@ -1,8 +1,10 @@
 # Adapt applications to DDOT
 
 Use this guide to install or adapt application instrumentation so that it sends OpenTelemetry telemetry through a
-DDOT Collector. The flow applies to containers on Kubernetes without OpenTelemetry Operator injection and to Docker
-Compose. For Kubernetes cluster telemetry and Operator-managed injection, use the [Kubernetes DDOT guide][k8s-ddot].
+DDOT Collector. This guide owns application behavior in every deployment environment: SDK installation and
+activation, signal ownership, identity, exporter configuration, version compatibility, and per-application
+verification. For Kubernetes platform wiring, including Collector topology, Operator injection, Datadog Agent
+overlap, and Kubernetes enrichment, use the [Kubernetes DDOT guide][k8s-ddot].
 
 This guide covers Java, Node.js, Python, .NET, and Go. Support differs by language and SDK version. Enable and claim
 only the signals that you verify for the exact runtime and SDK version you deploy.
@@ -30,13 +32,13 @@ The repository examples use the following pins. The [DDOT Kubernetes values][k8s
 image pins. The [Astronomy Store][astronomy-store] owns its runtime and build-time Go pins. Record the exact resolved
 package and image digest in each validation report because preview image tags can move.
 
-| Language | Repository runtime | Manual-install pin | Operator injection image | OTLP trace transport for this pin |
-|---|---|---|---|---|
-| Java | Java 17 | Java agent `1.68.0` from the injection image | `datadog/dd-otel-autoinstrumentation-java:1.68.0-preview` | OTLP/HTTP protobuf or gRPC |
-| Node.js | Node.js 24 | `dd-trace@6.20.0` | `datadog/dd-otel-autoinstrumentation-js:6.20-preview` | OTLP/HTTP JSON |
-| Python | Python 3.12 | `ddtrace==4.16.1` | `datadog/dd-otel-autoinstrumentation-python:4.16.1-preview` | OTLP/HTTP protobuf |
-| .NET | .NET 8 | Tracer `3.56.0` from the injection image | `datadog/dd-otel-autoinstrumentation-dotnet:3.56.0-preview` | OTLP/HTTP JSON or protobuf |
-| Go | Go 1.26 | Orchestrion `v1.15.0` and `dd-trace-go/v2` `v2.13.0-dev.1` | Not applicable | OTLP/HTTP protobuf |
+| Language | Repository runtime | Manual-install pin | Operator injection image | OTLP trace transport for this pin | Signals exercised by the repository validation fixtures |
+|---|---|---|---|---|---|
+| Java | Java 17 | Java agent `1.68.0` from the injection image | `datadog/dd-otel-autoinstrumentation-java:1.68.0-preview` | OTLP/HTTP protobuf or gRPC | Traces, application metrics, and runtime metrics |
+| Node.js | Node.js 24 | `dd-trace@6.20.0` | `datadog/dd-otel-autoinstrumentation-js:6.20-preview` | OTLP/HTTP JSON | Traces, metrics, and logs |
+| Python | Python 3.12 | `ddtrace==4.16.1` | `datadog/dd-otel-autoinstrumentation-python:4.16.1-preview` | OTLP/HTTP protobuf | Traces, application metrics, and logs |
+| .NET | .NET 8 | Tracer `3.56.0` from the injection image | `datadog/dd-otel-autoinstrumentation-dotnet:3.56.0-preview` | OTLP/HTTP JSON or protobuf | Traces, application metrics, and runtime metrics |
+| Go | Go 1.26 | Orchestrion `v1.15.0` and `dd-trace-go/v2` `v2.13.0-dev.1` | Not applicable | OTLP/HTTP protobuf | Traces |
 
 The table describes this repository's validation targets. It does not promise the same behavior for other SDK,
 runtime, operating system, or architecture combinations. Consult the [OTLP trace-export support matrix][dd-otlp-export]
@@ -263,18 +265,22 @@ OTEL_EXPORTER_OTLP_METRICS_ENDPOINT=http://<COLLECTOR_HOST>:4318/v1/metrics
 OTEL_EXPORTER_OTLP_LOGS_ENDPOINT=http://<COLLECTOR_HOST>:4318/v1/logs
 ```
 
-Signal-specific endpoints must include the signal path. A signal-specific value overrides the shared endpoint. The
-pinned Go setup needs `OTEL_EXPORTER_OTLP_TRACES_ENDPOINT` because its trace exporter does not honor the shared
-endpoint. Keep credentials in Secrets and preserve existing `OTEL_EXPORTER_OTLP_*_HEADERS` values.
+Signal-specific endpoints must include the signal path. A signal-specific value overrides the shared endpoint. Send
+all enabled signals to one shared local Collector endpoint when they use the same destination. The pinned Go setup
+honors `OTEL_EXPORTER_OTLP_ENDPOINT`; use a signal-specific endpoint only when its destination differs. Keep
+credentials in Secrets and preserve existing `OTEL_EXPORTER_OTLP_*_HEADERS` values.
 
 Configure a protocol supported by the pinned SDK and Collector receiver. For the repository pins, the shared protocol
 and metrics temporality are owned by `instrumentation.env` in [`values.yaml`][k8s-values]. The Node.js trace override is
 owned by `instrumentation.nodejs.env` in the same file.
 
-Node.js metrics and logs support OTLP/HTTP protobuf at the pinned version, so use signal-specific protocol settings
-when traces, metrics, and logs are enabled together. Do not change an endpoint from port `4317` to `4318` without also
-changing `grpc` to an HTTP protocol. See the [OTLP exporter specification][otel-otlp-config] and the
-[Datadog SDK OTLP matrix][dd-otlp-export].
+Node.js metrics and logs support OTLP/HTTP protobuf at the pinned version. The pinned Node.js trace exporter supports
+OTLP/HTTP JSON. A shared `OTEL_EXPORTER_OTLP_PROTOCOL=http/protobuf` value also becomes the effective trace setting,
+while this version silently exports trace payloads as JSON. Set
+`OTEL_EXPORTER_OTLP_TRACES_PROTOCOL=http/json` so that the effective configuration matches the wire format. Revisit
+the override when the pinned tracer supports OTLP/HTTP protobuf and consistent protocol fallback. Do not change an
+endpoint from port `4317` to `4318` without also changing `grpc` to an HTTP protocol. See the
+[OTLP exporter specification][otel-otlp-config] and the [Datadog SDK OTLP matrix][dd-otlp-export].
 
 Datadog requires delta metrics. Use the repository's metrics temporality preference when the SDK supports it.
 
@@ -299,7 +305,11 @@ or later for logs. Avoid sending the same signal through both Collector and Agen
 
 ### Adapt existing providers and exporters deliberately
 
-When upstream OpenTelemetry code creates a provider or exporter, map ownership signal by signal:
+When upstream OpenTelemetry SDK code creates a provider or exporter, map ownership signal by signal. Prefer standard
+`OTEL_*` configuration for exporter selection, endpoints, protocols, headers, and resource attributes. Keep code for
+provider registration, processors, readers, exporters, or intentional custom behavior that environment configuration
+cannot express. Remove SDK initialization boilerplate only after the DDOT SDK owns that provider and the exact
+language and version have been verified.
 
 - Keep API calls and instrumentation libraries that the DDOT SDK supports.
 - Keep an application-owned provider and exporter until the owner approves moving that signal to the DDOT-managed

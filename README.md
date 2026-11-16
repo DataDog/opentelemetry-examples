@@ -6,8 +6,10 @@ integrating OpenTelemetry instrumented applications with Datadog products and al
 OpenTelemetry behaviors. The available resources include:
 
 - [Common mistakes][14] for common mistakes or confusions end-users face when using OpenTelemetry.
-- [Adapt applications for DDOT][19] for installing or adapting DDOT SDK instrumentation with or without the
-  OpenTelemetry Operator.
+- [Adapt applications for DDOT][19] for application-owned SDK installation, signal configuration, and verification
+  in any deployment environment.
+- [Adapt an existing Kubernetes configuration for DDOT][21] for Collector topology, OpenTelemetry Operator injection,
+  Datadog Agent overlap, and Kubernetes enrichment.
 - [Configurations][15] for configuration examples of the Datadog Agent and the OpenTelemetry Collector.
 - [Astronomy Store][20] for a five-language application that exercises upstream OpenTelemetry and DDOT
   instrumentation.
@@ -52,3 +54,4 @@ OpenTelemetry behaviors. The available resources include:
 [18]: ./apps/kafka-metrics/
 [19]: ./guides/ddot/ADAPT-APPLICATIONS.md
 [20]: ./apps/astronomy-store/
+[21]: ./guides/kubernetes/configuration/opentelemetry-kube-stack/ddot/ADAPT-EXISTING-CONFIG.md

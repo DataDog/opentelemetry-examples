@@ -9,3 +9,15 @@ These rules apply to Markdown documentation in this repository, including README
 - When another source already documents a topic, link to it. Sources to link include the [OpenTelemetry documentation](https://opentelemetry.io/docs/), the [OpenTelemetry Helm charts documentation](https://github.com/open-telemetry/opentelemetry-helm-charts), and the [Datadog documentation](https://docs.datadoghq.com/).
 - Cover each topic in one file in this repository. Link to that file from other files.
 - Refer to configuration that exists in this repository by file and key path, for example "`collectors.daemon.config.exporters` in `values.yaml`". Don't copy it into code blocks or link to line numbers.
+
+## DDOT guide ownership
+
+- `guides/ddot/ADAPT-APPLICATIONS.md` owns application-level adaptation in every deployment environment: inventory,
+  SDK installation and activation, signal ownership, identity, exporter configuration, version compatibility, and
+  per-application verification.
+- `guides/kubernetes/configuration/opentelemetry-kube-stack/ddot/ADAPT-EXISTING-CONFIG.md` owns Kubernetes platform
+  integration: Collector topology and pipelines, OpenTelemetry Operator injection and precedence, Datadog Agent
+  overlap, Kubernetes enrichment, node-local routing, and cluster-level verification.
+- `guides/kubernetes/configuration/opentelemetry-kube-stack/ddot/values.yaml` is the executable reference for the
+  Kubernetes guide. Keep exact environment-variable lists and Collector configuration there. Describe intent in the
+  guides and link to the owning key path instead of duplicating the configuration.
