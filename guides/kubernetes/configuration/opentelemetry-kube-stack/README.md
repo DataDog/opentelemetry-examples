@@ -58,7 +58,7 @@ It then:
 
 - creates the `opentelemetry-operator-system` namespace and the `datadog-secret` secret;
 - installs cert-manager when needed;
-- installs or upgrades the OpenTelemetry Kube Stack Helm chart with `values-otlp-http.yaml` (`upstream`) or `values-ddot.yaml` (`ddot`), and optionally enables the host profiler; and
+- installs or upgrades the OpenTelemetry Kube Stack Helm chart with `upstream/values.yaml` (`upstream`) or `ddot/values.yaml` (`ddot`), and optionally enables the host profiler; and
 - for `ddot`, unless `DD_AGENT_ENABLED=false`, installs or upgrades the Datadog Agent.
 
 ## Install with values files
@@ -106,9 +106,9 @@ EKS, GKE, and AKS enable the appropriate resource detector and automatically det
 mkdir -p deployment
 
 # Choose one:
-cp examples/eks-deployment/values.yaml deployment/values.yaml
-cp examples/gcp-deployment/values.yaml deployment/values.yaml
-cp examples/aks-deployment/values.yaml deployment/values.yaml
+cp upstream/examples/eks-deployment/values.yaml deployment/values.yaml
+cp upstream/examples/gcp-deployment/values.yaml deployment/values.yaml
+cp upstream/examples/aks-deployment/values.yaml deployment/values.yaml
 ```
 
 For other Kubernetes platforms, start with the manual cluster-name example and replace `my-k8s-cluster` and `production`
@@ -116,10 +116,10 @@ with the cluster name and deployment environment. `DD_SITE` continues to be sour
 
 ```sh
 mkdir -p deployment
-cp examples/manually-set-k8s-cluster-name/values.yaml deployment/values.yaml
+cp upstream/examples/manually-set-k8s-cluster-name/values.yaml deployment/values.yaml
 ```
 
-The selected file is an overlay for this directory's base `values-otlp-http.yaml`; add any deployment-specific configuration to
+The selected file is an overlay for this directory's base `upstream/values.yaml`; add any deployment-specific configuration to
 `./deployment/values.yaml`. Install or upgrade the chart with both files:
 
 ```sh
@@ -129,7 +129,7 @@ helm upgrade --install opentelemetry-kube-stack \
   open-telemetry/opentelemetry-kube-stack \
   --version 0.26.1 \
   --namespace opentelemetry-operator-system \
-  --values ./values-otlp-http.yaml \
+  --values ./upstream/values.yaml \
   --values ./deployment/values.yaml
 ```
 
@@ -147,7 +147,7 @@ OpenTelemetry Collector then automatically populates `k8s.cluster.name`, unless 
  For other Kubernetes platforms, the
 installer sets `resourceAttributes.k8s.cluster.name` to `K8S_CLUSTER_NAME` if that variable is set.
 
-See `examples/` for rendered values and manifests for each deployment type.
+See `upstream/examples/` for rendered values and manifests for each deployment type.
 
 ## Resource allocation
 

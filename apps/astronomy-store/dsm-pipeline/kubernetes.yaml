@@ -1,0 +1,102 @@
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: astronomy-store
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: dsm-producer
+  namespace: astronomy-store
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: dsm-producer
+  template:
+    metadata:
+      annotations:
+        instrumentation.opentelemetry.io/inject-java: opentelemetry-operator-system/opentelemetry-kube-stack
+        resource.opentelemetry.io/service.name: dsm-producer
+        resource.opentelemetry.io/service.namespace: astronomy-store
+      labels:
+        app.kubernetes.io/name: dsm-producer
+        admission.datadoghq.com/enabled: "false"
+    spec:
+      containers:
+        - name: dsm-producer
+          image: astronomy-store/dsm-pipeline:latest
+          imagePullPolicy: IfNotPresent
+          env:
+            - name: ROLE
+              value: producer
+            - name: KAFKA_ADDR
+              value: kafka:9092
+            - name: KAFKA_OUTPUT_TOPIC
+              value: dsm-orders
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: dsm-forwarder
+  namespace: astronomy-store
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: dsm-forwarder
+  template:
+    metadata:
+      annotations:
+        instrumentation.opentelemetry.io/inject-java: opentelemetry-operator-system/opentelemetry-kube-stack
+        resource.opentelemetry.io/service.name: dsm-forwarder
+        resource.opentelemetry.io/service.namespace: astronomy-store
+      labels:
+        app.kubernetes.io/name: dsm-forwarder
+        admission.datadoghq.com/enabled: "false"
+    spec:
+      containers:
+        - name: dsm-forwarder
+          image: astronomy-store/dsm-pipeline:latest
+          imagePullPolicy: IfNotPresent
+          env:
+            - name: ROLE
+              value: forwarder
+            - name: KAFKA_ADDR
+              value: kafka:9092
+            - name: KAFKA_TOPIC
+              value: dsm-orders
+            - name: KAFKA_OUTPUT_TOPIC
+              value: dsm-orders-forwarded
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: dsm-consumer
+  namespace: astronomy-store
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: dsm-consumer
+  template:
+    metadata:
+      annotations:
+        instrumentation.opentelemetry.io/inject-java: opentelemetry-operator-system/opentelemetry-kube-stack
+        resource.opentelemetry.io/service.name: dsm-consumer
+        resource.opentelemetry.io/service.namespace: astronomy-store
+      labels:
+        app.kubernetes.io/name: dsm-consumer
+        admission.datadoghq.com/enabled: "false"
+    spec:
+      containers:
+        - name: dsm-consumer
+          image: astronomy-store/dsm-pipeline:latest
+          imagePullPolicy: IfNotPresent
+          env:
+            - name: ROLE
+              value: consumer
+            - name: KAFKA_ADDR
+              value: kafka:9092
+            - name: KAFKA_TOPIC
+              value: dsm-orders-forwarded

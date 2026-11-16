@@ -146,6 +146,15 @@ Go requires compile-time instrumentation, demoed at build time in the `checkout`
   Full Host Profiler, Datadog Live Debugger, and Datadog Dynamic Instrumentation.
 * ...
 
+## Data Streams Monitoring pipeline
+
+[`dsm-pipeline`](dsm-pipeline/README.md) is a Java producer, forwarder, and consumer for checking Datadog Data Streams
+Monitoring end to end with OpenTelemetry Java auto-instrumentation:
+
+```
+dsm-producer -> dsm-orders -> dsm-forwarder -> dsm-orders-forwarded -> dsm-consumer
+```
+
 ## Git/VCS metadata
 
 Each service's `Dockerfile` accepts `VCS_REPOSITORY_URL_FULL`, `VCS_REF_HEAD_NAME`, `VCS_REF_TYPE`, and

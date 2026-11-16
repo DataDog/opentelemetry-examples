@@ -39,8 +39,8 @@ helm() { command helm --kube-context "$KUBE_CONTEXT" "$@"; }
 echo "Installing into the kubectl context '$KUBE_CONTEXT' ($(kubectl config view --minify -o jsonpath='{.clusters[0].cluster.server}'))"
 
 case "${DD_INSTALL_FLOW:-}" in
-    upstream) VALUES_FILE=values-otlp-http.yaml ;;
-    ddot) VALUES_FILE=values-ddot.yaml ;;
+    upstream) VALUES_FILE=upstream/values.yaml ;;
+    ddot) VALUES_FILE=ddot/values.yaml ;;
     *)
         echo "ERROR: DD_INSTALL_FLOW must be one of: upstream, ddot (got '${DD_INSTALL_FLOW:-}')" >&2
         exit 1
@@ -53,10 +53,7 @@ DEPLOYMENT_ENVIRONMENT_NAME=${DEPLOYMENT_ENVIRONMENT_NAME:-production}
 DD_AGENT_ENABLED=${DD_AGENT_ENABLED:-true}
 require_bool DD_AGENT_ENABLED
 
-DD_AGENT_VALUES_ARGS=()
 if [[ "$DD_INSTALL_FLOW" == "ddot" && "$DD_AGENT_ENABLED" == "true" ]]; then
-    DD_AGENT_VALUES_ARGS=(-f "$SCRIPT_DIR/dd-agent-kube-stack-values.yaml")
-
     if [[ -n "${DD_APP_KEY:-}" && -z "${K8S_CLUSTER_NAME:-}" ]]; then
         echo "ERROR: K8S_CLUSTER_NAME must be set when DD_APP_KEY is set (Fleet Automation requires a cluster name)" >&2
         exit 1
@@ -108,7 +105,7 @@ fi
 
 trap 'if (( $? != 0 )); then echo "ERROR: The installation did not finish. Fix the error above, run ./uninstall, and run this script again." >&2; fi' EXIT
 
-# WARNING: dont change "namespace=opentelemetry-operator-system" as it is used in the 'instrumentation' CRD defined in values-otlp-http.yaml and values-ddot.yaml
+# WARNING: dont change "namespace=opentelemetry-operator-system" as it is used in the 'instrumentation' CRD defined in upstream/values.yaml and ddot/values.yaml
 
 echo "Creating Kubernetes namespace..."
 
@@ -185,7 +182,7 @@ if [[ "$DD_INSTALL_FLOW" == "ddot" && "$DD_AGENT_ENABLED" == "true" ]]; then
         GLOBAL_JSON+=",\"clusterName\":\"$K8S_CLUSTER_NAME\""
     fi
     kubectl patch --local \
-      -f "$SCRIPT_DIR/datadog-agent.yaml" \
+      -f "$SCRIPT_DIR/ddot/datadog-agent.yaml" \
       --type merge \
       -p "{\"spec\":{\"global\":{$GLOBAL_JSON}}}" \
       -o yaml | kubectl apply --namespace datadog -f -
@@ -227,6 +224,5 @@ helm upgrade opentelemetry-kube-stack \
     --wait --timeout 5m \
     "${HELM_SET_ARGS[@]}" \
     -f "$SCRIPT_DIR/$VALUES_FILE" \
-    ${DD_AGENT_VALUES_ARGS[@]+"${DD_AGENT_VALUES_ARGS[@]}"} \
     ${HOST_PROFILER_ENABLED_ARGS[@]+"${HOST_PROFILER_ENABLED_ARGS[@]}"} \
     ${OVERLAY_VALUES_ARGS[@]+"${OVERLAY_VALUES_ARGS[@]}"}
