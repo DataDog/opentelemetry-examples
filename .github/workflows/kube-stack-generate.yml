@@ -27,6 +27,6 @@ jobs:
       - name: Fail if upstream/values.yaml or ddot/values.yaml is out of date
         run: |
           if [ -n "$(git status --porcelain -- upstream/values.yaml ddot/values.yaml)" ]; then
-            echo "::error::upstream/values.yaml or ddot/values.yaml is out of date. Run make generate-base-values locally."
+            echo "::error::upstream/values.yaml or ddot/values.yaml is out of date. Run make generate locally, which also regenerates the rendered examples."
             exit 1
           fi

@@ -10,6 +10,14 @@ CI_SCRIPTS := $(REPO_ROOT)/.github/workflows/scripts
 validate:
 	@DUMMY_ENV_FILE=$(CI_SCRIPTS)/dummy-credentials.env $(CI_SCRIPTS)/validate-opentelemetry-kube-stack.sh
 
+# generate regenerates the values files from values.yaml.tmpl, then the examples rendered on top of them. The two
+# steps run in sequence, even with make -j, because the examples read the values files. It leaves out
+# generate-datadog-operator-examples, which reads ddot/datadog-agent.yaml and needs a datadog-operator checkout.
+.PHONY: generate
+generate:
+	@$(MAKE) --no-print-directory generate-base-values
+	@$(MAKE) --no-print-directory generate-examples
+
 .PHONY: generate-base-values
 generate-base-values:
 	@echo "Generating upstream/values.yaml and ddot/values.yaml from values.yaml.tmpl"
