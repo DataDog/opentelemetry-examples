@@ -103,7 +103,7 @@ fi
 
 #### BEGINNING OF INSTALLATION SCRIPT
 
-trap 'if (( $? != 0 )); then echo "ERROR: The installation did not finish. Fix the error above, run ./uninstall, and run this script again." >&2; fi' EXIT
+trap 'if (( $? != 0 )); then echo "ERROR: The installation did not finish. Fix the error above and run this script again." >&2; fi' EXIT
 
 # WARNING: dont change "namespace=opentelemetry-operator-system" as it is used in the 'instrumentation' CRD defined in upstream/values.yaml and ddot/values.yaml
 
