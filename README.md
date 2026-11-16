@@ -9,8 +9,6 @@ OpenTelemetry behaviors. The available resources include:
 - [Adapt an existing setup to DDOT][21] for application migration, Collector topology, OpenTelemetry Operator
   injection, Datadog Agent overlap, and end-to-end verification.
 - [Configurations][15] for configuration examples of the Datadog Agent and the OpenTelemetry Collector.
-- [Astronomy Store][20] for a five-language application that exercises upstream OpenTelemetry and DDOT
-  instrumentation.
 
 ## Index
 
@@ -50,5 +48,4 @@ OpenTelemetry behaviors. The available resources include:
 [16]: ./apps/kubernetes-express-otel/
 [17]: ./apps/rolldice-game/
 [18]: ./apps/kafka-metrics/
-[20]: ./apps/astronomy-store/
 [21]: ./guides/kubernetes/configuration/opentelemetry-kube-stack/ddot/ADAPT-EXISTING-SETUP.md
