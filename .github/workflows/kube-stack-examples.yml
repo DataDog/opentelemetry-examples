@@ -65,12 +65,16 @@ jobs:
         run: make validate
 
   deploy-kind:
-    name: Deploy to a kind cluster (${{ matrix.flow }})
+    name: Deploy to a kind cluster (${{ matrix.flow }}, Bash ${{ matrix.bash }})
     runs-on: ubuntu-latest
     strategy:
       fail-fast: false
       matrix:
         flow: [upstream, ddot]
+        bash: [default, "3.2"] # 3.2 is the default macOS bash version
+    env:
+      DD_API_KEY: "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+      DD_INSTALL_FLOW: ${{ matrix.flow }}
     defaults:
       run:
         working-directory: guides/kubernetes/configuration/opentelemetry-kube-stack
@@ -87,10 +91,22 @@ jobs:
         run: kubectl config set-context --current --namespace=opentelemetry-operator-system
 
       - name: Install opentelemetry-kube-stack
-        env:
-          DD_API_KEY: "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
-          DD_INSTALL_FLOW: ${{ matrix.flow }}
+        if: matrix.bash == 'default'
         run: ./install
+
+      # Ubuntu doesn't have a Bash 3.2 package, so we run the script in the bash:3.2 image.
+      - name: Install opentelemetry-kube-stack with Bash 3.2
+        if: matrix.bash == '3.2'
+        run: |
+          docker run --rm --network host \
+            -e DD_API_KEY -e DD_INSTALL_FLOW \
+            -e KUBECONFIG=/kubeconfig \
+            -v "${KUBECONFIG:-$HOME/.kube/config}:/kubeconfig:ro" \
+            -v "$(command -v kubectl):/usr/local/bin/kubectl:ro" \
+            -v "$(command -v helm):/usr/local/bin/helm:ro" \
+            -v "$PWD:/work:ro" -w /work \
+            bash:3.2@sha256:b6252c62fc86114f93f02104a486c71e6569371d95950ea7479a2ffd6b47f16a \
+            ./install
 
       - name: Wait for the collectors to roll out
         run: |
