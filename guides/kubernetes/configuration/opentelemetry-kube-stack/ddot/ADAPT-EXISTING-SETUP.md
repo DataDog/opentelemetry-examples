@@ -685,9 +685,6 @@ environment variable, typically through `OTEL_RESOURCE_ATTRIBUTES=datadog.host.n
 - **Requirement:** Go applications are instrumented at build time with [Orchestrion][orchestrion] for the DDOT SDK for
   Go, and use the `instrumentation.opentelemetry.io/inject-sdk` annotation, which only injects the `OTEL_*`
   configuration.
-- **Workaround:** set `OTEL_EXPORTER_OTLP_TRACES_ENDPOINT` to `<daemon collector endpoint>/v1/traces` in the
-  `Instrumentation`'s `env`, as the DDOT SDK for Go ignores `OTEL_EXPORTER_OTLP_ENDPOINT`
-  ([dd-trace-go#5407][dd-trace-go-5407]).
 - See also the [known gaps](#known-gaps) for Go.
 
 ## DDOT SDK environment rules
@@ -699,21 +696,9 @@ environment when the SDK is installed and configured manually.
 
 ### S-01: Enable the OpenTelemetry mode of the DDOT SDKs
 
-- **Requirement:** configure all of the following for workloads adopting DDOT SDKs with OpenTelemetry semantic
-  conventions and OTLP export. Verify the effective configuration at runtime; presence in `spec.env` is insufficient:
-
-  ```yaml
-  - name: OTEL_TRACES_EXPORTER
-    value: otlp
-  - name: DD_TRACE_OTEL_ENABLED
-    value: "true"
-  - name: DD_LOGS_OTEL_ENABLED
-    value: "true"
-  - name: DD_METRICS_OTEL_ENABLED
-    value: "true"
-  - name: DD_TRACE_OTEL_SEMANTICS_ENABLED
-    value: "true"
-  ```
+- **Requirement:** apply the DDOT OpenTelemetry-mode switches from `instrumentation.env` in
+  [`values.yaml`][values] to workloads adopting DDOT SDKs with OpenTelemetry semantic conventions and OTLP export.
+  Verify the effective configuration at runtime; presence in `spec.env` is insufficient.
 
 - **Why:** together, these settings enable OpenTelemetry semantics and OTLP export for the signals supported by the
   selected SDK. `DD_TRACE_OTEL_ENABLED=true` alone does not switch trace export from the Datadog protocol to OTLP.
@@ -741,12 +726,7 @@ environment when the SDK is installed and configured manually.
 
 ### S-04: Export delta metrics
 
-- **Requirement:** use the delta temporality that Datadog requires:
-
-  ```yaml
-  - name: OTEL_EXPORTER_OTLP_METRICS_TEMPORALITY_PREFERENCE
-    value: delta
-  ```
+- **Requirement:** keep the delta temporality preference from `instrumentation.env` in [`values.yaml`][values].
 
 - **Why:** the SDKs then export delta metrics, which the Collector forwards to Datadog without the memory and CPU cost
   of cumulative-to-delta conversion.
@@ -755,12 +735,11 @@ environment when the SDK is installed and configured manually.
   ([C-06](#c-06-convert-cumulative-metrics-to-delta)). Size the Collector for the processor's state, set an appropriate
   `max_staleness`, and ensure every point in a time series reaches the same Collector instance through the node-local
   Service ([C-13](#c-13-keep-the-daemon-collectors-service-node-local)).
-- FIXME call out that DDOT SDKs only support delta temporality for now, so the user must use delta metrics for now and
-  the cumulative to delta processor in the collector.
 
 ### S-05: Use the stable semantic conventions
 
-- **Requirement:** `OTEL_SEMCONV_STABILITY_OPT_IN=http,database,rpc,messaging`.
+- **Requirement:** keep the stable semantic-convention opt-ins from `instrumentation.env` in
+  [`values.yaml`][values].
 
 ### S-06: Enable optional Datadog features per workload
 
@@ -1017,7 +996,6 @@ does not appear.
 [dd-otel-api]: https://docs.datadoghq.com/opentelemetry/instrument/dd_sdks/api_support/
 [dd-otlp-export]: https://docs.datadoghq.com/opentelemetry/instrument/dd_sdks/otlp_trace_export/
 [dd-runtime-metrics]: https://docs.datadoghq.com/tracing/metrics/runtime_metrics/
-[dd-trace-go-5407]: https://github.com/DataDog/dd-trace-go/pull/5407
 [dotnet-setup]: https://docs.datadoghq.com/tracing/trace_collection/dd_libraries/dotnet-core/
 [go-setup]: https://docs.datadoghq.com/tracing/trace_collection/automatic_instrumentation/dd_libraries/go/
 [java-setup]: https://docs.datadoghq.com/tracing/trace_collection/dd_libraries/java/?tab=wget
