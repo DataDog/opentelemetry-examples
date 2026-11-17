@@ -118,6 +118,14 @@ require_bool DD_AGENT_ENABLED
 require_bool DD_HOST_PROFILER_ENABLED
 require_one_of DD_HOST_PROFILER_NETWORK_POLICY none standard cilium
 
+if [[ -n "${PREVIOUS_DD_INSTALL_FLOW:-}" && "$PREVIOUS_DD_INSTALL_FLOW" != "$DD_INSTALL_FLOW" ]]; then
+    fail "DD_INSTALL_FLOW=$DD_INSTALL_FLOW is incompatible with the existing $PREVIOUS_DD_INSTALL_FLOW installation; remove the previous installation first"
+fi
+
+if [[ "$DD_INSTALL_FLOW" == "upstream" && "${DD_AGENT_ENABLED:-}" == "true" ]]; then
+    fail "DD_AGENT_ENABLED=true requires DD_INSTALL_FLOW=ddot"
+fi
+
 DD_SITE=${DD_SITE:-datadoghq.com}
 K8S_CLUSTER_TYPE=${K8S_CLUSTER_TYPE:-other}
 DEPLOYMENT_ENVIRONMENT_NAME=${DEPLOYMENT_ENVIRONMENT_NAME:-production}
@@ -134,6 +142,10 @@ if [[ "$DD_AUTOINSTRUMENTATION_ENABLED" == "false" && "$DD_COLLECTOR_ENABLED" ==
     fail "DD_AUTOINSTRUMENTATION_ENABLED and DD_COLLECTOR_ENABLED cannot both be false"
 fi
 
+if [[ "$DD_AGENT_ENABLED" == "true" && "$DD_COLLECTOR_ENABLED" == "false" ]]; then
+    fail "DD_AGENT_ENABLED=true requires DD_COLLECTOR_ENABLED=true"
+fi
+
 if [[ "$DD_COLLECTOR_ENABLED" == "false" && -z "${OTEL_EXPORTER_OTLP_ENDPOINT:-}" ]]; then
     fail "OTEL_EXPORTER_OTLP_ENDPOINT must be set when DD_COLLECTOR_ENABLED=false"
 fi
@@ -142,7 +154,7 @@ if [[ "$DD_HOST_PROFILER_ENABLED" == "true" && "$DD_COLLECTOR_ENABLED" == "false
     fail "DD_HOST_PROFILER_ENABLED=true requires DD_COLLECTOR_ENABLED=true"
 fi
 
-if [[ "$DD_COLLECTOR_ENABLED" == "true" || ( "$DD_INSTALL_FLOW" == "ddot" && "$DD_AGENT_ENABLED" == "true" ) ]]; then
+if [[ "$DD_COLLECTOR_ENABLED" == "true" ]]; then
     if [[ -z "${DD_API_KEY:-}" ]]; then
         DD_API_KEY=$(previous_secret_key opentelemetry-operator-system api-key)
         [[ -n "$DD_API_KEY" ]] || DD_API_KEY=$(previous_secret_key datadog api-key)
