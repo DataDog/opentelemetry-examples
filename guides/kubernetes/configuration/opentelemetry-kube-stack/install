@@ -173,8 +173,8 @@ if [[ "$DD_INSTALL_FLOW" == "ddot" && "$DD_AGENT_ENABLED" == "true" ]]; then
         fi
     fi
 
-    if [[ -n "${DD_APP_KEY:-}" && -z "${K8S_CLUSTER_NAME:-}" ]]; then
-        fail "K8S_CLUSTER_NAME must be set when DD_APP_KEY is set (Fleet Automation requires a cluster name)"
+    if [[ -n "${DD_APP_KEY:-}" && "$K8S_CLUSTER_TYPE" == "other" && -z "${K8S_CLUSTER_NAME:-}" ]]; then
+        fail "K8S_CLUSTER_NAME must be set when DD_APP_KEY is set and K8S_CLUSTER_TYPE=other (Fleet Automation requires a cluster name)"
     fi
 fi
 
