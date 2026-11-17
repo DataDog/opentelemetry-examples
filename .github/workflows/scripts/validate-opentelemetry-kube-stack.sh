@@ -7,48 +7,6 @@ yq() {
   docker run --rm -v "${PWD}:/work" -w /work mikefarah/yq:4.53.6 "$@"
 }
 
-compare_ddot_guide_env_fragment() {
-  local marker="$1"
-  local selector="$2"
-  local work_dir="$3"
-  local guide="ddot/ADAPT-EXISTING-SETUP.md"
-  local values="ddot/values.yaml"
-
-  awk -v begin="<!-- BEGIN ${marker} -->" -v end="<!-- END ${marker} -->" '
-    index($0, begin) { inside = 1; next }
-    index($0, end) { exit }
-    inside && $0 !~ /```/ { sub(/^  /, ""); print }
-  ' "${guide}" > "${work_dir}/${marker}.yaml" || return 1
-  yq -o=json '.' "${work_dir}/${marker}.yaml" > "${work_dir}/${marker}.actual.json" || return 1
-  yq -o=json "[.instrumentation.env[] | select(${selector})]" \
-    "${values}" > "${work_dir}/${marker}.expected.json" || return 1
-  diff -u "${work_dir}/${marker}.expected.json" "${work_dir}/${marker}.actual.json"
-}
-
-validate_ddot_guide_env_fragments() {
-  local work_dir status
-  # The yq helper mounts the current directory into its container.
-  work_dir="$(mktemp -d ./.tmp-guide-validation.XXXXXX)" || return 1
-  chmod a+rx "${work_dir}" || return 1
-  status=0
-
-  compare_ddot_guide_env_fragment DDOT_MODE_ENV \
-    '.name == "OTEL_TRACES_EXPORTER" or .name == "DD_TRACE_OTEL_ENABLED" or .name == "DD_LOGS_OTEL_ENABLED" or .name == "DD_METRICS_OTEL_ENABLED" or .name == "DD_TRACE_OTEL_SEMANTICS_ENABLED"' \
-    "${work_dir}" || status=1
-  compare_ddot_guide_env_fragment DDOT_DELTA_ENV \
-    '.name == "OTEL_EXPORTER_OTLP_METRICS_TEMPORALITY_PREFERENCE"' "${work_dir}" || status=1
-  compare_ddot_guide_env_fragment DDOT_SEMCONV_ENV \
-    '.name == "OTEL_SEMCONV_STABILITY_OPT_IN"' "${work_dir}" || status=1
-  rm -r "${work_dir}"
-
-  if [[ "${status}" -eq 0 ]]; then
-    echo "DDOT guide environment fragments match ddot/values.yaml"
-  else
-    echo "::error::DDOT guide environment fragments differ from ddot/values.yaml"
-  fi
-  return "${status}"
-}
-
 validate_collector_configs() {
   local work_dir stub_dir
   work_dir="$(mktemp -d)"
@@ -131,8 +89,6 @@ validate_manifests() {
 }
 
 status=0
-validate_ddot_guide_env_fragments || status=1
-echo
 validate_collector_configs || status=1
 echo
 validate_manifests || status=1

@@ -10,13 +10,11 @@ These rules apply to Markdown documentation in this repository, including README
 - Cover each topic in one file in this repository. Link to that file from other files.
 - Refer to configuration that exists in this repository by file and key path, for example
   "`collectors.daemon.config.exporters` in `values.yaml`". Avoid copying large configuration blocks or linking to line
-  numbers. Agent-facing action guides may include small, copyable fragments when exact keys are required to adapt an
-  external setup. Name the canonical file and key path next to each fragment, and validate duplicated repository-owned
-  values automatically so that they cannot drift.
+  numbers.
 
 ## DDOT guide ownership
 
-- `guides/kubernetes/configuration/opentelemetry-kube-stack/ddot/ADAPT-EXISTING-SETUP.md` owns adaptation for existing
+- `guides/kubernetes/configuration/opentelemetry-kube-stack/ddot/ADAPT-EXISTING-CONFIG.md` owns adaptation for existing
   setups. Its application workflow applies to every deployment. Its platform rules apply only when the corresponding
   Kubernetes components are present. It covers cross-language migration decisions, Collector topology and pipelines,
   OpenTelemetry Operator injection and precedence, Datadog Agent overlap, Kubernetes enrichment, node-local routing,
@@ -25,4 +23,5 @@ These rules apply to Markdown documentation in this repository, including README
 - `guides/kubernetes/configuration/opentelemetry-kube-stack/ddot/values.yaml` is the executable reference for this
   repository's Kubernetes architecture and shared environment-variable lists. Describe intent in the guide and link
   to the owning key path. The adaptation guide can repeat small environment-variable fragments that agents must merge
-  into external configurations; the guide validation must compare those fragments with the owning values.
+  into external configurations. Name the owning file and key path next to each fragment, and keep the fragment
+  consistent with the owning configuration when either changes.

@@ -44,4 +44,4 @@ The repository includes example applications and configurations for Datadog user
 [16]: ./apps/kubernetes-express-otel/
 [17]: ./apps/rolldice-game/
 [18]: ./apps/kafka-metrics/
-[21]: ./guides/kubernetes/configuration/opentelemetry-kube-stack/ddot/ADAPT-EXISTING-SETUP.md
+[21]: ./guides/kubernetes/configuration/opentelemetry-kube-stack/ddot/ADAPT-EXISTING-CONFIG.md

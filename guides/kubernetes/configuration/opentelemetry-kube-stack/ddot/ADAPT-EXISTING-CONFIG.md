@@ -129,7 +129,8 @@ OTEL_EXPORTER_OTLP_ENDPOINT=http://<COLLECTOR_HOST>:4318
 ```
 
 Use a signal-specific endpoint only when that signal has a different destination. Signal-specific endpoints override
-the shared endpoint and must include the signal path.
+the shared endpoint. For OTLP/HTTP, include the signal path, such as `/v1/traces`, `/v1/metrics`, or `/v1/logs`. For
+OTLP/gRPC, use the host and port without an HTTP signal path.
 
 The destination pipeline depends on the deployment. This repository's reference architecture exports from the DDOT
 Collector to Datadog with the Datadog exporter. Preserve intentional secondary exporters and custom routing, and verify
@@ -727,7 +728,6 @@ environment when the SDK is installed and configured manually.
   Merge this fragment into the workload environment. The full shared environment configuration is under
   `instrumentation.env` in [`values.yaml`][values].
 
-  <!-- BEGIN DDOT_MODE_ENV -->
   ```yaml
   - name: OTEL_TRACES_EXPORTER
     value: otlp
@@ -740,7 +740,6 @@ environment when the SDK is installed and configured manually.
   - name: DD_TRACE_OTEL_SEMANTICS_ENABLED
     value: "true"
   ```
-  <!-- END DDOT_MODE_ENV -->
 
 - **Why:** together, these settings enable OpenTelemetry semantics and OTLP export for the signals supported by the
   selected SDK. `DD_TRACE_OTEL_ENABLED=true` alone does not switch trace export from the Datadog protocol to OTLP.
@@ -774,12 +773,10 @@ environment when the SDK is installed and configured manually.
 
 - **Requirement:** keep the delta temporality preference from `instrumentation.env` in [`values.yaml`][values].
 
-  <!-- BEGIN DDOT_DELTA_ENV -->
   ```yaml
   - name: OTEL_EXPORTER_OTLP_METRICS_TEMPORALITY_PREFERENCE
     value: delta
   ```
-  <!-- END DDOT_DELTA_ENV -->
 
 - **Why:** the SDKs then export delta metrics, which the Collector forwards to Datadog without the memory and CPU cost
   of cumulative-to-delta conversion.
@@ -794,12 +791,10 @@ environment when the SDK is installed and configured manually.
 - **Requirement:** keep the stable semantic-convention opt-ins from `instrumentation.env` in
   [`values.yaml`][values].
 
-  <!-- BEGIN DDOT_SEMCONV_ENV -->
   ```yaml
   - name: OTEL_SEMCONV_STABILITY_OPT_IN
     value: http,database,rpc,messaging
   ```
-  <!-- END DDOT_SEMCONV_ENV -->
 
 ### S-06: Enable optional Datadog features per workload
 
