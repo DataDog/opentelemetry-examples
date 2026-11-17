@@ -44,11 +44,11 @@ spec:
     resourceAttributes:
       deployment.environment.name: production
   java:
-    image: datadog/dd-otel-autoinstrumentation-java:1.68.0-preview
+    image: datadog/dd-otel-autoinstrumentation-java:1.69.0-preview
   nodejs:
-    image: datadog/dd-otel-autoinstrumentation-js:6.20-preview
+    image: datadog/dd-otel-autoinstrumentation-js:6.25-preview
   python:
-    image: datadog/dd-otel-autoinstrumentation-python:4.16.1-preview
+    image: datadog/dd-otel-autoinstrumentation-python:4.17.0-preview
   dotnet:
     env:
     - name: CORECLR_PROFILER
@@ -57,5 +57,5 @@ spec:
       value: /otel-auto-instrumentation-dotnet/linux/Datadog.Trace.ClrProfiler.Native.so
     - name: DD_DOTNET_TRACER_HOME
       value: /otel-auto-instrumentation-dotnet
-    image: datadog/dd-otel-autoinstrumentation-dotnet:3.56.0-preview
+    image: datadog/dd-otel-autoinstrumentation-dotnet:3.57.0-preview
 
