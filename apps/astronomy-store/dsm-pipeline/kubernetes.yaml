@@ -28,6 +28,10 @@ spec:
           image: astronomy-store/dsm-pipeline:latest
           imagePullPolicy: IfNotPresent
           env:
+            - name: DD_DATA_STREAMS_ENABLED
+              value: "true"
+            - name: DD_TRACE_REMOVE_INTEGRATION_SERVICE_NAMES_ENABLED
+              value: "true"
             - name: ROLE
               value: producer
             - name: KAFKA_ADDR
@@ -60,6 +64,10 @@ spec:
           image: astronomy-store/dsm-pipeline:latest
           imagePullPolicy: IfNotPresent
           env:
+            - name: DD_DATA_STREAMS_ENABLED
+              value: "true"
+            - name: DD_TRACE_REMOVE_INTEGRATION_SERVICE_NAMES_ENABLED
+              value: "true"
             - name: ROLE
               value: forwarder
             - name: KAFKA_ADDR
@@ -94,6 +102,10 @@ spec:
           image: astronomy-store/dsm-pipeline:latest
           imagePullPolicy: IfNotPresent
           env:
+            - name: DD_DATA_STREAMS_ENABLED
+              value: "true"
+            - name: DD_TRACE_REMOVE_INTEGRATION_SERVICE_NAMES_ENABLED
+              value: "true"
             - name: ROLE
               value: consumer
             - name: KAFKA_ADDR
