@@ -269,6 +269,19 @@ if [[ "$DD_HOST_PROFILER_ENABLED" == "true" && "$DD_COLLECTOR_ENABLED" == "false
     fail "DD_HOST_PROFILER_ENABLED=true requires DD_COLLECTOR_ENABLED=true"
 fi
 
+STEP="Check Existing Installation"
+
+if [[ -z "$PREVIOUS_OPTIONS" ]] && kubectl get crd opentelemetrycollectors.opentelemetry.io >/dev/null 2>&1; then
+    fail "Found an existing OpenTelemetry Operator installation; remove the previous installation first"
+fi
+
+if [[ -z "$PREVIOUS_OPTIONS" && "$DD_INSTALL_FLOW" == "ddot" && "$DD_AGENT_ENABLED" == "true" ]] \
+    && kubectl get crd datadogagents.datadoghq.com >/dev/null 2>&1; then
+    fail "Found an existing Datadog Operator installation; remove the previous installation first"
+fi
+
+STEP="Validate Options"
+
 if [[ "$DD_COLLECTOR_ENABLED" == "true" ]]; then
     if [[ -z "${DD_API_KEY:-}" ]]; then
         DD_API_KEY=$(previous_secret_key opentelemetry-operator-system api-key)
