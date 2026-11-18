@@ -32,7 +32,7 @@ Configure the installer with environment variables, then run it from this direct
 | `K8S_CLUSTER_NAME` | Kubernetes cluster name. For `eks`, `gcp`, and `aks`, overrides the auto-detected name. | Auto-detected for `eks`, `gcp`, and `aks`; unset otherwise |
 | `DEPLOYMENT_ENVIRONMENT_NAME` | Value of the `deployment.environment.name` resource attribute. | `production` |
 | `DD_AGENT_ENABLED` | Install the Datadog Agent in the `ddot` flow: `true` or `false`. | `true`, or `false` when `DD_COLLECTOR_ENABLED` is `false` |
-| `DD_APP_KEY` | Datadog application key. Enables Fleet Automation for the Datadog Agent. Requires `K8S_CLUSTER_NAME`. | Unset |
+| `DD_APP_KEY` | Datadog application key. Enables Fleet Automation for the Datadog Agent. | Unset |
 | `DD_AUTOINSTRUMENTATION_ENABLED` | Enable autoinstrumentation: `true` or `false`. | `true` |
 | `DD_COLLECTOR_ENABLED` | Install the OpenTelemetry Collectors: `true` or `false`. | `true` |
 | `OTEL_EXPORTER_OTLP_ENDPOINT` | OTLP/HTTP endpoint of the Collector that autoinstrumented workloads send telemetry to, for example `http://my-collector.my-namespace.svc.cluster.local:4318`. Required when `DD_COLLECTOR_ENABLED` is `false`. | Unset |

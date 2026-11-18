@@ -5,21 +5,49 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 INSTALLER_VERSION=v0.0.1-pre
 echo "Datadog OpenTelemetry Install Script $INSTALLER_VERSION"
 
+fail() {
+    echo "ERROR: $*" >&2
+    exit 1
+}
+
+require_set() {
+    if [[ -z "${!1:-}" ]]; then
+        fail "$1 is not set"
+    fi
+}
+
+require_one_of() {
+    local name=$1
+    local value=${!1:-}
+    local option allowed
+    shift
+    if [[ -z "$value" ]]; then
+        return 0
+    fi
+    for option in "$@"; do
+        if [[ "$value" == "$option" ]]; then
+            return 0
+        fi
+    done
+    allowed=$1
+    shift
+    for option in "$@"; do
+        allowed="$allowed, $option"
+    done
+    fail "$name must be one of: $allowed (got '$value')"
+}
+
 require_bool() {
-    case "${!1}" in
-        true|false) ;;
-        *)
-            echo "ERROR: $1 must be one of: true, false (got '${!1}')" >&2
-            exit 1
-            ;;
-    esac
+    require_one_of "$1" true false
 }
 
 # Optional extra/overlay values.yaml merged on top of the base values file.
 OVERLAY_VALUES_FILE="${1:-}"
 OVERLAY_VALUES_ARGS=()
 if [[ -n "$OVERLAY_VALUES_FILE" ]]; then
-    [[ -f "$OVERLAY_VALUES_FILE" ]] || { echo "Overlay values file not found: $OVERLAY_VALUES_FILE" >&2; exit 1; }
+    if [[ ! -f "$OVERLAY_VALUES_FILE" ]]; then
+        fail "Overlay values file not found: $OVERLAY_VALUES_FILE"
+    fi
     OVERLAY_VALUES_ARGS=(-f "$OVERLAY_VALUES_FILE")
 fi
 
@@ -48,13 +76,12 @@ INSTALL_OPTIONS=(
     DD_HOST_PROFILER_NETWORK_POLICY
 )
 
+# shellcheck disable=SC2016
 PREVIOUS_OPTIONS=$(kubectl get configmap "$INSTALL_OPTIONS_CONFIGMAP" \
     --namespace opentelemetry-operator-system \
     --ignore-not-found \
-    -o go-template='{{range $k, $v := .data}}{{$k}}={{$v}}{{"\n"}}{{end}}') || {
-    echo "ERROR: Could not read the options of the previous run from the cluster" >&2
-    exit 1
-}
+    -o go-template='{{range $k, $v := .data}}{{$k}}={{$v}}{{"\n"}}{{end}}') \
+    || fail "Could not read the options of the previous run from the cluster"
 
 while IFS= read -r line; do
     key=${line%%=*}
@@ -90,42 +117,56 @@ previous_secret_key() {
     kubectl get secret datadog-secret \
         --namespace "$1" \
         --ignore-not-found \
-        -o go-template="{{with index .data \"$2\"}}{{base64decode .}}{{end}}" || {
-        echo "ERROR: Could not read the $2 of the previous run from the cluster" >&2
-        exit 1
-    }
+        -o go-template="{{with index .data \"$2\"}}{{base64decode .}}{{end}}" \
+        || fail "Could not read the $2 of the previous run from the cluster"
 }
 
-case "${DD_INSTALL_FLOW:-}" in
-    upstream) VALUES_FILE=upstream/values.yaml ;;
-    ddot) VALUES_FILE=ddot/values.yaml ;;
-    *)
-        echo "ERROR: DD_INSTALL_FLOW must be one of: upstream, ddot (got '${DD_INSTALL_FLOW:-}')" >&2
-        exit 1
-        ;;
-esac
+require_set DD_INSTALL_FLOW
+require_one_of DD_INSTALL_FLOW upstream ddot
+require_one_of K8S_CLUSTER_TYPE eks gcp aks other
+require_bool DD_AUTOINSTRUMENTATION_ENABLED
+require_bool DD_COLLECTOR_ENABLED
+require_bool DD_AGENT_ENABLED
+require_bool DD_HOST_PROFILER_ENABLED
+require_one_of DD_HOST_PROFILER_NETWORK_POLICY none standard cilium
+
+if [[ -n "${PREVIOUS_DD_INSTALL_FLOW:-}" && "$PREVIOUS_DD_INSTALL_FLOW" != "$DD_INSTALL_FLOW" ]]; then
+    fail "DD_INSTALL_FLOW=$DD_INSTALL_FLOW is incompatible with the existing $PREVIOUS_DD_INSTALL_FLOW installation; remove the previous installation first"
+fi
+
+if [[ "$DD_INSTALL_FLOW" == "upstream" && "${DD_AGENT_ENABLED:-}" == "true" ]]; then
+    fail "DD_AGENT_ENABLED=true requires DD_INSTALL_FLOW=ddot"
+fi
 
 DD_SITE=${DD_SITE:-datadoghq.com}
 K8S_CLUSTER_TYPE=${K8S_CLUSTER_TYPE:-other}
 DEPLOYMENT_ENVIRONMENT_NAME=${DEPLOYMENT_ENVIRONMENT_NAME:-production}
 DD_AUTOINSTRUMENTATION_ENABLED=${DD_AUTOINSTRUMENTATION_ENABLED:-true}
-require_bool DD_AUTOINSTRUMENTATION_ENABLED
 DD_COLLECTOR_ENABLED=${DD_COLLECTOR_ENABLED:-true}
-require_bool DD_COLLECTOR_ENABLED
 DD_AGENT_ENABLED=${DD_AGENT_ENABLED:-$DD_COLLECTOR_ENABLED}
-require_bool DD_AGENT_ENABLED
+# The eBPF host profiler needs Linux nodes with kernel >= 5.10 and runs one
+# collector per node with eBPF capabilities. Off by default because of these
+# extra privileges.
+DD_HOST_PROFILER_ENABLED=${DD_HOST_PROFILER_ENABLED:-false}
+DD_HOST_PROFILER_NETWORK_POLICY=${DD_HOST_PROFILER_NETWORK_POLICY:-none}
 
 if [[ "$DD_AUTOINSTRUMENTATION_ENABLED" == "false" && "$DD_COLLECTOR_ENABLED" == "false" ]]; then
-    echo "ERROR: DD_AUTOINSTRUMENTATION_ENABLED and DD_COLLECTOR_ENABLED cannot both be false" >&2
-    exit 1
+    fail "DD_AUTOINSTRUMENTATION_ENABLED and DD_COLLECTOR_ENABLED cannot both be false"
+fi
+
+if [[ "$DD_AGENT_ENABLED" == "true" && "$DD_COLLECTOR_ENABLED" == "false" ]]; then
+    fail "DD_AGENT_ENABLED=true requires DD_COLLECTOR_ENABLED=true"
 fi
 
 if [[ "$DD_COLLECTOR_ENABLED" == "false" && -z "${OTEL_EXPORTER_OTLP_ENDPOINT:-}" ]]; then
-    echo "ERROR: OTEL_EXPORTER_OTLP_ENDPOINT must be set when DD_COLLECTOR_ENABLED=false" >&2
-    exit 1
+    fail "OTEL_EXPORTER_OTLP_ENDPOINT must be set when DD_COLLECTOR_ENABLED=false"
 fi
 
-if [[ "$DD_COLLECTOR_ENABLED" == "true" || ( "$DD_INSTALL_FLOW" == "ddot" && "$DD_AGENT_ENABLED" == "true" ) ]]; then
+if [[ "$DD_HOST_PROFILER_ENABLED" == "true" && "$DD_COLLECTOR_ENABLED" == "false" ]]; then
+    fail "DD_HOST_PROFILER_ENABLED=true requires DD_COLLECTOR_ENABLED=true"
+fi
+
+if [[ "$DD_COLLECTOR_ENABLED" == "true" ]]; then
     if [[ -z "${DD_API_KEY:-}" ]]; then
         DD_API_KEY=$(previous_secret_key opentelemetry-operator-system api-key)
         [[ -n "$DD_API_KEY" ]] || DD_API_KEY=$(previous_secret_key datadog api-key)
@@ -133,10 +174,7 @@ if [[ "$DD_COLLECTOR_ENABLED" == "true" || ( "$DD_INSTALL_FLOW" == "ddot" && "$D
             echo "Using DD_API_KEY from the previous run"
         fi
     fi
-    if [[ -z "$DD_API_KEY" ]]; then
-        echo "ERROR: DD_API_KEY is not set" >&2
-        exit 1
-    fi
+    require_set DD_API_KEY
 fi
 
 if [[ "$DD_INSTALL_FLOW" == "ddot" && "$DD_AGENT_ENABLED" == "true" ]]; then
@@ -147,35 +185,14 @@ if [[ "$DD_INSTALL_FLOW" == "ddot" && "$DD_AGENT_ENABLED" == "true" ]]; then
         fi
     fi
 
-    if [[ -n "${DD_APP_KEY:-}" && -z "${K8S_CLUSTER_NAME:-}" ]]; then
-        echo "ERROR: K8S_CLUSTER_NAME must be set when DD_APP_KEY is set (Fleet Automation requires a cluster name)" >&2
-        exit 1
+    if [[ -n "${DD_APP_KEY:-}" && "$K8S_CLUSTER_TYPE" == "other" && -z "${K8S_CLUSTER_NAME:-}" ]]; then
+        fail "K8S_CLUSTER_NAME must be set when DD_APP_KEY is set and K8S_CLUSTER_TYPE=other (Fleet Automation requires a cluster name)"
     fi
 fi
 
-case "$K8S_CLUSTER_TYPE" in
-    eks|gcp|aks|other) ;;
-    *)
-        echo "ERROR: K8S_CLUSTER_TYPE must be one of: eks, gcp, aks, other (got '$K8S_CLUSTER_TYPE')" >&2
-        exit 1
-        ;;
-esac
-
-# The eBPF host profiler needs Linux nodes with kernel >= 5.10 and runs one
-# collector per node with eBPF capabilities. Off by default because of these
-# extra privileges.
-DD_HOST_PROFILER_ENABLED=${DD_HOST_PROFILER_ENABLED:-false}
-DD_HOST_PROFILER_NETWORK_POLICY=${DD_HOST_PROFILER_NETWORK_POLICY:-none}
+VALUES_FILE=$DD_INSTALL_FLOW/values.yaml
 HOST_PROFILER_NETWORK_POLICY_FILE=""
 HOST_PROFILER_ENABLED_ARGS=()
-
-require_bool DD_HOST_PROFILER_ENABLED
-
-if [[ "$DD_HOST_PROFILER_ENABLED" == "true" && "$DD_COLLECTOR_ENABLED" == "false" ]]; then
-    echo "ERROR: DD_HOST_PROFILER_ENABLED=true requires DD_COLLECTOR_ENABLED=true" >&2
-    exit 1
-fi
-
 if [[ "$DD_HOST_PROFILER_ENABLED" == "true" ]]; then
     # Egress policy for the profiler, only useful on default-deny clusters
     # whose CNI enforces NetworkPolicy.
@@ -183,10 +200,6 @@ if [[ "$DD_HOST_PROFILER_ENABLED" == "true" ]]; then
         none) ;;
         standard) HOST_PROFILER_NETWORK_POLICY_FILE="$SCRIPT_DIR/ddot/host-profiler-network-policy.yaml" ;;
         cilium) HOST_PROFILER_NETWORK_POLICY_FILE="$SCRIPT_DIR/ddot/host-profiler-cilium-network-policy.yaml" ;;
-        *)
-            echo "ERROR: DD_HOST_PROFILER_NETWORK_POLICY must be one of: none, standard, cilium (got '$DD_HOST_PROFILER_NETWORK_POLICY')" >&2
-            exit 1
-            ;;
     esac
     HOST_PROFILER_ENABLED_ARGS=(
         --set collectors.host-profiler.enabled=true
