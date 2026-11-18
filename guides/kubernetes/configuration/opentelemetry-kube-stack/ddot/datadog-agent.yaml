@@ -12,6 +12,7 @@ apiVersion: "datadoghq.com/v2alpha1"
 metadata:
   name: "datadog"
   namespace: "datadog"
+# Quoted in ddot/ADAPT-EXISTING-CONFIG.md (A-01, A-03)
 spec:
   global:
     credentials:

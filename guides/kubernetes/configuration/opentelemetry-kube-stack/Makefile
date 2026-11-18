@@ -10,6 +10,13 @@ CI_SCRIPTS := $(REPO_ROOT)/.github/workflows/scripts
 validate:
 	@DUMMY_ENV_FILE=$(CI_SCRIPTS)/dummy-credentials.env $(CI_SCRIPTS)/validate-opentelemetry-kube-stack.sh
 
+# check-doc-snippets checks that the configuration snippets of the guides match their source files. Pass
+# ARGS=--update-hashes to store the source hash of the adapted snippets after reviewing them.
+DOC_SNIPPET_GUIDES = ddot/ADAPT-EXISTING-CONFIG.md
+.PHONY: check-doc-snippets
+check-doc-snippets:
+	@python3 $(CI_SCRIPTS)/check-doc-snippets.py $(ARGS) $(DOC_SNIPPET_GUIDES)
+
 .PHONY: generate-base-values
 generate-base-values:
 	@echo "Generating upstream/values.yaml and ddot/values.yaml from values.yaml.tmpl"

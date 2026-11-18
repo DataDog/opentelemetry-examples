@@ -75,6 +75,8 @@ configures one collector.
 - **Requirement:** a `datadog` exporter, with the API key and site read from a Kubernetes Secret.
 - **Fix:**
 
+  <!-- snippet-source: file=guides/kubernetes/configuration/opentelemetry-kube-stack/ddot/values.yaml path=.defaultCRConfig.env snippet-path=.env mode=subset -->
+  <!-- snippet-source: file=guides/kubernetes/configuration/opentelemetry-kube-stack/ddot/values.yaml path=.defaultCRConfig.config.exporters["datadog/exporter"] snippet-path=.config.exporters["datadog/exporter"] mode=subset -->
   ```yaml
   env:
     - name: DD_API_KEY
@@ -101,6 +103,8 @@ configures one collector.
 - **Why:** the connector must see 100% of the traces for the APM metrics (requests, errors, latency) to be accurate.
 - **Fix:**
 
+  <!-- snippet-source: file=guides/kubernetes/configuration/opentelemetry-kube-stack/ddot/values.yaml path=.collectors.daemon.config.connectors snippet-path=.connectors mode=subset -->
+  <!-- snippet-source: file=guides/kubernetes/configuration/opentelemetry-kube-stack/ddot/values.yaml path=.collectors.daemon.config.service.pipelines mode=adapted sha=49a13dd416a5 -->
   ```yaml
   connectors:
     datadog/connector: {}
@@ -148,6 +152,8 @@ configures one collector.
   - otherwise, the `k8s_attributes` processor with its RBAC (`get`, `list`, and `watch` on pods, namespaces, nodes, and
     replica sets), and the `metadata` to extract:
 
+    <!-- snippet-source: file=guides/kubernetes/configuration/opentelemetry-kube-stack/ddot/values.yaml path=.defaultCRConfig.config.processors.k8s_attributes.extract.metadata snippet-path=.processors.k8s_attributes.extract.metadata mode=subset -->
+    <!-- snippet-source: file=guides/kubernetes/configuration/opentelemetry-kube-stack/ddot/values.yaml path=.defaultCRConfig.config.processors.k8s_attributes mode=adapted sha=9ba22a88e1c4 -->
     ```yaml
     processors:
       k8s_attributes:
@@ -293,6 +299,7 @@ environment variable, typically through `OTEL_RESOURCE_ATTRIBUTES=datadog.host.n
 - **Fix:** with the kube-stack chart, `collectors.daemon.presets.resourceDetection.env.enabled: false` (enabled by the
   chart's daemon defaults), and:
 
+  <!-- snippet-source: file=guides/kubernetes/configuration/opentelemetry-kube-stack/ddot/values.yaml path=.defaultCRConfig.config.processors["resource_detection/env"] snippet-path=.processors["resource_detection/env"] mode=subset -->
   ```yaml
   processors:
     resource_detection/env:
@@ -343,6 +350,9 @@ environment variable, typically through `OTEL_RESOURCE_ATTRIBUTES=datadog.host.n
   configuration.
 - **Fix:**
 
+  <!-- snippet-source: file=guides/kubernetes/configuration/opentelemetry-kube-stack/ddot/values.yaml path=.defaultCRConfig.config.extensions.datadog.api snippet-path=.extensions.datadog.api mode=exact -->
+  <!-- snippet-source: file=guides/kubernetes/configuration/opentelemetry-kube-stack/ddot/values.yaml path=.collectors.daemon.config.extensions.datadog.deployment_type snippet-path=.extensions.datadog.deployment_type mode=exact -->
+  <!-- snippet-source: file=guides/kubernetes/configuration/opentelemetry-kube-stack/ddot/values.yaml path=.defaultCRConfig.config.service.extensions snippet-path=.service.extensions mode=subset -->
   ```yaml
   extensions:
     datadog:
@@ -364,6 +374,7 @@ environment variable, typically through `OTEL_RESOURCE_ATTRIBUTES=datadog.host.n
   metrics couldn't be correlated with its Kubernetes cluster and host.
 - **Fix:**
 
+  <!-- snippet-source: file=guides/kubernetes/configuration/opentelemetry-kube-stack/ddot/values.yaml path=.defaultCRConfig.config.service.telemetry snippet-path=.service.telemetry mode=subset -->
   ```yaml
   service:
     telemetry:
@@ -517,6 +528,7 @@ environment variable, typically through `OTEL_RESOURCE_ATTRIBUTES=datadog.host.n
 - **Requirement:** the OpenTelemetry Operator sets `CORECLR_PROFILER` to the upstream OpenTelemetry profiler's CLSID,
   so the `dotnet` section must override it with the Datadog profiler's CLSID:
 
+  <!-- snippet-source: file=guides/kubernetes/configuration/opentelemetry-kube-stack/ddot/values.yaml path=.instrumentation.dotnet.env snippet-path=.dotnet.env mode=exact -->
   ```yaml
   dotnet:
     env:
@@ -615,6 +627,7 @@ without the OpenTelemetry Operator, set them in their environment instead.
   conventions and OTLP export, whether starting from Datadog-native instrumentation or an existing OpenTelemetry
   setup. Verify the effective configuration at runtime; the variables' presence in `spec.env` is insufficient:
 
+  <!-- snippet-source: file=guides/kubernetes/configuration/opentelemetry-kube-stack/ddot/values.yaml path=.instrumentation.env mode=subset -->
   ```yaml
   - name: OTEL_TRACES_EXPORTER
     value: otlp
@@ -670,6 +683,7 @@ without the OpenTelemetry Operator, set them in their environment instead.
 
 - **Requirement:** use OTLP/HTTP on port 4318. Keep the shared protocol from [`values.yaml`][values]:
 
+  <!-- snippet-source: file=guides/kubernetes/configuration/opentelemetry-kube-stack/ddot/values.yaml path=.instrumentation.env mode=subset -->
   ```yaml
   - name: OTEL_EXPORTER_OTLP_PROTOCOL
     value: http/protobuf
@@ -687,6 +701,7 @@ without the OpenTelemetry Operator, set them in their environment instead.
 
 - **Requirement:** use the delta temporality, the one Datadog requires:
 
+  <!-- snippet-source: file=guides/kubernetes/configuration/opentelemetry-kube-stack/ddot/values.yaml path=.instrumentation.env mode=subset -->
   ```yaml
   - name: OTEL_EXPORTER_OTLP_METRICS_TEMPORALITY_PREFERENCE
     value: delta
@@ -800,6 +815,7 @@ in [`values.yaml`][values] list them:
     Dynamic Instrumentation, Database Monitoring, Data Streams Monitoring, App & API Protection, and Code Security,
     add their variables to this group ([S-06](#s-06-enable-optional-datadog-features-per-workload)).
 
+  <!-- snippet-source: file=guides/kubernetes/configuration/opentelemetry-kube-stack/ddot/values.yaml path=.instrumentation.env mode=adapted sha=d743bf605b4b -->
   ```yaml
   spec:
     containers:
@@ -931,6 +947,7 @@ values: this guide doesn't list them, and they aren't tested in this repository.
   collect them: to collect the Kubernetes events, enable the `kubernetesEvents` preset on the `cluster` collector, or
   keep `eventCollection.collectKubernetesEvents` enabled in the Agent:
 
+  <!-- snippet-source: file=guides/kubernetes/configuration/opentelemetry-kube-stack/ddot/datadog-agent.yaml path=. mode=subset -->
   ```yaml
   spec:
     features:
@@ -977,6 +994,7 @@ values: this guide doesn't list them, and they aren't tested in this repository.
 
 - **Requirement:**
 
+  <!-- snippet-source: file=guides/kubernetes/configuration/opentelemetry-kube-stack/ddot/datadog-agent.yaml path=. mode=subset -->
   ```yaml
   spec:
     features:
