@@ -65,6 +65,7 @@ INSTALL_OPTIONS=(
     DD_HOST_PROFILER_NETWORK_POLICY
 )
 
+# shellcheck disable=SC2016
 PREVIOUS_OPTIONS=$(kubectl get configmap "$INSTALL_OPTIONS_CONFIGMAP" \
     --namespace opentelemetry-operator-system \
     --ignore-not-found \
