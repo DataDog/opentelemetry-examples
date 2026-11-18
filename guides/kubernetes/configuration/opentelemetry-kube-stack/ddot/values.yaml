@@ -21,7 +21,6 @@ kube-state-metrics:
 # not supported by the resource detection processor, set k8s.cluster.name via
 # a resource/cluster processor (see README).
 defaultCRConfig:
-  # Quoted in ddot/ADAPT-EXISTING-CONFIG.md (C-01)
   env:
     - name: DD_API_KEY
       valueFrom:
@@ -59,7 +58,6 @@ defaultCRConfig:
             endpoint: 0.0.0.0:4318
     processors:
       cumulative_to_delta: {}
-      # Quoted in ddot/ADAPT-EXISTING-CONFIG.md (C-03)
       k8s_attributes:
         extract:
           metadata:
@@ -87,7 +85,6 @@ defaultCRConfig:
             - service.name
             - service.version
             - service.instance.id
-      # Quoted in ddot/ADAPT-EXISTING-CONFIG.md (C-04)
       resource_detection/env:
         detectors: [system]
         override: false
@@ -96,7 +93,6 @@ defaultCRConfig:
             host.name:
               enabled: false
     exporters:
-      # Quoted in ddot/ADAPT-EXISTING-CONFIG.md (C-01)
       datadog/exporter:
         api:
           key: ${env:DD_API_KEY}
@@ -104,18 +100,15 @@ defaultCRConfig:
     extensions:
       health_check:
         endpoint: "[${env:OTEL_K8S_POD_IP}]:13133"
-      # Quoted in ddot/ADAPT-EXISTING-CONFIG.md (C-07)
       datadog:
         api:
           key: ${env:DD_API_KEY}
           site: ${env:DD_SITE:-datadoghq.com}
         deployment_type: gateway
     service:
-      # Quoted in ddot/ADAPT-EXISTING-CONFIG.md (C-07)
       extensions: [health_check, datadog]
       # Loop collector metrics through the OTLP receiver for unified tagging.
       # Logs are picked up by the daemon's filelog receiver — no loopback (avoids dup).
-      # Quoted in ddot/ADAPT-EXISTING-CONFIG.md (C-08)
       telemetry:
         metrics:
           readers:
@@ -592,7 +585,6 @@ collectors:
             - container.id
 
       connectors:
-        # Quoted in ddot/ADAPT-EXISTING-CONFIG.md (C-02)
         datadog/connector:
           traces:
             compute_top_level_by_span_kind: true
@@ -603,12 +595,10 @@ collectors:
         debug: null
 
       extensions:
-        # Quoted in ddot/ADAPT-EXISTING-CONFIG.md (C-07)
         datadog:
           deployment_type: daemonset
 
       service:
-        # Quoted in ddot/ADAPT-EXISTING-CONFIG.md (C-02)
         pipelines:
           logs:
             receivers: [otlp]
@@ -817,7 +807,6 @@ collectors:
                       endpoint: http://localhost:4318
 instrumentation:
   enabled: true
-  # Quoted in ddot/ADAPT-EXISTING-CONFIG.md (S-01, S-03, S-04, S-08)
   env:
     - name: OTEL_SEMCONV_STABILITY_OPT_IN
       value: "http,database,rpc,messaging"
@@ -885,7 +874,6 @@ instrumentation:
   propagators:
     - tracecontext
     - baggage
-  # Quoted in ddot/ADAPT-EXISTING-CONFIG.md (O-02)
   dotnet:
     # image: otel/autoinstrumentation-dotnet:1.17.0
     image: datadog/dd-otel-autoinstrumentation-dotnet:3.56.0-preview

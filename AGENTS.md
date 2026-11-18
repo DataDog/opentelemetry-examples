@@ -31,14 +31,16 @@ The guides under `guides/kubernetes/configuration/opentelemetry-kube-stack/` onb
 - **Mark the source of each snippet** that comes from a file of this repository, with a `snippet-source` comment on the line right before its code fence, and state that the files win when a snippet and its source disagree. Use one comment per source node:
 
   ```markdown
-  <!-- snippet-source: file=guides/kubernetes/configuration/opentelemetry-kube-stack/ddot/values.yaml path=.instrumentation.env mode=subset -->
+  <!-- snippet-source: file=guides/kubernetes/configuration/opentelemetry-kube-stack/ddot/values.yaml path=.instrumentation.env mode=subset sha=d743bf605b4b -->
   ```
 
-  - `file` is relative to the repository root, and `path` selects the quoted node in a yq-like syntax, such as `.defaultCRConfig.config.processors["resource_detection/env"]`. Add `snippet-path` when the snippet wraps the node in other keys.
+  - `file` is relative to the repository root, and `path` selects the quoted node in a yq-like syntax, such as `.defaultCRConfig.config.processors["resource_detection/env"]` or `.instrumentation.env[name=OTEL_EXPORTER_OTLP_PROTOCOL]`. Point to the smallest node the snippet quotes. Add `snippet-path` when the snippet wraps the node in other keys.
   - `mode` is `exact` when the snippet equals the node, `subset` when it shows only some of its keys or list items, and `adapted` when it rewrites the node, for example the raw Collector configuration behind a chart preset. Placeholders such as `<CLUSTER_NAME>` match any value.
-  - For `adapted` snippets, the comment stores a hash of the source node. When the check reports that the source changed, review the snippet, then store the new hash with `make check-doc-snippets ARGS=--update-hashes`.
+  - `sha` is a hash of the source node at the last review of the snippet. Don't write it by hand: `make check-doc-snippets ARGS=--update-hashes` stores it, and doesn't store it for a snippet that doesn't match its source.
 - **Show the raw configuration behind chart presets.** When a rule relies on a kube-stack chart preset, such as `presets.kubernetesAttributes`, also show the Collector configuration it produces, for readers who don't use the chart.
-- **Update snippets with their source.** Each quoted node of a source file has a comment such as `# Quoted in ddot/ADAPT-EXISTING-CONFIG.md (S-01)`, which names the guide and the rules that quote it. When you change such a node, update those snippets in the same change. Run `make check-doc-snippets` in `guides/kubernetes/configuration/opentelemetry-kube-stack/` to find the snippets that no longer match: CI runs the same check.
+- **Update snippets with their source.** Don't add comments about the guides to the source files. Run these commands in `guides/kubernetes/configuration/opentelemetry-kube-stack/`:
+  - Before changing a source file, list the snippets that quote it with `make doc-snippets-for FILE=<file>`, for example `FILE=values.yaml.tmpl`.
+  - After changing it, run `make check-doc-snippets`. CI runs the same check, which fails when a snippet no longer matches its source, and when a quoted node changed since the last review of its snippet. Review the reported snippets, update them in the same change, then store the new hashes with `make check-doc-snippets ARGS=--update-hashes`.
 - **Write self-contained rules.** An agent may jump straight to one rule. Repeat in each rule the facts it needs, and link to other rules by their ID, for example "([O-04](#o-04-point-the-sdks-at-the-daemon-collector))".
 - **Keep rule IDs and headings stable.** Other files and agent prompts link to them. Add new rules with the next free ID, and don't renumber or rename existing ones.
 - **Spell out exact names and values.** Write environment variables, resource attributes, and configuration keys in full, in code format. When a setting accepts a fixed set of values, list the other supported values next to the example value, for example "`DD_DBM_PROPAGATION_MODE=service` (other supported values: `full`, `disabled`)".

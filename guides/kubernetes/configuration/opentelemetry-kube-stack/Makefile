@@ -10,12 +10,21 @@ CI_SCRIPTS := $(REPO_ROOT)/.github/workflows/scripts
 validate:
 	@DUMMY_ENV_FILE=$(CI_SCRIPTS)/dummy-credentials.env $(CI_SCRIPTS)/validate-opentelemetry-kube-stack.sh
 
-# check-doc-snippets checks that the configuration snippets of the guides match their source files. Pass
-# ARGS=--update-hashes to store the source hash of the adapted snippets after reviewing them.
+# check-doc-snippets checks that the configuration snippets of the guides match their source files. After reviewing
+# the snippets whose source changed, pass ARGS=--update-hashes to store the new source hashes.
 DOC_SNIPPET_GUIDES = ddot/ADAPT-EXISTING-CONFIG.md
 .PHONY: check-doc-snippets
 check-doc-snippets:
 	@python3 $(CI_SCRIPTS)/check-doc-snippets.py $(ARGS) $(DOC_SNIPPET_GUIDES)
+
+# doc-snippets-for lists the guide snippets that quote FILE, to run before changing it, for example
+# make doc-snippets-for FILE=values.yaml.tmpl. The snippets quote the generated ddot/values.yaml instead of the
+# template, so FILE=values.yaml.tmpl lists the snippets of ddot/values.yaml.
+.PHONY: doc-snippets-for
+doc-snippets-for:
+	@test -n "$(FILE)" || { echo "Usage: make doc-snippets-for FILE=<file>"; exit 2; }
+	@python3 $(CI_SCRIPTS)/check-doc-snippets.py \
+		--quoted $(if $(filter values.yaml.tmpl,$(FILE)),ddot/values.yaml,$(FILE)) $(DOC_SNIPPET_GUIDES)
 
 .PHONY: generate-base-values
 generate-base-values:

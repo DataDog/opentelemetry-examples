@@ -3,28 +3,27 @@
 
 A snippet declares its source with one or more HTML comments on the lines right before its code fence:
 
-    <!-- snippet-source: file=<path> path=<yq path> [snippet-path=<yq path>] mode=<exact|subset|adapted> [sha=<hash>] -->
+    <!-- snippet-source: file=<path> path=<yq path> [snippet-path=<yq path>] mode=<exact|subset|adapted> sha=<hash> -->
 
 - file: the source file, relative to the repository root.
-- path: the node of the source file the snippet quotes, in a yq-like syntax: `.a.b`, `.a["c/d"]`, `.a[0]`.
-  `.` is the whole document.
+- path: the node of the source file the snippet quotes, in a yq-like syntax: `.a.b`, `.a["c/d"]`, `.a[0]`, and
+  `.env[name=X]` for the list item whose `name` is X. `.` is the whole document. Point to the smallest node the
+  snippet quotes, because any change to that node asks for a review of the snippet.
 - snippet-path: the node of the snippet to compare, `.` by default.
 - mode:
   - exact: the snippet node equals the source node.
   - subset: every key, and every list item, of the snippet node is in the source node.
-  - adapted: the snippet is a rewrite of the source node, which this script can't compare. The marker stores a hash
-    of the source node: when the source node changes, the hash no longer matches and the snippet needs a review.
-    After reviewing the snippet, run this script with --update-hashes to store the new hash.
+  - adapted: the snippet is a rewrite of the source node, which this script can't compare.
+- sha: a hash of the source node when the snippet was last reviewed. When the source node changes, even in a way
+  that the snippet still matches, the check fails until someone reviews the snippet and runs this script with
+  --update-hashes, which stores the new hashes. It doesn't update the hash of a snippet that doesn't match its source.
 
 In exact and subset modes, a snippet string such as `<CLUSTER_NAME>` is a placeholder and matches any value.
 Comments and formatting are ignored: the script compares the parsed YAML.
 
-Each source file must also point back to the guide, with a comment such as
-`# Quoted in ddot/ADAPT-EXISTING-CONFIG.md (S-01, S-08)` that names the guide and the rule ID of the snippet, so that
-whoever changes the source knows which snippets to update.
-
-Usage: check-doc-snippets.py [--update-hashes] GUIDE.md...
-Exits with status 1 when a snippet doesn't match its source.
+Usage:
+  check-doc-snippets.py [--update-hashes] GUIDE.md...   check the snippets; exits with status 1 on a problem
+  check-doc-snippets.py --quoted FILE GUIDE.md...       list the snippets that quote FILE, before changing it
 """
 import argparse
 import hashlib
@@ -41,7 +40,7 @@ MARKER = re.compile(r"^\s*<!--\s*snippet-source:\s*(?P<attrs>.*?)\s*-->\s*$")
 FENCE_OPEN = re.compile(r"^(\s*)```(\w*)\s*$")
 HEADING_RULE_ID = re.compile(r"^#+\s+([A-Z]+-\d+):")
 PLACEHOLDER = re.compile(r"^<[^<>]+>$")
-PATH_TOKEN = re.compile(r'\.([A-Za-z_][\w-]*)|\["((?:[^"\\]|\\.)*)"\]|\[(\d+)\]|\.')
+PATH_TOKEN = re.compile(r'\.([A-Za-z_][\w-]*)|\["((?:[^"\\]|\\.)*)"\]|\[(\d+)\]|\[name=([^\]]+)\]|\.')
 
 
 def repo_root():
@@ -64,12 +63,21 @@ def parse_path(expr):
             tokens.append(json.loads(f'"{m.group(2)}"'))
         elif m.group(3) is not None:
             tokens.append(int(m.group(3)))
+        elif m.group(4) is not None:
+            tokens.append(("name", m.group(4)))
         pos = m.end()
     return tokens
 
 
 def select(node, expr):
     for token in parse_path(expr):
+        if isinstance(token, tuple):
+            matches = [item for item in node if isinstance(item, dict) and item.get("name") == token[1]] \
+                if isinstance(node, list) else []
+            if len(matches) != 1:
+                raise KeyError(f"{expr}: {len(matches)} list items named {token[1]!r}")
+            node = matches[0]
+            continue
         if isinstance(token, int):
             if not isinstance(node, list) or token >= len(node):
                 raise KeyError(f"{expr}: no item {token}")
@@ -131,15 +139,8 @@ def parse_attrs(text):
     return attrs
 
 
-def back_reference_found(source_text, guide_name, rule_id):
-    for line in source_text.splitlines():
-        if "#" in line and guide_name in line and "Quoted in" in line:
-            if rule_id is None or re.search(rf"\b{re.escape(rule_id)}\b", line):
-                return True
-    return False
-
-
-def check_guide(root, guide, update_hashes):
+def check_guide(root, guide, update_hashes, quoted=None):
+    """Check the snippets of a guide, or, with quoted, list the snippets that quote one of these files."""
     lines = guide.read_text().split("\n")
     guide_ref = guide.resolve().relative_to(root)
     problems, checked, rule_id = [], 0, None
@@ -179,6 +180,10 @@ def check_guide(root, guide, update_hashes):
                     continue
                 source_file = root / attrs["file"]
                 label = f"{location}, source {attrs['file']} {attrs['path']}"
+                if quoted is not None:
+                    if attrs["file"] in quoted:
+                        problems.append(f"{location}: {attrs['path']} ({attrs['mode']})")
+                    continue
                 if not source_file.is_file():
                     problems.append(f"{label}: the source file doesn't exist")
                     continue
@@ -188,32 +193,27 @@ def check_guide(root, guide, update_hashes):
                 except KeyError as err:
                     problems.append(f"{label}: the source path doesn't exist: {err}")
                     continue
-                if not back_reference_found(source_text, guide.name, rule_id):
-                    problems.append(
-                        f"{label}: the source file has no back-reference comment naming {guide.name}"
-                        + (f" and {rule_id}" if rule_id else "")
-                        + f", such as '# Quoted in {guide.name} ({rule_id or '<rule ID>'})'"
-                    )
                 checked += 1
-                if attrs["mode"] == "adapted":
-                    current = source_hash(source_node)
-                    if attrs.get("sha") != current:
-                        if update_hashes:
-                            lines[k] = re.sub(r"\s*sha=\S+", "", lines[k]).replace(" -->", f" sha={current} -->")
-                        else:
-                            problems.append(
-                                f"{label}: the source changed since the snippet was last reviewed "
-                                f"(sha {attrs.get('sha')} -> {current}). Review the snippet, then run with --update-hashes"
-                            )
-                    continue
-                if snippet_doc is None:
-                    continue
-                try:
-                    snippet_node = select(snippet_doc, attrs.get("snippet-path", "."))
-                except KeyError as err:
-                    problems.append(f"{label}: the snippet path doesn't exist: {err}")
-                    continue
-                problems += [f"{label}: {p}" for p in compare(snippet_node, source_node, attrs["mode"] == "exact")]
+                mismatches = []
+                if attrs["mode"] != "adapted":
+                    if snippet_doc is None:
+                        continue
+                    try:
+                        snippet_node = select(snippet_doc, attrs.get("snippet-path", "."))
+                    except KeyError as err:
+                        problems.append(f"{label}: the snippet path doesn't exist: {err}")
+                        continue
+                    mismatches = compare(snippet_node, source_node, attrs["mode"] == "exact")
+                    problems += [f"{label}: {p}" for p in mismatches]
+                current = source_hash(source_node)
+                if attrs.get("sha") != current:
+                    if update_hashes and not mismatches:
+                        lines[k] = re.sub(r"\s*sha=\S+", "", lines[k]).replace(" -->", f" sha={current} -->")
+                    elif not mismatches:
+                        problems.append(
+                            f"{label}: the source changed since the snippet was last reviewed "
+                            f"(sha {attrs.get('sha')} -> {current}). Review the snippet, then run with --update-hashes"
+                        )
         i = end + 1
     if update_hashes:
         guide.write_text("\n".join(lines))
@@ -222,10 +222,19 @@ def check_guide(root, guide, update_hashes):
 
 def main():
     parser = argparse.ArgumentParser(description=__doc__.split("\n")[0])
-    parser.add_argument("--update-hashes", action="store_true", help="store the current source hash in adapted markers")
+    parser.add_argument("--update-hashes", action="store_true", help="store the current source hashes after a review")
+    parser.add_argument("--quoted", action="append", type=pathlib.Path, metavar="FILE",
+                        help="list the snippets that quote FILE instead of checking them; can be repeated")
     parser.add_argument("guides", nargs="+", type=pathlib.Path)
     args = parser.parse_args()
     root = repo_root()
+    if args.quoted:
+        quoted = {str(f.resolve().relative_to(root)) for f in args.quoted}
+        found = []
+        for guide in args.guides:
+            found += check_guide(root, guide, False, quoted)[0]
+        print("\n".join(found) if found else f"No snippet quotes {', '.join(sorted(quoted))}.")
+        return 0
     all_problems, total = [], 0
     for guide in args.guides:
         problems, checked = check_guide(root, guide, args.update_hashes)
