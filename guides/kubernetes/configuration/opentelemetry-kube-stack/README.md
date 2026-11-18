@@ -25,7 +25,7 @@ Configure the installer with environment variables, then run it from this direct
 
 | Variable | Description | Default |
 |---|---|---|
-| `DD_API_KEY` | Datadog API key. Required unless only autoinstrumentation is installed. | None |
+| `DD_API_KEY` | Datadog API key. Required. | None |
 | `DD_INSTALL_FLOW` | Installation flow: `upstream` (OTLP/HTTP exporter and upstream OpenTelemetry SDKs) or `ddot` (Datadog exporter, DDOT SDKs, and the Datadog Agent). | None (required) |
 | `DD_SITE` | Datadog site, for example `datadoghq.eu`. | `datadoghq.com` |
 | `K8S_CLUSTER_TYPE` | Kubernetes platform: `eks` (EKS), `gcp` (GKE), `aks` (AKS), or `other`. | `other` |
@@ -56,7 +56,7 @@ source .env
 ./install
 ```
 
-When you re-run the installer, variables that are not set, except `OTEL_EXPORTER_OTLP_ENDPOINT`, take their value from the previous run.
+When you re-run the installer, variables that are not set, except `DD_API_KEY`, `DD_APP_KEY`, and `OTEL_EXPORTER_OTLP_ENDPOINT`, take their value from the previous run.
 
 For EKS, GKE, and AKS, the installer enables the matching resource-detection preset.
 

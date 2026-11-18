@@ -211,6 +211,7 @@ jobs:
 
       - name: Re-run the installer to enable autoinstrumentation
         env:
+          DD_API_KEY: "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
           DD_AUTOINSTRUMENTATION_ENABLED: "true"
         run: ./install "$OVERLAY_VALUES_FILE"
 
@@ -261,8 +262,9 @@ jobs:
       - name: Set default namespace
         run: kubectl config set-context --current --namespace=opentelemetry-operator-system
 
-      - name: Install autoinstrumentation without an API key
+      - name: Install only autoinstrumentation
         env:
+          DD_API_KEY: "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
           DD_INSTALL_FLOW: ${{ matrix.flow }}
           DD_COLLECTOR_ENABLED: "false"
         run: ./install
