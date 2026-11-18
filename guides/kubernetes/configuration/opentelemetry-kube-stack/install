@@ -23,6 +23,17 @@ if [[ -n "$OVERLAY_VALUES_FILE" ]]; then
     OVERLAY_VALUES_ARGS=(-f "$OVERLAY_VALUES_FILE")
 fi
 
+KUBECTL=$(command -v kubectl) || { echo "ERROR: kubectl is not installed" >&2; exit 1; }
+HELM=$(command -v helm) || { echo "ERROR: helm is not installed" >&2; exit 1; }
+
+KUBE_CONTEXT=$("$KUBECTL" config current-context) || {
+    echo "ERROR: No current kubectl context is set" >&2
+    exit 1
+}
+kubectl() { "$KUBECTL" --context "$KUBE_CONTEXT" "$@"; }
+helm() { "$HELM" --kube-context "$KUBE_CONTEXT" "$@"; }
+echo "Installing into the kubectl context '$KUBE_CONTEXT' ($(kubectl config view --minify -o jsonpath='{.clusters[0].cluster.server}'))"
+
 INSTALL_OPTIONS_CONFIGMAP=opentelemetry-kube-stack-install-options
 INSTALL_OPTIONS=(
     DD_INSTALL_FLOW
@@ -185,6 +196,8 @@ fi
 
 #### BEGINNING OF INSTALLATION SCRIPT
 
+trap 'if (( $? != 0 )); then echo "ERROR: The installation did not finish. Fix the error above and run this script again." >&2; fi' EXIT
+
 INSTALLED_BY=datadog-otel-onboarding-script
 INSTALLED_BY_LABEL="install.datadoghq.com/installed-by=$INSTALLED_BY"
 PROVENANCE_ANNOTATIONS=(
@@ -215,16 +228,16 @@ if [[ "$DD_COLLECTOR_ENABLED" == "true" ]]; then
 
     kubectl create secret generic datadog-secret \
       --namespace opentelemetry-operator-system  \
-      --from-literal="api-key=$DD_API_KEY" \
+      --from-file=api-key=<(printf '%s' "$DD_API_KEY") \
       --from-literal="dd-site=$DD_SITE" \
       --dry-run=client -o yaml | stamp_provenance | kubectl apply -f -
 fi
 
 echo "Installing cert-manager (if not already installed)..."
 
-helm repo add jetstack https://charts.jetstack.io
-helm repo update
-helm install cert-manager jetstack/cert-manager \
+helm install cert-manager cert-manager \
+  --repo https://charts.jetstack.io \
+  --version v1.21.3 \
   --namespace cert-manager --create-namespace \
   --set crds.enabled=true  \
   "${HELM_PROVENANCE_ARGS[@]}" \
@@ -262,18 +275,15 @@ if [[ "$DD_INSTALL_FLOW" == "ddot" && "$DD_AGENT_ENABLED" == "true" ]]; then
       | stamp_provenance | kubectl create -f - \
       || echo "WARNING: Could not create namespace 'datadog' (may already exist or insufficient permissions). Continuing..."
 
-    DD_APP_KEY_SECRET_ARGS=()
-    if [[ -n "${DD_APP_KEY:-}" ]]; then
-        DD_APP_KEY_SECRET_ARGS=(--from-literal="app-key=$DD_APP_KEY")
-    fi
     kubectl create secret generic datadog-secret \
       --namespace datadog \
-      --from-literal="api-key=$DD_API_KEY" \
-      ${DD_APP_KEY_SECRET_ARGS[@]+"${DD_APP_KEY_SECRET_ARGS[@]}"} \
+      --from-env-file=<(
+          printf 'api-key=%s\n' "$DD_API_KEY"
+          if [[ -n "${DD_APP_KEY:-}" ]]; then
+              printf 'app-key=%s\n' "$DD_APP_KEY"
+          fi
+      ) \
       --dry-run=client -o yaml | stamp_provenance | kubectl apply -f -
-
-    helm repo add datadog https://helm.datadoghq.com
-    helm repo update
 
     OPERATOR_HELM_ARGS=(
         --set apiKeyExistingSecret=datadog-secret
@@ -293,7 +303,8 @@ if [[ "$DD_INSTALL_FLOW" == "ddot" && "$DD_AGENT_ENABLED" == "true" ]]; then
     fi
 
     helm upgrade datadog-operator \
-        datadog/datadog-operator \
+        datadog-operator \
+        --repo https://helm.datadoghq.com \
         --version 2.28.1 \
         --install \
         --namespace datadog \
@@ -323,9 +334,6 @@ kubectl create configmap "$INSTALL_OPTIONS_CONFIGMAP" \
 
 # Installed last so the Helm release notes are the last output the user sees.
 echo "Installing OpenTelemetry Kube Stack Helm Chart..."
-
-helm repo add open-telemetry https://open-telemetry.github.io/opentelemetry-helm-charts
-helm repo update
 
 HELM_SET_ARGS=(
     --set-string "resourceAttributes.deployment\.environment\.name=$DEPLOYMENT_ENVIRONMENT_NAME"
@@ -365,10 +373,12 @@ if [[ "$DD_COLLECTOR_ENABLED" == "false" ]]; then
 fi
 
 helm upgrade opentelemetry-kube-stack \
-    open-telemetry/opentelemetry-kube-stack \
+    opentelemetry-kube-stack \
+    --repo https://open-telemetry.github.io/opentelemetry-helm-charts \
     --version 0.26.1 \
     --install \
     --namespace opentelemetry-operator-system \
+    --wait --timeout 5m \
     "${HELM_SET_ARGS[@]}" \
     "${HELM_PROVENANCE_ARGS[@]}" \
     -f "$SCRIPT_DIR/$VALUES_FILE" \
