@@ -38,6 +38,7 @@ Configure the installer with environment variables, then run it from this direct
 | `OTEL_EXPORTER_OTLP_ENDPOINT` | OTLP/HTTP endpoint of the Collector that autoinstrumented workloads send telemetry to, for example `http://my-collector.my-namespace.svc.cluster.local:4318`. Required when `DD_COLLECTOR_ENABLED` is `false`. | Unset |
 | `DD_HOST_PROFILER_ENABLED` | Enable the eBPF host profiler: `true` or `false`. See [Host profiler (optional)](#host-profiler-optional). | `false` |
 | `DD_HOST_PROFILER_NETWORK_POLICY` | Host profiler egress NetworkPolicy: `none`, `standard`, or `cilium`. | `none` |
+| `DD_INSTRUMENTATION_TELEMETRY_ENABLED` | Send install telemetry to Datadog when the installation exits: `true` or `false`. See [Install telemetry](#install-telemetry). | `true` |
 
 ```sh
 export DD_API_KEY="<your-datadog-api-key>"
@@ -153,6 +154,20 @@ OpenTelemetry Collector then automatically populates `k8s.cluster.name`, unless 
 installer sets `resourceAttributes.k8s.cluster.name` to `K8S_CLUSTER_NAME` if that variable is set.
 
 See `upstream/examples/` for rendered values and manifests for each deployment type.
+
+## Install telemetry
+
+When the installation exits, the installer sends the following to Datadog:
+
+- Exit code
+- Step that failed, if any
+- Whether the installer ran before on the cluster
+- Installer version
+- Install options
+- Operating system
+- Bash, Helm, kubectl, and Kubernetes versions
+
+Nothing is sent on `ddog-gov.com` sites.
 
 ## Resource allocation
 
