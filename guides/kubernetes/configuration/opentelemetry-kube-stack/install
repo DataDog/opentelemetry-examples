@@ -339,7 +339,6 @@ if [[ "$DD_INSTALL_FLOW" == "ddot" && "$DD_AGENT_ENABLED" == "true" ]]; then
     check_permission create deployments --namespace datadog
     check_permission create secrets --namespace datadog
     check_permission get secrets --namespace datadog
-    check_permission create datadogagents.datadoghq.com --namespace datadog
 fi
 if [[ -n "$MISSING_PERMISSIONS" ]]; then
     fail "The kubectl context '$KUBE_CONTEXT' is missing these permissions:$MISSING_PERMISSIONS"
