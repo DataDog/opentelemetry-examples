@@ -1045,7 +1045,7 @@ instrumentation:
     image: ghcr.io/open-telemetry/opentelemetry-operator/autoinstrumentation-java:2.32.0
   nodejs:
     image: ghcr.io/open-telemetry/opentelemetry-operator/autoinstrumentation-nodejs:0.78.0
-    # The upstream Node.js image defaults trace export to gRPC, while the shared endpoint above uses OTLP/HTTP.
+    # Upstream Node.js auto-instrumentation 0.78.0 defaults trace export to gRPC; this endpoint uses OTLP/HTTP.
     env:
       - name: OTEL_EXPORTER_OTLP_TRACES_PROTOCOL
         value: http/protobuf
