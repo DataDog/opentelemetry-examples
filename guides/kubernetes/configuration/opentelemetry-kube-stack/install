@@ -390,24 +390,6 @@ helm install cert-manager cert-manager \
   || echo "WARNING: Could not install cert-manager (may already exist or insufficient permissions). Continuing..."
 
 STEP="Configure Host Profiler Network Policy"
-# The standard and Cilium policies select the same pods and Kubernetes
-# NetworkPolicies are additive: remove both NetworkPolicy before applying
-# the selected one (or none), so a policy from a previous run cannot widen
-# the requested egress.
-kubectl delete networkpolicy \
-  --namespace opentelemetry-operator-system \
-  --ignore-not-found=true \
-  opentelemetry-kube-stack-host-profiler-egress \
-  || echo "WARNING: Could not delete the host-profiler NetworkPolicy. Continuing..."
-# The CiliumNetworkPolicy CRD only exists on Cilium clusters.
-if kubectl get crd ciliumnetworkpolicies.cilium.io >/dev/null 2>&1; then
-    kubectl delete ciliumnetworkpolicy \
-      --namespace opentelemetry-operator-system \
-      --ignore-not-found=true \
-      opentelemetry-kube-stack-host-profiler-egress \
-      || echo "WARNING: Could not delete the host-profiler CiliumNetworkPolicy. Continuing..."
-fi
-
 if [[ -n "$HOST_PROFILER_NETWORK_POLICY_FILE" ]]; then
     echo "Applying the host-profiler egress NetworkPolicy..."
     stamp_provenance <"$HOST_PROFILER_NETWORK_POLICY_FILE" | kubectl apply -f - \
