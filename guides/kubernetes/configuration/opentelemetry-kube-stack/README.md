@@ -21,7 +21,7 @@ You can also install the **host profiler** collector — a DaemonSet that runs t
 
 ## Quickstart
 
-Configure the installer with environment variables, then run it from this directory:
+Configure the installer with environment variables, then run it:
 
 | Variable | Description | Default |
 |---|---|---|
@@ -41,10 +41,10 @@ Configure the installer with environment variables, then run it from this direct
 | `DD_INSTRUMENTATION_TELEMETRY_ENABLED` | Send install telemetry to Datadog when the installation exits: `true` or `false`. See [Install telemetry](#install-telemetry). | `true` |
 
 ```sh
-export DD_API_KEY="<your-datadog-api-key>"
-export DD_INSTALL_FLOW=upstream
-export K8S_CLUSTER_TYPE=eks
-./install
+DD_API_KEY="<your-datadog-api-key>" \
+DD_INSTALL_FLOW=upstream \
+K8S_CLUSTER_TYPE=eks \
+bash -c "$(curl -fsSL https://raw.githubusercontent.com/DataDog/opentelemetry-examples/v0.1.0/guides/kubernetes/configuration/opentelemetry-kube-stack/install)"
 ```
 
 Alternatively, copy `.env.example` to `.env`, fill it in, and load it before running the installer:
@@ -53,7 +53,7 @@ Alternatively, copy `.env.example` to `.env`, fill it in, and load it before run
 cp .env.example .env
 # Edit .env
 source .env
-./install
+bash -c "$(curl -fsSL https://raw.githubusercontent.com/DataDog/opentelemetry-examples/v0.1.0/guides/kubernetes/configuration/opentelemetry-kube-stack/install)"
 ```
 
 When you re-run the installer, variables that are not set, except `OTEL_EXPORTER_OTLP_ENDPOINT`, take their value from the previous run.
