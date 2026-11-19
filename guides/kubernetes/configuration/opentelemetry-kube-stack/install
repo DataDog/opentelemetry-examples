@@ -296,6 +296,19 @@ if [[ "$DD_HOST_PROFILER_ENABLED" == "true" && "$DD_COLLECTOR_ENABLED" == "false
     fail "DD_HOST_PROFILER_ENABLED=true requires DD_COLLECTOR_ENABLED=true"
 fi
 
+STEP="Check Existing Installation"
+
+if [[ -z "$PREVIOUS_OPTIONS" ]] && kubectl get crd opentelemetrycollectors.opentelemetry.io >/dev/null 2>&1; then
+    fail "Found an existing OpenTelemetry Operator installation; remove the previous installation first"
+fi
+
+if [[ -z "$PREVIOUS_OPTIONS" && "$DD_INSTALL_FLOW" == "ddot" && "$DD_AGENT_ENABLED" == "true" ]] \
+    && kubectl get crd datadogagents.datadoghq.com >/dev/null 2>&1; then
+    fail "Found an existing Datadog Operator installation; remove the previous installation first"
+fi
+
+STEP="Validate Options"
+
 if [[ "$DD_COLLECTOR_ENABLED" == "true" ]]; then
     if [[ -z "${DD_API_KEY:-}" ]]; then
         DD_API_KEY=$(previous_secret_key opentelemetry-operator-system api-key)
@@ -399,6 +412,14 @@ echo "Creating Kubernetes namespace..."
 kubectl create namespace opentelemetry-operator-system --dry-run=client -o yaml \
   | stamp_provenance | kubectl create -f - \
   || echo "WARNING: Could not create namespace 'opentelemetry-operator-system' (may already exist or insufficient permissions). Continuing..."
+
+STEP="Save Install Options"
+echo "Saving the installation options..."
+
+kubectl create configmap "$INSTALL_OPTIONS_CONFIGMAP" \
+  --namespace opentelemetry-operator-system \
+  "${INSTALL_OPTIONS_ARGS[@]}" \
+  --dry-run=client -o yaml | stamp_provenance | kubectl apply -f -
 
 if [[ "$DD_COLLECTOR_ENABLED" == "true" ]]; then
     STEP="Create Datadog Secret"
@@ -506,14 +527,6 @@ if [[ "$DD_INSTALL_FLOW" == "ddot" && "$DD_AGENT_ENABLED" == "true" ]]; then
       -p "{\"spec\":{\"global\":{$GLOBAL_JSON}}}" \
       -o yaml | stamp_provenance | kubectl apply --namespace datadog -f -
 fi
-
-STEP="Save Install Options"
-echo "Saving the installation options..."
-
-kubectl create configmap "$INSTALL_OPTIONS_CONFIGMAP" \
-  --namespace opentelemetry-operator-system \
-  "${INSTALL_OPTIONS_ARGS[@]}" \
-  --dry-run=client -o yaml | stamp_provenance | kubectl apply -f -
 
 # Installed last so the Helm release notes are the last output the user sees.
 STEP="Install Kube Stack"
