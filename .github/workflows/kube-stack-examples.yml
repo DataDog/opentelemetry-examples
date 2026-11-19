@@ -76,6 +76,7 @@ jobs:
       DD_API_KEY: "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
       DD_INSTALL_FLOW: ${{ matrix.flow }}
       TESTING_REPORT_URL: http://127.0.0.1:8126/api/v2/apmtelemetry
+      TESTING_BASE_URL: file://${{ github.workspace }}/guides/kubernetes/configuration/opentelemetry-kube-stack
     defaults:
       run:
         working-directory: guides/kubernetes/configuration/opentelemetry-kube-stack
@@ -103,7 +104,7 @@ jobs:
         if: matrix.bash == '3.2'
         run: |
           docker run --rm --network host \
-            -e DD_API_KEY -e DD_INSTALL_FLOW -e TESTING_REPORT_URL \
+            -e DD_API_KEY -e DD_INSTALL_FLOW -e TESTING_REPORT_URL -e TESTING_BASE_URL=file:///work \
             -e KUBECONFIG=/kubeconfig \
             -v "${KUBECONFIG:-$HOME/.kube/config}:/kubeconfig:ro" \
             -v "$(command -v kubectl):/usr/local/bin/kubectl:ro" \
@@ -158,6 +159,7 @@ jobs:
     env:
       OVERLAY_VALUES_FILE: /tmp/jaeger-traces-values.yaml
       DD_INSTRUMENTATION_TELEMETRY_ENABLED: "false"
+      TESTING_BASE_URL: file://${{ github.workspace }}/guides/kubernetes/configuration/opentelemetry-kube-stack
     steps:
       - name: Checkout repository
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
@@ -250,6 +252,7 @@ jobs:
     env:
       OTEL_EXPORTER_OTLP_ENDPOINT: http://otel-collector.example.svc.cluster.local:4318
       DD_INSTRUMENTATION_TELEMETRY_ENABLED: "false"
+      TESTING_BASE_URL: file://${{ github.workspace }}/guides/kubernetes/configuration/opentelemetry-kube-stack
     steps:
       - name: Checkout repository
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2

@@ -1,9 +1,27 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 INSTALLER_VERSION=v0.0.1-pre
+CONFIG_BASE_URL="${TESTING_BASE_URL:-https://raw.githubusercontent.com/DataDog/opentelemetry-examples/$INSTALLER_VERSION/guides/kubernetes/configuration/opentelemetry-kube-stack}"
+CONFIG_FILES=(
+    upstream/values.yaml
+    ddot/values.yaml
+    ddot/datadog-agent.yaml
+    ddot/host-profiler-rbac-values.yaml
+    ddot/host-profiler-network-policy.yaml
+    ddot/host-profiler-cilium-network-policy.yaml
+)
+
+# Wrap in a function so that a partially downloaded script doesn't run.
+main() {
 echo "Datadog OpenTelemetry Install Script $INSTALLER_VERSION"
+if [[ "${DD_INSTRUMENTATION_TELEMETRY_ENABLED:-true}" != "false" && "${DD_SITE:-datadoghq.com}" != *ddog-gov.com ]]; then
+    echo "This script reports basic telemetry to Datadog upon completion. Stop the script and re-run with DD_INSTRUMENTATION_TELEMETRY_ENABLED=false to disable telemetry reporting"
+    # Stop for 5 seconds to allow the user to stop the script if needed
+    if tty -s; then
+        sleep 5
+    fi
+fi
 
 INSTALLED_BY=datadog-otel-onboarding-script
 
@@ -91,6 +109,7 @@ END
 
 on_exit() {
     local exit_code=$?
+    rm -rf "$SCRIPT_DIR"
     if [[ "$INSTALLATION_STARTED" == "true" ]] && (( exit_code != 0 )); then
         echo "ERROR: The installation did not finish. Fix the error above and run this script again." >&2
     fi
@@ -100,6 +119,7 @@ on_exit() {
 TRACE_ID=$(od -An -N8 -tu8 < /dev/urandom | tr -d ' ')
 START_TIME=$(( $(date +%s) * 1000000000 ))
 INSTALLATION_STARTED=false
+SCRIPT_DIR="$(mktemp -d)"
 trap on_exit EXIT
 
 STEP="Check Prerequisites"
@@ -160,6 +180,13 @@ KUBE_CONTEXT=$("$KUBECTL" config current-context) || {
 kubectl() { "$KUBECTL" --context "$KUBE_CONTEXT" "$@"; }
 helm() { "$HELM" --kube-context "$KUBE_CONTEXT" "$@"; }
 echo "Installing into the kubectl context '$KUBE_CONTEXT' ($(kubectl config view --minify -o jsonpath='{.clusters[0].cluster.server}'))"
+
+STEP="Download Configuration Files"
+echo "Downloading the configuration files from $CONFIG_BASE_URL..."
+for config_file in "${CONFIG_FILES[@]}"; do
+    curl --proto '=https,file' --tlsv1.2 -fsSL --create-dirs -o "$SCRIPT_DIR/$config_file" "$CONFIG_BASE_URL/$config_file" \
+        || fail "Could not download $CONFIG_BASE_URL/$config_file"
+done
 
 STEP="Read Previous Options"
 
@@ -261,6 +288,19 @@ if [[ "$DD_HOST_PROFILER_ENABLED" == "true" && "$DD_COLLECTOR_ENABLED" == "false
     fail "DD_HOST_PROFILER_ENABLED=true requires DD_COLLECTOR_ENABLED=true"
 fi
 
+STEP="Check Existing Installation"
+
+if [[ -z "$PREVIOUS_OPTIONS" ]] && kubectl get crd opentelemetrycollectors.opentelemetry.io >/dev/null 2>&1; then
+    fail "Found an existing OpenTelemetry Operator installation; remove the previous installation first"
+fi
+
+if [[ -z "$PREVIOUS_OPTIONS" && "$DD_INSTALL_FLOW" == "ddot" && "$DD_AGENT_ENABLED" == "true" ]] \
+    && kubectl get crd datadogagents.datadoghq.com >/dev/null 2>&1; then
+    fail "Found an existing Datadog Operator installation; remove the previous installation first"
+fi
+
+STEP="Validate Options"
+
 if [[ "$DD_INSTALL_FLOW" == "ddot" && "$DD_AGENT_ENABLED" == "true" ]]; then
     if [[ -n "${DD_APP_KEY:-}" && "$K8S_CLUSTER_TYPE" == "other" && -z "${K8S_CLUSTER_NAME:-}" ]]; then
         fail "K8S_CLUSTER_NAME must be set when DD_APP_KEY is set and K8S_CLUSTER_TYPE=other (Fleet Automation requires a cluster name)"
@@ -282,6 +322,40 @@ if [[ "$DD_HOST_PROFILER_ENABLED" == "true" ]]; then
         --set collectors.host-profiler.enabled=true
         -f "$SCRIPT_DIR/ddot/host-profiler-rbac-values.yaml"
     )
+fi
+
+STEP="Check Permissions"
+
+MISSING_PERMISSIONS=""
+check_permission() {
+    local answer
+    answer=$(kubectl auth can-i "$@" 2>/dev/null) || true
+    case "$answer" in
+        yes) ;;
+        no*) MISSING_PERMISSIONS="$MISSING_PERMISSIONS
+  $*" ;;
+        *) fail "Could not check your permissions with 'kubectl auth can-i $*'" ;;
+    esac
+}
+
+check_permission create namespaces
+check_permission create customresourcedefinitions
+check_permission create clusterroles
+check_permission create clusterrolebindings
+check_permission create mutatingwebhookconfigurations
+check_permission create validatingwebhookconfigurations
+check_permission create deployments --namespace opentelemetry-operator-system
+check_permission create configmaps --namespace opentelemetry-operator-system
+check_permission create secrets --namespace opentelemetry-operator-system
+check_permission get secrets --namespace opentelemetry-operator-system
+
+if [[ "$DD_INSTALL_FLOW" == "ddot" && "$DD_AGENT_ENABLED" == "true" ]]; then
+    check_permission create deployments --namespace datadog
+    check_permission create secrets --namespace datadog
+    check_permission get secrets --namespace datadog
+fi
+if [[ -n "$MISSING_PERMISSIONS" ]]; then
+    fail "The kubectl context '$KUBE_CONTEXT' is missing these permissions:$MISSING_PERMISSIONS"
 fi
 
 #### BEGINNING OF INSTALLATION SCRIPT
@@ -312,6 +386,14 @@ echo "Creating Kubernetes namespace..."
 kubectl create namespace opentelemetry-operator-system --dry-run=client -o yaml \
   | stamp_provenance | kubectl create -f - \
   || echo "WARNING: Could not create namespace 'opentelemetry-operator-system' (may already exist or insufficient permissions). Continuing..."
+
+STEP="Save Install Options"
+echo "Saving the installation options..."
+
+kubectl create configmap "$INSTALL_OPTIONS_CONFIGMAP" \
+  --namespace opentelemetry-operator-system \
+  "${INSTALL_OPTIONS_ARGS[@]}" \
+  --dry-run=client -o yaml | stamp_provenance | kubectl apply -f -
 
 if [[ "$DD_COLLECTOR_ENABLED" == "true" ]]; then
     STEP="Create Datadog Secret"
@@ -420,14 +502,6 @@ if [[ "$DD_INSTALL_FLOW" == "ddot" && "$DD_AGENT_ENABLED" == "true" ]]; then
       -o yaml | stamp_provenance | kubectl apply --namespace datadog -f -
 fi
 
-STEP="Save Install Options"
-echo "Saving the installation options..."
-
-kubectl create configmap "$INSTALL_OPTIONS_CONFIGMAP" \
-  --namespace opentelemetry-operator-system \
-  "${INSTALL_OPTIONS_ARGS[@]}" \
-  --dry-run=client -o yaml | stamp_provenance | kubectl apply -f -
-
 # Installed last so the Helm release notes are the last output the user sees.
 STEP="Install Kube Stack"
 echo "Installing OpenTelemetry Kube Stack Helm Chart..."
@@ -481,3 +555,6 @@ helm upgrade opentelemetry-kube-stack \
     -f "$SCRIPT_DIR/$VALUES_FILE" \
     ${HOST_PROFILER_ENABLED_ARGS[@]+"${HOST_PROFILER_ENABLED_ARGS[@]}"} \
     ${OVERLAY_VALUES_ARGS[@]+"${OVERLAY_VALUES_ARGS[@]}"}
+}
+
+main "$@"
