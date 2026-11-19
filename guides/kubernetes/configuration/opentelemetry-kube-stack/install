@@ -240,18 +240,10 @@ for option in "${INSTALL_OPTIONS[@]}"; do
     fi
 done
 
-previous_secret_key() {
-    [[ -n "$PREVIOUS_OPTIONS" ]] || return 0
-    kubectl get secret datadog-secret \
-        --namespace "$1" \
-        --ignore-not-found \
-        -o go-template="{{with index .data \"$2\"}}{{base64decode .}}{{end}}" \
-        || fail "Could not read the $2 of the previous run from the cluster"
-}
-
 STEP="Validate Options"
 
 require_set DD_INSTALL_FLOW
+require_set DD_API_KEY
 require_one_of DD_INSTALL_FLOW upstream ddot
 require_one_of K8S_CLUSTER_TYPE eks gcp aks other
 require_bool DD_AUTOINSTRUMENTATION_ENABLED
@@ -309,25 +301,7 @@ fi
 
 STEP="Validate Options"
 
-if [[ "$DD_COLLECTOR_ENABLED" == "true" ]]; then
-    if [[ -z "${DD_API_KEY:-}" ]]; then
-        DD_API_KEY=$(previous_secret_key opentelemetry-operator-system api-key)
-        [[ -n "$DD_API_KEY" ]] || DD_API_KEY=$(previous_secret_key datadog api-key)
-        if [[ -n "$DD_API_KEY" ]]; then
-            echo "Using DD_API_KEY from the previous run"
-        fi
-    fi
-    require_set DD_API_KEY
-fi
-
 if [[ "$DD_INSTALL_FLOW" == "ddot" && "$DD_AGENT_ENABLED" == "true" ]]; then
-    if [[ -z "${DD_APP_KEY:-}" ]]; then
-        DD_APP_KEY=$(previous_secret_key datadog app-key)
-        if [[ -n "$DD_APP_KEY" ]]; then
-            echo "Using DD_APP_KEY from the previous run"
-        fi
-    fi
-
     if [[ -n "${DD_APP_KEY:-}" && "$K8S_CLUSTER_TYPE" == "other" && -z "${K8S_CLUSTER_NAME:-}" ]]; then
         fail "K8S_CLUSTER_NAME must be set when DD_APP_KEY is set and K8S_CLUSTER_TYPE=other (Fleet Automation requires a cluster name)"
     fi
