@@ -116,7 +116,7 @@ jobs:
         run: |
           jq 'del(.tracer_time, .runtime_id)
             | .payload.traces[0][0] |= del(.trace_id, .span_id, .start, .duration)
-            | .payload.traces[0][0].meta |= del(.bash_version, .helm_version, .kubectl_version, .k8s_version)' \
+            | .payload.traces[0][0].meta |= del(.os, .bash_version, .helm_version, .kubectl_version, .k8s_version)' \
             /tmp/telemetry.json \
             | diff -u "$GITHUB_WORKSPACE/.github/workflows/scripts/telemetry-$DD_INSTALL_FLOW.golden.json" -
 

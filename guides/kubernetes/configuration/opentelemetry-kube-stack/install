@@ -17,7 +17,7 @@ telemetry_value() {
 # The payload follows report_installer_telemetry in the Datadog Agent install script.
 report_install_telemetry() {
     local exit_code=$1 end_time helm_version kubectl_versions kubectl_version k8s_version failed_step=none rerun=false app_key_used=false site=${DD_SITE:-datadoghq.com}
-    if [[ -z "${DD_API_KEY:-}" || "${DD_INSTRUMENTATION_TELEMETRY_ENABLED:-true}" == "false" || "$site" == "ddog-gov.com" ]]; then
+    if [[ -z "${DD_API_KEY:-}" || "${DD_INSTRUMENTATION_TELEMETRY_ENABLED:-true}" == "false" || "$site" == *ddog-gov.com ]]; then
         return 0
     fi
     helm_version=$(telemetry_value "$(helm version --short 2>/dev/null || true)")
@@ -63,7 +63,7 @@ report_install_telemetry() {
     "parent_id": 0,
     "start": $START_TIME,
     "duration": $(( end_time - START_TIME )),
-    "error": $exit_code,
+    "error": $(( exit_code != 0 )),
     "meta": {
       "exit_code": "$exit_code",
       "failed_step": "$failed_step",
@@ -77,6 +77,7 @@ report_install_telemetry() {
       "dd_autoinstrumentation_enabled": "$(telemetry_value "${DD_AUTOINSTRUMENTATION_ENABLED:-}")",
       "dd_host_profiler_enabled": "$(telemetry_value "${DD_HOST_PROFILER_ENABLED:-}")",
       "dd_app_key_used": "$app_key_used",
+      "os": "$(telemetry_value "$(uname -o 2>/dev/null || true)")",
       "bash_version": "${BASH_VERSINFO[0]}.${BASH_VERSINFO[1]}.${BASH_VERSINFO[2]}",
       "helm_version": "$helm_version",
       "kubectl_version": "$kubectl_version",

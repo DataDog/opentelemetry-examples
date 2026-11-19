@@ -164,9 +164,10 @@ When the installation exits, the installer sends the following to Datadog:
 - Whether the installer ran before on the cluster
 - Installer version
 - Install options
+- Operating system
 - Bash, Helm, kubectl, and Kubernetes versions
 
-Nothing is sent on `ddog-gov.com`.
+Nothing is sent on `ddog-gov.com` sites.
 
 ## Resource allocation
 
