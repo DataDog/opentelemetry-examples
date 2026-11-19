@@ -4,6 +4,13 @@ set -euo pipefail
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 INSTALLER_VERSION=v0.0.1-pre
 echo "Datadog OpenTelemetry Install Script $INSTALLER_VERSION"
+if [[ "${DD_INSTRUMENTATION_TELEMETRY_ENABLED:-true}" != "false" && "${DD_SITE:-datadoghq.com}" != *ddog-gov.com ]]; then
+    echo "This script reports basic telemetry to Datadog upon completion. Stop the script and re-run with DD_INSTRUMENTATION_TELEMETRY_ENABLED=false to disable telemetry reporting"
+    # Stop for 5 seconds to allow the user to stop the script if needed
+    if tty -s; then
+        sleep 5
+    fi
+fi
 
 INSTALLED_BY=datadog-otel-onboarding-script
 
