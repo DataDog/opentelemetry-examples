@@ -352,6 +352,14 @@ kubectl create namespace opentelemetry-operator-system --dry-run=client -o yaml 
   | stamp_provenance | kubectl create -f - \
   || echo "WARNING: Could not create namespace 'opentelemetry-operator-system' (may already exist or insufficient permissions). Continuing..."
 
+STEP="Save Install Options"
+echo "Saving the installation options..."
+
+kubectl create configmap "$INSTALL_OPTIONS_CONFIGMAP" \
+  --namespace opentelemetry-operator-system \
+  "${INSTALL_OPTIONS_ARGS[@]}" \
+  --dry-run=client -o yaml | stamp_provenance | kubectl apply -f -
+
 if [[ "$DD_COLLECTOR_ENABLED" == "true" ]]; then
     STEP="Create Datadog Secret"
     echo "Creating or updating Datadog secret..."
@@ -458,14 +466,6 @@ if [[ "$DD_INSTALL_FLOW" == "ddot" && "$DD_AGENT_ENABLED" == "true" ]]; then
       -p "{\"spec\":{\"global\":{$GLOBAL_JSON}}}" \
       -o yaml | stamp_provenance | kubectl apply --namespace datadog -f -
 fi
-
-STEP="Save Install Options"
-echo "Saving the installation options..."
-
-kubectl create configmap "$INSTALL_OPTIONS_CONFIGMAP" \
-  --namespace opentelemetry-operator-system \
-  "${INSTALL_OPTIONS_ARGS[@]}" \
-  --dry-run=client -o yaml | stamp_provenance | kubectl apply -f -
 
 # Installed last so the Helm release notes are the last output the user sees.
 STEP="Install Kube Stack"
