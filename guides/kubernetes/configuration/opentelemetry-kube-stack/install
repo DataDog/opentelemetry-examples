@@ -337,6 +337,40 @@ if [[ "$DD_HOST_PROFILER_ENABLED" == "true" ]]; then
     )
 fi
 
+STEP="Check Permissions"
+
+MISSING_PERMISSIONS=""
+check_permission() {
+    local answer
+    answer=$(kubectl auth can-i "$@" 2>/dev/null) || true
+    case "$answer" in
+        yes) ;;
+        no*) MISSING_PERMISSIONS="$MISSING_PERMISSIONS
+  $*" ;;
+        *) fail "Could not check your permissions with 'kubectl auth can-i $*'" ;;
+    esac
+}
+
+check_permission create namespaces
+check_permission create customresourcedefinitions
+check_permission create clusterroles
+check_permission create clusterrolebindings
+check_permission create mutatingwebhookconfigurations
+check_permission create validatingwebhookconfigurations
+check_permission create deployments --namespace opentelemetry-operator-system
+check_permission create configmaps --namespace opentelemetry-operator-system
+check_permission create secrets --namespace opentelemetry-operator-system
+check_permission get secrets --namespace opentelemetry-operator-system
+
+if [[ "$DD_INSTALL_FLOW" == "ddot" && "$DD_AGENT_ENABLED" == "true" ]]; then
+    check_permission create deployments --namespace datadog
+    check_permission create secrets --namespace datadog
+    check_permission get secrets --namespace datadog
+fi
+if [[ -n "$MISSING_PERMISSIONS" ]]; then
+    fail "The kubectl context '$KUBE_CONTEXT' is missing these permissions:$MISSING_PERMISSIONS"
+fi
+
 #### BEGINNING OF INSTALLATION SCRIPT
 
 INSTALLATION_STARTED=true
