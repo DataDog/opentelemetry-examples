@@ -2,6 +2,8 @@
 
 The repository includes example applications and configurations for Datadog users, engineers, and support to understand how Datadog support of [OpenTelemetry][1] works today. These examples provide reference material for integrating OpenTelemetry instrumented applications with Datadog products and allow independent experimentation with OpenTelemetry behaviors. The available resources include:
 - [Common mistakes][14] for common mistakes or confusions end-users face when using OpenTelemetry.
+- [Adapt an existing setup to DDOT][21] for application migration, Collector topology, OpenTelemetry Operator
+  injection, Datadog Agent overlap, and end-to-end verification.
 - [Configurations][15] for configuration examples of the Datadog Agent and the OpenTelemetry Collector.
 
 ## Index
@@ -42,3 +44,4 @@ The repository includes example applications and configurations for Datadog user
 [16]: ./apps/kubernetes-express-otel/
 [17]: ./apps/rolldice-game/
 [18]: ./apps/kafka-metrics/
+[21]: ./guides/kubernetes/configuration/opentelemetry-kube-stack/ddot/ADAPT-EXISTING-CONFIG.md
