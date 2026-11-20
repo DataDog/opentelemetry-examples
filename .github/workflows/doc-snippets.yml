@@ -1,0 +1,23 @@
+name: opentelemetry-kube-stack documentation snippets
+
+on:
+  pull_request:
+    branches: [ "main" ]
+  push:
+    branches: [ "main" ]
+
+jobs:
+  check-doc-snippets:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: guides/kubernetes/configuration/opentelemetry-kube-stack
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+
+      - name: Install PyYAML
+        run: sudo apt-get update -qq && sudo apt-get install -y -qq python3-yaml
+
+      - name: Check that the guide snippets match their source files
+        run: make check-doc-snippets
