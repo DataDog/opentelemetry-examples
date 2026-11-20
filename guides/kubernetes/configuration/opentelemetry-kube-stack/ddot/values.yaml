@@ -812,9 +812,6 @@ instrumentation:
       value: "http,database,rpc,messaging"
     - name: OTEL_EXPORTER_OTLP_METRICS_TEMPORALITY_PREFERENCE
       value: delta
-    # Node.js defaults to gRPC; use HTTP so every service exports to port 4318.
-    - name: OTEL_EXPORTER_OTLP_PROTOCOL
-      value: http/protobuf
     ## DDOT SDKs SPECIFIC CONFIGURATION
     ## Enable the OTel Mode on DDOT SDKs
     - name: "OTEL_TRACES_EXPORTER"
