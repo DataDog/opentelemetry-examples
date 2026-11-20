@@ -1,0 +1,100 @@
+# OpenTelemetry Collector DaemonSet — runs one agent pod per node.
+#
+# This collector is the first hop for application telemetry and also
+# scrapes host-level metrics. It needs:
+#   - hostNetwork or hostPorts so apps can reach it via HOST_IP
+#   - KUBE_NODE_NAME for the k8sattributes node filter
+#   - ServiceAccount with RBAC to query the Kubernetes API for pod metadata
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: otel-agent
+  namespace: otel-multi-pipeline-demo
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: otel-agent
+rules:
+# k8sattributes processor needs to list and watch pods
+- apiGroups: [""]
+  resources: ["pods", "namespaces", "nodes"]
+  verbs: ["get", "list", "watch"]
+- apiGroups: ["apps"]
+  resources: ["replicasets", "deployments"]
+  verbs: ["get", "list", "watch"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: otel-agent
+subjects:
+- kind: ServiceAccount
+  name: otel-agent
+  namespace: otel-multi-pipeline-demo
+roleRef:
+  kind: ClusterRole
+  name: otel-agent
+  apiGroup: rbac.authorization.k8s.io
+---
+apiVersion: apps/v1
+kind: DaemonSet
+metadata:
+  name: otel-agent
+  namespace: otel-multi-pipeline-demo
+spec:
+  selector:
+    matchLabels:
+      app: otel-agent
+  template:
+    metadata:
+      labels:
+        app: otel-agent
+    spec:
+      serviceAccountName: otel-agent
+      hostNetwork: true
+      dnsPolicy: ClusterFirstWithHostNet
+      containers:
+      - name: otel-agent
+        image: otel/opentelemetry-collector-contrib:latest
+        args: ["--config=/etc/otel/config.yaml"]
+        ports:
+        - containerPort: 4317
+          hostPort: 4317
+          protocol: TCP
+        - containerPort: 4318
+          hostPort: 4318
+          protocol: TCP
+        env:
+        - name: KUBE_NODE_NAME
+          valueFrom:
+            fieldRef:
+              fieldPath: spec.nodeName
+        volumeMounts:
+        - name: config
+          mountPath: /etc/otel
+          readOnly: true
+        # Mount /proc and /sys for hostmetrics receiver
+        - name: hostfs-proc
+          mountPath: /hostfs/proc
+          readOnly: true
+        - name: hostfs-sys
+          mountPath: /hostfs/sys
+          readOnly: true
+        resources:
+          limits:
+            cpu: 500m
+            memory: 256Mi
+          requests:
+            cpu: 200m
+            memory: 128Mi
+      volumes:
+      - name: config
+        configMap:
+          name: otel-agent-config
+      - name: hostfs-proc
+        hostPath:
+          path: /proc
+      - name: hostfs-sys
+        hostPath:
+          path: /sys

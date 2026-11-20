@@ -1,0 +1,141 @@
+# kube-state-metrics deployment — generates metrics about Kubernetes object state.
+#
+# These metrics contain pod, node, and controller labels as metric labels,
+# forming a third resource shape distinct from app traces and host metrics.
+# The gateway collector scrapes this via the Prometheus receiver.
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: kube-state-metrics
+  namespace: otel-multi-pipeline-demo
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: kube-state-metrics
+rules:
+- apiGroups: [""]
+  resources:
+    - nodes
+    - pods
+    - services
+    - resourcequotas
+    - replicationcontrollers
+    - limitranges
+    - persistentvolumeclaims
+    - persistentvolumes
+    - namespaces
+    - endpoints
+    - configmaps
+    - secrets
+  verbs: ["list", "watch"]
+- apiGroups: ["apps"]
+  resources:
+    - statefulsets
+    - daemonsets
+    - deployments
+    - replicasets
+  verbs: ["list", "watch"]
+- apiGroups: ["batch"]
+  resources:
+    - cronjobs
+    - jobs
+  verbs: ["list", "watch"]
+- apiGroups: ["autoscaling"]
+  resources:
+    - horizontalpodautoscalers
+  verbs: ["list", "watch"]
+- apiGroups: ["networking.k8s.io"]
+  resources:
+    - networkpolicies
+    - ingresses
+  verbs: ["list", "watch"]
+- apiGroups: ["policy"]
+  resources:
+    - poddisruptionbudgets
+  verbs: ["list", "watch"]
+- apiGroups: ["storage.k8s.io"]
+  resources:
+    - storageclasses
+    - volumeattachments
+  verbs: ["list", "watch"]
+- apiGroups: ["certificates.k8s.io"]
+  resources:
+    - certificatesigningrequests
+  verbs: ["list", "watch"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: kube-state-metrics
+subjects:
+- kind: ServiceAccount
+  name: kube-state-metrics
+  namespace: otel-multi-pipeline-demo
+roleRef:
+  kind: ClusterRole
+  name: kube-state-metrics
+  apiGroup: rbac.authorization.k8s.io
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: kube-state-metrics
+  namespace: otel-multi-pipeline-demo
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: kube-state-metrics
+  template:
+    metadata:
+      labels:
+        app: kube-state-metrics
+    spec:
+      serviceAccountName: kube-state-metrics
+      containers:
+      - name: kube-state-metrics
+        image: registry.k8s.io/kube-state-metrics/kube-state-metrics:v2.12.0
+        ports:
+        - containerPort: 8080
+          name: http-metrics
+        - containerPort: 8081
+          name: telemetry
+        resources:
+          limits:
+            cpu: 200m
+            memory: 150Mi
+          requests:
+            cpu: 100m
+            memory: 64Mi
+        livenessProbe:
+          httpGet:
+            path: /healthz
+            port: 8080
+          initialDelaySeconds: 5
+          timeoutSeconds: 5
+        readinessProbe:
+          httpGet:
+            path: /
+            port: 8081
+          initialDelaySeconds: 5
+          timeoutSeconds: 5
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: kube-state-metrics
+  namespace: otel-multi-pipeline-demo
+spec:
+  selector:
+    app: kube-state-metrics
+  ports:
+  - name: http-metrics
+    protocol: TCP
+    port: 8080
+    targetPort: http-metrics
+  - name: telemetry
+    protocol: TCP
+    port: 8081
+    targetPort: telemetry
+  type: ClusterIP

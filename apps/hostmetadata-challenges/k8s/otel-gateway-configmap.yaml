@@ -1,0 +1,61 @@
+# OpenTelemetry Collector configuration for the gateway (Deployment) collector.
+#
+# This collector receives forwarded telemetry from the DaemonSet agents and also
+# independently scrapes kube-state-metrics. It uses the debug exporter so you
+# can inspect resource attributes in the gateway pod logs.
+#
+# Three distinct resource shapes arrive here:
+#   1. App traces — forwarded from agent, carrying k8s.* workload attributes
+#   2. Host metrics — forwarded from agent, carrying host.* attributes
+#   3. kube-state-metrics — scraped by this gateway, carrying Kubernetes object-state labels
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: otel-gateway-config
+  namespace: otel-multi-pipeline-demo
+data:
+  config.yaml: |
+    receivers:
+      # Receives traces and metrics forwarded from the DaemonSet agents
+      otlp:
+        protocols:
+          grpc:
+            endpoint: 0.0.0.0:4317
+
+      # Scrapes kube-state-metrics to collect Kubernetes object-state metrics.
+      # These metrics contain pod/node/controller labels as resource attributes,
+      # forming a third independent resource shape separate from app traces and hostmetrics.
+      prometheus:
+        config:
+          scrape_configs:
+            - job_name: 'kube-state-metrics'
+              scrape_interval: 15s
+              static_configs:
+                - targets: ['kube-state-metrics.otel-multi-pipeline-demo.svc.cluster.local:8080']
+
+    processors:
+      batch:
+        timeout: 10s
+
+    exporters:
+      # Debug exporter prints telemetry data to stdout so you can inspect
+      # resource attributes grouped by telemetry resource in the pod logs.
+      debug:
+        verbosity: detailed
+
+    service:
+      telemetry:
+        logs:
+          level: info
+      pipelines:
+        # App traces forwarded from DaemonSet agents (carry k8s.* attributes)
+        traces:
+          receivers: [otlp]
+          processors: [batch]
+          exporters: [debug]
+        # Host metrics forwarded from DaemonSet agents (carry host.* attributes)
+        # AND kube-state-metrics scraped by the Prometheus receiver (carry k8s object-state labels)
+        metrics:
+          receivers: [otlp, prometheus]
+          processors: [batch]
+          exporters: [debug]

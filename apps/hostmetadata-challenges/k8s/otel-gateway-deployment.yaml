@@ -1,0 +1,55 @@
+# OpenTelemetry Collector Deployment — the centralized gateway.
+#
+# Receives telemetry from DaemonSet agents and scrapes kube-state-metrics.
+# Uses the debug exporter so all resource attributes are visible in pod logs.
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: otel-gateway
+  namespace: otel-multi-pipeline-demo
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: otel-gateway
+  template:
+    metadata:
+      labels:
+        app: otel-gateway
+    spec:
+      containers:
+      - name: otel-gateway
+        image: otel/opentelemetry-collector-contrib:latest
+        args: ["--config=/etc/otel/config.yaml"]
+        ports:
+        - containerPort: 4317
+          protocol: TCP
+        volumeMounts:
+        - name: config
+          mountPath: /etc/otel
+          readOnly: true
+        resources:
+          limits:
+            cpu: 500m
+            memory: 256Mi
+          requests:
+            cpu: 200m
+            memory: 128Mi
+      volumes:
+      - name: config
+        configMap:
+          name: otel-gateway-config
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: otel-gateway
+  namespace: otel-multi-pipeline-demo
+spec:
+  selector:
+    app: otel-gateway
+  ports:
+  - name: otlp-grpc
+    protocol: TCP
+    port: 4317
+  type: ClusterIP

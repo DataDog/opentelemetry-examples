@@ -1,0 +1,89 @@
+# OpenTelemetry Collector configuration for the DaemonSet (agent) collector.
+#
+# This collector runs on every node and handles two independent pipelines:
+#
+# 1. Traces pipeline:
+#    App OTLP traces → k8sattributes processor (adds k8s.* workload metadata) → gateway
+#    Result: trace resources carry workload identity (k8s.pod.name, k8s.namespace.name, etc.)
+#
+# 2. Host metrics pipeline:
+#    hostmetrics receiver (CPU, memory, filesystem, network, system) → gateway
+#    Result: metric resources carry host identity (host.name, host.id, host.ip, host.mac)
+#
+# These two pipelines intentionally produce DIFFERENT resource attribute shapes,
+# demonstrating that host and workload metadata arrive on separate OTLP payloads.
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: otel-agent-config
+  namespace: otel-multi-pipeline-demo
+data:
+  config.yaml: |
+    receivers:
+      # OTLP receiver for application traces
+      otlp:
+        protocols:
+          grpc:
+            endpoint: 0.0.0.0:4317
+          http:
+            endpoint: 0.0.0.0:4318
+
+      # Host metrics receiver — scrapes node-level system metrics.
+      # These metrics carry host.* resource attributes (host.name, host.id, host.ip, host.mac)
+      # which are distinct from the k8s.* attributes on app traces.
+      hostmetrics:
+        collection_interval: 15s
+        scrapers:
+          cpu:
+          memory:
+          filesystem:
+          network:
+          # Note: "system" scraper is named "load" in the hostmetrics receiver
+          load:
+
+    processors:
+      batch:
+        timeout: 10s
+
+      # k8sattributes enriches telemetry with Kubernetes workload metadata.
+      # It adds attributes like k8s.pod.name, k8s.namespace.name, k8s.deployment.name, etc.
+      # using the connection IP to associate telemetry with a specific pod.
+      #
+      # The filter restricts lookups to pods on this node only (DaemonSet pattern).
+      k8sattributes:
+        filter:
+          node_from_env_var: KUBE_NODE_NAME
+        passthrough: false
+        pod_association:
+          - sources:
+            - from: connection
+        extract:
+          metadata:
+            - k8s.namespace.name
+            - k8s.pod.name
+            - k8s.pod.uid
+            - k8s.deployment.name
+            - k8s.node.name
+
+    exporters:
+      # Forward everything to the gateway collector
+      otlp:
+        endpoint: otel-gateway.otel-multi-pipeline-demo.svc.cluster.local:4317
+        tls:
+          insecure: true
+
+    service:
+      telemetry:
+        logs:
+          level: info
+      pipelines:
+        # App traces enriched with k8s workload metadata
+        traces:
+          receivers: [otlp]
+          processors: [k8sattributes, batch]
+          exporters: [otlp]
+        # Host metrics with host-level resource attributes
+        metrics:
+          receivers: [hostmetrics]
+          processors: [batch]
+          exporters: [otlp]
