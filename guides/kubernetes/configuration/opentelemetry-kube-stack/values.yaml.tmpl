@@ -942,9 +942,6 @@ instrumentation:
       value: "http,database,rpc,messaging"
     - name: OTEL_EXPORTER_OTLP_METRICS_TEMPORALITY_PREFERENCE
       value: delta
-    # Node.js defaults to gRPC; use HTTP so every service exports to port 4318.
-    - name: OTEL_EXPORTER_OTLP_PROTOCOL
-      value: http/protobuf
 {{- if .DDOT}}
     ## DDOT SDKs SPECIFIC CONFIGURATION
     ## Enable the OTel Mode on DDOT SDKs
@@ -1048,6 +1045,10 @@ instrumentation:
     image: ghcr.io/open-telemetry/opentelemetry-operator/autoinstrumentation-java:2.32.0
   nodejs:
     image: ghcr.io/open-telemetry/opentelemetry-operator/autoinstrumentation-nodejs:0.78.0
+    # Upstream Node.js auto-instrumentation 0.78.0 defaults trace export to gRPC; this endpoint uses OTLP/HTTP.
+    env:
+      - name: OTEL_EXPORTER_OTLP_TRACES_PROTOCOL
+        value: http/protobuf
   python:
     image: ghcr.io/open-telemetry/opentelemetry-operator/autoinstrumentation-python:0.66b1
 {{- end}}
