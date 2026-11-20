@@ -154,12 +154,31 @@ func writeError(w http.ResponseWriter, encoder *json.Encoder, code int, err erro
 	logger.Error(message, zap.Error(err))
 }
 
+// CORS middleware
+func corsMiddleware(next func(w http.ResponseWriter, r *http.Request)) func(w http.ResponseWriter, r *http.Request) {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		// Set CORS headers
+		w.Header().Set("Access-Control-Allow-Origin", "*") // Update this for specific origins in production
+		w.Header().Set("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS")
+		w.Header().Set("Access-Control-Allow-Headers", "Content-Type, Authorization, Traceparent")
+
+		// Handle preflight request
+		if r.Method == http.MethodOptions {
+			w.WriteHeader(http.StatusOK)
+			return
+		}
+
+		// Call the next handler
+		next(w, r)
+	})
+}
+
 func SetupHandlers() *http.ServeMux {
 	mux := http.NewServeMux()
 
-	mux.HandleFunc("/readiness", ReadinessHandler)
-	mux.HandleFunc("/liveness", LivenessHandler)
-	mux.Handle("/rungame", otelhttp.NewHandler(http.HandlerFunc(RunGameHandler), "RunGameHandler"))
+	mux.HandleFunc("/readiness", corsMiddleware(ReadinessHandler))
+	mux.HandleFunc("/liveness", corsMiddleware(LivenessHandler))
+	mux.Handle("/rungame", otelhttp.NewHandler(http.HandlerFunc(corsMiddleware(RunGameHandler)), "RunGameHandler"))
 	mux.Handle("/", http.FileServer(http.Dir(*resources)))
 
 	mux.HandleFunc("/config.js", ConfigHandler)
