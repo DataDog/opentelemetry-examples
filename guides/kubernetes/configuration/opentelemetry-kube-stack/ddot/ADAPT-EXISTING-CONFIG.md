@@ -1185,8 +1185,21 @@ in [`values.yaml`][values] list them:
     `-javaagent` to `JAVA_TOOL_OPTIONS`, and the JVM would load two agents;
   - without the OpenTelemetry Operator, set the variables in the container `env`
     ([S-08](#s-08-configure-the-sdks-of-workloads-without-the-opentelemetry-operator)).
-- **Requirement:** check that the bundled version supports the OpenTelemetry mode for traces, metrics, and logs, in
-  the [OTLP export support matrix][dd-otlp-export]. Otherwise, upgrade the agent in the image, and pin its version.
+- **Requirement:** use `dd-java-agent` 1.68.0 or later, the first version that supports all the settings of
+  [S-01](#s-01-enable-the-opentelemetry-mode-of-the-ddot-sdks). Otherwise, upgrade the agent in the image, and pin its
+  version. The minimums per feature are:
+
+  | Feature                                                                       | Minimum `dd-java-agent` version |
+  |-------------------------------------------------------------------------------|---------------------------------|
+  | OTLP trace export                                                             | 1.62.0                          |
+  | OpenTelemetry Metrics API                                                     | 1.61.0                          |
+  | OpenTelemetry Logs API, with `opentelemetry-api` 1.27.0 or later              | 1.62.0                          |
+  | Sampling probability in OTLP spans, for the trace metrics                     | 1.67.0                          |
+  | OpenTelemetry semantic conventions of HTTP, `DD_TRACE_OTEL_SEMANTICS_ENABLED` | 1.68.0                          |
+  | Metrics shutdown in short-lived processes                                     | 1.68.0                          |
+
+  These versions come from the [OTLP export support matrix][dd-otlp-export] and the
+  [OpenTelemetry API support][dd-otel-api] pages, which are authoritative when they change.
 - **Requirement:** find every `-Ddd.*` system property of the JVM, and remove or align the ones that configure the
   same settings as the environment variables of S-01 to S-08. In the Java tracer, a system property takes priority
   over the environment variable of the same setting, for example `-Ddd.trace.otel.enabled` over
