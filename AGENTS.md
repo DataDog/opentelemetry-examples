@@ -21,6 +21,7 @@ These rules apply to Markdown documentation in this repository, including README
 
   When a text uses "OpenTelemetry SDK" or "OpenTelemetry Collector" without a qualifier, read it as the upstream version.
 - **Datadog SDK:** "Datadog SDK" means the `dd-trace-*` libraries in their default mode. Write "Datadog SDK", never "Datadog APM SDK".
+- **Java agents:** never write "agent" alone for a Java agent loaded with `-javaagent`, which readers can confuse with the Datadog Agent. Say which one, for example "DDOT SDK Java agent", "Datadog `dd-trace-java` agent" or `dd-java-agent`, and "upstream OpenTelemetry SDK Java agent". The `-javaagent` JVM option and file names such as `dd-java-agent.jar` stay as they are.
 - **OpenTelemetry Kube Stack Helm chart:** write "OpenTelemetry Kube Stack Helm chart", or `opentelemetry-kube-stack` in code format, at least at the first mention in a section. Never write "kube-stack chart" or "kube-stack preset", which readers can confuse with the Prometheus Community [`kube-prometheus-stack`](https://github.com/prometheus-community/helm-charts/tree/main/charts/kube-prometheus-stack) chart. After the full name, "the chart" is fine. Directory and file names such as `opentelemetry-kube-stack/` stay as they are.
 
 ## Onboarding guides
