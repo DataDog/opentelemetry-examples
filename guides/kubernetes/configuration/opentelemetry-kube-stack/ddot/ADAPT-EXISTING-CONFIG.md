@@ -1031,7 +1031,9 @@ in [`values.yaml`][values] list them:
           ## Resource attributes to implement https://opentelemetry.io/docs/specs/semconv/non-normative/k8s-attributes/
           - name: OTEL_SERVICE_NAME
             value: <service name>
-          # Only when the OpenTelemetry Collector can't set deployment.environment.name (C-11)
+          # Only when the OpenTelemetry Collector can't set deployment.environment.name, or when a configuration
+          # management solution, such as the OpenTelemetry Kube Stack Helm chart, sets it in both the OpenTelemetry
+          # Collector and the SDKs, with the same value (C-11)
           - name: OTEL_RESOURCE_ATTRIBUTES_DEPLOYMENT_ENVIRONMENT_NAME
             value: <deployment environment name>
           - name: OTEL_RESOURCE_ATTRIBUTES_SERVICE_VERSION
@@ -1097,7 +1099,9 @@ in [`values.yaml`][values] list them:
         annotations:
           resource.opentelemetry.io/service.name: <service name, the value of OTEL_SERVICE_NAME>
           resource.opentelemetry.io/service.version: <service version, the value of OTEL_RESOURCE_ATTRIBUTES_SERVICE_VERSION>
-          # Only when the OpenTelemetry Collector can't set deployment.environment.name (C-11)
+          # Only when the OpenTelemetry Collector can't set deployment.environment.name, or when a configuration
+          # management solution, such as the OpenTelemetry Kube Stack Helm chart, sets it in both the OpenTelemetry
+          # Collector and the SDKs, with the same value (C-11)
           resource.opentelemetry.io/deployment.environment.name: <deployment environment name, the value of OTEL_RESOURCE_ATTRIBUTES_DEPLOYMENT_ENVIRONMENT_NAME>
   ```
 
