@@ -727,6 +727,36 @@ environment variable, typically through `OTEL_RESOURCE_ATTRIBUTES=datadog.host.n
   with the `tolerations` and `nodeSelector` matching the nodes' taints and labels. Don't apply this rule to the
   `cluster` OpenTelemetry Collector, a Deployment.
 
+### C-14: Choose where the OpenTelemetry Collector runs on Kubernetes
+
+- **Recommendation:** receive the telemetry of the workloads in an OpenTelemetry Collector that runs as a DaemonSet,
+  on the node of each workload ([C-13](#c-13-keep-the-daemon-opentelemetry-collectors-service-node-local)). In
+  decreasing order of preference:
+  1. **The DDOT Collector, deployed as a DaemonSet with the OpenTelemetry community tools,** as this guide's reference
+     configuration does. Deploy it preferably with the OpenTelemetry Kube Stack Helm chart, otherwise with an
+     `OpenTelemetryCollector` resource of the OpenTelemetry Operator, otherwise with the
+     [OpenTelemetry Collector Helm chart][otel-collector-chart], otherwise with your own deployment mechanism. When
+     the DDOT Collector can't be used, the upstream OpenTelemetry Collector Contrib, with the same configuration, is
+     the solution.
+  2. **The DDOT Collector bundled in the Datadog Agent DaemonSet,** when an OpenTelemetry Collector DaemonSet deployed
+     with the community tools isn't an option. It has the same support of the OpenTelemetry Collector components as
+     the standalone DDOT Collector. Add the `k8s_attributes` processor to its ingestion pipelines, and if you can't,
+     rely on the `infraattributes` processor, with its limits
+     ([S-12](#s-12-send-otlp-to-the-datadog-agent-instead-of-standalone-opentelemetry-collectors)).
+  3. **OTLP ingest in the Datadog Agent DaemonSet,** when the bundled DDOT Collector isn't an option. Its limits are
+     at least those of the bundled DDOT Collector without `k8s_attributes`
+     ([S-12](#s-12-send-otlp-to-the-datadog-agent-instead-of-standalone-opentelemetry-collectors)).
+- **Why:**
+  - the OpenTelemetry community tools keep the deployment of the OpenTelemetry Collector free from vendor lock-in,
+    and interchangeable between the DDOT and the upstream OpenTelemetry Collector;
+  - the `k8s_attributes` processor with `extract.otel_annotations: true` is the only component that applies the
+    [OpenTelemetry Kubernetes conventions][otel-semconv-k8s-attributes] to all the telemetry of a workload, including
+    the pod logs and metrics that the OpenTelemetry Collector collects itself
+    ([C-03](#c-03-enrich-the-telemetry-with-the-resource-attributes-datadog-needs)). Levels 1 and 2 can use it, but
+    level 3 can't.
+- **Conflicts:** when the user already runs one of these setups, keep it, and report the level it corresponds to and
+  its limits, instead of migrating it without the user's approval.
+
 ## OpenTelemetry Operator and `Instrumentation` rules
 
 Apply this section only to workloads instrumented through OpenTelemetry Operator injection. For an SDK installed and
@@ -1322,17 +1352,19 @@ in [`values.yaml`][values] list them:
 
 ### S-12: Send OTLP to the Datadog Agent instead of standalone OpenTelemetry Collectors
 
-- **Requirement:** when a Datadog user doesn't deploy the standalone OpenTelemetry Collectors of this guide, the DDOT
-  SDKs can export OTLP to the Datadog Agent, in one of these ways:
+- **Requirement:** when an OpenTelemetry Collector DaemonSet deployed with the OpenTelemetry community tools isn't an
+  option ([C-14](#c-14-choose-where-the-opentelemetry-collector-runs-on-kubernetes)), the DDOT SDKs export OTLP to
+  the Datadog Agent DaemonSet, in decreasing order of preference:
+  - **The DDOT Collector bundled in the Datadog Agent:** enable `spec.features.otelCollector.enabled` in the
+    `DatadogAgent`, which runs an OpenTelemetry Collector in the `otel-agent` container of the Datadog Agent, on ports
+    4317 and 4318. It has the same support of the OpenTelemetry Collector components as the standalone DDOT Collector.
+    When you override the Datadog Agent image tag, use 7.67.0 or later
+    ([DDOT Collector in the Datadog Agent][dd-ddot-collector-agent]).
   - **OTLP ingest in the Datadog Agent:** enable `spec.features.otlp.receiver.protocols.grpc.enabled` and
-    `spec.features.otlp.receiver.protocols.http.enabled` in the `DatadogAgent`, which open ports 4317 and 4318. For
-    logs, also enable `spec.features.logCollection.enabled`, and set `DD_OTLP_CONFIG_LOGS_ENABLED=true` in
+    `spec.features.otlp.receiver.protocols.http.enabled`, which open ports 4317 and 4318. For logs, also enable
+    `spec.features.logCollection.enabled`, and set `DD_OTLP_CONFIG_LOGS_ENABLED=true` in
     `spec.override.nodeAgent.containers.agent.env`: OTLP logs ingestion is off by default, and requires Datadog Agent
     7.48.0 or later ([OTLP ingest in the Datadog Agent][dd-otlp-ingest]).
-  - **The DDOT Collector embedded in the Datadog Agent:** enable `spec.features.otelCollector.enabled`, which runs an
-    OpenTelemetry Collector next to the Datadog Agent, on ports 4317 and 4318. When you override the Datadog Agent
-    image tag, use 7.67.0 or later ([DDOT Collector in the Datadog Agent][dd-ddot-collector-agent]). This guide's
-    reference configuration deploys the standalone DDOT Collector instead, which doesn't need a Datadog Agent.
 - **Requirement:** point the SDKs at the Datadog Agent of their own node: the Datadog Agent doesn't accept OTLP from
   another node. In the container `env`, replace the `daemon` OpenTelemetry Collector endpoint of
   [S-08](#s-08-configure-the-sdks-of-workloads-without-the-opentelemetry-operator):
@@ -1346,54 +1378,125 @@ in [`values.yaml`][values] list them:
     value: http://$(HOST_IP):4318
   ```
 
-- **Differences from the standalone OpenTelemetry Collectors:**
-  - **OpenTelemetry Kubernetes conventions:** the Datadog Agent doesn't implement the
-    [OpenTelemetry Kubernetes conventions][otel-semconv-k8s-attributes]: it doesn't read the
-    `resource.opentelemetry.io/*` annotations, and it has no `k8s_attributes` processor. Its `infraattributes`
-    processor adds the Datadog Kubernetes tags of the container, such as `kube_namespace` and `pod_name`, from the
-    `container.id` resource attribute of the telemetry. It runs in the embedded DDOT Collector, and, from Datadog Agent
-    7.71.0, in the OTLP ingest pipelines for traces and metrics. To follow the conventions with the Datadog Agent:
-    - **Set the resource attributes in the SDK,** with the environment variables of
-      [S-08](#s-08-configure-the-sdks-of-workloads-without-the-opentelemetry-operator). They compute the attributes as
-      the conventions do, including `service.instance.id`, whatever the destination of the telemetry. Also check that
-      the SDK sets `container.id`: without it, the Datadog Agent can't add the Kubernetes tags.
-    - **Add the Unified Service Tagging labels to the pod template,** with the same values as the OpenTelemetry
-      attributes ([S-11](#s-11-align-datadog-unified-service-tagging-with-the-opentelemetry-service-identity)). The
-      Datadog Agent reads them, instead of the annotations, for the telemetry it collects about the containers, such as
-      logs and metrics, and `infraattributes` reads them for the telemetry of the SDK:
+- **Fix, with the bundled DDOT Collector: add the `k8s_attributes` processor.** Datadog supports it as a community
+  component of the OpenTelemetry Collector Contrib, and it applies the OpenTelemetry Kubernetes conventions to all the
+  telemetry ([C-14](#c-14-choose-where-the-opentelemetry-collector-runs-on-kubernetes)). The Datadog Operator doesn't
+  set it up: its default configuration of the bundled DDOT Collector only has the `infraattributes` processor, and the
+  ClusterRole of the Datadog Agent doesn't allow `k8s_attributes` to watch the pods. Three changes are needed:
+  1. **The Collector configuration:** in `spec.features.otelCollector.conf.configData`, which replaces the default
+     configuration, add the `k8s_attributes` processor of
+     [C-03](#c-03-enrich-the-telemetry-with-the-resource-attributes-datadog-needs), with its `filter`,
+     `extract.otel_annotations: true`, `extract.metadata`, and `pod_association`, to every pipeline that receives the
+     telemetry of the workloads. Keep `infraattributes` after it, to add the Datadog Agent tagger's tags. Apply the
+     other OpenTelemetry Collector rules, C-01 to C-13, to this configuration.
+  2. **The node name:** `k8s_attributes` only watches the pods of its node with `filter.node_from_env_var`, but the
+     Datadog Operator only gives the `otel-agent` container the node IP, in `DD_KUBERNETES_KUBELET_HOST`. Add the
+     node name in the `DatadogAgent`:
 
-      | OpenTelemetry resource attribute                                | Set in the SDK with                               | Unified Service Tagging label         | Datadog tag                       |
-      |-----------------------------------------------------------------|---------------------------------------------------|---------------------------------------|-----------------------------------|
-      | `service.name`                                                  | `OTEL_SERVICE_NAME`                               | `tags.datadoghq.com/service`          | `service`                         |
-      | `service.version`                                               | `OTEL_RESOURCE_ATTRIBUTES`                        | `tags.datadoghq.com/version`          | `version`                         |
-      | `deployment.environment.name`                                   | `OTEL_RESOURCE_ATTRIBUTES`                        | `tags.datadoghq.com/env`              | `env`                             |
-      | `k8s.namespace.name`, `k8s.pod.name`, `k8s.container.name`, ... | `OTEL_RESOURCE_ATTRIBUTES`, with the downward API | None: `infraattributes` adds the tags | `kube_namespace`, `pod_name`, ... |
+     ```yaml
+     spec:
+       override:
+         nodeAgent:
+           containers:
+             otel-agent:
+               env:
+                 - name: K8S_NODE_NAME
+                   valueFrom:
+                     fieldRef:
+                       fieldPath: spec.nodeName
+     ```
 
-      In pods that have several containers, use the per-container labels, such as
-      `tags.datadoghq.com/<container name>.service`.
-    - **Keep the `resource.opentelemetry.io/*` annotations only for the components that read them,** such as the
-      OpenTelemetry Operator, which computes the attributes it injects from them, or an OpenTelemetry Collector with
-      the `k8s_attributes` processor elsewhere in the pipeline.
-    - **With the embedded DDOT Collector,** set `cardinality: 2` on the `infraattributes` processor, as the
-      [DDOT Collector in the Datadog Agent][dd-ddot-collector-agent] example does: the default, `0`, only adds the
-      low-cardinality tags, and leaves out pod and container tags.
-    - **For custom labels and annotations,** such as a team label, map them to tags in the Datadog Agent configuration
-      ([Kubernetes tag extraction][dd-k8s-tags]).
-  - **Collector rules:** with OTLP ingest, the OpenTelemetry Collector rules (C-01 to C-13) don't apply. With the
-    embedded DDOT Collector, apply them to its configuration, where the `infraattributes` processor adds the
-    Kubernetes tags.
-  - **`deployment.environment.name`:** with OTLP ingest, no OpenTelemetry Collector pipeline can set it, so set it in
-    the SDKs ([C-11](#c-11-set-the-deployment-environment)), with the value of the `tags.datadoghq.com/env` label.
-  - **Datadog Agent features:** OTLP logs need `spec.features.logCollection.enabled`, which
-    [A-01](#a-01-disable-the-features-that-duplicate-the-opentelemetry-collectors) disables in the reference
-    configuration. Keep it enabled.
+  3. **The RBAC:** grant the ServiceAccount of the Datadog Agent DaemonSet the permissions of the
+     [`k8s_attributes` RBAC][otel-k8sattributes-rbac], the same ones that the Datadog Operator grants its OpenTelemetry
+     Agent Gateway. Find the ServiceAccount name with
+     `kubectl get daemonset --namespace datadog -o jsonpath='{.items[*].spec.template.spec.serviceAccountName}'`:
+
+     ```yaml
+     apiVersion: rbac.authorization.k8s.io/v1
+     kind: ClusterRole
+     metadata:
+       name: datadog-agent-k8s-attributes
+     rules:
+       - apiGroups: [""]
+         resources: ["pods", "namespaces"]
+         verbs: ["get", "watch", "list"]
+       - apiGroups: ["apps"]
+         resources: ["replicasets"]
+         verbs: ["get", "watch", "list"]
+     ---
+     apiVersion: rbac.authorization.k8s.io/v1
+     kind: ClusterRoleBinding
+     metadata:
+       name: datadog-agent-k8s-attributes
+     roleRef:
+       apiGroup: rbac.authorization.k8s.io
+       kind: ClusterRole
+       name: datadog-agent-k8s-attributes
+     subjects:
+       - kind: ServiceAccount
+         name: <ServiceAccount of the Datadog Agent DaemonSet>
+         namespace: datadog
+     ```
+
+- **Without `k8s_attributes`: the limits of the `infraattributes` processor.** When you can't add `k8s_attributes`
+  to the bundled DDOT Collector, its `infraattributes` processor is the only enrichment
+  ([`infraattributes` processor][dd-infraattributes]):
+  - It looks up the entity of the telemetry, such as its container or pod, in the Datadog Agent tagger, from
+    resource attributes such as `container.id`, `k8s.pod.uid`, or `k8s.namespace.name`. Without any of them, it can't
+    enrich the telemetry: check that the SDK sets them.
+  - It adds the Datadog Kubernetes tags of the entity, such as `kube_namespace` and `pod_name`, at the configured
+    `cardinality`. The default, `0`, only adds the low-cardinality tags: set `cardinality: 2`, as the
+    [DDOT Collector in the Datadog Agent][dd-ddot-collector-agent] example does, to add the pod and container tags.
+  - It maps Unified Service Tagging to `service.name`, `deployment.environment`, and `service.version`, only for the
+    attributes that the telemetry doesn't already have: the values of the SDK win. The tagger reads the
+    `tags.datadoghq.com/*` labels, the `DD_ENV`, `DD_SERVICE`, and `DD_VERSION` variables, and the
+    `OTEL_SERVICE_NAME` and `OTEL_RESOURCE_ATTRIBUTES` variables, but only their literal values in the pod spec: it
+    skips the values set with `valueFrom`, such as the downward API variables of S-08 and the `OTEL_RESOURCE_ATTRIBUTES`
+    that the OpenTelemetry Operator injects.
+  - It doesn't read the `resource.opentelemetry.io/*` annotations. It can't set `service.instance.id`,
+    `service.namespace`, or custom resource attributes on the telemetry that the OpenTelemetry Collector collects
+    itself, such as pod logs and metrics.
+
+  To follow the [OpenTelemetry Kubernetes conventions][otel-semconv-k8s-attributes] with these limits:
+  - **Set the resource attributes in the SDK,** with the environment variables of
+    [S-08](#s-08-configure-the-sdks-of-workloads-without-the-opentelemetry-operator). They compute the attributes as
+    the conventions do, including `service.instance.id`, whatever the destination of the telemetry.
+  - **Add the Unified Service Tagging labels to the pod template,** with the same values as the OpenTelemetry
+    attributes ([S-11](#s-11-align-datadog-unified-service-tagging-with-the-opentelemetry-service-identity)). The
+    Datadog Agent reads them, instead of the annotations, for the telemetry it collects about the containers, such as
+    logs and metrics:
+
+    | OpenTelemetry resource attribute                                | Set in the SDK with                               | Unified Service Tagging label         | Datadog tag                       |
+    |-----------------------------------------------------------------|---------------------------------------------------|---------------------------------------|-----------------------------------|
+    | `service.name`                                                  | `OTEL_SERVICE_NAME`                               | `tags.datadoghq.com/service`          | `service`                         |
+    | `service.version`                                               | `OTEL_RESOURCE_ATTRIBUTES`                        | `tags.datadoghq.com/version`          | `version`                         |
+    | `deployment.environment.name`                                   | `OTEL_RESOURCE_ATTRIBUTES`                        | `tags.datadoghq.com/env`              | `env`                             |
+    | `k8s.namespace.name`, `k8s.pod.name`, `k8s.container.name`, ... | `OTEL_RESOURCE_ATTRIBUTES`, with the downward API | None: `infraattributes` adds the tags | `kube_namespace`, `pod_name`, ... |
+
+    In pods that have several containers, use the per-container labels, such as
+    `tags.datadoghq.com/<container name>.service`.
+  - **Keep the `resource.opentelemetry.io/*` annotations only for the components that read them,** such as the
+    OpenTelemetry Operator, which computes the attributes it injects from them.
+  - **For custom labels and annotations,** such as a team label, map them to tags in the Datadog Agent configuration
+    ([Kubernetes tag extraction][dd-k8s-tags]).
+- **With OTLP ingest:** the limits are at least those of the bundled DDOT Collector without `k8s_attributes`:
+  - there's no OpenTelemetry Collector pipeline to configure, so you can't add `k8s_attributes`, and the
+    OpenTelemetry Collector rules, C-01 to C-13, don't apply;
+  - the `infraattributes` processor runs in the OTLP ingest pipelines for traces and metrics from Datadog Agent
+    7.71.0, but not for logs;
+  - no OpenTelemetry Collector pipeline can set `deployment.environment.name`, so set it in the SDKs
+    ([C-11](#c-11-set-the-deployment-environment)), with the value of the `tags.datadoghq.com/env` label.
+- **Datadog Agent features:** OTLP logs need `spec.features.logCollection.enabled`, which
+  [A-01](#a-01-disable-the-features-that-duplicate-the-opentelemetry-collectors) disables in the reference
+  configuration. Keep it enabled.
 - **Conflicts:** the Datadog Agent's log collection tails the logs of the containers, so logs that the SDK also exports
   over OTLP reach Datadog twice ([S-10](#s-10-send-each-log-line-to-datadog-once)). For a workload that exports its
   logs over OTLP, exclude its container from the Datadog Agent's log collection with the
   `ad.datadoghq.com/<container name>.logs_exclude: "true"` pod annotation, from Datadog Agent 7.45, or with
   `DD_CONTAINER_EXCLUDE_LOGS` ([container discovery management][dd-container-discovery]).
 - **Verify:** the traces, metrics, and logs of the workload arrive in Datadog with the Kubernetes tags of the pod, and
-  each log line appears once.
+  each log line appears once. With `k8s_attributes`, also check that the logs of the `otel-agent` container don't
+  report RBAC errors, such as `pods is forbidden`.
 
 ## Datadog Agent and Datadog Operator rules
 
@@ -1638,6 +1741,9 @@ does not appear.
 [dd-ddot-collector-agent]: https://docs.datadoghq.com/opentelemetry/setup/ddot_collector/install/kubernetes_daemonset/
 [dd-container-discovery]: https://docs.datadoghq.com/containers/guide/container-discovery-management/
 [dd-k8s-tags]: https://docs.datadoghq.com/containers/kubernetes/tag/
+[otel-collector-chart]: https://github.com/open-telemetry/opentelemetry-helm-charts/tree/main/charts/opentelemetry-collector
+[otel-k8sattributes-rbac]: https://github.com/open-telemetry/opentelemetry-collector-contrib/tree/main/processor/k8sattributesprocessor#role-based-access-control
+[dd-infraattributes]: https://github.com/DataDog/datadog-agent/blob/main/comp/otelcol/otlp/components/processor/infraattributesprocessor/README.md
 [dd-runtime-metrics]: https://docs.datadoghq.com/tracing/metrics/runtime_metrics/
 [dd-deployment-tracking]: https://docs.datadoghq.com/tracing/services/deployment_tracking/
 [otel-go]: https://opentelemetry.io/docs/languages/go/
