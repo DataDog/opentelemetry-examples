@@ -21,6 +21,7 @@ These rules apply to Markdown documentation in this repository, including README
 
   When a text uses "OpenTelemetry SDK" or "OpenTelemetry Collector" without a qualifier, read it as the upstream version.
 - **Datadog SDK:** "Datadog SDK" means the `dd-trace-*` libraries in their default mode. Write "Datadog SDK", never "Datadog APM SDK".
+- **OpenTelemetry Kube Stack Helm chart:** write "OpenTelemetry Kube Stack Helm chart", or `opentelemetry-kube-stack` in code format, at least at the first mention in a section. Never write "kube-stack chart" or "kube-stack preset", which readers can confuse with the Prometheus Community [`kube-prometheus-stack`](https://github.com/prometheus-community/helm-charts/tree/main/charts/kube-prometheus-stack) chart. After the full name, "the chart" is fine. Directory and file names such as `opentelemetry-kube-stack/` stay as they are.
 
 ## Onboarding guides
 
@@ -37,7 +38,7 @@ The guides under `guides/kubernetes/configuration/opentelemetry-kube-stack/` onb
   - `file` is relative to the repository root, and `path` selects the quoted node in a yq-like syntax, such as `.defaultCRConfig.config.processors["resource_detection/env"]` or `.instrumentation.env[name=OTEL_EXPORTER_OTLP_PROTOCOL]`. Point to the smallest node the snippet quotes. Add `snippet-path` when the snippet wraps the node in other keys.
   - `mode` is `exact` when the snippet equals the node, `subset` when it shows only some of its keys or list items, and `adapted` when it rewrites the node, for example the raw Collector configuration behind a chart preset. Placeholders such as `<CLUSTER_NAME>` match any value.
   - `sha` is a hash of the source node at the last review of the snippet. Don't write it by hand: `make check-doc-snippets ARGS=--update-hashes` stores it, and doesn't store it for a snippet that doesn't match its source.
-- **Show the raw configuration behind chart presets.** When a rule relies on a kube-stack chart preset, such as `presets.kubernetesAttributes`, also show the Collector configuration it produces, for readers who don't use the chart.
+- **Show the raw configuration behind chart presets.** When a rule relies on a preset of the OpenTelemetry Kube Stack Helm chart, such as `presets.kubernetesAttributes`, also show the Collector configuration it produces, for readers who don't use the chart.
 - **Update snippets with their source.** Don't add comments about the guides to the source files. Run these commands in `guides/kubernetes/configuration/opentelemetry-kube-stack/`:
   - Before changing a source file, list the snippets that quote it with `make doc-snippets-for FILE=<file>`, for example `FILE=values.yaml.tmpl`.
   - After changing it, run `make check-doc-snippets`. CI runs the same check, which fails when a snippet no longer matches its source, and when a quoted node changed since the last review of its snippet. Review the reported snippets, update them in the same change, then store the new hashes with `make check-doc-snippets ARGS=--update-hashes`.
