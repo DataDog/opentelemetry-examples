@@ -141,8 +141,8 @@ OTEL_RESOURCE_ATTRIBUTES=service.namespace=<NAMESPACE>,service.version=<VERSION>
 
 On Kubernetes, follow the [OpenTelemetry Kubernetes resource-attribute conventions][otel-semconv-k8s-attributes].
 Set `deployment.environment.name` in the OpenTelemetry Collector's ingestion pipeline, and only in
-`OTEL_RESOURCE_ATTRIBUTES` when the OpenTelemetry Collector can't set it
-([C-11](#c-11-set-the-deployment-environment)).
+`OTEL_RESOURCE_ATTRIBUTES` when the OpenTelemetry Collector can't set it, or when one configuration automation sets
+it in both ([C-11](#c-11-set-the-deployment-environment)).
 Prefer using the OpenTelemetry Operator to inject these attributes from pod-template annotations. For manually
 configured SDKs, align the environment variables with the pod annotations so application telemetry and telemetry
 collected by the OpenTelemetry Collector use the same identity
@@ -291,7 +291,7 @@ configures one OpenTelemetry Collector.
   |-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|-------------------------------------------------------------------------------------------------------|--------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
   | `service.name`                                                                                                                                                                                                                      | `service` tag, needed for any correlation                                                             | OpenTelemetry Operator and `k8s_attributes`, following the [OpenTelemetry Kubernetes conventions][otel-semconv-k8s-attributes]: annotations, labels, workload names      |
   | `service.namespace`                                                                                                                                                                                                                 | Groups the services of an application. Strongly recommended, not required                             | OpenTelemetry Operator and `k8s_attributes`, following the [OpenTelemetry Kubernetes conventions][otel-semconv-k8s-attributes]: annotations, Kubernetes namespace        |
-  | `deployment.environment.name`                                                                                                                                                                                                       | `env` tag. Strongly recommended                                                                       | OpenTelemetry Operator and `resourceAttributes` of the kube-stack chart ([C-11](#c-11-set-the-deployment-environment)): annotations, OpenTelemetry Collector pipeline      |
+  | `deployment.environment.name`                                                                                                                                                                                                       | `env` tag. Strongly recommended                                                                       | OpenTelemetry Operator and `resourceAttributes` of the OpenTelemetry Kube Stack Helm chart ([C-11](#c-11-set-the-deployment-environment)): annotations, OpenTelemetry Collector pipeline      |
   | `service.version`                                                                                                                                                                                                                   | `version` tag                                                                                         | OpenTelemetry Operator and `k8s_attributes`, following the [OpenTelemetry Kubernetes conventions][otel-semconv-k8s-attributes]: annotations, labels, container image tag |
   | `container.id`                                                                                                                                                                                                                      | Links spans to the container metrics: without it, APM doesn't show the container metrics of a service | The SDK's container resource detector: not extracted by `k8s_attributes` in the reference                                                                                |
   | `host.name`                                                                                                                                                                                                                         | Links to the host metrics                                                                             | `resource/hostname`, from `k8s.node.name`                                                                                                                                |
@@ -304,8 +304,8 @@ configures one OpenTelemetry Collector.
 
 - **Fix:** enrich the telemetry in the OpenTelemetry Collector with the `k8s_attributes` processor, in every pipeline that receives
   telemetry from the workloads, rather than setting these attributes by hand in each application:
-  - with the kube-stack chart, `presets.kubernetesAttributes.enabled: true`. It extracts the attributes above, except
-    `container.id` and `k8s.cluster.name`, and sets `otel_annotations: true`;
+  - with the OpenTelemetry Kube Stack Helm chart, `presets.kubernetesAttributes.enabled: true`. It extracts the
+    attributes above, except `container.id` and `k8s.cluster.name`, and sets `otel_annotations: true`;
   - otherwise, the `k8s_attributes` processor with its RBAC (`get`, `list`, and `watch` on pods, namespaces, nodes, and
     replica sets), and the `metadata` to extract:
 
@@ -368,7 +368,8 @@ configures one OpenTelemetry Collector.
     and the `resource.opentelemetry.io/service.version` pod annotation also work, but require a more sophisticated
     software delivery pipeline, which updates them on every release.
   - **`deployment.environment.name`:** set it in the OpenTelemetry Collector's ingestion pipeline, which is strongly
-    recommended. Only set it in the SDKs when the OpenTelemetry Collector can't set it
+    recommended. Only set it in the SDKs when the OpenTelemetry Collector can't set it, or when one configuration
+    automation, such as the OpenTelemetry Kube Stack Helm chart, sets it in both
     ([C-11](#c-11-set-the-deployment-environment)).
   - **`k8s.node.name`:** set it with the `k8s_attributes` processor, from the pod the telemetry comes from.
   - **`host.id`, `cloud.provider`, and `cloud.account.id`:** set them whenever the OpenTelemetry Collector can discover them,
@@ -378,10 +379,10 @@ configures one OpenTelemetry Collector.
     `resource_attributes`, and only set `host.id` on the telemetry of the OpenTelemetry Collector's own node, that is, in the
     `daemon` OpenTelemetry Collector behind a node-local Service ([C-13](#c-13-keep-the-daemon-opentelemetry-collectors-service-node-local)): not
     on the cluster-scope telemetry of the `cluster` OpenTelemetry Collector, which describes other nodes.
-  - **On EKS:** enable these resource attributes of the `eks` detector, because several of them are disabled by
-    default. The kube-stack preset (`presets.resourceDetection.eks.enabled: true`) only enables the detector, so the
-    [`install`][install] script also sets these attributes with `--set` flags on `defaultCRConfig` when the cluster is
-    EKS:
+  - **On EKS:** enable these resource attributes of the `eks` detector, because several of them are disabled by default.
+    The OpenTelemetry Kube Stack Helm chart's preset (`presets.resourceDetection.eks.enabled: true`) only enables the
+    detector, so the [`install`][install] script also sets these attributes with `--set` flags on `defaultCRConfig` when
+    the cluster is EKS:
 
     ```yaml
     processors:
@@ -427,12 +428,12 @@ configures one OpenTelemetry Collector.
     ```
 
 - **`k8s.container.name`:** extract it with the `k8s_attributes` processor, in its `extract.metadata`, as the
-  kube-stack preset does. The OpenTelemetry Operator injects it in `OTEL_RESOURCE_ATTRIBUTES` only for the workloads it
-  instruments: `k8s_attributes` sets it for the other ones, such as applications instrumented without the Operator.
-  For those applications, also set it in the container's `OTEL_RESOURCE_ATTRIBUTES`
-  ([S-08](#s-08-configure-the-sdks-of-workloads-without-the-opentelemetry-operator)).
-  In pods with several containers, the processor can only tell which container sent the telemetry from its
-  `container.id` resource attribute, and doesn't set `k8s.container.name` without it.
+  OpenTelemetry Kube Stack Helm chart's preset does. The OpenTelemetry Operator injects it in `OTEL_RESOURCE_ATTRIBUTES`
+  only for the workloads it instruments: `k8s_attributes` sets it for the other ones, such as applications instrumented
+  without the Operator. For those applications, also set it in the container's `OTEL_RESOURCE_ATTRIBUTES`
+  ([S-08](#s-08-configure-the-sdks-of-workloads-without-the-opentelemetry-operator)). In pods with several containers,
+  the processor can only tell which container sent the telemetry from its `container.id` resource attribute, and doesn't
+  set `k8s.container.name` without it.
 - **`container.id`:** check that the application traces carry it. If they don't, add `container.id` to the
   `k8s_attributes` processor's `extract.metadata`: the processor then looks up the container ID from the pod's status,
   using the `k8s.container.name` that the OpenTelemetry Operator injects in `OTEL_RESOURCE_ATTRIBUTES`.
@@ -455,8 +456,8 @@ environment variable, typically through `OTEL_RESOURCE_ATTRIBUTES=datadog.host.n
   middleware, or host telemetry, and `override: false` on the `resource_detection` processors.
 - **Why:** the `env` detector adds the OpenTelemetry Collector pod's own `k8s.pod.name`, `k8s.namespace.name`, `node.name`, and
   `host.name` to the telemetry it receives, overwriting the application's identity.
-- **Fix:** with the kube-stack chart, `collectors.daemon.presets.resourceDetection.env.enabled: false` (enabled by the
-  chart's daemon defaults), and:
+- **Fix:** with the OpenTelemetry Kube Stack Helm chart,
+  `collectors.daemon.presets.resourceDetection.env.enabled: false` (enabled by the chart's daemon defaults), and:
 
   <!-- snippet-source: file=guides/kubernetes/configuration/opentelemetry-kube-stack/ddot/values.yaml path=.defaultCRConfig.config.processors["resource_detection/env"] snippet-path=.processors["resource_detection/env"] mode=subset sha=17ca21355cc7 -->
   ```yaml
@@ -562,10 +563,11 @@ environment variable, typically through `OTEL_RESOURCE_ATTRIBUTES=datadog.host.n
 - **Requirement:** the `k8s.cluster.name` resource attribute of the OpenTelemetry Collectors equals the Datadog Agent's
   `clusterName` ([A-06](#a-06-use-the-same-kubernetes-cluster-name-as-the-opentelemetry-collectors)).
 - **Fix:** on EKS, GKE, and AKS, enable the cloud provider's resource detection preset, which discovers it.
-- **Fix:** on other platforms, set `k8s.cluster.name` both on the telemetry and on the OpenTelemetry Collector's own telemetry. The
-  OpenTelemetry Collector's Datadog extension ([C-07](#c-07-report-the-opentelemetry-collectors-to-fleet-automation-with-the-datadog-extension))
-  reports the OpenTelemetry Collector under the cluster name of its own telemetry in Fleet Automation. With the kube-stack chart,
-  `resourceAttributes.k8s.cluster.name` in the values does both:
+- **Fix:** on other platforms, set `k8s.cluster.name` both on the telemetry and on the OpenTelemetry Collector's own
+  telemetry. The OpenTelemetry Collector's Datadog extension
+  ([C-07](#c-07-report-the-opentelemetry-collectors-to-fleet-automation-with-the-datadog-extension)) reports the
+  OpenTelemetry Collector under the cluster name of its own telemetry in Fleet Automation. With the OpenTelemetry Kube
+  Stack Helm chart, `resourceAttributes.k8s.cluster.name` in the values does both:
 
   ```yaml
   resourceAttributes:
@@ -587,7 +589,7 @@ environment variable, typically through `OTEL_RESOURCE_ATTRIBUTES=datadog.host.n
     telemetry that the OpenTelemetry Collector collects itself, such as pod logs and metrics, Kubernetes events, and
     its own internal telemetry ([C-08](#c-08-export-the-collectors-internal-metrics-through-its-own-pipeline)).
 
-  With the kube-stack chart, set `resourceAttributes` in the values:
+  With the OpenTelemetry Kube Stack Helm chart, set `resourceAttributes` in the values:
 
   <!-- snippet-source: file=guides/kubernetes/configuration/opentelemetry-kube-stack/ddot/values.yaml path=.resourceAttributes snippet-path=.resourceAttributes mode=exact sha=fe16d989fd8b -->
   ```yaml
@@ -617,17 +619,20 @@ environment variable, typically through `OTEL_RESOURCE_ATTRIBUTES=datadog.host.n
   `k8s_attributes` processor set the attribute on the telemetry that the OpenTelemetry Collector collects about the
   pod.
 
-  With the kube-stack chart, `resourceAttributes` also sets the attribute in the `Instrumentation` resource, so the
-  OpenTelemetry Operator injects it in the workloads it instruments, with the same value as the OpenTelemetry
-  Collector.
-- **Conflicts:** when both the SDKs and the OpenTelemetry Collector set it, use the same value. With
-  `action: upsert`, which the kube-stack chart uses, the OpenTelemetry Collector's value overwrites a different value
-  set in the SDK. To use the
-  OpenTelemetry Collector's value as a default that workloads can override, remove `deployment.environment.name` from
-  `resourceAttributes` and use a `resource` processor with `action: insert`. A `transform` processor gets the same
-  result with `where resource.attributes["deployment.environment.name"] == nil`. Place that processor after
-  `k8s_attributes` in each pipeline, so that a value from the `resource.opentelemetry.io/deployment.environment.name`
-  annotation is already set when the default applies.
+  **Exception:** set it in both the OpenTelemetry Collector and the SDKs when one configuration automation manages both,
+  such as the OpenTelemetry Kube Stack Helm chart. Its `resourceAttributes` sets the attributes in the OpenTelemetry
+  Collectors and in the `Instrumentation` resource, which the OpenTelemetry Operator injects in the workloads it
+  instruments, with the same values. The automation keeps the values consistent, and the telemetry gets the attributes
+  from the SDK, before it reaches any OpenTelemetry Collector pipeline. This applies to `deployment.environment.name`,
+  to `k8s.cluster.name` ([C-10](#c-10-use-the-same-kubernetes-cluster-name-everywhere)), and to any custom resource
+  attribute that has the same value for the whole Kubernetes cluster.
+- **Conflicts:** when both the SDKs and the OpenTelemetry Collector set it, use the same value. With `action: upsert`,
+  which the OpenTelemetry Kube Stack Helm chart uses, the OpenTelemetry Collector's value overwrites a different value
+  set in the SDK. To use the OpenTelemetry Collector's value as a default that workloads can override, remove
+  `deployment.environment.name` from `resourceAttributes` and use a `resource` processor with `action: insert`. A
+  `transform` processor gets the same result with `where resource.attributes["deployment.environment.name"] == nil`.
+  Place that processor after `k8s_attributes` in each pipeline, so that a value from the
+  `resource.opentelemetry.io/deployment.environment.name` annotation is already set when the default applies.
 - **Verify:** in Datadog, check the `env` tag of the service in APM and of the pod's logs and container metrics. Every
   signal of the workload must have the same value.
 
@@ -1127,7 +1132,8 @@ in [`values.yaml`][values] list them:
 - **`deployment.environment.name`:** setting it in the OpenTelemetry Collector's ingestion pipeline is strongly
   recommended. Only keep `OTEL_RESOURCE_ATTRIBUTES_DEPLOYMENT_ENVIRONMENT_NAME`, the `deployment.environment.name`
   entry of `OTEL_RESOURCE_ATTRIBUTES`, and the `resource.opentelemetry.io/deployment.environment.name` annotation
-  when the OpenTelemetry Collector can't set it ([C-11](#c-11-set-the-deployment-environment)).
+  when the OpenTelemetry Collector can't set it, or when one configuration automation sets it in both the
+  OpenTelemetry Collector and the SDKs ([C-11](#c-11-set-the-deployment-environment)).
 - **Fix:** keep `OTEL_RESOURCE_ATTRIBUTES` after the variables it references. Kubernetes only expands a `$(VAR)`
   reference to a variable defined earlier in the same container's `env`, and leaves the other references as literal
   text ([dependent environment variables][k8s-dependent-env-vars]). For Go workloads that use a DDOT SDK for Go
