@@ -1134,6 +1134,43 @@ in [`values.yaml`][values] list them:
   version earlier than `v2.12.0`, also set `OTEL_EXPORTER_OTLP_TRACES_ENDPOINT`
   ([O-06](#o-06-instrument-go-applications-at-compile-time)). With the upstream OpenTelemetry SDKs, leave out the
   DDOT SDK configuration group.
+- **With a shared Helm chart:** when the services are deployed with a shared, internal Helm chart, add the variables
+  and the annotations above to the pod template of the chart, once for all the services. A new version of the chart
+  then rolls the configuration out to all of them, through the existing deployment or GitOps pipeline.
+  - Take the per-service values from the values that the chart already has, so that the variables and the
+    annotations always match: the service name from the chart's service or release name, the service version from
+    the image tag that the chart deploys, and the container name from the value that the template uses for
+    `containers[].name`. The service version then changes on every release without other updates, and the container
+    name can't drift from the pod spec.
+  - Leave `deployment.environment.name` out of the chart, so that the same values serve all the environments
+    ([C-11](#c-11-set-the-deployment-environment)). Use a values file per environment only when the OpenTelemetry
+    Collector can't set it.
+  - Make the `daemon` OpenTelemetry Collector endpoint and `DD_AGENT_HOST` chart values with defaults, and let
+    services enable the optional Datadog features ([S-06](#s-06-enable-optional-datadog-features-per-workload)) and
+    choose their log path ([S-10](#s-10-send-each-log-line-to-datadog-once)) with values.
+
+  For example, with value names to map to the ones of your chart:
+
+  ```yaml
+  spec:
+    template:
+      metadata:
+        annotations:
+          resource.opentelemetry.io/service.name: {{ .Values.service.name | quote }}
+          resource.opentelemetry.io/service.version: {{ .Values.image.tag | quote }}
+      spec:
+        containers:
+          - name: {{ .Values.service.name }}
+            env:
+              - name: OTEL_SERVICE_NAME
+                value: {{ .Values.service.name | quote }}
+              - name: OTEL_RESOURCE_ATTRIBUTES_SERVICE_VERSION
+                value: {{ .Values.image.tag | quote }}
+              - name: OTEL_RESOURCE_ATTRIBUTES_CONTAINER_NAME
+                value: {{ .Values.service.name | quote }}   # the value of containers[].name
+              # ... the other variables of the snippet above
+  ```
+
 - **Conflicts:** if the container already sets `OTEL_RESOURCE_ATTRIBUTES`, merge its attributes into the new value
   and keep the user's values when they differ. For the other variables, follow the conflicts of the rules each group
   links to, such as [S-01](#s-01-enable-the-opentelemetry-mode-of-the-ddot-sdks) for explicitly disabled signals.
