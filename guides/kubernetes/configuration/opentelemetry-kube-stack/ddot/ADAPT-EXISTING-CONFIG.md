@@ -109,8 +109,8 @@ Datadog Agent-backed features require it, as described in
 
 Check [OpenTelemetry API support][dd-otel-api] and the [OTLP export support matrix][dd-otlp-export] for the selected
 version. Use the application's package manager and lockfile, pin the resolved version, and verify that exactly one
-loader, profiler, runtime agent, or compile-time tool activates instrumentation. For Operator injection, take the
-current image reference from `instrumentation.<language>.image` in [`values.yaml`][values].
+loader, profiler, runtime agent such as a Java agent, or compile-time tool activates instrumentation. For Operator
+injection, take the current image reference from `instrumentation.<language>.image` in [`values.yaml`][values].
 
 ### 3. Move compatible configuration to environment variables
 
@@ -967,9 +967,10 @@ in [`values.yaml`][values] list them:
   4. the container's `envFrom` ConfigMaps and Secrets;
   5. the image's `Dockerfile` `ENV` instructions.
 
-  The Operator appends its agent to `JAVA_TOOL_OPTIONS`, `NODE_OPTIONS`, and `PYTHONPATH`, and merges resource
-  attributes into `OTEL_RESOURCE_ATTRIBUTES`. It skips a language SDK injection when the container sets that language's
-  loader variable with `valueFrom`. See the Operator's [SDK injection implementation][otel-operator-sdk-go].
+  The Operator appends the options that load its SDK to `JAVA_TOOL_OPTIONS`, `NODE_OPTIONS`, and `PYTHONPATH`, and
+  merges resource attributes into `OTEL_RESOURCE_ATTRIBUTES`. It skips a language SDK injection when the container sets
+  that language's loader variable with `valueFrom`. See the Operator's [SDK injection
+  implementation][otel-operator-sdk-go].
 
   After changing an `Instrumentation` resource, restart its workloads and inspect the running process environment:
 
@@ -1189,17 +1190,18 @@ in [`values.yaml`][values] list them:
 
 ### S-09: Configure a Java agent bundled in the container image
 
-- **Requirement:** when the container image already contains `dd-java-agent`, for example in a base image that a
-  platform team maintains, keep that agent and activate exactly one `-javaagent`:
+- **Requirement:** when the container image already contains the Datadog `dd-trace-java` agent, `dd-java-agent`, for
+  example in a base image that a platform team maintains, keep it as the DDOT SDK Java agent, and make sure that the
+  JVM loads exactly one Java agent with `-javaagent`:
   - with the OpenTelemetry Operator, use the `instrumentation.opentelemetry.io/inject-sdk` annotation. It injects the
-    configuration of the `Instrumentation`, including the `DD_*` variables, without an agent
-    ([O-06](#o-06-instrument-go-applications-at-compile-time)). Don't use `inject-java`: the Operator would add its own
-    `-javaagent` to `JAVA_TOOL_OPTIONS`, and the JVM would load two agents;
+    configuration of the `Instrumentation`, including the `DD_*` variables, without injecting a Java agent
+    ([O-06](#o-06-instrument-go-applications-at-compile-time)). Don't use `inject-java`: the Operator would add the
+    DDOT SDK Java agent of its image to `JAVA_TOOL_OPTIONS`, and the JVM would load two Java agents;
   - without the OpenTelemetry Operator, set the variables in the container `env`
     ([S-08](#s-08-configure-the-sdks-of-workloads-without-the-opentelemetry-operator)).
 - **Requirement:** use `dd-java-agent` 1.68.0 or later, the first version that supports all the settings of
-  [S-01](#s-01-enable-the-opentelemetry-mode-of-the-ddot-sdks). Otherwise, upgrade the agent in the image, and pin its
-  version. The minimums per feature are:
+  [S-01](#s-01-enable-the-opentelemetry-mode-of-the-ddot-sdks). Otherwise, upgrade `dd-java-agent` in the image, and
+  pin its version. The minimums per feature are:
 
   | Feature                                                                       | Minimum `dd-java-agent` version |
   |-------------------------------------------------------------------------------|---------------------------------|
@@ -1223,8 +1225,10 @@ in [`values.yaml`][values] list them:
   - in a properties file that `DD_TRACE_CONFIG` points to.
 
   To convert a system property to its environment variable, uppercase it and replace `.` and `-` with `_`, for
-  example `dd.logs.injection` becomes `DD_LOGS_INJECTION`. Keep the JVM options that don't configure the agent, such
-  as memory settings.
+  example `dd.logs.injection` becomes `DD_LOGS_INJECTION`. Keep the JVM options that don't configure `dd-java-agent`,
+  such as memory settings.
+- **Logs:** `dd-java-agent` doesn't export the logs of Log4j 2, Logback, or `java.util.logging` over OTLP: tail the
+  standard output of these applications ([S-10](#s-10-send-each-log-line-to-datadog-once)).
 - **Verify:** check the effective JVM arguments and environment of a running pod, then the active configuration in
   the **SDK Configuration** tab of the service's **Service Config** in Datadog APM:
 
@@ -1254,6 +1258,12 @@ in [`values.yaml`][values] list them:
     without parsing. Only the log events of the logging libraries that the SDK supports are exported. Exclude the
     container's log files from `file_log`, with a pattern of the form
     `/var/log/pods/<namespace>_<pod name prefix>*_*/<container name>/*.log` in its `exclude` list.
+- **Java:** the DDOT SDK Java agent, `dd-java-agent`, only exports over OTLP the logs that the application emits with
+  the OpenTelemetry Logs API, from `opentelemetry-api` 1.27.0 ([OpenTelemetry API support][dd-otel-api]). It doesn't
+  export the log events of Log4j 2, Logback, or `java.util.logging`. For the applications that log with these
+  libraries, tail the standard output, and keep `DD_LOGS_INJECTION=true`. Their log lines don't reach Datadog twice
+  with `DD_LOGS_OTEL_ENABLED=true`, because the SDK doesn't export them, but check that they still carry the trace and
+  span IDs.
 - **Conflicts:** don't disable `file_log` for all the pods: it also collects the logs of the workloads that don't
   export logs over OTLP. Record the path chosen for each workload.
 - **Verify:** in the Datadog Log Explorer, a log line of the workload appears once, and its logs link to its traces.
@@ -1535,7 +1545,7 @@ record for each enabled signal.
 Verify all of the following:
 
 1. **Activation:** process arguments, startup logs, or SDK diagnostics prove that one intended loader, profiler,
-   runtime agent, or compiled integration is active.
+   runtime agent such as a Java agent, or compiled integration is active.
 2. **Effective configuration:** inspect the running container's environment and SDK diagnostics. Confirm service
    identity, whether application code or the injected SDK registers the `TracerProvider`, `MeterProvider`, and
    `LoggerProvider` and configures their exporters, enabled signals, destinations, and shared versus signal-specific
