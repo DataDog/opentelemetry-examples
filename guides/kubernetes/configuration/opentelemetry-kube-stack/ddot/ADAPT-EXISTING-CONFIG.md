@@ -202,7 +202,8 @@ sending the same signal through both OpenTelemetry Collector and Datadog Agent p
 Switch trace export from the native Datadog Agent path to OTLP only after OTLP trace delivery succeeds. Do not disable
 the tracer; follow the [OTLP export documentation][dd-otlp-export] for the exporter switch. Review direct log
 submission, file tailing, DogStatsD, and runtime metrics independently because they do not all follow the trace
-exporter.
+exporter. Send each log line once: see [S-10](#s-10-send-each-log-line-to-datadog-once). For a Java agent bundled in
+the image, see [S-09](#s-09-configure-a-java-agent-bundled-in-the-container-image).
 
 ## Target architecture
 
@@ -880,7 +881,8 @@ environment when the SDK is installed and configured manually.
   OpenTelemetry Collector computes the APM trace metrics of every service
   ([C-02](#c-02-compute-apm-trace-metrics-with-the-datadog-connector-before-any-sampling)).
 - **Fix:** merge the variables from `instrumentation.env` in [`values.yaml`][values], preserving other list entries.
-  Enable traces, metrics, and logs. Install the packages required by the selected SDK for those signals.
+  Enable traces, metrics, and logs. Install the packages required by the selected SDK for those signals. For logs,
+  also choose one log path per workload ([S-10](#s-10-send-each-log-line-to-datadog-once)).
 - **Conflicts:** preserve explicit disables, `TracerProvider`, `MeterProvider`, or `LoggerProvider` registrations in
   application code, and alternative exporters until the user approves the migration. Record a signal-specific exception
   when the selected SDK cannot export that signal. Use the [OpenTelemetry API support][dd-otel-api] and
@@ -1136,6 +1138,64 @@ in [`values.yaml`][values] list them:
   and keep the user's values when they differ. For the other variables, follow the conflicts of the rules each group
   links to, such as [S-01](#s-01-enable-the-opentelemetry-mode-of-the-ddot-sdks) for explicitly disabled signals.
 
+### S-09: Configure a Java agent bundled in the container image
+
+- **Requirement:** when the container image already contains `dd-java-agent`, for example in a base image that a
+  platform team maintains, keep that agent and activate exactly one `-javaagent`:
+  - with the OpenTelemetry Operator, use the `instrumentation.opentelemetry.io/inject-sdk` annotation. It injects the
+    configuration of the `Instrumentation`, including the `DD_*` variables, without an agent
+    ([O-06](#o-06-instrument-go-applications-at-compile-time)). Don't use `inject-java`: the Operator would add its own
+    `-javaagent` to `JAVA_TOOL_OPTIONS`, and the JVM would load two agents;
+  - without the OpenTelemetry Operator, set the variables in the container `env`
+    ([S-08](#s-08-configure-the-sdks-of-workloads-without-the-opentelemetry-operator)).
+- **Requirement:** check that the bundled version supports the OpenTelemetry mode for traces, metrics, and logs, in
+  the [OTLP export support matrix][dd-otlp-export]. Otherwise, upgrade the agent in the image, and pin its version.
+- **Requirement:** find every `-Ddd.*` system property of the JVM, and remove or align the ones that configure the
+  same settings as the environment variables of S-01 to S-08. In the Java tracer, a system property takes priority
+  over the environment variable of the same setting, for example `-Ddd.trace.otel.enabled` over
+  `DD_TRACE_OTEL_ENABLED` ([Java tracer configuration][dd-java-config]). A leftover system property can then silently
+  cancel an environment variable. Look for them:
+  - in `JAVA_TOOL_OPTIONS` and `JDK_JAVA_OPTIONS`;
+  - in custom variables that a startup script expands into the `java` command, for example a `JAVA_OPTS` variable;
+  - in the `ENTRYPOINT` and `CMD` of the image, and in its startup scripts;
+  - in a properties file that `DD_TRACE_CONFIG` points to.
+
+  To convert a system property to its environment variable, uppercase it and replace `.` and `-` with `_`, for
+  example `dd.logs.injection` becomes `DD_LOGS_INJECTION`. Keep the JVM options that don't configure the agent, such
+  as memory settings.
+- **Verify:** check the effective JVM arguments and environment of a running pod, then the active configuration in
+  the **SDK Configuration** tab of the service's **Service Config** in Datadog APM:
+
+  ```sh
+  kubectl exec <pod> --namespace <namespace> -- sh -c 'tr "\0" " " < /proc/1/cmdline; echo; env | grep -E "^(DD|OTEL|JAVA_TOOL)_"'
+  ```
+
+  `/proc/1/cmdline` shows the `java` command when the startup script starts it with `exec`. Otherwise, find the
+  process ID of `java` first.
+- **Conflicts:** if the Datadog admission controller or another mechanism also adds a `-javaagent`, keep only one
+  ([O-05](#o-05-annotate-workloads-and-prevent-double-instrumentation)).
+
+### S-10: Send each log line to Datadog once
+
+- **Requirement:** each workload's logs reach Datadog through one path: either the `daemon` OpenTelemetry Collector
+  tailing the container's standard output and error, or OTLP export from the SDK. The reference configuration does
+  both by default: the `file_log` receiver of the `daemon` OpenTelemetry Collector tails the logs of every pod, with
+  `include: [/var/log/pods/*/*/*.log]` and no `exclude`, and S-01 sets `DD_LOGS_OTEL_ENABLED=true`. Both paths feed the
+  same `logs` pipeline, so every log line that the application also prints reaches Datadog twice.
+- **Fix:** choose one path per workload:
+  - **Tail the standard output,** when the application already logs to it. This path collects everything the
+    container prints, including the output of libraries that the SDK doesn't instrument. Set
+    `DD_LOGS_OTEL_ENABLED=false` in the workload's container `env`, which takes precedence over the `Instrumentation`
+    ([S-06](#s-06-enable-optional-datadog-features-per-workload)). Keep log injection, `DD_LOGS_INJECTION=true`, so
+    that the log lines carry the trace and span IDs, and prefer JSON logs.
+  - **Export the logs over OTLP.** The log records carry the trace context and the resource attributes of the SDK,
+    without parsing. Only the log events of the logging libraries that the SDK supports are exported. Exclude the
+    container's log files from `file_log`, with a pattern of the form
+    `/var/log/pods/<namespace>_<pod name prefix>*_*/<container name>/*.log` in its `exclude` list.
+- **Conflicts:** don't disable `file_log` for all the pods: it also collects the logs of the workloads that don't
+  export logs over OTLP. Record the path chosen for each workload.
+- **Verify:** in the Datadog Log Explorer, a log line of the workload appears once, and its logs link to its traces.
+
 ## Datadog Agent and Datadog Operator rules
 
 These rules use the Datadog Operator's `DatadogAgent` custom resource (`datadoghq.com/v2alpha1`), as in
@@ -1374,6 +1434,7 @@ does not appear.
 [dd-otel-env]: https://docs.datadoghq.com/opentelemetry/config/environment_variable_support/
 [dd-otel-api]: https://docs.datadoghq.com/opentelemetry/instrument/dd_sdks/api_support/
 [dd-otlp-export]: https://docs.datadoghq.com/opentelemetry/instrument/dd_sdks/otlp_trace_export/
+[dd-java-config]: https://docs.datadoghq.com/tracing/trace_collection/library_config/java/
 [dd-runtime-metrics]: https://docs.datadoghq.com/tracing/metrics/runtime_metrics/
 [dd-deployment-tracking]: https://docs.datadoghq.com/tracing/services/deployment_tracking/
 [otel-go]: https://opentelemetry.io/docs/languages/go/
