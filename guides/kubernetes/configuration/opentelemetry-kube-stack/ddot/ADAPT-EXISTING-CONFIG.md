@@ -1223,12 +1223,23 @@ OTLP mode without sampling settings, whether they only export the sampled traces
           admission.datadoghq.com/enabled: "false" # label values are strings: keep the quotes
   ```
 
-  The Datadog Cluster Agent's Admission Controller then stops mutating the pods of the workload. It no longer injects a
-  Datadog SDK with Single Step Instrumentation, or the `DD_SERVICE`, `DD_VERSION`, and `DD_ENV` variables, which can
-  take precedence over the OpenTelemetry service identity
-  ([S-11](#s-11-align-datadog-unified-service-tagging-with-the-opentelemetry-service-identity)). It no longer injects
-  `DD_AGENT_HOST` either, which the variables above set, or the other variables it injects, such as the ones it uses
-  for origin detection.
+  The label turns off all the mutations of the Datadog Cluster Agent's Admission Controller for the pods of the
+  workload. It no longer injects:
+  - a Datadog SDK with Single Step Instrumentation;
+  - the `DD_SERVICE`, `DD_VERSION`, and `DD_ENV` variables, which can take precedence over the OpenTelemetry service
+    identity ([S-11](#s-11-align-datadog-unified-service-tagging-with-the-opentelemetry-service-identity));
+  - the path to the Datadog Agent: `DD_AGENT_HOST`, in its `hostip` and `service` modes, or the
+    `DD_TRACE_AGENT_URL` and `DD_DOGSTATSD_URL` variables and the volumes of the Datadog Agent's sockets, in its
+    `socket` and `csi` modes. The `DD_AGENT_HOST` of the variables above replaces them with the local Service of the
+    Datadog Agent: this is tested with the default configuration of the Datadog Operator, where the pods used the
+    sockets before, for Live Debugger, Feature Flag Management, Data Streams Monitoring, and App & API Protection;
+  - the `DD_ENTITY_ID`, `DD_EXTERNAL_ENV`, and `DD_INTERNAL_POD_UID` variables, which the Datadog Agent uses for the
+    origin detection of what the SDK sends to it. The telemetry that the SDK exports over OTLP gets its Kubernetes
+    attributes from the variables above. When a migrated workload still sends DogStatsD metrics to the Datadog Agent,
+    for example the JMXFetch integrations of [S-07](#s-07-enable-runtime-metrics-where-supported), add them with the
+    downward API, as the Admission Controller does: `DD_ENTITY_ID` from `metadata.uid`, and `DD_EXTERNAL_ENV` with
+    the value `it-false,cn-<name of this container>,pu-$(OTEL_RESOURCE_ATTRIBUTES_POD_UID)`, after
+    `OTEL_RESOURCE_ATTRIBUTES_POD_UID`.
 - **Requirement:** in addition to the resource attribute variables above, which only configure the SDK, annotate
   the pod template with the `resource.opentelemetry.io/*` annotations, such as
   `resource.opentelemetry.io/service.name` and `resource.opentelemetry.io/service.version`
@@ -1375,6 +1386,11 @@ OTLP mode without sampling settings, whether they only export the sampled traces
   ```
 
   If the chart already defines `labels` in the pod template, add the label there instead of in a second `labels` key.
+  If it already sets `admission.datadoghq.com/enabled: "true"`, which the Datadog Cluster Agent's Admission Controller
+  requires to mutate a pod when its `mutateUnlabelled` setting is `false`, the default of the Datadog Operator and the
+  `datadog` Helm chart, set the value of that label from the switch instead of adding a second key, for example
+  `admission.datadoghq.com/enabled: {{ ternary "false" "true" .Values.openTelemetry.apmSdk.enabled | quote }}`. With
+  two keys in the same map, the rendering fails, or keeps only one of them, depending on the tool.
 
 - **Conflicts:** if the container already sets `OTEL_RESOURCE_ATTRIBUTES`, merge its attributes into the new value
   and keep the user's values when they differ. For the other variables, follow the conflicts of the rules each group
