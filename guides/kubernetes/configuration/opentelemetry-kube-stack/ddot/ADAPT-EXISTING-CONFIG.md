@@ -52,6 +52,10 @@ Run the coding agent from the repository that owns the applications and deployme
    For Docker Compose or another non-Kubernetes deployment, find the application commands and environment,
    OpenTelemetry Collector service and configuration, and any Datadog Agent service, then apply only the application
    workflow and public OpenTelemetry Collector setup.
+   When part of the configuration lives in other repositories, for example a base image that a platform team
+   maintains, or a shared Helm chart, inspect what's deployed instead: the configuration of the built image, such as
+   its `ENTRYPOINT`, `CMD`, and environment, with `docker inspect` or the image registry, and a running pod, with
+   `kubectl exec` as in [S-09](#s-09-configure-a-java-agent-bundled-in-the-container-image).
 3. **Preserve existing configuration.** Keep existing receivers, exporters, pipelines, and environment variables unless a rule
    says otherwise. Follow the rule's **Conflicts** line when settings differ; ask the user when it does not cover the
    conflict.
@@ -62,7 +66,9 @@ Run the coding agent from the repository that owns the applications and deployme
 6. **Use current reference versions.** Read image versions from [`values.yaml`][values] and
    [`datadog-agent.yaml`][dd-agent-yaml] instead of copying versions from prose.
 7. **Report** every rule as `applied`, `already satisfied`, `skipped` with a reason, or `blocked` by a known gap or
-   missing value.
+   missing value. Report a change that another repository or team owns as `blocked`, with the owner and the change
+   needed, for example "base image: remove `${JAVA_TOOL_OPTIONS}` from the `java` command of the startup script
+   (S-09)", instead of skipping it.
 
 ## Adapt applications
 
@@ -754,8 +760,15 @@ environment variable, typically through `OTEL_RESOURCE_ATTRIBUTES=datadog.host.n
     the pod logs and metrics that the OpenTelemetry Collector collects itself
     ([C-03](#c-03-enrich-the-telemetry-with-the-resource-attributes-datadog-needs)). Levels 1 and 2 can use it, but
     level 3 can't.
-- **Conflicts:** when the user already runs one of these setups, keep it, and report the level it corresponds to and
-  its limits, instead of migrating it without the user's approval.
+- **Conflicts:**
+  - When the user already runs one of these setups, keep it, and report the level it corresponds to and its limits,
+    instead of migrating it without the user's approval.
+  - When the user only runs a Datadog Agent, without an OpenTelemetry Collector, ask the user before adopting level 1.
+    With level 1 and [A-01](#a-01-disable-the-features-that-duplicate-the-opentelemetry-collectors), the OpenTelemetry
+    Collectors collect the Kubernetes metrics and the pod logs instead of the Datadog Agent, with different tags, which
+    can break existing infrastructure monitors and dashboards
+    ([S-13](#s-13-migrate-workloads-from-the-datadog-sdks)). Levels 2 and 3 keep the Datadog Agent's infrastructure
+    collection unchanged.
 
 ## OpenTelemetry Operator and `Instrumentation` rules
 
@@ -1018,8 +1031,9 @@ in [`values.yaml`][values] list them:
 - **Recommendation:** enable runtime metrics for supported workloads to help troubleshoot memory usage, garbage
   collection, and thread activity. Configure this per workload; shared instrumentation defaults remain unchanged.
 - **Fix:** set `DD_RUNTIME_METRICS_ENABLED=true` in the workload's container `env`. For OTLP export, keep
-  `DD_METRICS_OTEL_ENABLED=true` and `OTEL_METRICS_EXPORTER=otlp` effective for that workload. Check the installed SDK's
-  runtime support, required packages or imports, and export transport before applying the change.
+  `DD_METRICS_OTEL_ENABLED=true` and `OTEL_METRICS_EXPORTER=otlp` effective for that workload.
+  `OTEL_METRICS_EXPORTER` defaults to `otlp`: only check that it isn't set to `none`. Check the installed SDK's runtime
+  support, required packages or imports, and export transport before applying the change.
 - **Compatibility:** follow the [runtime metrics documentation][dd-runtime-metrics]. If the SDK sends runtime metrics
   only through DogStatsD, keep the existing reachable Datadog Agent path. For a setup without a Datadog Agent, report
   runtime-metrics delivery as `blocked` until a supported delivery path is configured.
@@ -1249,6 +1263,11 @@ in [`values.yaml`][values] list them:
     DDOT SDK Java agent of its image to `JAVA_TOOL_OPTIONS`, and the JVM would load two Java agents;
   - without the OpenTelemetry Operator, set the variables in the container `env`
     ([S-08](#s-08-configure-the-sdks-of-workloads-without-the-opentelemetry-operator)).
+- **Requirement:** don't expand `JAVA_TOOL_OPTIONS` on the `java` command line in the startup scripts, for example in
+  `exec java ${JAVA_OPTS} ${JAVA_TOOL_OPTIONS} ...`: the JVM already reads `JAVA_TOOL_OPTIONS` from the environment, so
+  its options apply twice. A `-javaagent` that a mechanism adds to `JAVA_TOOL_OPTIONS`, such as the OpenTelemetry
+  Operator's `inject-java` annotation or the Single Step Instrumentation of the Datadog Cluster Agent's Admission
+  Controller, then loads twice. Remove the expansion, and keep the other options in a separate variable.
 - **Requirement:** use `dd-java-agent` 1.68.0 or later, the first version that supports all the settings of
   [S-01](#s-01-enable-the-opentelemetry-mode-of-the-ddot-sdks). Otherwise, upgrade `dd-java-agent` in the image, and
   pin its version. The minimums per feature are:
@@ -1265,7 +1284,9 @@ in [`values.yaml`][values] list them:
   These versions come from the [OTLP export support matrix][dd-otlp-export] and the
   [OpenTelemetry API support][dd-otel-api] pages, which are authoritative when they change.
 - **Requirement:** find every `-Ddd.*` system property of the JVM, and remove or align the ones that configure the
-  same settings as the environment variables of S-01 to S-08. In the Java tracer, a system property takes priority
+  same settings as an environment variable of this guide, for example `-Ddd.logs.injection`
+  ([S-10](#s-10-send-each-log-line-to-datadog-once)) or `-Ddd.trace.propagation.style`
+  ([S-13](#s-13-migrate-workloads-from-the-datadog-sdks)). In the Java tracer, a system property takes priority
   over the environment variable of the same setting, for example `-Ddd.trace.otel.enabled` over
   `DD_TRACE_OTEL_ENABLED` ([Java tracer configuration][dd-java-config]). A leftover system property can then silently
   cancel an environment variable. Look for them:
@@ -1275,8 +1296,14 @@ in [`values.yaml`][values] list them:
   - in a properties file that `DD_TRACE_CONFIG` points to.
 
   To convert a system property to its environment variable, uppercase it and replace `.` and `-` with `_`, for
-  example `dd.logs.injection` becomes `DD_LOGS_INJECTION`. Keep the JVM options that don't configure `dd-java-agent`,
-  such as memory settings.
+  example `dd.logs.injection` becomes `DD_LOGS_INJECTION`. Also consider moving the `-Ddd.*` properties that don't
+  conflict, such as `-Ddd.logs.injection=true`, to their `DD_*` environment variables, so that the configuration of
+  `dd-java-agent` is in one place, as the
+  [application workflow](#3-move-compatible-configuration-to-environment-variables) recommends. Keep the JVM options
+  that don't configure the telemetry, such as memory settings, and the `-Ddatadog.*` properties, which configure the
+  tracer's own logging. With `-Ddatadog.slf4j.simpleLogger.logFile=System.out`, the tracer writes its logs to the
+  standard output, mixed with the application's logs that the OpenTelemetry Collector or the Datadog Agent tails
+  ([S-10](#s-10-send-each-log-line-to-datadog-once)): to keep them apart, send them to `System.err` or to a file.
 - **Logs:** `dd-java-agent` doesn't export the logs of Log4j 2, Logback, or `java.util.logging` over OTLP: tail the
   standard output of these applications ([S-10](#s-10-send-each-log-line-to-datadog-once)).
 - **Verify:** check the effective JVM arguments and environment of a running pod, then the active configuration in
@@ -1287,7 +1314,13 @@ in [`values.yaml`][values] list them:
   ```
 
   `/proc/1/cmdline` shows the `java` command when the startup script starts it with `exec`. Otherwise, find the
-  process ID of `java` first.
+  process ID of `java` first. The command line doesn't show the options that the JVM reads from `JAVA_TOOL_OPTIONS`:
+  look for them in the JVM's `Picked up JAVA_TOOL_OPTIONS:` message, and count the `-javaagent` options of both the
+  command line and that message, which must total one:
+
+  ```sh
+  kubectl logs <pod> --namespace <namespace> | grep 'Picked up JAVA_TOOL_OPTIONS'
+  ```
 - **Conflicts:** if the Datadog Cluster Agent's Admission Controller or another mechanism also adds a `-javaagent`, keep
   only one ([O-05](#o-05-annotate-workloads-and-prevent-double-instrumentation)).
 
@@ -1554,6 +1587,22 @@ in [`values.yaml`][values] list them:
   - **Trace and log correlation:** keep `DD_LOGS_INJECTION=true` in the DDOT SDKs, the same way as with the Datadog
     SDKs, so that the log lines carry the trace and span IDs, and check that the logs still link to the traces after
     the migration, whichever log path the workload uses ([S-10](#s-10-send-each-log-line-to-datadog-once)).
+  - **Infrastructure telemetry,** when the OpenTelemetry Collectors replace the Datadog Agent's collection
+    ([C-14](#c-14-choose-where-the-opentelemetry-collector-runs-on-kubernetes) level 1, with
+    [A-01](#a-01-disable-the-features-that-duplicate-the-opentelemetry-collectors)): the Kubernetes metrics and the pod
+    logs then come from the OpenTelemetry Collectors, with OpenTelemetry resource attributes instead of the tags that
+    the Datadog Agent sets, such as `kube_namespace` or `source`. Check the monitors, dashboards, and log pipelines that
+    filter on the Datadog Agent's tags before disabling its features.
+- **Requirement:** every propagation configuration includes the W3C Trace Context (`tracecontext`) and W3C Baggage
+  (`baggage`) styles, in the DDOT SDKs and in the Datadog SDKs that still run in their default mode:
+  `DD_TRACE_PROPAGATION_STYLE`, `DD_TRACE_PROPAGATION_STYLE_EXTRACT`, `DD_TRACE_PROPAGATION_STYLE_INJECT`,
+  `OTEL_PROPAGATORS`, and the `-Ddd.trace.propagation.*` system properties in Java. `tracecontext` keeps the traces
+  connected with any OpenTelemetry SDK, and `baggage` carries the OpenTelemetry baggage between services. When these
+  settings aren't set, the default list applies, which includes both. The `datadog` style is less useful now: the
+  recent versions of all the Datadog SDKs support and enable `tracecontext` and `baggage` by default
+  ([trace context propagation][dd-trace-context-propagation]). Keep `datadog` only for the workloads that exchange
+  traces with older Datadog SDK versions, or with services configured with the `datadog` style alone that you can't
+  change.
 - **Requirement:** keep the traces connected between the migrated workloads and the ones that still run Datadog SDKs
   in their default mode. The W3C Trace Context format, `tracecontext`, connects them: the recent versions of all the
   Datadog SDKs extract and inject the `datadog`, `tracecontext`, and `baggage` propagation styles by default
@@ -1565,8 +1614,9 @@ in [`values.yaml`][values] list them:
   - **Check the workloads that still run Datadog SDKs:** the traces stay connected when they use the default
     propagation styles, or any list that includes `tracecontext`. Look for `DD_TRACE_PROPAGATION_STYLE`,
     `DD_TRACE_PROPAGATION_STYLE_EXTRACT`, and `DD_TRACE_PROPAGATION_STYLE_INJECT`, and their `-Ddd.trace.propagation.*`
-    system properties in Java, set without `tracecontext`, for example to `datadog`. Also check the versions of their
-    Datadog SDKs: for example, the Datadog SDK for .NET only injects `tracecontext` from version 2.22.0.
+    system properties in Java, set without `tracecontext` or `baggage`, for example to `datadog`, and add the missing
+    styles. Also check the versions of their Datadog SDKs: for example, the Datadog SDK for .NET only injects
+    `tracecontext` from version 2.22.0.
   - **Only when some of them don't extract or inject `tracecontext`,** and you can't change them first, keep the
     `datadog` style in the migrated workloads during the migration. The `Instrumentation`'s `spec.propagators` doesn't
     accept `datadog`, so set `DD_TRACE_PROPAGATION_STYLE` in its `spec.env`. It takes precedence over
