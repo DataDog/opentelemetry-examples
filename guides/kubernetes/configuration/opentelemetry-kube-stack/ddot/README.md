@@ -162,7 +162,7 @@ Kubernetes clusters.
 
 Verified against:
 
-- `opentelemetry-kube-stack` chart `>= 0.26.1`
+- `opentelemetry-kube-stack` chart `>= 0.27.3`
 - Collector image `datadog/ddot-collector:7.86.0` (pinned in values.yaml under
   `opentelemetry-operator.manager.collectorImage`)
 

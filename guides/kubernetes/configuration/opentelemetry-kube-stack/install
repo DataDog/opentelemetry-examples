@@ -546,7 +546,7 @@ fi
 helm upgrade opentelemetry-kube-stack \
     opentelemetry-kube-stack \
     --repo https://open-telemetry.github.io/opentelemetry-helm-charts \
-    --version 0.26.1 \
+    --version 0.27.3 \
     --install \
     --namespace opentelemetry-operator-system \
     --wait --timeout 5m \
