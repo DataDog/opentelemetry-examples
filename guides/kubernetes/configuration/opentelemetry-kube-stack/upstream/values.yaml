@@ -7,7 +7,7 @@ opentelemetry-operator:
   manager:
     collectorImage:
       repository: otel/opentelemetry-collector-contrib
-      tag: "0.163.1"
+      tag: "0.165.0"
 
 kubeStateMetrics:
   enabled: true

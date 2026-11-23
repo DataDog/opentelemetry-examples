@@ -43,11 +43,11 @@ spec:
       deployment.environment.name: production
       k8s.cluster.name: my-k8s-cluster
   java:
-    image: datadog/dd-otel-autoinstrumentation-java:1.69.0-preview
+    image: datadog/dd-otel-autoinstrumentation-java:1.69.1-preview
   nodejs:
-    image: datadog/dd-otel-autoinstrumentation-js:6.25-preview
+    image: datadog/dd-otel-autoinstrumentation-js:6.26-preview
   python:
-    image: datadog/dd-otel-autoinstrumentation-python:4.17.0-preview
+    image: datadog/dd-otel-autoinstrumentation-python:4.17.2-preview
   dotnet:
     env:
     - name: CORECLR_PROFILER
@@ -56,5 +56,5 @@ spec:
       value: /otel-auto-instrumentation-dotnet/linux/Datadog.Trace.ClrProfiler.Native.so
     - name: DD_DOTNET_TRACER_HOME
       value: /otel-auto-instrumentation-dotnet
-    image: datadog/dd-otel-autoinstrumentation-dotnet:3.57.0-preview
+    image: datadog/dd-otel-autoinstrumentation-dotnet:3.59.0-preview
 
