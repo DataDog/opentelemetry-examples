@@ -84,7 +84,7 @@ Classify the application and choose its migration path:
 |---|---|
 | No instrumentation | Install and activate one DDOT SDK. |
 | Upstream OpenTelemetry | Keep API instrumentation. Determine whether application code or auto-instrumentation creates each `TracerProvider`, `MeterProvider`, or `LoggerProvider` and configures its exporter before replacing the upstream OpenTelemetry SDK setup. |
-| Datadog instrumentation | Reuse the installed Datadog SDK when it can be converted by configuration into a DDOT SDK. |
+| Datadog instrumentation | Reuse the installed Datadog SDK when it can be converted by configuration into a DDOT SDK. See [S-13](#s-13-migrate-workloads-from-the-datadog-sdks). |
 | Mixed instrumentation | Resolve components that instrument the same libraries or both register a global `TracerProvider`, `MeterProvider`, or `LoggerProvider` for the same signal before enabling another loader. |
 
 Preserve explicit disables and intentional secondary exporters until the user approves a change. Prevent duplicate
@@ -816,6 +816,8 @@ variables in the workload container instead of an `Instrumentation` custom resou
   ([C-13](#c-13-keep-the-daemon-opentelemetry-collectors-service-node-local)).
 - **Requirement:** `spec.sampler.type: parentbased_always_on` and `spec.propagators: [tracecontext, baggage]`. Sample
   in the OpenTelemetry Collector instead ([C-02](#c-02-compute-apm-trace-metrics-with-the-datadog-connector-before-any-sampling)).
+  During a migration from the Datadog SDKs, also keep the `datadog` propagation style
+  ([S-13](#s-13-migrate-workloads-from-the-datadog-sdks)).
 - **Conflicts:** if the user samples in the SDKs on purpose, keep their sampler and say so in the report: the APM trace
   metrics then only count the sampled traces.
 
@@ -1498,6 +1500,59 @@ in [`values.yaml`][values] list them:
   each log line appears once. With `k8s_attributes`, also check that the logs of the `otel-agent` container don't
   report RBAC errors, such as `pods is forbidden`.
 
+### S-13: Migrate workloads from the Datadog SDKs
+
+- **Requirement:** when the workloads already run Datadog SDKs in their default mode, switch them to the OpenTelemetry
+  mode of the DDOT SDKs one workload at a time, and check what changes for each workload:
+  - **Unchanged:** the RED metrics and the APM operation names, for example `servlet.request` in Java, stay the same,
+    so the monitors and dashboards based on them keep working.
+  - **Runtime metrics:** they're replaced by the OpenTelemetry runtime metrics, for example for the JVM. Update the
+    monitors and dashboards that use them ([S-07](#s-07-enable-runtime-metrics-where-supported)).
+  - **Continuous Profiler:** it stops for the migrated workloads, because the DDOT SDKs don't support the process-level
+    profiling of the Datadog SDKs yet, such as CPU, memory, and lock profiling. Two options:
+    - **Switch to the DDOT Full Host Profiler,** which profiles the CPU usage of every process of the node with eBPF,
+      and which this guide's `install` script deploys with `DD_HOST_PROFILER_ENABLED=true`
+      ([host profiler][host-profiler]). The workload can then adopt the OpenTelemetry instrumentation, but with less
+      visibility than the process-level profiler of the Datadog SDKs: there's no memory or lock profiling.
+    - **Keep the workloads that depend on memory or lock profiling on the Datadog SDKs** in their default mode.
+  - **Trace and log correlation:** keep `DD_LOGS_INJECTION=true` in the DDOT SDKs, the same way as with the Datadog
+    SDKs, so that the log lines carry the trace and span IDs, and check that the logs still link to the traces after
+    the migration, whichever log path the workload uses ([S-10](#s-10-send-each-log-line-to-datadog-once)).
+- **Requirement:** keep the traces connected between the migrated workloads and the ones that still run Datadog SDKs
+  in their default mode:
+  - The DDOT SDK Java agent extracts and injects the `datadog`, `tracecontext`, and `baggage` propagation styles by
+    default. `OTEL_PROPAGATORS` replaces this list: with `tracecontext,baggage`, which
+    [O-04](#o-04-point-the-sdks-at-the-daemon-opentelemetry-collector) sets through the `Instrumentation`'s
+    `spec.propagators`, a migrated workload stops sending and reading the Datadog headers.
+  - The traces then stay connected only if the workloads that still run Datadog SDKs extract `tracecontext`. A Datadog
+    SDK configured with `DD_TRACE_PROPAGATION_STYLE=datadog` doesn't, and an older version might not.
+  - During the migration, keep the `datadog` style in the migrated workloads. The `Instrumentation`'s
+    `spec.propagators` doesn't accept `datadog`, so set `DD_TRACE_PROPAGATION_STYLE` in its `spec.env`, which takes
+    precedence over `OTEL_PROPAGATORS` ([OpenTelemetry environment variable interoperability][dd-otel-env]):
+
+    ```yaml
+    spec:
+      env:
+        - name: DD_TRACE_PROPAGATION_STYLE
+          value: datadog,tracecontext,baggage
+    ```
+
+    Without the OpenTelemetry Operator, don't set `OTEL_PROPAGATORS`, so that the default list applies. Once all the
+    workloads that exchange traces are migrated, remove `DD_TRACE_PROPAGATION_STYLE`.
+- **Fix: roll out one workload at a time.** The OpenTelemetry mode is a configuration of the same Datadog SDK, so the
+  container image doesn't change ([S-09](#s-09-configure-a-java-agent-bundled-in-the-container-image)): switch a
+  workload by adding the variables of [S-08](#s-08-configure-the-sdks-of-workloads-without-the-opentelemetry-operator)
+  to its container `env`, for example through the values of a shared Helm chart, or by annotating its pods for the
+  OpenTelemetry Operator ([O-05](#o-05-annotate-workloads-and-prevent-double-instrumentation)). Keep the Datadog Agent
+  and its APM port, 8126, during the migration, for the workloads that still run Datadog SDKs in their default mode.
+- **Rollback:** remove the variables of the OpenTelemetry mode
+  ([S-01](#s-01-enable-the-opentelemetry-mode-of-the-ddot-sdks)) and the OTLP endpoint from the container `env`, or
+  remove the OpenTelemetry Operator's annotation, then restart the workload: the Datadog SDK sends its telemetry to the
+  Datadog Agent again.
+- **Verify:** for each migrated workload, compare its APM service before and after the migration: the same `service`,
+  `env`, and `version` tags, the same operation names, and connected traces with the workloads it calls and the ones
+  that call it.
+
 ## Datadog Agent and Datadog Operator rules
 
 These rules use the Datadog Operator's `DatadogAgent` custom resource (`datadoghq.com/v2alpha1`), as in
@@ -1705,6 +1760,7 @@ operating system, architecture, deployment type, and signals. See [TROUBLESHOOTI
 does not appear.
 
 [install]: ./INSTALL.md
+[host-profiler]: ./README.md#host-profiler-optional
 [values]: ./values.yaml
 [dd-agent-yaml]: ./datadog-agent.yaml
 [examples-rendered]: ./examples/default/rendered/
