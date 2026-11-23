@@ -1035,6 +1035,17 @@ in [`values.yaml`][values] list them:
   `DD_METRICS_OTEL_ENABLED=true` and `OTEL_METRICS_EXPORTER=otlp` effective for that workload.
   `OTEL_METRICS_EXPORTER` defaults to `otlp`: only check that it isn't set to `none`. Check the installed SDK's runtime
   support, required packages or imports, and export transport before applying the change.
+- **Java:** from `dd-java-agent` 1.63.0, the JVM runtime metrics go over OTLP when `DD_METRICS_OTEL_ENABLED=true`
+  and `OTEL_METRICS_EXPORTER` is `otlp`:
+  - they have the OpenTelemetry names, such as `jvm.memory.used`, `jvm.gc.duration`, and `jvm.thread.count`, and the
+    `datadog.jvm.runtime` instrumentation scope, in the same OTLP export as the application metrics;
+  - JMXFetch stops collecting them, so they don't reach Datadog twice;
+  - `DD_RUNTIME_METRICS_ENABLED` defaults to `true` in Java: you don't need to set it.
+
+  Before 1.63.0, the JVM runtime metrics go through DogStatsD. The JMXFetch integrations, such as the Tomcat or
+  Kafka JMX metrics, and custom JMXFetch configurations, always go through DogStatsD: keep UDP `8125` of the Datadog
+  Agent reachable for them, or report them as `blocked`. Datadog maps the OpenTelemetry names for the service page and
+  the default runtime dashboards ([OpenTelemetry runtime metrics][dd-otel-runtime-metrics]).
 - **Compatibility:** follow the [runtime metrics documentation][dd-runtime-metrics]. If the SDK sends runtime metrics
   only through DogStatsD, keep the existing reachable Datadog Agent path. For a setup without a Datadog Agent, report
   runtime-metrics delivery as `blocked` until a supported delivery path is configured.
@@ -1042,6 +1053,10 @@ in [`values.yaml`][values] list them:
   intended transport. An enabled flag or successful trace export is insufficient.
 - **Conflicts:** preserve explicit runtime-metrics disables and existing runtime instrumentation. Ask before enabling disabled
   runtime-metrics collection or adding instrumentation that could duplicate the same measurements.
+
+FIXME check in the source code of the other DDOT SDKs (Python, Node.js, Go, .NET, Ruby, PHP) whether runtime
+metrics go over OTLP or DogStatsD in the OpenTelemetry mode, from which version, with which metric names, and whether
+`DD_RUNTIME_METRICS_ENABLED` is needed. Then add a per-language item, as for Java.
 
 ### S-08: Configure the SDKs of workloads without the OpenTelemetry Operator
 
@@ -1305,6 +1320,7 @@ in [`values.yaml`][values] list them:
   | OTLP trace export                                                             | 1.62.0                          |
   | OpenTelemetry Metrics API                                                     | 1.61.0                          |
   | OpenTelemetry Logs API, with `opentelemetry-api` 1.27.0 or later              | 1.62.0                          |
+  | JVM runtime metrics over OTLP                                                 | 1.63.0                          |
   | Sampling probability in OTLP spans, for the trace metrics                     | 1.67.0                          |
   | OpenTelemetry semantic conventions of HTTP, `DD_TRACE_OTEL_SEMANTICS_ENABLED` | 1.68.0                          |
   | Metrics shutdown in short-lived processes                                     | 1.68.0                          |
@@ -1660,8 +1676,10 @@ in [`values.yaml`][values] list them:
   mode of the DDOT SDKs one workload at a time, and check what changes for each workload:
   - **Unchanged:** the RED metrics and the APM operation names, for example `servlet.request` in Java, stay the same,
     so the monitors and dashboards based on them keep working.
-  - **Runtime metrics:** they're replaced by the OpenTelemetry runtime metrics, for example for the JVM. Update the
-    monitors and dashboards that use them ([S-07](#s-07-enable-runtime-metrics-where-supported)).
+  - **Runtime metrics:** their names change to the OpenTelemetry names, for example `jvm.memory.used` for the JVM.
+    Datadog maps them for the service page and the default runtime dashboards
+    ([OpenTelemetry runtime metrics][dd-otel-runtime-metrics]). Check the custom monitors and dashboards that use the
+    Datadog names ([S-07](#s-07-enable-runtime-metrics-where-supported)).
   - **Continuous Profiler:** it stops for the migrated workloads, because the DDOT SDKs don't support the process-level
     profiling of the Datadog SDKs yet, such as CPU, memory, and lock profiling. Two options:
     - **Switch to the DDOT Full Host Profiler,** which profiles the CPU usage of every process of the node with eBPF,
@@ -2014,6 +2032,7 @@ does not appear.
 [ddot-converter]: https://github.com/DataDog/datadog-agent/blob/main/comp/otelcol/converter/README.md
 [dd-trace-context-propagation]: https://docs.datadoghq.com/tracing/trace_collection/trace_context_propagation/
 [dd-runtime-metrics]: https://docs.datadoghq.com/tracing/metrics/runtime_metrics/
+[dd-otel-runtime-metrics]: https://docs.datadoghq.com/opentelemetry/integrations/runtime_metrics/
 [dd-deployment-tracking]: https://docs.datadoghq.com/tracing/services/deployment_tracking/
 [otel-go]: https://opentelemetry.io/docs/languages/go/
 [otel-sdk-env-vars]: https://opentelemetry.io/docs/specs/otel/configuration/sdk-environment-variables/
