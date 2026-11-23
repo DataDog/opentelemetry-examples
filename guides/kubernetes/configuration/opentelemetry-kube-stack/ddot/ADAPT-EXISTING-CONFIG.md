@@ -51,7 +51,40 @@ Run the coding agent from the repository that owns the applications and deployme
    OpenTelemetry Collector YAML), `Instrumentation` custom resources, workload manifests with
    `instrumentation.opentelemetry.io/*` annotations or `OTEL_*`/`DD_*` environment variables, `DatadogAgent` custom
    resources, and Helm values of the `datadog` or `datadog-operator` charts. Only apply the rule sections of the
-   components you found.
+   components you found in the repository or the cluster, or that the user confirmed.
+   The Datadog Agent, the OpenTelemetry Collectors, and the OpenTelemetry Operator often live in other repositories,
+   owned by a platform team. When you have access to the cluster, also find them there, with read-only commands:
+
+   ```sh
+   # An error that the resource type doesn't exist means that its operator isn't installed
+   kubectl get datadogagents,opentelemetrycollectors,instrumentations --all-namespaces
+   # Releases of the datadog, datadog-operator, opentelemetry-kube-stack, opentelemetry-collector,
+   # and opentelemetry-operator charts
+   helm list --all-namespaces
+   # Components installed another way: look for the datadog/agent, DDOT Collector, and opentelemetry-collector images
+   kubectl get daemonsets,deployments --all-namespaces \
+     -o custom-columns='NS:.metadata.namespace,NAME:.metadata.name,IMAGES:.spec.template.spec.containers[*].image'
+   # With Argo CD: the repository that deploys each component, which tells who owns it
+   kubectl get applications.argoproj.io --all-namespaces
+   ```
+
+   Without access to the cluster, ask the user how the Datadog Agent is installed, with the Datadog Operator or the
+   `datadog` Helm chart, and its version, whether an OpenTelemetry Collector or the OpenTelemetry Operator exists, and
+   who owns each of them. Until the user answers, report the rules that depend on them as `blocked`. Apply the rules of
+   the components that live in other repositories as `blocked` changes for their owner (step 7): don't skip them.
+   Before the workloads export OTLP, check that the OTLP endpoint answers from their namespace. For a Service
+   endpoint, send an empty OTLP request from a one-off pod: any HTTP status code proves that the endpoint is
+   reachable, and `000` means that it isn't:
+
+   ```sh
+   kubectl run otlp-check --rm -it --restart=Never --namespace <namespace> --image=curlimages/curl -- \
+     curl -s -o /dev/null -w '%{http_code}\n' -X POST -H 'Content-Type: application/json' -d '{}' \
+     http://<OTLP endpoint host>:4318/v1/traces
+   ```
+
+   For the node IP endpoint of
+   [S-12](#s-12-send-otlp-to-the-datadog-agent-instead-of-standalone-opentelemetry-collectors), which differs per
+   node, switch one canary workload first, and check that its traces arrive in Datadog.
    For Docker Compose or another non-Kubernetes deployment, find the application commands and environment,
    OpenTelemetry Collector service and configuration, and any Datadog Agent service, then apply only the application
    workflow and public OpenTelemetry Collector setup.
@@ -1288,7 +1321,8 @@ metrics go over OTLP or DogStatsD in the OpenTelemetry mode, from which version,
     environment first: turn the switch on, check its traces, metrics, and logs in Datadog
     ([S-13](#s-13-migrate-workloads-from-the-datadog-sdks) verify), then switch the other services in small groups.
     Check that the OTLP endpoint of the chart is reachable from the namespace of each service before turning its
-    switch on: without it, the service stops sending traces.
+    switch on, as step 2 of the [instructions for coding agents](#instructions-for-coding-agents) shows: without it,
+    the service stops sending traces.
 
   For example, with value names to map to the ones of your chart:
 
