@@ -305,7 +305,7 @@ configures one OpenTelemetry Collector.
   | `host.name`                                                                                                                                                                                                                         | Links to the host metrics                                                                             | `resource/hostname`, from `k8s.node.name`                                                                                                                                |
   | `host.id`, `cloud.provider`, `cloud.account.id`                                                                                                                                                                                     | Datadog hostname of cloud hosts, cloud context                                                        | `resource_detection` with the cloud provider's detector                                                                                                                  |
   | `datadog.host.name`                                                                                                                                                                                                                 | Datadog hostname, when `host.id` can't be reliably discovered                                         | Not set in the reference as `k8s.cluster.name` is set when it can't be discovered                                                                                        |
-  | `k8s.pod.name`                                                                                                                                                                                                                      | Links the pod and container views                                                                     | OpenTelemetry Operator and OpenTelemetry Operator, `k8s_attributes`                                                                                                      |
+  | `k8s.pod.name`                                                                                                                                                                                                                      | Links the pod and container views                                                                     | OpenTelemetry Operator and `k8s_attributes`                                                                                                                              |
   | `k8s.container.name`                                                                                                                                                                                                                | Container name displayed in Datadog                                                                   | OpenTelemetry Operator (`OTEL_RESOURCE_ATTRIBUTES`), `k8s_attributes` for the other workloads                                                                            |
   | `k8s.cluster.name`                                                                                                                                                                                                                  | Kubernetes Explorer, Kubernetes dashboards                                                            | `resource_detection` (EKS, GKE, AKS) or `resourceAttributes` ([C-10](#c-10-use-the-same-kubernetes-cluster-name-everywhere))                                             |
   | `k8s.namespace.name`, `k8s.node.name`, `k8s.pod.uid`, `k8s.deployment.name`, `k8s.replicaset.name`, `k8s.daemonset.name`, `k8s.statefulset.name`, `k8s.job.name`, `k8s.cronjob.name`, `container.image.name`, `container.image.tag` | Kubernetes context of the telemetry                                                                   | `k8s_attributes`                                                                                                                                                         |
@@ -1274,6 +1274,13 @@ metrics go over OTLP or DogStatsD in the OpenTelemetry mode, from which version,
     migration, and the OpenTelemetry Collector can use them for the pod logs and metrics of every service. At the end
     of the migration, turn the switches on by default, then remove them.
 
+    `openTelemetry.apmSdk.enabled` switches the traces, metrics, and logs of the SDK, and the
+    `admission.datadoghq.com/enabled: "false"` label, at once. Start with one canary service, in a non-production
+    environment first: turn the switch on, check its traces, metrics, and logs in Datadog
+    ([S-13](#s-13-migrate-workloads-from-the-datadog-sdks) verify), then switch the other services in small groups.
+    Check that the OTLP endpoint of the chart is reachable from the namespace of each service before turning its
+    switch on: without it, the service stops sending traces.
+
   For example, with value names to map to the ones of your chart:
 
   ```yaml
@@ -1327,6 +1334,11 @@ metrics go over OTLP or DogStatsD in the OpenTelemetry mode, from which version,
   its options apply twice. A `-javaagent` that a mechanism adds to `JAVA_TOOL_OPTIONS`, such as the OpenTelemetry
   Operator's `inject-java` annotation or the Single Step Instrumentation of the Datadog Cluster Agent's Admission
   Controller, then loads twice. Remove the expansion, and keep the other options in a separate variable.
+  Removing it can change which option wins. The JVM reads `JAVA_TOOL_OPTIONS` before the command line, and the last
+  occurrence of an option wins. In `exec java ${JAVA_OPTS} ${JAVA_TOOL_OPTIONS} ...`, the `JAVA_TOOL_OPTIONS` options
+  come last and win over the ones of `JAVA_OPTS`. Without the expansion, the options of `JAVA_OPTS` win, for example a
+  different `-XX:MaxRAMPercentage` or `-Ddd.*` value. Before the change, compare the options that both variables set
+  in each workload, and remove the duplicates, keeping the value that's effective today.
 - **Requirement:** use `dd-java-agent` 1.68.0 or later, the first version that supports all the settings of
   [S-01](#s-01-enable-the-opentelemetry-mode-of-the-ddot-sdks). Otherwise, upgrade `dd-java-agent` in the image, and
   pin its version. The minimums per feature are:
@@ -1361,10 +1373,14 @@ metrics go over OTLP or DogStatsD in the OpenTelemetry mode, from which version,
   `dd-java-agent` is in one place, as the
   [application workflow](#3-move-compatible-configuration-to-environment-variables) recommends. Keep the JVM options
   that don't configure the telemetry, such as memory settings, and the `-Ddatadog.*` properties, which configure the
-  tracer's own logging. With `-Ddatadog.slf4j.simpleLogger.logFile=System.out`, the tracer writes its logs to the
-  standard output, mixed with the application's logs that the OpenTelemetry Collector or the Datadog Agent tails
-  ([S-10](#s-10-send-each-log-line-to-datadog-once)). The standard error is tailed too: to keep the tracer's logs out
-  of the collected logs, send them to a file.
+  tracer's own logging: this guide doesn't require changing them. With
+  `-Ddatadog.slf4j.simpleLogger.logFile=System.out`, or with the default, the standard error, the tracer's logs reach
+  Datadog with the application's logs that the OpenTelemetry Collector or the Datadog Agent tails
+  ([S-10](#s-10-send-each-log-line-to-datadog-once)). At the default log level, they're few, such as the startup
+  configuration and warnings, and they help troubleshooting. Only when they disturb the log parsing, send them to a
+  file in a writable path, for example `-Ddatadog.slf4j.simpleLogger.logFile=/tmp/dd-java-agent.log`, and read it with
+  `kubectl exec`. The variable that holds the option, for example in the workload's `env`, decides who makes the
+  change.
 - **Logs:** `dd-java-agent` doesn't export the logs of Log4j 2, Logback, or `java.util.logging` over OTLP: tail the
   standard output of these applications ([S-10](#s-10-send-each-log-line-to-datadog-once)).
 - **Verify:** check the effective JVM arguments and environment of a running pod, then the active configuration in
@@ -1391,7 +1407,9 @@ metrics go over OTLP or DogStatsD in the OpenTelemetry mode, from which version,
   the Datadog Agent tailing the container's standard output and error, or OTLP export from the SDK. The reference
   configuration does both by default: the `file_log` receiver of the `daemon` OpenTelemetry Collector tails the logs of
   every pod, with `include: [/var/log/pods/*/*/*.log]` and no `exclude`, and S-01 sets `DD_LOGS_OTEL_ENABLED=true`. Both
-  paths feed the same `logs` pipeline, so every log line that the application also prints reaches Datadog twice.
+  paths feed the same `logs` pipeline. When the SDK also exports the logs of the application's logging library over
+  OTLP, which the Python and .NET DDOT SDKs do (see the table below), every log line that the application also prints
+  reaches Datadog twice.
 - **Fix:** choose one path per workload:
   - **Tail the standard output,** when the application already logs to it. This path collects everything the
     container prints, including the output of libraries that the SDK doesn't instrument. When the SDK exports the
@@ -1812,8 +1830,10 @@ metrics go over OTLP or DogStatsD in the OpenTelemetry mode, from which version,
     ([A-01](#a-01-disable-the-features-that-duplicate-the-opentelemetry-collectors)) only at the end of the migration,
     once the logs of all the workloads come from the `daemon` OpenTelemetry Collector. Then restore the default
     `include` of `file_log`, and remove the `ad.datadoghq.com/logs_exclude` annotations.
-- **Fix: roll out one workload at a time.** The OpenTelemetry mode is a configuration of the same Datadog SDK, so the
-  container image doesn't change ([S-09](#s-09-configure-a-java-agent-bundled-in-the-container-image)): switch a
+- **Fix: roll out one workload at a time.** The OpenTelemetry mode is a configuration of the same Datadog SDK, so
+  switching a workload doesn't need a new container image. Make the one-time image changes of
+  [S-09](#s-09-configure-a-java-agent-bundled-in-the-container-image) first, such as the startup script or the
+  `dd-java-agent` version, and keep the workloads in the default mode while they roll out. Then switch a
   workload by adding the variables of [S-08](#s-08-configure-the-sdks-of-workloads-without-the-opentelemetry-operator)
   to its container `env`, for example with the `openTelemetry.apmSdk.enabled` value of a shared Helm chart, or by
   annotating its pods for the
@@ -1979,6 +1999,13 @@ Report these as `blocked` when the user's setup depends on them:
 - **OpenTelemetry API in Go compiled with Orchestrion:** spans created with the OpenTelemetry API aren't bridged to the
   DDOT SDK for Go ([orchestrion#936][orchestrion-936]). Check whether the selected stable `dd-trace-go/v2` release
   includes that fix, and verify the bridge before removing the block.
+- **Pod logs tailed by the `daemon` OpenTelemetry Collector:** at level 1 of
+  [C-14](#c-14-choose-where-the-opentelemetry-collector-runs-on-kubernetes), when the Collector tails the pod logs
+  instead of the Datadog Agent, the logs miss enrichments of the Datadog Agent, such as the `source` tag that selects
+  the Datadog log integration pipelines, and this guide doesn't yet document how to parse the `dd.trace_id` and
+  `dd.span_id` that log injection adds, to keep the logs linked to the traces (FIXMEs of
+  [S-13](#s-13-migrate-workloads-from-the-datadog-sdks)). Keep the Datadog Agent tailing the pod logs of the
+  workloads that depend on these, and report the move of their logs as `blocked`.
 - **Live Debugger for Go on arm64 with Linux >= 6.18:** Go probes fail to load with
   `invalid bpf_context access off=328 size=8` ([datadog-agent#57314][dd-agent-57314]). Use x86_64 nodes or an older
   arm64 kernel.
