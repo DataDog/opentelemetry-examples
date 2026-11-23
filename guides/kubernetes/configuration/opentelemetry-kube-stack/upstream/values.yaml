@@ -632,10 +632,9 @@ collectors:
     # config, presets, and targetAllocator from being merged into this collector.
     inheritDefaultCRConfig: false
 
-    # Host Profiler release candidate image. Update the tag when using a newer RC.
     image:
       repository: datadog/ddot-ebpf
-      tag: 7.86.0-rc.3
+      tag: 7.86.0
 
     env:
       - name: DD_API_KEY

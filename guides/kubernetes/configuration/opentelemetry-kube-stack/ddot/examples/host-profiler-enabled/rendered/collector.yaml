@@ -1163,7 +1163,7 @@ spec:
                 otlp:
                   endpoint: http://localhost:4318
                   protocol: http/protobuf
-  image: "datadog/ddot-ebpf:7.86.0-rc.3"
+  image: "datadog/ddot-ebpf:7.86.0"
   imagePullPolicy: IfNotPresent
   upgradeStrategy: automatic
   hostPID: true
@@ -1263,7 +1263,7 @@ spec:
       - cp
       - /etc/dd-host-profiler/seccomp.json
       - /host/var/lib/kubelet/seccomp/host-profiler.json
-      image: 'datadog/ddot-ebpf:7.86.0-rc.3'
+      image: 'datadog/ddot-ebpf:7.86.0'
       name: seccomp-installer
       securityContext:
         allowPrivilegeEscalation: false

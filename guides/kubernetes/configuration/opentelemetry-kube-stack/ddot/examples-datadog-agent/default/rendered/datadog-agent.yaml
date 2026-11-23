@@ -764,7 +764,7 @@ spec:
       - name: DD_LOG_FORMAT_JSON
         value: "true"
       image:
-        tag: 7.84.3-jmx
+        tag: 7.86.0-jmx
 ---
 apiVersion: apps/v1
 kind: DaemonSet
@@ -890,7 +890,7 @@ spec:
           value: "true"
         - name: DD_IGNORE_AUTOCONF
           value: kubernetes_state
-        image: registry.datadoghq.com/agent:7.84.3-jmx
+        image: registry.datadoghq.com/agent:7.86.0-jmx
         livenessProbe:
           failureThreshold: 6
           httpGet:
@@ -1022,7 +1022,7 @@ spec:
           value: "true"
         - name: DD_LOG_FORMAT_JSON
           value: "true"
-        image: registry.datadoghq.com/agent:7.84.3-jmx
+        image: registry.datadoghq.com/agent:7.86.0-jmx
         livenessProbe:
           initialDelaySeconds: 15
           periodSeconds: 15
@@ -1114,7 +1114,7 @@ spec:
           value: "true"
         - name: DD_LOG_FORMAT_JSON
           value: "true"
-        image: registry.datadoghq.com/agent:7.84.3-jmx
+        image: registry.datadoghq.com/agent:7.86.0-jmx
         name: system-probe
         resources: {}
         securityContext:
@@ -1166,7 +1166,7 @@ spec:
         command:
         - bash
         - -c
-        image: registry.datadoghq.com/agent:7.84.3-jmx
+        image: registry.datadoghq.com/agent:7.86.0-jmx
         name: init-volume
         resources: {}
         volumeMounts:
@@ -1203,7 +1203,7 @@ spec:
               fieldPath: status.hostIP
         - name: DD_DISCOVERY_ENABLED
           value: "true"
-        image: registry.datadoghq.com/agent:7.84.3-jmx
+        image: registry.datadoghq.com/agent:7.86.0-jmx
         name: init-config
         resources: {}
         volumeMounts:
@@ -1229,7 +1229,7 @@ spec:
         - cp
         - /etc/config/system-probe-seccomp.json
         - /host/var/lib/kubelet/seccomp/system-probe
-        image: registry.datadoghq.com/agent:7.84.3-jmx
+        image: registry.datadoghq.com/agent:7.86.0-jmx
         name: seccomp-setup
         resources: {}
         volumeMounts:
