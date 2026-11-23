@@ -301,7 +301,7 @@ configures one OpenTelemetry Collector.
   | `service.namespace`                                                                                                                                                                                                                 | Groups the services of an application. Strongly recommended, not required                             | OpenTelemetry Operator and `k8s_attributes`, following the [OpenTelemetry Kubernetes conventions][otel-semconv-k8s-attributes]: annotations, Kubernetes namespace        |
   | `deployment.environment.name`                                                                                                                                                                                                       | `env` tag. Strongly recommended                                                                       | OpenTelemetry Operator and `resourceAttributes` of the OpenTelemetry Kube Stack Helm chart ([C-11](#c-11-set-the-deployment-environment)): annotations, OpenTelemetry Collector pipeline      |
   | `service.version`                                                                                                                                                                                                                   | `version` tag                                                                                         | OpenTelemetry Operator and `k8s_attributes`, following the [OpenTelemetry Kubernetes conventions][otel-semconv-k8s-attributes]: annotations, labels, container image tag |
-  | `container.id`                                                                                                                                                                                                                      | Links spans to the container metrics: without it, APM doesn't show the container metrics of a service | The SDK's container resource detector: not extracted by `k8s_attributes` in the reference                                                                                |
+  | `container.id`                                                                                                                                                                                                                      | Links spans to the container metrics: without it, APM doesn't show the container metrics of a service | The SDK's container resource detector, and `k8s_attributes`, which looks it up in the pod status                                                                         |
   | `host.name`                                                                                                                                                                                                                         | Links to the host metrics                                                                             | `resource/hostname`, from `k8s.node.name`                                                                                                                                |
   | `host.id`, `cloud.provider`, `cloud.account.id`                                                                                                                                                                                     | Datadog hostname of cloud hosts, cloud context                                                        | `resource_detection` with the cloud provider's detector                                                                                                                  |
   | `datadog.host.name`                                                                                                                                                                                                                 | Datadog hostname, when `host.id` can't be reliably discovered                                         | Not set in the reference as `k8s.cluster.name` is set when it can't be discovered                                                                                        |
@@ -314,8 +314,9 @@ configures one OpenTelemetry Collector.
   telemetry from the workloads, rather than setting these attributes by hand in each application:
   - with the OpenTelemetry Kube Stack Helm chart, `presets.kubernetesAttributes.enabled: true`. It extracts the
     attributes above, except `container.id` and `k8s.cluster.name`, and sets `otel_annotations: true`;
-  - otherwise, the `k8s_attributes` processor with its RBAC (`get`, `list`, and `watch` on pods, namespaces, nodes, and
-    replica sets), and the `metadata` to extract:
+  - otherwise, the `k8s_attributes` processor with its RBAC (`get`, `list`, and `watch` on pods, namespaces, and
+    replica sets, and on nodes when you extract node metadata, such as `k8s.node.uid` or node labels), and the
+    `metadata` to extract:
 
     <!-- snippet-source: file=guides/kubernetes/configuration/opentelemetry-kube-stack/ddot/values.yaml path=.defaultCRConfig.config.processors.k8s_attributes.extract.metadata snippet-path=.processors.k8s_attributes.extract.metadata mode=subset sha=165daa6cefb0 -->
     <!-- snippet-source: file=guides/kubernetes/configuration/opentelemetry-kube-stack/ddot/values.yaml path=.defaultCRConfig.config.processors.k8s_attributes mode=adapted sha=9ba22a88e1c4 -->
@@ -442,7 +443,7 @@ configures one OpenTelemetry Collector.
   ([S-08](#s-08-configure-the-sdks-of-workloads-without-the-opentelemetry-operator)). In pods with several containers,
   the processor can only tell which container sent the telemetry from its `container.id` resource attribute, and doesn't
   set `k8s.container.name` without it.
-- **`container.id`:** check that the application traces carry it. If they don't, add `container.id` to the
+- **`container.id`:** check that the application traces carry it. The reference configuration has `container.id` in the
   `k8s_attributes` processor's `extract.metadata`: the processor then looks up the container ID from the pod's status,
   using the `k8s.container.name` that the OpenTelemetry Operator injects in `OTEL_RESOURCE_ATTRIBUTES`.
 - **Conflicts:** `k8s_attributes` doesn't overwrite attributes the telemetry already has. Remove the hand-set values
@@ -1082,7 +1083,8 @@ in [`values.yaml`][values] list them:
             value: <service name>
           # Only when the OpenTelemetry Collector can't set deployment.environment.name, or when a configuration
           # management solution, such as the OpenTelemetry Kube Stack Helm chart, sets it in both the OpenTelemetry
-          # Collector and the SDKs, with the same value (C-11)
+          # Collector and the SDKs, with the same value (C-11). When you remove this variable, also remove the
+          # deployment.environment.name entry of OTEL_RESOURCE_ATTRIBUTES below.
           - name: OTEL_RESOURCE_ATTRIBUTES_DEPLOYMENT_ENVIRONMENT_NAME
             value: <deployment environment name>
           - name: OTEL_RESOURCE_ATTRIBUTES_SERVICE_VERSION
@@ -1303,7 +1305,8 @@ in [`values.yaml`][values] list them:
   that don't configure the telemetry, such as memory settings, and the `-Ddatadog.*` properties, which configure the
   tracer's own logging. With `-Ddatadog.slf4j.simpleLogger.logFile=System.out`, the tracer writes its logs to the
   standard output, mixed with the application's logs that the OpenTelemetry Collector or the Datadog Agent tails
-  ([S-10](#s-10-send-each-log-line-to-datadog-once)): to keep them apart, send them to `System.err` or to a file.
+  ([S-10](#s-10-send-each-log-line-to-datadog-once)). The standard error is tailed too: to keep the tracer's logs out
+  of the collected logs, send them to a file.
 - **Logs:** `dd-java-agent` doesn't export the logs of Log4j 2, Logback, or `java.util.logging` over OTLP: tail the
   standard output of these applications ([S-10](#s-10-send-each-log-line-to-datadog-once)).
 - **Verify:** check the effective JVM arguments and environment of a running pod, then the active configuration in
@@ -1326,11 +1329,11 @@ in [`values.yaml`][values] list them:
 
 ### S-10: Send each log line to Datadog once
 
-- **Requirement:** each workload's logs reach Datadog through one path: either the `daemon` OpenTelemetry Collector
-  tailing the container's standard output and error, or OTLP export from the SDK. The reference configuration does
-  both by default: the `file_log` receiver of the `daemon` OpenTelemetry Collector tails the logs of every pod, with
-  `include: [/var/log/pods/*/*/*.log]` and no `exclude`, and S-01 sets `DD_LOGS_OTEL_ENABLED=true`. Both paths feed the
-  same `logs` pipeline, so every log line that the application also prints reaches Datadog twice.
+- **Requirement:** each workload's logs reach Datadog through one path: either the `daemon` OpenTelemetry Collector or
+  the Datadog Agent tailing the container's standard output and error, or OTLP export from the SDK. The reference
+  configuration does both by default: the `file_log` receiver of the `daemon` OpenTelemetry Collector tails the logs of
+  every pod, with `include: [/var/log/pods/*/*/*.log]` and no `exclude`, and S-01 sets `DD_LOGS_OTEL_ENABLED=true`. Both
+  paths feed the same `logs` pipeline, so every log line that the application also prints reaches Datadog twice.
 - **Fix:** choose one path per workload:
   - **Tail the standard output,** when the application already logs to it. This path collects everything the
     container prints, including the output of libraries that the SDK doesn't instrument. When the SDK exports the
@@ -1479,7 +1482,9 @@ in [`values.yaml`][values] list them:
 
   3. **The RBAC:** grant the ServiceAccount of the Datadog Agent DaemonSet the permissions of the
      [`k8s_attributes` RBAC][otel-k8sattributes-rbac], the same ones that the Datadog Operator grants its OpenTelemetry
-     Agent Gateway. Find the ServiceAccount name with
+     Agent Gateway, plus `get`, `list`, and `watch` on `nodes` if you extract node metadata, such as `k8s.node.uid`
+     or node labels ([C-03](#c-03-enrich-the-telemetry-with-the-resource-attributes-datadog-needs)). Find the
+     ServiceAccount name with
      `kubectl get daemonset --namespace datadog -o jsonpath='{.items[*].spec.template.spec.serviceAccountName}'`:
 
      ```yaml
@@ -1631,9 +1636,11 @@ in [`values.yaml`][values] list them:
 
     Without the OpenTelemetry Operator, don't set `OTEL_PROPAGATORS`, so that the default list applies. Once these
     workloads are migrated or extract `tracecontext`, remove `DD_TRACE_PROPAGATION_STYLE`.
-- **Requirement: move the pod logs one workload at a time.** During the migration, keep the log collection of the
-  Datadog Agent enabled for the whole cluster, with `spec.features.logCollection.enabled`, and move the pod logs of
-  each workload to the `daemon` OpenTelemetry Collector when you migrate it:
+- **Requirement: move the pod logs one workload at a time,** when the `daemon` OpenTelemetry Collector replaces the log
+  collection of the Datadog Agent ([C-14](#c-14-choose-where-the-opentelemetry-collector-runs-on-kubernetes) level
+  1). At levels 2 and 3, the Datadog Agent keeps tailing the pod logs, and nothing moves. During the migration, keep
+  the log collection of the Datadog Agent enabled for the whole cluster, with `spec.features.logCollection.enabled`,
+  and move the pod logs of each workload to the `daemon` OpenTelemetry Collector when you migrate it:
   - Add the `ad.datadoghq.com/logs_exclude: "true"` annotation to the pod template of the workload, so that the Datadog
     Agent stops collecting its logs, from Datadog Agent 7.45 ([container discovery management][dd-container-discovery]).
   - Make the `file_log` receiver of the `daemon` OpenTelemetry Collector tail the logs of the workload. Its default
@@ -1654,8 +1661,10 @@ in [`values.yaml`][values] list them:
 - **Rollback:** remove the variables of the OpenTelemetry mode
   ([S-01](#s-01-enable-the-opentelemetry-mode-of-the-ddot-sdks)) and the OTLP endpoint from the container `env`, or
   remove the OpenTelemetry Operator's annotation, then restart the workload: the Datadog SDK sends its telemetry to the
-  Datadog Agent again. Also remove the `ad.datadoghq.com/logs_exclude` annotation and the workload's `file_log`
-  pattern, so that the Datadog Agent collects its logs again.
+  Datadog Agent again. Also remove the `admission.datadoghq.com/enabled: "false"` label
+  ([S-08](#s-08-configure-the-sdks-of-workloads-without-the-opentelemetry-operator)), so that the Datadog Cluster
+  Agent's Admission Controller injects its `DD_*` variables again, and the `ad.datadoghq.com/logs_exclude` annotation
+  and the workload's `file_log` pattern, so that the Datadog Agent collects its logs again.
 - **Verify:** for each migrated workload, compare its APM service before and after the migration: the same `service`,
   `env`, and `version` tags, the same operation names, and connected traces with the workloads it calls and the ones
   that call it.
