@@ -635,6 +635,13 @@ environment variable, typically through `OTEL_RESOURCE_ATTRIBUTES=datadog.host.n
   from the SDK, before it reaches any OpenTelemetry Collector pipeline. This applies to `deployment.environment.name`,
   to `k8s.cluster.name` ([C-10](#c-10-use-the-same-kubernetes-cluster-name-everywhere)), and to any custom resource
   attribute that has the same value for the whole Kubernetes cluster.
+
+  **Exception:** set it in the SDKs when the workload already has a Datadog environment, the
+  `tags.datadoghq.com/env` label or `DD_ENV`: set `deployment.environment.name` in `OTEL_RESOURCE_ATTRIBUTES` and in
+  the `resource.opentelemetry.io/deployment.environment.name` annotation, with the same value
+  ([S-11](#s-11-align-datadog-unified-service-tagging-with-the-opentelemetry-service-identity)). The OpenTelemetry
+  Collector then only sets a default for the other workloads, with `action: insert`, and never overwrites the
+  workload's value.
 - **Conflicts:** when both the SDKs and the OpenTelemetry Collector set it, use the same value. With `action: upsert`,
   which the OpenTelemetry Kube Stack Helm chart uses, the OpenTelemetry Collector's value overwrites a different value
   set in the SDK. To use the OpenTelemetry Collector's value as a default that workloads can override, remove
@@ -1096,9 +1103,10 @@ metrics go over OTLP or DogStatsD in the OpenTelemetry mode, from which version,
           ## Resource attributes to implement https://opentelemetry.io/docs/specs/semconv/non-normative/k8s-attributes/
           - name: OTEL_SERVICE_NAME
             value: <service name>
-          # Only when the OpenTelemetry Collector can't set deployment.environment.name, or when a configuration
-          # management solution, such as the OpenTelemetry Kube Stack Helm chart, sets it in both the OpenTelemetry
-          # Collector and the SDKs, with the same value (C-11). When you remove this variable, also remove the
+          # Only when the workload has a Datadog env, tags.datadoghq.com/env or DD_ENV, with its value (S-11), when
+          # the OpenTelemetry Collector can't set deployment.environment.name, or when a configuration management
+          # solution, such as the OpenTelemetry Kube Stack Helm chart, sets it in both the OpenTelemetry Collector and
+          # the SDKs, with the same value (C-11). When you remove this variable, also remove the
           # deployment.environment.name entry of OTEL_RESOURCE_ATTRIBUTES below.
           - name: OTEL_RESOURCE_ATTRIBUTES_DEPLOYMENT_ENVIRONMENT_NAME
             value: <deployment environment name>
@@ -1183,9 +1191,9 @@ metrics go over OTLP or DogStatsD in the OpenTelemetry mode, from which version,
         annotations:
           resource.opentelemetry.io/service.name: <service name, the value of OTEL_SERVICE_NAME>
           resource.opentelemetry.io/service.version: <service version, the value of OTEL_RESOURCE_ATTRIBUTES_SERVICE_VERSION>
-          # Only when the OpenTelemetry Collector can't set deployment.environment.name, or when a configuration
-          # management solution, such as the OpenTelemetry Kube Stack Helm chart, sets it in both the OpenTelemetry
-          # Collector and the SDKs, with the same value (C-11)
+          # Only when the workload has a Datadog env, with its value (S-11), when the OpenTelemetry Collector can't
+          # set deployment.environment.name, or when a configuration management solution, such as the OpenTelemetry
+          # Kube Stack Helm chart, sets it in both the OpenTelemetry Collector and the SDKs, with the same value (C-11)
           resource.opentelemetry.io/deployment.environment.name: <deployment environment name, the value of OTEL_RESOURCE_ATTRIBUTES_DEPLOYMENT_ENVIRONMENT_NAME>
   ```
 
@@ -1220,8 +1228,10 @@ metrics go over OTLP or DogStatsD in the OpenTelemetry mode, from which version,
 - **`deployment.environment.name`:** setting it in the OpenTelemetry Collector's ingestion pipeline is strongly
   recommended. Only keep `OTEL_RESOURCE_ATTRIBUTES_DEPLOYMENT_ENVIRONMENT_NAME`, the `deployment.environment.name`
   entry of `OTEL_RESOURCE_ATTRIBUTES`, and the `resource.opentelemetry.io/deployment.environment.name` annotation
-  when the OpenTelemetry Collector can't set it, or when one configuration automation sets it in both the
-  OpenTelemetry Collector and the SDKs ([C-11](#c-11-set-the-deployment-environment)).
+  when the workload has a Datadog environment, `tags.datadoghq.com/env` or `DD_ENV`
+  ([S-11](#s-11-align-datadog-unified-service-tagging-with-the-opentelemetry-service-identity)), when the
+  OpenTelemetry Collector can't set it, or when one configuration automation sets it in both the OpenTelemetry
+  Collector and the SDKs ([C-11](#c-11-set-the-deployment-environment)).
 - **Fix:** keep `OTEL_RESOURCE_ATTRIBUTES` after the variables it references. Kubernetes only expands a `$(VAR)`
   reference to a variable defined earlier in the same container's `env`, and leaves the other references as literal
   text ([dependent environment variables][k8s-dependent-env-vars]). For Go workloads that use a DDOT SDK for Go
@@ -1231,14 +1241,20 @@ metrics go over OTLP or DogStatsD in the OpenTelemetry mode, from which version,
 - **With a shared Helm chart:** when the services are deployed with a shared, internal Helm chart, add the variables
   and the annotations above to the pod template of the chart, once for all the services. A new version of the chart
   then rolls the configuration out to all of them, through the existing deployment or GitOps pipeline.
-  - Take the per-service values from the values that the chart already has, so that the variables and the
-    annotations always match: the service name from the chart's service or release name, the service version from
-    the image tag that the chart deploys, and the container name from the value that the template uses for
-    `containers[].name`. The service version then changes on every release without other updates, and the container
-    name can't drift from the pod spec.
-  - Leave `deployment.environment.name` out of the chart, so that the same values serve all the environments
-    ([C-11](#c-11-set-the-deployment-environment)). Use a values file per environment only when the OpenTelemetry
-    Collector can't set it.
+  - Take the per-service values from the values that the chart already has, and compute each one once, for example
+    in a named template such as `{{ include "<chart>.serviceName" . }}`, so that the labels, the variables, and the
+    annotations always match:
+    - when the chart already sets the Datadog Unified Service Tagging values, the `tags.datadoghq.com/*` labels or
+      the `DD_SERVICE`, `DD_VERSION`, and `DD_ENV` variables, use these values for the service name, the service
+      version, and the deployment environment
+      ([S-11](#s-11-align-datadog-unified-service-tagging-with-the-opentelemetry-service-identity));
+    - otherwise, the service name from the chart's service or release name, and the service version from the image
+      tag that the chart deploys. The service version then changes on every release without other updates;
+    - the container name from the value that the template uses for `containers[].name`, so that it can't drift from
+      the pod spec.
+  - When the chart has no Datadog environment value, leave `deployment.environment.name` out of the chart, so that the
+    same values serve all the environments ([C-11](#c-11-set-the-deployment-environment)). Use a values file per
+    environment only when the OpenTelemetry Collector can't set it.
   - Make the `daemon` OpenTelemetry Collector endpoint and `DD_AGENT_HOST` chart values with defaults, and let
     services enable the optional Datadog features ([S-06](#s-06-enable-optional-datadog-features-per-workload)) and
     choose their log path ([S-10](#s-10-send-each-log-line-to-datadog-once)) with values.
@@ -1427,9 +1443,45 @@ metrics go over OTLP or DogStatsD in the OpenTelemetry mode, from which version,
 
   When the values differ, the traces, logs, and metrics of a workload get different `service`, `version`, or `env`
   tags, and Datadog can't correlate them.
+- **Requirement, strongly recommended:** when a workload already has a Datadog value, a `tags.datadoghq.com/*` label
+  or a `DD_SERVICE`, `DD_VERSION`, or `DD_ENV` variable, that value is the source of the OpenTelemetry service
+  identity. Set it, with the same value, in both:
+  - the SDK variables of [S-08](#s-08-configure-the-sdks-of-workloads-without-the-opentelemetry-operator), which
+    configure the SDK: `OTEL_SERVICE_NAME`, and the `service.version` and `deployment.environment.name` entries of
+    `OTEL_RESOURCE_ATTRIBUTES`. The `admission.datadoghq.com/enabled: "false"` label of S-08 stops the Datadog Cluster
+    Agent's Admission Controller from injecting the `DD_*` variables from the labels, so the SDK only gets these
+    values from the variables you set;
+  - the `resource.opentelemetry.io/*` pod annotations, which the `k8s_attributes` processor reads for the telemetry
+    that the OpenTelemetry Collector collects about the pod, such as its logs, metrics, and Kubernetes events
+    ([C-03](#c-03-enrich-the-telemetry-with-the-resource-attributes-datadog-needs)).
+
+  | Datadog source                                 | OpenTelemetry attribute       | SDK variable                                                                   | Pod annotation                                         |
+  |------------------------------------------------|-------------------------------|--------------------------------------------------------------------------------|--------------------------------------------------------|
+  | `tags.datadoghq.com/service` or `DD_SERVICE`   | `service.name`                | `OTEL_SERVICE_NAME`                                                            | `resource.opentelemetry.io/service.name`               |
+  | `tags.datadoghq.com/version` or `DD_VERSION`   | `service.version`             | `OTEL_RESOURCE_ATTRIBUTES`, through `OTEL_RESOURCE_ATTRIBUTES_SERVICE_VERSION` | `resource.opentelemetry.io/service.version`            |
+  | `tags.datadoghq.com/env` or `DD_ENV`           | `deployment.environment.name` | `OTEL_RESOURCE_ATTRIBUTES`, through `OTEL_RESOURCE_ATTRIBUTES_DEPLOYMENT_ENVIRONMENT_NAME` | `resource.opentelemetry.io/deployment.environment.name` |
+
+  This keeps the existing Datadog service name, so the APM service, its monitors, and its history continue after the
+  migration ([S-13](#s-13-migrate-workloads-from-the-datadog-sdks)). Only when the workload has no Datadog value, use
+  the other sources of S-08, such as the chart's service name and image tag, and set `deployment.environment.name` in
+  the OpenTelemetry Collector ([C-11](#c-11-set-the-deployment-environment)).
+- **Requirement:** when the workload carries `deployment.environment.name`, the OpenTelemetry Collector doesn't
+  overwrite it. Don't set `deployment.environment.name` in the `resourceAttributes` of the OpenTelemetry Kube Stack
+  Helm chart, which uses `action: upsert`. To keep a default for the other workloads, use a `resource` processor with
+  `action: insert`, after `k8s_attributes`, as the conflicts of [C-11](#c-11-set-the-deployment-environment) describe.
+  The same applies to the bundled DDOT Collector
+  ([S-12](#s-12-send-otlp-to-the-datadog-agent-instead-of-standalone-opentelemetry-collectors)). The OpenTelemetry
+  Collectors don't set `service.name` or `service.version`, and the `infraattributes` processor only adds the values
+  that the telemetry doesn't have.
+- **Exception:** in pods whose containers have different services, with per-container labels such as
+  `tags.datadoghq.com/<container name>.service`, don't set the pod-level `resource.opentelemetry.io/service.name` and
+  `resource.opentelemetry.io/service.version` annotations: they'd apply the same values to all the containers. Set the
+  values in the SDK variables of each container. The `k8s_attributes` processor doesn't overwrite the attributes that
+  the SDK's telemetry already has.
 - **Fix:**
   - Keep the labels while the Datadog Agent collects telemetry about these workloads, and read the OpenTelemetry
-    values from them with the downward API, so that each value is set once. With the variables of
+    values from them with the downward API, or, in a shared Helm chart, with the same chart value, so that each value
+    is set once. An annotation can't read a label: write the annotation with the same value. With the variables of
     [S-08](#s-08-configure-the-sdks-of-workloads-without-the-opentelemetry-operator):
 
     ```yaml
@@ -1439,6 +1491,9 @@ metrics go over OTLP or DogStatsD in the OpenTelemetry mode, from which version,
           labels:
             tags.datadoghq.com/service: <service name>
             tags.datadoghq.com/version: <service version>
+          annotations:
+            resource.opentelemetry.io/service.name: <service name>
+            resource.opentelemetry.io/service.version: <service version>
         spec:
           containers:
             - env:
@@ -1452,15 +1507,18 @@ metrics go over OTLP or DogStatsD in the OpenTelemetry mode, from which version,
                       fieldPath: metadata.labels['tags.datadoghq.com/version']
     ```
 
-  - Remove the `DD_SERVICE`, `DD_VERSION`, and `DD_ENV` variables that the manifests set, unless a remaining
-    Datadog-specific feature requires them, as the [application
+  - Remove the `DD_SERVICE`, `DD_VERSION`, and `DD_ENV` variables that the manifests set, after copying their values
+    to the OpenTelemetry variables and annotations, and to the matching `tags.datadoghq.com/*` labels when the
+    workload doesn't have them: the Datadog Agent tags the telemetry it collects about the containers from the labels
+    or these variables. Keep the variables when a remaining Datadog-specific feature requires them, as the [application
     workflow](#3-move-compatible-configuration-to-environment-variables) describes. Then check the injected ones: the
     Datadog Cluster Agent's Admission Controller doesn't mutate pods that have the
     `admission.datadoghq.com/enabled: "false"` label
     ([O-05](#o-05-annotate-workloads-and-prevent-double-instrumentation),
     [S-08](#s-08-configure-the-sdks-of-workloads-without-the-opentelemetry-operator)), and injects them in the other
     pods.
-  - For `tags.datadoghq.com/env`, use the value of `deployment.environment.name`, wherever it's set
+  - When the workload has no Datadog `env` and the OpenTelemetry Collector sets `deployment.environment.name`, use the
+    same value for a `tags.datadoghq.com/env` label that you add later
     ([C-11](#c-11-set-the-deployment-environment)).
 - **Verify:** check the effective variables of a running pod with
   `kubectl exec <pod> --namespace <namespace> -- env | grep -E '^(DD|OTEL)_'`, then check in Datadog that the traces,
@@ -1675,7 +1733,10 @@ metrics go over OTLP or DogStatsD in the OpenTelemetry mode, from which version,
 - **Requirement:** when the workloads already run Datadog SDKs in their default mode, switch them to the OpenTelemetry
   mode of the DDOT SDKs one workload at a time, and check what changes for each workload:
   - **Unchanged:** the RED metrics and the APM operation names, for example `servlet.request` in Java, stay the same,
-    so the monitors and dashboards based on them keep working.
+    so the monitors and dashboards based on them keep working. This requires the same service name: take
+    `service.name` from the existing `DD_SERVICE` or `tags.datadoghq.com/service` value
+    ([S-11](#s-11-align-datadog-unified-service-tagging-with-the-opentelemetry-service-identity)). Otherwise, the
+    migrated workload appears as a new APM service.
   - **Runtime metrics:** their names change to the OpenTelemetry names, for example `jvm.memory.used` for the JVM.
     Datadog maps them for the service page and the default runtime dashboards
     ([OpenTelemetry runtime metrics][dd-otel-runtime-metrics]). Check the custom monitors and dashboards that use the
