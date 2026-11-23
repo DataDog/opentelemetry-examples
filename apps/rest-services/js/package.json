@@ -212,8 +212,7 @@
           },
           "@types/node": {
             "undici-types": "^5.28.4"
-          },
-          "joi": "^17.13.9"
+          }
         },
         "@opentelemetry/semantic-conventions": "^1.43.0",
         "@opentelemetry/core": {
