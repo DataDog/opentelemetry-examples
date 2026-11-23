@@ -837,9 +837,9 @@ variables in the workload container instead of an `Instrumentation` custom resou
           admission.datadoghq.com/enabled: "false" # label values are strings: keep the quotes
   ```
 
-- **Why:** the label stops the Datadog Agent's admission controller from also instrumenting the pod. It must be a
-  label: the Datadog admission controller only reads pod labels, so a `podSelector` keyed on the OpenTelemetry
-  annotations never matches.
+- **Why:** the label stops the Datadog Cluster Agent's Admission Controller from also instrumenting the pod. It must be
+  a label: the Datadog Cluster Agent's Admission Controller only reads pod labels, so a `podSelector` keyed on the
+  OpenTelemetry annotations never matches.
 
 ### O-06: Instrument Go applications at compile time
 
@@ -1117,6 +1117,24 @@ in [`values.yaml`][values] list them:
             value: "false"
   ```
 
+- **Requirement:** add the `admission.datadoghq.com/enabled: "false"` label to the pod template of the workload, as for
+  the workloads that the OpenTelemetry Operator instruments
+  ([O-05](#o-05-annotate-workloads-and-prevent-double-instrumentation)):
+
+  ```yaml
+  spec:
+    template:
+      metadata:
+        labels:
+          admission.datadoghq.com/enabled: "false" # label values are strings: keep the quotes
+  ```
+
+  The Datadog Cluster Agent's Admission Controller then stops mutating the pods of the workload. It no longer injects a
+  Datadog SDK with Single Step Instrumentation, or the `DD_SERVICE`, `DD_VERSION`, and `DD_ENV` variables, which can
+  take precedence over the OpenTelemetry service identity
+  ([S-11](#s-11-align-datadog-unified-service-tagging-with-the-opentelemetry-service-identity)). It no longer injects
+  `DD_AGENT_HOST` either, which the variables above set, or the other variables it injects, such as the ones it uses
+  for origin detection.
 - **Requirement:** in addition to the resource attribute variables above, which only configure the SDK, annotate
   the pod template with the `resource.opentelemetry.io/*` annotations, such as
   `resource.opentelemetry.io/service.name` and `resource.opentelemetry.io/service.version`
@@ -1270,8 +1288,8 @@ in [`values.yaml`][values] list them:
 
   `/proc/1/cmdline` shows the `java` command when the startup script starts it with `exec`. Otherwise, find the
   process ID of `java` first.
-- **Conflicts:** if the Datadog admission controller or another mechanism also adds a `-javaagent`, keep only one
-  ([O-05](#o-05-annotate-workloads-and-prevent-double-instrumentation)).
+- **Conflicts:** if the Datadog Cluster Agent's Admission Controller or another mechanism also adds a `-javaagent`, keep
+  only one ([O-05](#o-05-annotate-workloads-and-prevent-double-instrumentation)).
 
 ### S-10: Send each log line to Datadog once
 
@@ -1282,20 +1300,35 @@ in [`values.yaml`][values] list them:
   same `logs` pipeline, so every log line that the application also prints reaches Datadog twice.
 - **Fix:** choose one path per workload:
   - **Tail the standard output,** when the application already logs to it. This path collects everything the
-    container prints, including the output of libraries that the SDK doesn't instrument. Set
-    `DD_LOGS_OTEL_ENABLED=false` in the workload's container `env`, which takes precedence over the `Instrumentation`
-    ([S-06](#s-06-enable-optional-datadog-features-per-workload)). Keep log injection, `DD_LOGS_INJECTION=true`, so
-    that the log lines carry the trace and span IDs, and prefer JSON logs.
+    container prints, including the output of libraries that the SDK doesn't instrument. When the SDK exports the
+    events of the application's logging library over OTLP, set `DD_LOGS_OTEL_ENABLED=false` in the workload's
+    container `env`, which takes precedence over the `Instrumentation`
+    ([S-06](#s-06-enable-optional-datadog-features-per-workload)): see the table below. Keep log injection,
+    `DD_LOGS_INJECTION=true`, so that the log lines carry the trace and span IDs, and prefer JSON logs.
   - **Export the logs over OTLP.** The log records carry the trace context and the resource attributes of the SDK,
     without parsing. Only the log events of the logging libraries that the SDK supports are exported. Exclude the
     container's log files from `file_log`, with a pattern of the form
     `/var/log/pods/<namespace>_<pod name prefix>*_*/<container name>/*.log` in its `exclude` list.
-- **Java:** the DDOT SDK Java agent, `dd-java-agent`, only exports over OTLP the logs that the application emits with
-  the OpenTelemetry Logs API, from `opentelemetry-api` 1.27.0 ([OpenTelemetry API support][dd-otel-api]). It doesn't
-  export the log events of Log4j 2, Logback, or `java.util.logging`. For the applications that log with these
-  libraries, tail the standard output, and keep `DD_LOGS_INJECTION=true`. Their log lines don't reach Datadog twice
-  with `DD_LOGS_OTEL_ENABLED=true`, because the SDK doesn't export them, but check that they still carry the trace and
-  span IDs.
+- **`DD_LOGS_OTEL_ENABLED=true` per language:** it always exports the logs that the application emits with the
+  OpenTelemetry Logs API ([OpenTelemetry API support][dd-otel-api]). Only some DDOT SDKs also capture the
+  application's usual logging library, in parallel with its existing output, such as the standard output. Their log
+  lines then reach Datadog twice when that output is also tailed:
+
+  | DDOT SDK | Logging library captured with `DD_LOGS_OTEL_ENABLED=true` | When the standard output is tailed |
+  |----------|-----------------------------------------------------------|------------------------------------|
+  | Python   | Python's `logging` module: the SDK attaches an OpenTelemetry `LoggingHandler` to the root logger | Set `DD_LOGS_OTEL_ENABLED=false`, or export over OTLP and stop tailing |
+  | .NET     | `ILogger` (`Microsoft.Extensions.Logging`): the SDK adds a logger provider to the application's `LoggerFactory`. Not Serilog, NLog, or log4net | Same as Python for `ILogger` |
+  | Java     | None: not Log4j 2, Logback, or `java.util.logging` | Keep `DD_LOGS_OTEL_ENABLED=true` |
+  | Node.js  | None: not winston, pino, or bunyan | Keep `DD_LOGS_OTEL_ENABLED=true` |
+  | Go       | None: logs are only exported after the application sets up the OpenTelemetry logger provider | Keep `DD_LOGS_OTEL_ENABLED=true` |
+  | Ruby     | None: not Ruby's `Logger` | Keep `DD_LOGS_OTEL_ENABLED=true` |
+  | PHP      | Monolog, only when the application attaches the OpenTelemetry Monolog handler to a logger | Keep `DD_LOGS_OTEL_ENABLED=true`, unless that handler and a standard output handler are both attached |
+
+  For example, a Java application that logs with Log4j 2 to the standard output keeps tailing it, with
+  `DD_LOGS_INJECTION=true`, and keeps `DD_LOGS_OTEL_ENABLED=true` for the logs it emits with the OpenTelemetry Logs
+  API. Check that the log lines still carry the trace and span IDs. The Python, .NET, Java, and Node.js rows are read
+  from the source code of the Datadog SDKs; the Go, Ruby, and PHP rows come from the
+  [OpenTelemetry API support][dd-otel-api] page.
 - **Conflicts:** don't disable `file_log` for all the pods: it also collects the logs of the workloads that don't
   export logs over OTLP. Record the path chosen for each workload.
 - **Verify:** in the Datadog Log Explorer, a log line of the workload appears once, and its logs link to its traces.
@@ -1344,8 +1377,11 @@ in [`values.yaml`][values] list them:
   - Remove the `DD_SERVICE`, `DD_VERSION`, and `DD_ENV` variables that the manifests set, unless a remaining
     Datadog-specific feature requires them, as the [application
     workflow](#3-move-compatible-configuration-to-environment-variables) describes. Then check the injected ones: the
-    Admission Controller doesn't mutate pods that have the `admission.datadoghq.com/enabled: "false"` label
-    ([O-05](#o-05-annotate-workloads-and-prevent-double-instrumentation)), and injects them in the other pods.
+    Datadog Cluster Agent's Admission Controller doesn't mutate pods that have the
+    `admission.datadoghq.com/enabled: "false"` label
+    ([O-05](#o-05-annotate-workloads-and-prevent-double-instrumentation),
+    [S-08](#s-08-configure-the-sdks-of-workloads-without-the-opentelemetry-operator)), and injects them in the other
+    pods.
   - For `tags.datadoghq.com/env`, use the value of `deployment.environment.name`, wherever it's set
     ([C-11](#c-11-set-the-deployment-environment)).
 - **Verify:** check the effective variables of a running pod with
@@ -1545,6 +1581,20 @@ in [`values.yaml`][values] list them:
 
     Without the OpenTelemetry Operator, don't set `OTEL_PROPAGATORS`, so that the default list applies. Once these
     workloads are migrated or extract `tracecontext`, remove `DD_TRACE_PROPAGATION_STYLE`.
+- **Requirement: move the pod logs one workload at a time.** During the migration, keep the log collection of the
+  Datadog Agent enabled for the whole cluster, with `spec.features.logCollection.enabled`, and move the pod logs of
+  each workload to the `daemon` OpenTelemetry Collector when you migrate it:
+  - Add the `ad.datadoghq.com/logs_exclude: "true"` annotation to the pod template of the workload, so that the Datadog
+    Agent stops collecting its logs, from Datadog Agent 7.45 ([container discovery management][dd-container-discovery]).
+  - Make the `file_log` receiver of the `daemon` OpenTelemetry Collector tail the logs of the workload. Its default
+    `include`, `/var/log/pods/*/*/*.log`, tails every pod: during the migration, limit it to the migrated workloads,
+    for example with one pattern per migrated namespace or workload, of the form
+    `/var/log/pods/<namespace>_<pod name prefix>*_*/*/*.log`, so that the logs of the other workloads aren't collected
+    twice.
+  - Disable the log collection of the Datadog Agent
+    ([A-01](#a-01-disable-the-features-that-duplicate-the-opentelemetry-collectors)) only at the end of the migration,
+    once the logs of all the workloads come from the `daemon` OpenTelemetry Collector. Then restore the default
+    `include` of `file_log`, and remove the `ad.datadoghq.com/logs_exclude` annotations.
 - **Fix: roll out one workload at a time.** The OpenTelemetry mode is a configuration of the same Datadog SDK, so the
   container image doesn't change ([S-09](#s-09-configure-a-java-agent-bundled-in-the-container-image)): switch a
   workload by adding the variables of [S-08](#s-08-configure-the-sdks-of-workloads-without-the-opentelemetry-operator)
@@ -1554,10 +1604,19 @@ in [`values.yaml`][values] list them:
 - **Rollback:** remove the variables of the OpenTelemetry mode
   ([S-01](#s-01-enable-the-opentelemetry-mode-of-the-ddot-sdks)) and the OTLP endpoint from the container `env`, or
   remove the OpenTelemetry Operator's annotation, then restart the workload: the Datadog SDK sends its telemetry to the
-  Datadog Agent again.
+  Datadog Agent again. Also remove the `ad.datadoghq.com/logs_exclude` annotation and the workload's `file_log`
+  pattern, so that the Datadog Agent collects its logs again.
 - **Verify:** for each migrated workload, compare its APM service before and after the migration: the same `service`,
   `env`, and `version` tags, the same operation names, and connected traces with the workloads it calls and the ones
   that call it.
+
+FIXME document the enrichments that the Datadog Agent adds to the pod logs it collects, and that the logs tailed by the
+`daemon` OpenTelemetry Collector don't get, such as the `source` tag, for example `source:java`, which selects the
+Datadog log integration pipelines, and how to restore them.
+
+FIXME document how to parse the pod logs tailed by the `daemon` OpenTelemetry Collector to extract the trace and span
+IDs that Datadog log injection adds, such as `dd.trace_id` and `dd.span_id`, into the trace context of the log records,
+and which log layouts to use, so that the logs stay linked to the traces.
 
 ## Datadog Agent and Datadog Operator rules
 
@@ -1616,7 +1675,9 @@ values: this guide doesn't list them, and they aren't tested in this repository.
 - **Conflicts:** if the user relies on one of these features for something the OpenTelemetry Collectors don't collect,
   keep it, and say so in the report. If the user prefers to keep a Datadog Agent feature, disable its equivalent in the
   OpenTelemetry Collectors instead, rather than collecting the telemetry twice. If `DD_IGNORE_AUTOCONF` is already set, append
-  `kubernetes_state` to its space-separated list.
+  `kubernetes_state` to its space-separated list. During a migration from the Datadog SDKs, keep `logCollection`
+  enabled until the end, and exclude the migrated workloads pod by pod
+  ([S-13](#s-13-migrate-workloads-from-the-datadog-sdks)).
 
 ### A-02: Keep the Datadog Cluster Agent
 
