@@ -1853,7 +1853,7 @@ OTLP mode without sampling settings, whether they only export the sampled traces
     carry these rates: it carries the sample rates and sampling rules set in Datadog, which still apply in OTLP mode.
     Without `DD_TRACE_SAMPLE_RATE`, sampling rules, or Remote Configuration sampling, `dd-java-agent` keeps all the
     traces in OTLP mode, as the OpenTelemetry `parentbased_always_on` sampler does, and the ingested spans of a busy
-    service can grow a lot. With sampling rules, it also keeps the traces that no rule matches.
+    service can grow a lot (OTEL-3477). With sampling rules, it also keeps the traces that no rule matches.
     Before the switch, record the ingested spans of the service, for example with the
     `datadog.estimated_usage.apm.ingested_spans` metric, and compare them after the switch of the canary workload.
     Then sample in one of two places:
