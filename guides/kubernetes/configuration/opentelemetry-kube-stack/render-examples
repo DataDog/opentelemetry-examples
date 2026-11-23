@@ -7,7 +7,7 @@
 # Usage: render-examples --examples-dir DIR --output-name NAME --values FILE [--values FILE]...
 set -euo pipefail
 
-CHART_VERSION=0.26.1
+CHART_VERSION=0.27.3
 
 usage() {
 	echo "Usage: $0 --examples-dir DIR --output-name NAME --values FILE [--values FILE]..." >&2

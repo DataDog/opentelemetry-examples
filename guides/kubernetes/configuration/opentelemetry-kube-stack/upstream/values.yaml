@@ -7,7 +7,7 @@ opentelemetry-operator:
   manager:
     collectorImage:
       repository: otel/opentelemetry-collector-contrib
-      tag: "0.163.1"
+      tag: "0.165.0"
 
 kubeStateMetrics:
   enabled: true
@@ -632,10 +632,9 @@ collectors:
     # config, presets, and targetAllocator from being merged into this collector.
     inheritDefaultCRConfig: false
 
-    # Host Profiler release candidate image. Update the tag when using a newer RC.
     image:
       repository: datadog/ddot-ebpf
-      tag: 7.86.0-rc.3
+      tag: 7.86.0
 
     env:
       - name: DD_API_KEY
@@ -800,14 +799,14 @@ instrumentation:
   sampler:
     type: parentbased_always_on
   dotnet:
-    image: ghcr.io/open-telemetry/opentelemetry-operator/autoinstrumentation-dotnet:1.17.0
+    image: ghcr.io/open-telemetry/opentelemetry-operator/autoinstrumentation-dotnet:1.19.1
   java:
-    image: ghcr.io/open-telemetry/opentelemetry-operator/autoinstrumentation-java:2.32.0
+    image: ghcr.io/open-telemetry/opentelemetry-operator/autoinstrumentation-java:2.34.0
   nodejs:
-    image: ghcr.io/open-telemetry/opentelemetry-operator/autoinstrumentation-nodejs:0.78.0
+    image: ghcr.io/open-telemetry/opentelemetry-operator/autoinstrumentation-nodejs:0.83.1
     # Upstream Node.js auto-instrumentation 0.78.0 defaults trace export to gRPC; this endpoint uses OTLP/HTTP.
     env:
       - name: OTEL_EXPORTER_OTLP_TRACES_PROTOCOL
         value: http/protobuf
   python:
-    image: ghcr.io/open-telemetry/opentelemetry-operator/autoinstrumentation-python:0.66b1
+    image: ghcr.io/open-telemetry/opentelemetry-operator/autoinstrumentation-python:0.66b2
