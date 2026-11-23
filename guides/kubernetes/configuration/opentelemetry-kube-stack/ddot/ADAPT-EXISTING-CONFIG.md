@@ -816,8 +816,8 @@ variables in the workload container instead of an `Instrumentation` custom resou
   ([C-13](#c-13-keep-the-daemon-opentelemetry-collectors-service-node-local)).
 - **Requirement:** `spec.sampler.type: parentbased_always_on` and `spec.propagators: [tracecontext, baggage]`. Sample
   in the OpenTelemetry Collector instead ([C-02](#c-02-compute-apm-trace-metrics-with-the-datadog-connector-before-any-sampling)).
-  During a migration from the Datadog SDKs, also keep the `datadog` propagation style
-  ([S-13](#s-13-migrate-workloads-from-the-datadog-sdks)).
+  During a migration from the Datadog SDKs, check that the workloads that still run Datadog SDKs propagate
+  `tracecontext` ([S-13](#s-13-migrate-workloads-from-the-datadog-sdks)).
 - **Conflicts:** if the user samples in the SDKs on purpose, keep their sampler and say so in the report: the APM trace
   metrics then only count the sampled traces.
 
@@ -1519,16 +1519,22 @@ in [`values.yaml`][values] list them:
     SDKs, so that the log lines carry the trace and span IDs, and check that the logs still link to the traces after
     the migration, whichever log path the workload uses ([S-10](#s-10-send-each-log-line-to-datadog-once)).
 - **Requirement:** keep the traces connected between the migrated workloads and the ones that still run Datadog SDKs
-  in their default mode:
-  - The DDOT SDK Java agent extracts and injects the `datadog`, `tracecontext`, and `baggage` propagation styles by
-    default. `OTEL_PROPAGATORS` replaces this list: with `tracecontext,baggage`, which
-    [O-04](#o-04-point-the-sdks-at-the-daemon-opentelemetry-collector) sets through the `Instrumentation`'s
-    `spec.propagators`, a migrated workload stops sending and reading the Datadog headers.
-  - The traces then stay connected only if the workloads that still run Datadog SDKs extract `tracecontext`. A Datadog
-    SDK configured with `DD_TRACE_PROPAGATION_STYLE=datadog` doesn't, and an older version might not.
-  - During the migration, keep the `datadog` style in the migrated workloads. The `Instrumentation`'s
-    `spec.propagators` doesn't accept `datadog`, so set `DD_TRACE_PROPAGATION_STYLE` in its `spec.env`, which takes
-    precedence over `OTEL_PROPAGATORS` ([OpenTelemetry environment variable interoperability][dd-otel-env]):
+  in their default mode. The W3C Trace Context format, `tracecontext`, connects them: the recent versions of all the
+  Datadog SDKs extract and inject the `datadog`, `tracecontext`, and `baggage` propagation styles by default
+  ([trace context propagation][dd-trace-context-propagation]), and the migrated workloads keep `tracecontext`:
+  - The DDOT SDK Java agent has the same default list. `OTEL_PROPAGATORS` replaces it: with `tracecontext,baggage`,
+    which [O-04](#o-04-point-the-sdks-at-the-daemon-opentelemetry-collector) sets through the `Instrumentation`'s
+    `spec.propagators`, a migrated workload stops sending and reading the Datadog headers, but still sends and reads
+    `tracecontext`.
+  - **Check the workloads that still run Datadog SDKs:** the traces stay connected when they use the default
+    propagation styles, or any list that includes `tracecontext`. Look for `DD_TRACE_PROPAGATION_STYLE`,
+    `DD_TRACE_PROPAGATION_STYLE_EXTRACT`, and `DD_TRACE_PROPAGATION_STYLE_INJECT`, and their `-Ddd.trace.propagation.*`
+    system properties in Java, set without `tracecontext`, for example to `datadog`. Also check the versions of their
+    Datadog SDKs: for example, the Datadog SDK for .NET only injects `tracecontext` from version 2.22.0.
+  - **Only when some of them don't extract or inject `tracecontext`,** and you can't change them first, keep the
+    `datadog` style in the migrated workloads during the migration. The `Instrumentation`'s `spec.propagators` doesn't
+    accept `datadog`, so set `DD_TRACE_PROPAGATION_STYLE` in its `spec.env`. It takes precedence over
+    `OTEL_PROPAGATORS`, which the Datadog SDKs ignore when a `DD_TRACE_PROPAGATION_STYLE*` variable is set:
 
     ```yaml
     spec:
@@ -1537,8 +1543,8 @@ in [`values.yaml`][values] list them:
           value: datadog,tracecontext,baggage
     ```
 
-    Without the OpenTelemetry Operator, don't set `OTEL_PROPAGATORS`, so that the default list applies. Once all the
-    workloads that exchange traces are migrated, remove `DD_TRACE_PROPAGATION_STYLE`.
+    Without the OpenTelemetry Operator, don't set `OTEL_PROPAGATORS`, so that the default list applies. Once these
+    workloads are migrated or extract `tracecontext`, remove `DD_TRACE_PROPAGATION_STYLE`.
 - **Fix: roll out one workload at a time.** The OpenTelemetry mode is a configuration of the same Datadog SDK, so the
   container image doesn't change ([S-09](#s-09-configure-a-java-agent-bundled-in-the-container-image)): switch a
   workload by adding the variables of [S-08](#s-08-configure-the-sdks-of-workloads-without-the-opentelemetry-operator)
@@ -1800,6 +1806,7 @@ does not appear.
 [otel-collector-chart]: https://github.com/open-telemetry/opentelemetry-helm-charts/tree/main/charts/opentelemetry-collector
 [otel-k8sattributes-rbac]: https://github.com/open-telemetry/opentelemetry-collector-contrib/tree/main/processor/k8sattributesprocessor#role-based-access-control
 [dd-infraattributes]: https://github.com/DataDog/datadog-agent/blob/main/comp/otelcol/otlp/components/processor/infraattributesprocessor/README.md
+[dd-trace-context-propagation]: https://docs.datadoghq.com/tracing/trace_collection/trace_context_propagation/
 [dd-runtime-metrics]: https://docs.datadoghq.com/tracing/metrics/runtime_metrics/
 [dd-deployment-tracking]: https://docs.datadoghq.com/tracing/services/deployment_tracking/
 [otel-go]: https://opentelemetry.io/docs/languages/go/
