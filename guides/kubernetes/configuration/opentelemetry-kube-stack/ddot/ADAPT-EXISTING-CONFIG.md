@@ -324,6 +324,12 @@ configures one OpenTelemetry Collector.
 
 - **Conflicts:** move any existing `tail_sampling` or `probabilistic_sampler` processor from the `traces` pipeline to
   `traces/sampling`. Exporters to other observability backends can stay in the `traces` pipeline.
+- **Conflicts:** when the SDKs sample the traces, the connector only sees the sampled ones. It scales the APM trace
+  metrics back up with the sampling probability in the W3C `tracestate` from Datadog Agent 7.82.0, for the DDOT
+  Collector and the bundled DDOT Collector. The Datadog SDKs that export traces over OTLP don't get the sampling rates
+  of the Datadog Agent, which come in its responses to the traces sent to port 8126, and can keep all the traces
+  ([S-13](#s-13-migrate-workloads-from-the-datadog-sdks)): add the sampling processors here when the ingested volume
+  must stay limited.
 
 ### C-03: Enrich the telemetry with the resource attributes Datadog needs
 
@@ -1109,7 +1115,10 @@ in [`values.yaml`][values] list them:
 
 FIXME check in the source code of the other DDOT SDKs (Python, Node.js, Go, .NET, Ruby, PHP) whether runtime
 metrics go over OTLP or DogStatsD in the OpenTelemetry mode, from which version, with which metric names, and whether
-`DD_RUNTIME_METRICS_ENABLED` is needed. Then add a per-language item, as for Java.
+`DD_RUNTIME_METRICS_ENABLED` is needed. Then add a per-language item, as for Java. Also check which sampler they use in
+OTLP mode without sampling settings, whether they only export the sampled traces with their probability in the
+`tracestate`, as `dd-java-agent` does ([S-13](#s-13-migrate-workloads-from-the-datadog-sdks)), and whether the
+`datadog` connector of the upstream OpenTelemetry Collector Contrib scales the trace metrics with it.
 
 ### S-08: Configure the SDKs of workloads without the OpenTelemetry Operator
 
@@ -1407,7 +1416,9 @@ metrics go over OTLP or DogStatsD in the OpenTelemetry mode, from which version,
   | Metrics shutdown in short-lived processes                                     | 1.68.0                          |
 
   These versions come from the [OTLP export support matrix][dd-otlp-export] and the
-  [OpenTelemetry API support][dd-otel-api] pages, which are authoritative when they change.
+  [OpenTelemetry API support][dd-otel-api] pages, which are authoritative when they change. The `datadog` connector
+  uses the sampling probability of the OTLP spans from Datadog Agent 7.82.0
+  ([S-13](#s-13-migrate-workloads-from-the-datadog-sdks)).
 - **Requirement:** find every `-Ddd.*` system property of the JVM, and remove or align the ones that configure the
   same settings as an environment variable of this guide, for example `-Ddd.logs.injection`
   ([S-10](#s-10-send-each-log-line-to-datadog-once)) or `-Ddd.trace.propagation.style`
@@ -1750,7 +1761,7 @@ metrics go over OTLP or DogStatsD in the OpenTelemetry mode, from which version,
   | Rule                                                            | With the bundled DDOT Collector                                                                                                                                                              |
   |-----------------------------------------------------------------|----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
   | [C-01](#c-01-export-to-datadog-with-the-datadog-exporter)       | Already in the default configuration.                                                                                                                                                        |
-  | [C-02](#c-02-compute-apm-trace-metrics-with-the-datadog-connector-before-any-sampling) | Already met while nothing samples the traces. To add sampling, split the `traces` pipeline as C-02 does.                                                              |
+  | [C-02](#c-02-compute-apm-trace-metrics-with-the-datadog-connector-before-any-sampling) | Already met while nothing samples the traces. The SDKs keep all the traces without the Datadog Agent's sampling rates (S-13): to sample, split the `traces` pipeline as C-02 does.                                                              |
   | [C-03](#c-03-enrich-the-telemetry-with-the-resource-attributes-datadog-needs) | Add `k8s_attributes`, with the three changes above.                                                                                                            |
   | [C-04](#c-04-dont-stamp-the-opentelemetry-collectors-own-identity-on-incoming-telemetry) | Only when you add a `resource_detection` processor.                                                                                                  |
   | [C-06](#c-06-convert-cumulative-metrics-to-delta)               | From Datadog Agent 7.83.0, the converter adds `cumulativetodelta`. Before 7.83.0, add it when the SDKs export cumulative metrics. The converter never adds `delta_to_rate`: add it as C-06 says. |
@@ -1836,6 +1847,29 @@ metrics go over OTLP or DogStatsD in the OpenTelemetry mode, from which version,
     Datadog maps them for the service page and the default runtime dashboards
     ([OpenTelemetry runtime metrics][dd-otel-runtime-metrics]). Check the custom monitors and dashboards that use the
     Datadog names ([S-07](#s-07-enable-runtime-metrics-where-supported)).
+  - **Trace sampling and ingestion:** the sampling rates of the Datadog Agent, which target about 10 traces per
+    second per Datadog Agent, no longer apply. The Datadog Agent returns them in its responses to the traces that the
+    Datadog SDKs send to port 8126, and the SDKs don't send traces there in OTLP mode. Remote Configuration doesn't
+    carry these rates: it carries the sample rates and sampling rules set in Datadog, which still apply in OTLP mode.
+    Without `DD_TRACE_SAMPLE_RATE`, sampling rules, or Remote Configuration sampling, `dd-java-agent` keeps all the
+    traces in OTLP mode, as the OpenTelemetry `parentbased_always_on` sampler does, and the ingested spans of a busy
+    service can grow a lot. With sampling rules, it also keeps the traces that no rule matches.
+    Before the switch, record the ingested spans of the service, for example with the
+    `datadog.estimated_usage.apm.ingested_spans` metric, and compare them after the switch of the canary workload.
+    Then sample in one of two places:
+    - **In the OpenTelemetry Collector, after the `datadog` connector,** in the `traces/sampling` pipeline of
+      [C-02](#c-02-compute-apm-trace-metrics-with-the-datadog-connector-before-any-sampling). The connector sees all
+      the traces, so the APM trace metrics stay exact. This is the default recommendation, as for the workloads that
+      the OpenTelemetry Operator instruments ([O-04](#o-04-point-the-sdks-at-the-daemon-opentelemetry-collector)).
+    - **In the SDK,** with `DD_TRACE_SAMPLE_RATE`, `DD_TRACE_SAMPLING_RULES`, or Remote Configuration sampling, which
+      still apply in OTLP mode, with the `DD_TRACE_RATE_LIMIT` limit, 100 traces per second by default. This also
+      reduces the network traffic. The SDK only exports the sampled traces, with their sampling probability in the
+      `th` value of the W3C `tracestate`, from `dd-java-agent` 1.67.0. The `datadog` connector scales the APM trace
+      metrics back up with this probability from Datadog Agent 7.82.0, in the bundled DDOT Collector and the DDOT
+      Collector: with earlier versions, the trace metrics only count the sampled traces.
+
+    Keep the existing `DD_TRACE_SAMPLE_RATE`, `DD_TRACE_SAMPLING_RULES`, and `-Ddd.trace.sampl*` settings: they still
+    apply ([S-09](#s-09-configure-a-java-agent-bundled-in-the-container-image)).
   - **Continuous Profiler:** it stops for the migrated workloads, because the DDOT SDKs don't support the process-level
     profiling of the Datadog SDKs yet, such as CPU, memory, and lock profiling. Two options:
     - **Switch to the DDOT Full Host Profiler,** which profiles the CPU usage of every process of the node with eBPF,
