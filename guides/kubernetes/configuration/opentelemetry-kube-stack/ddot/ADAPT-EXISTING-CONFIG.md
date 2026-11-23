@@ -44,7 +44,7 @@ Run the coding agent from the repository that owns the applications and deployme
    registers the `TracerProvider`, `MeterProvider`, and `LoggerProvider` and configures their exporters, effective
    environment, destinations, and enabled signals. For the applications that already report to Datadog APM, also
    record the `service`, `env`, and `version` in effect, from the startup configuration line of the Datadog SDK or
-   from Datadog APM
+   from Datadog APM, and the default `env` of the Datadog Agent
    ([S-11](#s-11-align-datadog-unified-service-tagging-with-the-opentelemetry-service-identity)).
 2. **Find the Kubernetes components** in the repository: OpenTelemetry Collector configurations (Helm values of the
    `opentelemetry-kube-stack` or `opentelemetry-collector` charts, `OpenTelemetryCollector` custom resources, raw
@@ -678,6 +678,16 @@ environment variable, typically through `OTEL_RESOURCE_ATTRIBUTES=datadog.host.n
   ([S-11](#s-11-align-datadog-unified-service-tagging-with-the-opentelemetry-service-identity)). The OpenTelemetry
   Collector then only sets a default for the other workloads, with `action: insert`, and never overwrites the
   workload's value.
+- **Conflicts:** when the workloads rely on the default `env` of the Datadog Agent, its `apm_config.env` or `env`
+  settings, or an `env:` entry of its `tags`, keep the same value after the switch
+  ([S-11](#s-11-align-datadog-unified-service-tagging-with-the-opentelemetry-service-identity)):
+  - **With a standalone OpenTelemetry Collector,** at level 1 of
+    [C-14](#c-14-choose-where-the-opentelemetry-collector-runs-on-kubernetes), the traces don't go through the
+    Datadog Agent and don't get its default: without `deployment.environment.name`, they get `env:none`. Set the same
+    value in the OpenTelemetry Collector, as this rule describes.
+  - **With the bundled DDOT Collector or OTLP ingest,** at levels 2 and 3, the Datadog Agent's trace processing
+    still applies its default `env` to the traces that arrive without one. Setting the same value in the bundled DDOT
+    Collector is optional.
 - **Conflicts:** when both the SDKs and the OpenTelemetry Collector set it, use the same value. With `action: upsert`,
   which the OpenTelemetry Kube Stack Helm chart uses, the OpenTelemetry Collector's value overwrites a different value
   set in the SDK. To use the OpenTelemetry Collector's value as a default that workloads can override, remove
@@ -1534,12 +1544,19 @@ metrics go over OTLP or DogStatsD in the OpenTelemetry mode, from which version,
     Java, which has the `service`, `env`, and `version` in effect:
     `kubectl logs <pod> --namespace <namespace> | grep 'DATADOG TRACER CONFIGURATION'`;
   - or in Datadog APM, in the tags of the service, or in the **SDK Configuration** tab of its **Service Config**.
+  - when the startup line has no `env` but Datadog APM shows one, in the default `env` of the Datadog Agent. The
+    Datadog Agent applies it to the traces that arrive without one, from its `apm_config.env` or `env` settings, or
+    an `env:` entry of its `tags`, such as `DD_ENV`, `DD_TAGS`, or `spec.global.tags` of the `DatadogAgent`:
+    `kubectl exec <Datadog Agent pod> --namespace <namespace> -c agent -- agent config | grep -E '^ *env:|^tags:'`.
+    This default is a value for the whole cluster: [C-11](#c-11-set-the-deployment-environment) says where to set it
+    after the switch.
 
   Then pin them, as for a Datadog value: in the `tags.datadoghq.com/*` labels, the SDK variables, and the
   annotations, with the same value. For `service.version`, which changes on every release, the image tag of S-08
   is enough. Use the other sources of S-08, such as the chart's service name, only for the workloads that don't report
-  to Datadog APM yet, and set `deployment.environment.name` in the OpenTelemetry Collector
-  ([C-11](#c-11-set-the-deployment-environment)) only when no `env` is in effect.
+  to Datadog APM yet. Set `deployment.environment.name` in the OpenTelemetry Collector
+  ([C-11](#c-11-set-the-deployment-environment)) when no `env` is in effect, or when the `env` in effect is the
+  default of the Datadog Agent.
 - **Requirement:** don't change the `service` or `env` of a workload that reports to Datadog APM without the user's
   approval. Report each change as a decision, with the value before and after.
 - **Requirement:** when the workload carries `deployment.environment.name`, the OpenTelemetry Collector doesn't
@@ -1791,7 +1808,8 @@ metrics go over OTLP or DogStatsD in the OpenTelemetry mode, from which version,
     OpenTelemetry Collector rules, C-01 to C-13, don't apply;
   - the `infraattributes` processor runs in the OTLP ingest pipelines for traces and metrics from Datadog Agent
     7.71.0, but not for logs;
-  - no OpenTelemetry Collector pipeline can set `deployment.environment.name`, so set it in the SDKs
+  - no OpenTelemetry Collector pipeline can set `deployment.environment.name`. The Datadog Agent applies its default
+    `env` to the traces that arrive without one. When the workloads need another value, set it in the SDKs
     ([C-11](#c-11-set-the-deployment-environment)), with the value of the `tags.datadoghq.com/env` label.
 - **Datadog Agent features:** OTLP logs need `spec.features.logCollection.enabled`, which
   [A-01](#a-01-disable-the-features-that-duplicate-the-opentelemetry-collectors) disables in the reference
