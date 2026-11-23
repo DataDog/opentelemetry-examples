@@ -1227,6 +1227,21 @@ in [`values.yaml`][values] list them:
   - Make the `daemon` OpenTelemetry Collector endpoint and `DD_AGENT_HOST` chart values with defaults, and let
     services enable the optional Datadog features ([S-06](#s-06-enable-optional-datadog-features-per-workload)) and
     choose their log path ([S-10](#s-10-send-each-log-line-to-datadog-once)) with values.
+  - **Switch each service separately,** to migrate the services one at a time
+    ([S-13](#s-13-migrate-workloads-from-the-datadog-sdks)), with two boolean values that each service sets in its own
+    values, off by default during the migration:
+    - `openTelemetry.apmSdk.enabled` adds the environment variables above, and the
+      `admission.datadoghq.com/enabled: "false"` label. The services that aren't migrated yet keep the Datadog SDKs in
+      their default mode, and the variables that the Datadog Cluster Agent's Admission Controller injects.
+    - `openTelemetry.podLogs.enabled` adds the `ad.datadoghq.com/logs_exclude: "true"` annotation, when the `daemon`
+      OpenTelemetry Collector tails the pod logs instead of the Datadog Agent
+      ([C-14](#c-14-choose-where-the-opentelemetry-collector-runs-on-kubernetes) level 1). A service can then move
+      its pod logs after its APM SDK, for example once its log pipelines are checked. At levels 2 and 3, the Datadog
+      Agent keeps tailing the pod logs, and this switch isn't needed.
+
+    Keep the `resource.opentelemetry.io/*` annotations on for all the services: they're harmless before the
+    migration, and the OpenTelemetry Collector can use them for the pod logs and metrics of every service. At the end
+    of the migration, turn the switches on by default, then remove them.
 
   For example, with value names to map to the ones of your chart:
 
@@ -1237,10 +1252,18 @@ in [`values.yaml`][values] list them:
         annotations:
           resource.opentelemetry.io/service.name: {{ .Values.service.name | quote }}
           resource.opentelemetry.io/service.version: {{ .Values.image.tag | quote }}
+          {{- if .Values.openTelemetry.podLogs.enabled }}
+          ad.datadoghq.com/logs_exclude: "true"
+          {{- end }}
+        {{- if .Values.openTelemetry.apmSdk.enabled }}
+        labels:
+          admission.datadoghq.com/enabled: "false"
+        {{- end }}
       spec:
         containers:
           - name: {{ .Values.service.name }}
             env:
+              {{- if .Values.openTelemetry.apmSdk.enabled }}
               - name: OTEL_SERVICE_NAME
                 value: {{ .Values.service.name | quote }}
               - name: OTEL_RESOURCE_ATTRIBUTES_SERVICE_VERSION
@@ -1248,7 +1271,10 @@ in [`values.yaml`][values] list them:
               - name: OTEL_RESOURCE_ATTRIBUTES_CONTAINER_NAME
                 value: {{ .Values.service.name | quote }}   # the value of containers[].name
               # ... the other variables of the snippet above
+              {{- end }}
   ```
+
+  If the chart already defines `labels` in the pod template, add the label there instead of in a second `labels` key.
 
 - **Conflicts:** if the container already sets `OTEL_RESOURCE_ATTRIBUTES`, merge its attributes into the new value
   and keep the user's values when they differ. For the other variables, follow the conflicts of the rules each group
@@ -1641,7 +1667,8 @@ in [`values.yaml`][values] list them:
   1). At levels 2 and 3, the Datadog Agent keeps tailing the pod logs, and nothing moves. During the migration, keep
   the log collection of the Datadog Agent enabled for the whole cluster, with `spec.features.logCollection.enabled`,
   and move the pod logs of each workload to the `daemon` OpenTelemetry Collector when you migrate it:
-  - Add the `ad.datadoghq.com/logs_exclude: "true"` annotation to the pod template of the workload, so that the Datadog
+  - Add the `ad.datadoghq.com/logs_exclude: "true"` annotation to the pod template of the workload, for example with
+    the `openTelemetry.podLogs.enabled` value of a shared Helm chart, so that the Datadog
     Agent stops collecting its logs, from Datadog Agent 7.45 ([container discovery management][dd-container-discovery]).
   - Make the `file_log` receiver of the `daemon` OpenTelemetry Collector tail the logs of the workload. Its default
     `include`, `/var/log/pods/*/*/*.log`, tails every pod: during the migration, limit it to the migrated workloads,
@@ -1655,7 +1682,8 @@ in [`values.yaml`][values] list them:
 - **Fix: roll out one workload at a time.** The OpenTelemetry mode is a configuration of the same Datadog SDK, so the
   container image doesn't change ([S-09](#s-09-configure-a-java-agent-bundled-in-the-container-image)): switch a
   workload by adding the variables of [S-08](#s-08-configure-the-sdks-of-workloads-without-the-opentelemetry-operator)
-  to its container `env`, for example through the values of a shared Helm chart, or by annotating its pods for the
+  to its container `env`, for example with the `openTelemetry.apmSdk.enabled` value of a shared Helm chart, or by
+  annotating its pods for the
   OpenTelemetry Operator ([O-05](#o-05-annotate-workloads-and-prevent-double-instrumentation)). Keep the Datadog Agent
   and its APM port, 8126, during the migration, for the workloads that still run Datadog SDKs in their default mode.
 - **Rollback:** remove the variables of the OpenTelemetry mode
@@ -1664,7 +1692,9 @@ in [`values.yaml`][values] list them:
   Datadog Agent again. Also remove the `admission.datadoghq.com/enabled: "false"` label
   ([S-08](#s-08-configure-the-sdks-of-workloads-without-the-opentelemetry-operator)), so that the Datadog Cluster
   Agent's Admission Controller injects its `DD_*` variables again, and the `ad.datadoghq.com/logs_exclude` annotation
-  and the workload's `file_log` pattern, so that the Datadog Agent collects its logs again.
+  and the workload's `file_log` pattern, so that the Datadog Agent collects its logs again. With a shared Helm chart,
+  turn `openTelemetry.apmSdk.enabled` and `openTelemetry.podLogs.enabled` off for the workload instead
+  ([S-08](#s-08-configure-the-sdks-of-workloads-without-the-opentelemetry-operator)).
 - **Verify:** for each migrated workload, compare its APM service before and after the migration: the same `service`,
   `env`, and `version` tags, the same operation names, and connected traces with the workloads it calls and the ones
   that call it.
