@@ -1004,7 +1004,7 @@ instrumentation:
     - tracecontext
     - baggage
   dotnet:
-    # image: otel/autoinstrumentation-dotnet:1.17.0
+    # image: otel/autoinstrumentation-dotnet:1.19.1
     image: datadog/dd-otel-autoinstrumentation-dotnet:3.59.0-preview
     # Unlike the other languages, .NET needs more setup to instrument an application:
     # - The CORECLR_PROFILER_PATH env variable must be set (matching other languages)
@@ -1023,13 +1023,13 @@ instrumentation:
       - name: DD_DOTNET_TRACER_HOME
         value: /otel-auto-instrumentation-dotnet
   java:
-    # image: otel/autoinstrumentation-java:2.32.0
+    # image: otel/autoinstrumentation-java:2.34.0
     image: datadog/dd-otel-autoinstrumentation-java:1.69.1-preview
   nodejs:
-    # image: otel/autoinstrumentation-nodejs:0.78.0
+    # image: otel/autoinstrumentation-nodejs:0.83.1
     image: datadog/dd-otel-autoinstrumentation-js:6.26-preview
   python:
-    # image: otel/autoinstrumentation-python:0.66b1
+    # image: otel/autoinstrumentation-python:0.66b2
     image: datadog/dd-otel-autoinstrumentation-python:4.17.2-preview
     # For Alpine/musl workloads, add this pod-template annotation (glibc is the default):
     # instrumentation.opentelemetry.io/otel-python-platform: "musl"
@@ -1039,15 +1039,15 @@ instrumentation:
     # volumeLimitSize: 500Mi
 {{- else}}
   dotnet:
-    image: ghcr.io/open-telemetry/opentelemetry-operator/autoinstrumentation-dotnet:1.17.0
+    image: ghcr.io/open-telemetry/opentelemetry-operator/autoinstrumentation-dotnet:1.19.1
   java:
-    image: ghcr.io/open-telemetry/opentelemetry-operator/autoinstrumentation-java:2.32.0
+    image: ghcr.io/open-telemetry/opentelemetry-operator/autoinstrumentation-java:2.34.0
   nodejs:
-    image: ghcr.io/open-telemetry/opentelemetry-operator/autoinstrumentation-nodejs:0.78.0
+    image: ghcr.io/open-telemetry/opentelemetry-operator/autoinstrumentation-nodejs:0.83.1
     # Upstream Node.js auto-instrumentation 0.78.0 defaults trace export to gRPC; this endpoint uses OTLP/HTTP.
     env:
       - name: OTEL_EXPORTER_OTLP_TRACES_PROTOCOL
         value: http/protobuf
   python:
-    image: ghcr.io/open-telemetry/opentelemetry-operator/autoinstrumentation-python:0.66b1
+    image: ghcr.io/open-telemetry/opentelemetry-operator/autoinstrumentation-python:0.66b2
 {{- end}}
