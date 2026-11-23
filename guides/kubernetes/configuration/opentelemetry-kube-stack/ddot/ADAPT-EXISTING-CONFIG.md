@@ -1458,8 +1458,8 @@ in [`values.yaml`][values] list them:
   - **The DDOT Collector bundled in the Datadog Agent:** enable `spec.features.otelCollector.enabled` in the
     `DatadogAgent`, which runs an OpenTelemetry Collector in the `otel-agent` container of the Datadog Agent, on ports
     4317 and 4318. It has the same support of the OpenTelemetry Collector components as the standalone DDOT Collector.
-    When you override the Datadog Agent image tag, use 7.67.0 or later
-    ([DDOT Collector in the Datadog Agent][dd-ddot-collector-agent]).
+    When you override the Datadog Agent image tag, use 7.67.0 or later, without the `-full` suffix: the Datadog
+    Operator rejects a `-full` tag for this feature ([DDOT Collector in the Datadog Agent][dd-ddot-collector-agent]).
   - **OTLP ingest in the Datadog Agent:** enable `spec.features.otlp.receiver.protocols.grpc.enabled` and
     `spec.features.otlp.receiver.protocols.http.enabled`, which open ports 4317 and 4318. For logs, also enable
     `spec.features.logCollection.enabled`, and set `DD_OTLP_CONFIG_LOGS_ENABLED=true` in
@@ -1468,15 +1468,27 @@ in [`values.yaml`][values] list them:
 - **Requirement:** point the SDKs at the Datadog Agent of their own node: the Datadog Agent doesn't accept OTLP from
   another node. In the container `env`, replace the `daemon` OpenTelemetry Collector endpoint of
   [S-08](#s-08-configure-the-sdks-of-workloads-without-the-opentelemetry-operator):
+  - **With the bundled DDOT Collector,** use the local Service of the Datadog Agent, `<DatadogAgent name>-agent`, the
+    same convention as `DD_AGENT_HOST`. The Datadog Operator adds the ports 4317 and 4318 to this Service, with
+    `internalTrafficPolicy: Local`, so that it reaches the Datadog Agent of the same node, on Kubernetes 1.22 or later:
 
-  ```yaml
-  - name: HOST_IP
-    valueFrom:
-      fieldRef:
-        fieldPath: status.hostIP
-  - name: OTEL_EXPORTER_OTLP_ENDPOINT
-    value: http://$(HOST_IP):4318
-  ```
+    ```yaml
+    - name: OTEL_EXPORTER_OTLP_ENDPOINT
+      value: http://<DatadogAgent name>-agent.<namespace>.svc.cluster.local:4318
+    ```
+
+  - **With OTLP ingest, or on Kubernetes versions before 1.22,** use the node IP. The Datadog Operator publishes the
+    ports of the bundled DDOT Collector as host ports by default, and the
+    [OTLP ingest in the Datadog Agent][dd-otlp-ingest] docs use this endpoint:
+
+    ```yaml
+    - name: HOST_IP
+      valueFrom:
+        fieldRef:
+          fieldPath: status.hostIP
+    - name: OTEL_EXPORTER_OTLP_ENDPOINT
+      value: http://$(HOST_IP):4318
+    ```
 
 - **Fix, with the bundled DDOT Collector: add the `k8s_attributes` processor.** Datadog supports it as a community
   component of the OpenTelemetry Collector Contrib, and it applies the OpenTelemetry Kubernetes conventions to all the
