@@ -1499,8 +1499,8 @@ in [`values.yaml`][values] list them:
      configuration, add the `k8s_attributes` processor of
      [C-03](#c-03-enrich-the-telemetry-with-the-resource-attributes-datadog-needs), with its `filter`,
      `extract.otel_annotations: true`, `extract.metadata`, and `pod_association`, to every pipeline that receives the
-     telemetry of the workloads. Keep `infraattributes` after it, to add the Datadog Agent tagger's tags. Apply the
-     other OpenTelemetry Collector rules, C-01 to C-13, to this configuration.
+     telemetry of the workloads. Keep `infraattributes` after it, to add the Datadog Agent tagger's tags. Start from
+     the default configuration, as the next item explains.
   2. **The node name:** `k8s_attributes` only watches the pods of its node with `filter.node_from_env_var`, but the
      Datadog Operator only gives the `otel-agent` container the node IP, in `DD_KUBERNETES_KUBELET_HOST`. Add the
      node name in the `DatadogAgent`:
@@ -1551,6 +1551,48 @@ in [`values.yaml`][values] list them:
          name: <ServiceAccount of the Datadog Agent DaemonSet>
          namespace: datadog
      ```
+
+- **The starting configuration of the bundled DDOT Collector.** `configData` replaces the
+  [default configuration of the Datadog Operator][dd-operator-otel-default-config]: copy that default into
+  `configData`, add `k8s_attributes` before `infraattributes` in its `traces`, `metrics`, and `logs` pipelines, and
+  keep the rest. The default configuration has:
+  - an `otlp` receiver on ports 4317 (gRPC) and 4318 (HTTP);
+  - a `datadog` exporter and a `datadog/connector`, and a `traces` pipeline that exports to both;
+  - the `infraattributes` processor, with `cardinality: 2`, in every pipeline;
+  - a `prometheus` receiver that scrapes the internal metrics of the OpenTelemetry Collector on port 8888.
+
+  The `otel-agent` container then completes this configuration with the DDOT converter
+  ([converter README][ddot-converter]). The converter is a step of the startup of the `otel-agent` container: it reads
+  the configuration, and adds the components that Datadog features need, when the configuration doesn't define them
+  already. It only changes the pipelines that export to a `datadog` exporter, and names the components it adds with a
+  `/dd-autoconfigured` suffix. By default, it adds:
+  - the `infraattributes` processor, at the end of the pipelines that don't have one;
+  - a `prometheus` receiver for the internal metrics, in its own pipeline, when no pipeline scrapes them. It sets the
+    job name to `datadog-agent`, so that the health metrics of the OpenTelemetry Collector get the
+    `service:datadog-agent` tag;
+  - the `health_check`, `pprof`, `zpages`, and `ddflare` extensions;
+  - from Datadog Agent 7.76.0, the `datadog` extension, which reports the OpenTelemetry Collector to
+    [Fleet Automation][dd-fleet-automation];
+  - from Datadog Agent 7.83.0, the `cumulativetodelta` processor, in the metrics pipelines.
+
+  Keep the converter enabled, which is the default: without it, the bundled DDOT Collector loses the Datadog Agent
+  tagger's tags, its health metrics, and its part of the Datadog Agent flare. With the default configuration and the
+  converter, the OpenTelemetry Collector rules apply as follows:
+
+  | Rule                                                            | With the bundled DDOT Collector                                                                                                                                                              |
+  |-----------------------------------------------------------------|----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
+  | [C-01](#c-01-export-to-datadog-with-the-datadog-exporter)       | Already in the default configuration.                                                                                                                                                        |
+  | [C-02](#c-02-compute-apm-trace-metrics-with-the-datadog-connector-before-any-sampling) | Already met while nothing samples the traces. To add sampling, split the `traces` pipeline as C-02 does.                                                              |
+  | [C-03](#c-03-enrich-the-telemetry-with-the-resource-attributes-datadog-needs) | Add `k8s_attributes`, with the three changes above.                                                                                                            |
+  | [C-04](#c-04-dont-stamp-the-opentelemetry-collectors-own-identity-on-incoming-telemetry) | Only when you add a `resource_detection` processor.                                                                                                  |
+  | [C-06](#c-06-convert-cumulative-metrics-to-delta)               | From Datadog Agent 7.83.0, the converter adds `cumulativetodelta`. Before 7.83.0, add it when the SDKs export cumulative metrics. The converter never adds `delta_to_rate`: add it as C-06 says. |
+  | [C-07](#c-07-report-the-opentelemetry-collectors-to-fleet-automation-with-the-datadog-extension) | Nothing to add: from Datadog Agent 7.76.0, the converter adds the `datadog` extension, and reuses one that you define. Before 7.76.0, the `ddflare` extension reports to Fleet Automation. |
+  | [C-08](#c-08-export-the-collectors-internal-metrics-through-its-own-pipeline) | Keep the default `prometheus` receiver instead of the OTLP loop of C-08: without a receiver that scrapes the internal metrics, the converter adds one, and the internal metrics reach Datadog twice. |
+  | [C-09](#c-09-receive-otlp-over-both-grpc-and-http)              | Already in the default configuration.                                                                                                                                                        |
+  | [C-10](#c-10-use-the-same-kubernetes-cluster-name-everywhere)   | Apply it when the telemetry needs `k8s.cluster.name`, with the cluster name of the Datadog Agent ([A-06](#a-06-use-the-same-kubernetes-cluster-name-as-the-opentelemetry-collectors)). |
+  | [C-11](#c-11-set-the-deployment-environment)                    | Apply it with a `resource` processor when the cluster runs one environment.                                                                                                                  |
+  | [C-12](#c-12-collect-middleware-telemetry-from-the-daemon-opentelemetry-collector-on-the-same-node) | Possible with `receiver_creator` and `k8s_observer`, which need more RBAC. Only when you need it.                                                     |
+  | [C-13](#c-13-keep-the-daemon-opentelemetry-collectors-service-node-local) | Doesn't apply: the local Service of the Datadog Agent is already node-local.                                                                                       |
 
 - **Without `k8s_attributes`: the limits of the `infraattributes` processor.** When you can't add `k8s_attributes`
   to the bundled DDOT Collector, its `infraattributes` processor is the only enrichment
@@ -1968,6 +2010,8 @@ does not appear.
 [otel-collector-chart]: https://github.com/open-telemetry/opentelemetry-helm-charts/tree/main/charts/opentelemetry-collector
 [otel-k8sattributes-rbac]: https://github.com/open-telemetry/opentelemetry-collector-contrib/tree/main/processor/k8sattributesprocessor#role-based-access-control
 [dd-infraattributes]: https://github.com/DataDog/datadog-agent/blob/main/comp/otelcol/otlp/components/processor/infraattributesprocessor/README.md
+[dd-operator-otel-default-config]: https://github.com/DataDog/datadog-operator/blob/main/internal/controller/datadogagent/feature/otelcollector/defaultconfig/defaultconfig.go
+[ddot-converter]: https://github.com/DataDog/datadog-agent/blob/main/comp/otelcol/converter/README.md
 [dd-trace-context-propagation]: https://docs.datadoghq.com/tracing/trace_collection/trace_context_propagation/
 [dd-runtime-metrics]: https://docs.datadoghq.com/tracing/metrics/runtime_metrics/
 [dd-deployment-tracking]: https://docs.datadoghq.com/tracing/services/deployment_tracking/
