@@ -42,7 +42,10 @@ Run the coding agent from the repository that owns the applications and deployme
 
 1. **Adapt each application.** Record its starting point, SDK activation, whether application code or an injected SDK
    registers the `TracerProvider`, `MeterProvider`, and `LoggerProvider` and configures their exporters, effective
-   environment, destinations, and enabled signals.
+   environment, destinations, and enabled signals. For the applications that already report to Datadog APM, also
+   record the `service`, `env`, and `version` in effect, from the startup configuration line of the Datadog SDK or
+   from Datadog APM
+   ([S-11](#s-11-align-datadog-unified-service-tagging-with-the-opentelemetry-service-identity)).
 2. **Find the Kubernetes components** in the repository: OpenTelemetry Collector configurations (Helm values of the
    `opentelemetry-kube-stack` or `opentelemetry-collector` charts, `OpenTelemetryCollector` custom resources, raw
    OpenTelemetry Collector YAML), `Instrumentation` custom resources, workload manifests with
@@ -1248,8 +1251,14 @@ metrics go over OTLP or DogStatsD in the OpenTelemetry mode, from which version,
       the `DD_SERVICE`, `DD_VERSION`, and `DD_ENV` variables, use these values for the service name, the service
       version, and the deployment environment
       ([S-11](#s-11-align-datadog-unified-service-tagging-with-the-opentelemetry-service-identity));
-    - otherwise, the service name from the chart's service or release name, and the service version from the image
-      tag that the chart deploys. The service version then changes on every release without other updates;
+    - otherwise, for the services that already report to Datadog APM, the service name and the environment in effect
+      today, read from a running pod
+      ([S-11](#s-11-align-datadog-unified-service-tagging-with-the-opentelemetry-service-identity)), added to the
+      values of each service;
+    - otherwise, for the services that don't report to Datadog APM yet, the service name from the chart's service or
+      release name;
+    - the service version from the image tag that the chart deploys, when the chart has no Datadog version value. The
+      service version then changes on every release without other updates;
     - the container name from the value that the template uses for `containers[].name`, so that it can't drift from
       the pod spec.
   - When the chart has no Datadog environment value, leave `deployment.environment.name` out of the chart, so that the
@@ -1480,9 +1489,25 @@ metrics go over OTLP or DogStatsD in the OpenTelemetry mode, from which version,
   | `tags.datadoghq.com/env` or `DD_ENV`           | `deployment.environment.name` | `OTEL_RESOURCE_ATTRIBUTES`, through `OTEL_RESOURCE_ATTRIBUTES_DEPLOYMENT_ENVIRONMENT_NAME` | `resource.opentelemetry.io/deployment.environment.name` |
 
   This keeps the existing Datadog service name, so the APM service, its monitors, and its history continue after the
-  migration ([S-13](#s-13-migrate-workloads-from-the-datadog-sdks)). Only when the workload has no Datadog value, use
-  the other sources of S-08, such as the chart's service name and image tag, and set `deployment.environment.name` in
-  the OpenTelemetry Collector ([C-11](#c-11-set-the-deployment-environment)).
+  migration ([S-13](#s-13-migrate-workloads-from-the-datadog-sdks)).
+- **Requirement:** when the configuration has no Datadog value but the workload already reports to Datadog APM, the
+  values in effect today are the source of `service.name` and `deployment.environment.name`. The Datadog SDK can
+  derive a service name itself, for example from the jar or the main class in Java, the Datadog Cluster Agent's
+  Admission Controller can inject `DD_SERVICE` from the workload name, and the Datadog Agent can add its own `env`.
+  Nothing in the manifests or the chart shows these values, and the `admission.datadoghq.com/enabled: "false"` label
+  of S-08 stops the injection. Read them from a running pod, before the switch:
+  - in the configuration line that the Datadog SDK logs at startup, for example `DATADOG TRACER CONFIGURATION` in
+    Java, which has the `service`, `env`, and `version` in effect:
+    `kubectl logs <pod> --namespace <namespace> | grep 'DATADOG TRACER CONFIGURATION'`;
+  - or in Datadog APM, in the tags of the service, or in the **SDK Configuration** tab of its **Service Config**.
+
+  Then pin them, as for a Datadog value: in the `tags.datadoghq.com/*` labels, the SDK variables, and the
+  annotations, with the same value. For `service.version`, which changes on every release, the image tag of S-08
+  is enough. Use the other sources of S-08, such as the chart's service name, only for the workloads that don't report
+  to Datadog APM yet, and set `deployment.environment.name` in the OpenTelemetry Collector
+  ([C-11](#c-11-set-the-deployment-environment)) only when no `env` is in effect.
+- **Requirement:** don't change the `service` or `env` of a workload that reports to Datadog APM without the user's
+  approval. Report each change as a decision, with the value before and after.
 - **Requirement:** when the workload carries `deployment.environment.name`, the OpenTelemetry Collector doesn't
   overwrite it. Don't set `deployment.environment.name` in the `resourceAttributes` of the OpenTelemetry Kube Stack
   Helm chart, which uses `action: upsert`. To keep a default for the other workloads, use a `resource` processor with
@@ -1752,9 +1777,9 @@ metrics go over OTLP or DogStatsD in the OpenTelemetry mode, from which version,
   mode of the DDOT SDKs one workload at a time, and check what changes for each workload:
   - **Unchanged:** the RED metrics and the APM operation names, for example `servlet.request` in Java, stay the same,
     so the monitors and dashboards based on them keep working. This requires the same service name: take
-    `service.name` from the existing `DD_SERVICE` or `tags.datadoghq.com/service` value
-    ([S-11](#s-11-align-datadog-unified-service-tagging-with-the-opentelemetry-service-identity)). Otherwise, the
-    migrated workload appears as a new APM service.
+    `service.name` from the existing `DD_SERVICE` or `tags.datadoghq.com/service` value, or from the service name in
+    effect today ([S-11](#s-11-align-datadog-unified-service-tagging-with-the-opentelemetry-service-identity)).
+    Otherwise, the migrated workload appears as a new APM service.
   - **Runtime metrics:** their names change to the OpenTelemetry names, for example `jvm.memory.used` for the JVM.
     Datadog maps them for the service page and the default runtime dashboards
     ([OpenTelemetry runtime metrics][dd-otel-runtime-metrics]). Check the custom monitors and dashboards that use the
@@ -1848,9 +1873,10 @@ metrics go over OTLP or DogStatsD in the OpenTelemetry mode, from which version,
   and the workload's `file_log` pattern, so that the Datadog Agent collects its logs again. With a shared Helm chart,
   turn `openTelemetry.apmSdk.enabled` and `openTelemetry.podLogs.enabled` off for the workload instead
   ([S-08](#s-08-configure-the-sdks-of-workloads-without-the-opentelemetry-operator)).
-- **Verify:** for each migrated workload, compare its APM service before and after the migration: the same `service`,
-  `env`, and `version` tags, the same operation names, and connected traces with the workloads it calls and the ones
-  that call it.
+- **Verify:** for each migrated workload, compare its APM service before and after the migration: the same `service`
+  and `env` tags as the values recorded before the switch
+  ([S-11](#s-11-align-datadog-unified-service-tagging-with-the-opentelemetry-service-identity)), a `version` tag, the
+  same operation names, and connected traces with the workloads it calls and the ones that call it.
 
 FIXME document the enrichments that the Datadog Agent adds to the pod logs it collects, and that the logs tailed by the
 `daemon` OpenTelemetry Collector don't get, such as the `source` tag, for example `source:java`, which selects the
