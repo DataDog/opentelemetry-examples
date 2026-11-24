@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-INSTALLER_VERSION=v0.0.1-pre
+INSTALLER_VERSION=v0.1.0
 CONFIG_BASE_URL="${TESTING_BASE_URL:-https://raw.githubusercontent.com/DataDog/opentelemetry-examples/$INSTALLER_VERSION/guides/kubernetes/configuration/opentelemetry-kube-stack}"
 CONFIG_FILES=(
     upstream/values.yaml
