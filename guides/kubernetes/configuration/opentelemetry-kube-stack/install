@@ -331,6 +331,13 @@ if [[ "$DD_HOST_PROFILER_ENABLED" == "true" ]]; then
         standard) HOST_PROFILER_NETWORK_POLICY_FILE="$SCRIPT_DIR/ddot/host-profiler-network-policy.yaml" ;;
         cilium) HOST_PROFILER_NETWORK_POLICY_FILE="$SCRIPT_DIR/ddot/host-profiler-cilium-network-policy.yaml" ;;
     esac
+    for kind in networkpolicy ciliumnetworkpolicy; do
+        if [[ -n "$(kubectl get "$kind" opentelemetry-kube-stack-host-profiler-egress \
+                      --namespace opentelemetry-operator-system \
+                      --ignore-not-found=true -o name 2>/dev/null)" ]]; then
+            fail "A host-profiler egress $kind from a previous installation exists. Clean up the previous installation and re-run this script."
+        fi
+    done
     HOST_PROFILER_ENABLED_ARGS=(
         --set collectors.host-profiler.enabled=true
         -f "$SCRIPT_DIR/ddot/host-profiler-rbac-values.yaml"
