@@ -7,9 +7,9 @@ opentelemetry-operator:
   manager:
     collectorImage:
       #  repository: otel/opentelemetry-collector-contrib
-      #  tag: "0.163.1"
+      #  tag: "0.165.0"
       repository: datadog/ddot-collector
-      tag: 7.86.0-rc.5
+      tag: 7.86.0
 
 kubeStateMetrics:
   enabled: true
@@ -58,6 +58,10 @@ defaultCRConfig:
             endpoint: 0.0.0.0:4318
     processors:
       cumulative_to_delta: {}
+      # The kubernetesAttributes preset's metadata list, with container.image.tags instead of the
+      # deprecated container.image.tag, which k8s_attributes doesn't emit when the
+      # processor.k8sattributes.DontEmitV0K8sConventions feature gate is enabled. See
+      # https://github.com/open-telemetry/opentelemetry-helm-charts/issues/2538
       k8s_attributes:
         extract:
           metadata:
@@ -78,7 +82,7 @@ defaultCRConfig:
             - k8s.statefulset.name
             - k8s.statefulset.uid
             - container.id
-            - container.image.tag
+            - container.image.tags
             - container.image.name
             - k8s.cluster.uid
             - service.namespace
@@ -651,10 +655,9 @@ collectors:
     # config, presets, and targetAllocator from being merged into this collector.
     inheritDefaultCRConfig: false
 
-    # Host Profiler release candidate image. Update the tag when using a newer RC.
     image:
       repository: datadog/ddot-ebpf
-      tag: 7.86.0-rc.3
+      tag: 7.86.0
 
     env:
       - name: DD_API_KEY
@@ -775,6 +778,38 @@ collectors:
               - site: ${env:DD_SITE:-datadoghq.com}
                 api_key: ${env:DD_API_KEY}
 
+      processors:
+        # The kubernetesAttributes preset's metadata list, with container.image.tags instead of the
+        # deprecated container.image.tag, which k8s_attributes doesn't emit when the
+        # processor.k8sattributes.DontEmitV0K8sConventions feature gate is enabled. See
+        # https://github.com/open-telemetry/opentelemetry-helm-charts/issues/2538
+        k8s_attributes:
+          extract:
+            metadata:
+              - k8s.namespace.name
+              - k8s.pod.name
+              - k8s.pod.uid
+              - k8s.node.name
+              - k8s.pod.start_time
+              - k8s.deployment.name
+              - k8s.replicaset.name
+              - k8s.replicaset.uid
+              - k8s.daemonset.name
+              - k8s.daemonset.uid
+              - k8s.job.name
+              - k8s.job.uid
+              - k8s.container.name
+              - k8s.cronjob.name
+              - k8s.statefulset.name
+              - k8s.statefulset.uid
+              - container.image.tags
+              - container.image.name
+              - k8s.cluster.uid
+              - service.namespace
+              - service.name
+              - service.version
+              - service.instance.id
+
       exporters:
         # Export profiles and metrics to Datadog through OTLP HTTP.
         otlp_http:
@@ -835,12 +870,12 @@ instrumentation:
     ## for every instrumented workload, or set them in the env of a workload's containers to configure them
     ## for that workload only (container env takes precedence over this list).
 
-    # Datadog Dynamic Instrumentation (DDI). See https://docs.datadoghq.com/tracing/dd_instrumentation/ .
+    # Datadog Dynamic Instrumentation (DDI). See https://docs.datadoghq.com/tracing/trace_collection/dynamic_instrumentation/ .
     # - name: "DD_DYNAMIC_INSTRUMENTATION_ENABLED"
     #   value: "true"
     # Datadog DBM (Database Monitoring). See https://docs.datadoghq.com/database_monitoring/ .
-    # - name: "DD_DBM_PROPAGATION_MODE" # full, service, disabled
-    #   value: "full"
+    # - name: "DD_DBM_PROPAGATION_MODE" # service, full, disabled
+    #   value: "service"
     # - name: "DD_DBM_TRACE_PREPARED_STATEMENTS"
     #   value: "true"
     # Datadog DSM (Data Streams Monitoring). See https://docs.datadoghq.com/data_streams/ .
@@ -872,8 +907,8 @@ instrumentation:
     - tracecontext
     - baggage
   dotnet:
-    # image: otel/autoinstrumentation-dotnet:1.17.0
-    image: datadog/dd-otel-autoinstrumentation-dotnet:3.57.0-preview
+    # image: otel/autoinstrumentation-dotnet:1.19.1
+    image: datadog/dd-otel-autoinstrumentation-dotnet:3.59.0-preview
     # Unlike the other languages, .NET needs more setup to instrument an application:
     # - The CORECLR_PROFILER_PATH env variable must be set (matching other languages)
     # - The .NET Tracer's DD_DOTNET_TRACER_HOME env variable must be set
@@ -891,14 +926,14 @@ instrumentation:
       - name: DD_DOTNET_TRACER_HOME
         value: /otel-auto-instrumentation-dotnet
   java:
-    # image: otel/autoinstrumentation-java:2.32.0
-    image: datadog/dd-otel-autoinstrumentation-java:1.69.0-preview
+    # image: otel/autoinstrumentation-java:2.34.0
+    image: datadog/dd-otel-autoinstrumentation-java:1.69.1-preview
   nodejs:
-    # image: otel/autoinstrumentation-nodejs:0.78.0
-    image: datadog/dd-otel-autoinstrumentation-js:6.25-preview
+    # image: otel/autoinstrumentation-nodejs:0.83.1
+    image: datadog/dd-otel-autoinstrumentation-js:6.26-preview
   python:
-    # image: otel/autoinstrumentation-python:0.66b1
-    image: datadog/dd-otel-autoinstrumentation-python:4.17.0-preview
+    # image: otel/autoinstrumentation-python:0.66b2
+    image: datadog/dd-otel-autoinstrumentation-python:4.17.2-preview
     # For Alpine/musl workloads, add this pod-template annotation (glibc is the default):
     # instrumentation.opentelemetry.io/otel-python-platform: "musl"
     # https://opentelemetry.io/docs/platforms/kubernetes/operator/automatic/#auto-instrumenting-a-python-musl-based-container

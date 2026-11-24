@@ -8,7 +8,7 @@
   },
   "application": {
     "service_name": "datadog-otel-onboarding-script",
-    "service_version": "v0.0.1-pre",
+    "service_version": "v0.1.0",
     "language_name": "UNKNOWN",
     "language_version": "n/a",
     "tracer_version": "n/a"
@@ -26,7 +26,7 @@
             "exit_code": "0",
             "failed_step": "none",
             "rerun": "false",
-            "version": "v0.0.1-pre",
+            "version": "v0.1.0",
             "script_source": "unset",
             "install_flow": "ddot",
             "k8s_cluster_type": "other",

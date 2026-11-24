@@ -6,10 +6,10 @@ metadata:
   name: opentelemetry-kube-stack
   namespace: opentelemetry-operator-system
   labels:
-    helm.sh/chart: opentelemetry-kube-stack-0.26.1
+    app.kubernetes.io/managed-by: "Helm"
     app.kubernetes.io/version: "0.162.0"
-    app.kubernetes.io/managed-by: Helm
-    release: "opentelemetry-kube-stack"    
+    helm.sh/chart: "opentelemetry-kube-stack-0.27.3"
+    release: "opentelemetry-kube-stack"
 spec:
   exporter:
     endpoint: http://opentelemetry-kube-stack-daemon-collector.opentelemetry-operator-system.svc.cluster.local:4318
@@ -34,14 +34,14 @@ spec:
       deployment.environment.name: production
       k8s.cluster.name: my-k8s-cluster
   java:
-    image: ghcr.io/open-telemetry/opentelemetry-operator/autoinstrumentation-java:2.32.0
+    image: ghcr.io/open-telemetry/opentelemetry-operator/autoinstrumentation-java:2.34.0
   nodejs:
     env:
     - name: OTEL_EXPORTER_OTLP_TRACES_PROTOCOL
       value: http/protobuf
-    image: ghcr.io/open-telemetry/opentelemetry-operator/autoinstrumentation-nodejs:0.78.0
+    image: ghcr.io/open-telemetry/opentelemetry-operator/autoinstrumentation-nodejs:0.83.1
   python:
-    image: ghcr.io/open-telemetry/opentelemetry-operator/autoinstrumentation-python:0.66b1
+    image: ghcr.io/open-telemetry/opentelemetry-operator/autoinstrumentation-python:0.66b2
   dotnet:
-    image: ghcr.io/open-telemetry/opentelemetry-operator/autoinstrumentation-dotnet:1.17.0
+    image: ghcr.io/open-telemetry/opentelemetry-operator/autoinstrumentation-dotnet:1.19.1
 

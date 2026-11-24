@@ -6,10 +6,10 @@ metadata:
   name: opentelemetry-kube-stack
   namespace: opentelemetry-operator-system
   labels:
-    helm.sh/chart: opentelemetry-kube-stack-0.26.1
+    app.kubernetes.io/managed-by: "Helm"
     app.kubernetes.io/version: "0.162.0"
-    app.kubernetes.io/managed-by: Helm
-    release: "opentelemetry-kube-stack"    
+    helm.sh/chart: "opentelemetry-kube-stack-0.27.3"
+    release: "opentelemetry-kube-stack"
 spec:
   exporter:
     endpoint: http://opentelemetry-kube-stack-daemon-collector.opentelemetry-operator-system.svc.cluster.local:4318
@@ -42,11 +42,11 @@ spec:
     resourceAttributes:
       deployment.environment.name: production
   java:
-    image: datadog/dd-otel-autoinstrumentation-java:1.69.0-preview
+    image: datadog/dd-otel-autoinstrumentation-java:1.69.1-preview
   nodejs:
-    image: datadog/dd-otel-autoinstrumentation-js:6.25-preview
+    image: datadog/dd-otel-autoinstrumentation-js:6.26-preview
   python:
-    image: datadog/dd-otel-autoinstrumentation-python:4.17.0-preview
+    image: datadog/dd-otel-autoinstrumentation-python:4.17.2-preview
   dotnet:
     env:
     - name: CORECLR_PROFILER
@@ -55,5 +55,5 @@ spec:
       value: /otel-auto-instrumentation-dotnet/linux/Datadog.Trace.ClrProfiler.Native.so
     - name: DD_DOTNET_TRACER_HOME
       value: /otel-auto-instrumentation-dotnet
-    image: datadog/dd-otel-autoinstrumentation-dotnet:3.57.0-preview
+    image: datadog/dd-otel-autoinstrumentation-dotnet:3.59.0-preview
 

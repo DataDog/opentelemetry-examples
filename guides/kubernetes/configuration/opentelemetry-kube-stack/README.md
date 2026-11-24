@@ -1,4 +1,4 @@
-# kube-stack values.yaml
+# Values files for the OpenTelemetry Kube Stack Helm chart
 
 Reference values files for the [opentelemetry-kube-stack][chart] Helm chart, configured to send Kubernetes telemetry to Datadog. 
 
@@ -133,7 +133,7 @@ helm repo add open-telemetry https://open-telemetry.github.io/opentelemetry-helm
 helm repo update
 helm upgrade --install opentelemetry-kube-stack \
   open-telemetry/opentelemetry-kube-stack \
-  --version 0.26.1 \
+  --version 0.27.3 \
   --namespace opentelemetry-operator-system \
   --values ./upstream/values.yaml \
   --values ./deployment/values.yaml
@@ -177,8 +177,8 @@ Both collectors default to `500m` CPU / `1Gi` memory limits and `200m` CPU / `50
 
 Verified against:
 
-- `opentelemetry-kube-stack` chart `>= 0.26.1`
-- Collector image `otel/opentelemetry-collector-contrib >= 0.163.1` (set in the values files under `opentelemetry-operator.manager.collectorImage`)
+- `opentelemetry-kube-stack` chart `>= 0.27.3`
+- Collector image `otel/opentelemetry-collector-contrib >= 0.165.0` (set in the values files under `opentelemetry-operator.manager.collectorImage`)
 
 [chart]: https://github.com/open-telemetry/opentelemetry-helm-charts/tree/main/charts/opentelemetry-kube-stack
 [cm]: https://cert-manager.io/docs/installation/
