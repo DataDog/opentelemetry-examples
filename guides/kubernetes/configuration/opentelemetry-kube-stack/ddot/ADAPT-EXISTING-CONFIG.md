@@ -1505,10 +1505,10 @@ OTLP mode without sampling settings, whether they only export the sampled traces
   paths feed the same `logs` pipeline. When the SDK also exports the logs of the application's logging library over
   OTLP, which the Python and .NET DDOT SDKs do (see the table below), every log line that the application also prints
   reaches Datadog twice.
-> **Requirement: inspect the existing log ownership before changing it.** Render the configuration of every
-> OpenTelemetry Collector and Datadog Agent that can collect the workload's logs. Record the matching
-> `file_log.include` and `file_log.exclude` patterns. When an existing receiver already matches the workload, adapt
-> that receiver instead of adding another one.
+- **Requirement:** inspect the existing log ownership before changing it. Render the configuration of every
+  OpenTelemetry Collector and Datadog Agent that can collect the workload's logs. Record the matching
+  `file_log.include` and `file_log.exclude` patterns. When an existing receiver already matches the workload, adapt
+  that receiver instead of adding another one.
 - **Fix:** choose one path per workload:
   - **Tail the standard output,** when the application already logs to it. This path collects everything the
     container prints, including the output of libraries that the SDK doesn't instrument. When the SDK exports the
@@ -1542,9 +1542,9 @@ OTLP mode without sampling settings, whether they only export the sampled traces
   [OpenTelemetry API support][dd-otel-api] page.
 - **Conflicts:** don't disable `file_log` for all the pods: it also collects the logs of the workloads that don't
   export logs over OTLP. Record the path chosen for each workload.
-> The `ad.datadoghq.com/logs_exclude: "true"` annotation only stops the Datadog Agent from collecting the container
-> logs. OpenTelemetry `file_log` receivers don't read this annotation. To stop an OpenTelemetry Collector from tailing
-> a workload, change that receiver's `include` or `exclude` patterns.
+- **Conflicts:** the `ad.datadoghq.com/logs_exclude: "true"` annotation only stops the Datadog Agent from collecting
+  the container logs. OpenTelemetry `file_log` receivers don't read this annotation. To stop an OpenTelemetry
+  Collector from tailing a workload, change that receiver's `include` or `exclude` patterns.
 - **Verify:** in the Datadog Log Explorer, a log line of the workload appears once, and its logs link to its traces.
 
 ### S-11: Align Datadog Unified Service Tagging with the OpenTelemetry service identity
@@ -1616,10 +1616,10 @@ OTLP mode without sampling settings, whether they only export the sampled traces
   ([S-12](#s-12-send-otlp-to-the-datadog-agent-instead-of-standalone-opentelemetry-collectors)). The OpenTelemetry
   Collectors don't set `service.name` or `service.version`, and the `infraattributes` processor only adds the values
   that the telemetry doesn't have.
-> **Troubleshooting:** when SDK telemetry has the expected `env` but pod logs have the Collector's cluster-wide
-> default, inspect the log pipeline for a `resource` processor that uses `action: upsert` on
-> `deployment.environment.name`. Change the default to `action: insert`, after `k8s_attributes`, so that the workload
-> annotation or resource attribute wins.
+- **Troubleshooting:** when SDK telemetry has the expected `env` but pod logs have the Collector's cluster-wide
+  default, inspect the log pipeline for a `resource` processor that uses `action: upsert` on
+  `deployment.environment.name`. Change the default to `action: insert`, after `k8s_attributes`, so that the workload
+  annotation or resource attribute wins.
 - **Exception:** in pods whose containers have different services, with per-container labels such as
   `tags.datadoghq.com/<container name>.service`, don't set the pod-level `resource.opentelemetry.io/service.name` and
   `resource.opentelemetry.io/service.version` annotations: they'd apply the same values to all the containers. Set the
