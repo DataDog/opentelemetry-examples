@@ -1854,11 +1854,34 @@ OTLP mode without sampling settings, whether they only export the sampled traces
 
 - **Requirement:** when the workloads already run Datadog SDKs in their default mode, switch them to the OpenTelemetry
   mode of the DDOT SDKs one workload at a time, and check what changes for each workload:
-  - **Unchanged:** the RED metrics and the APM operation names, for example `servlet.request` in Java, stay the same,
-    so the monitors and dashboards based on them keep working. This requires the same service name: take
+  - **Unchanged:** the APM operation names, for example `servlet.request` in Java, and the service-level RED metrics
+    based on them, such as `trace.servlet.request.hits`, stay the same, so the monitors and dashboards based on them
+    keep working. The DDOT SDK exports the Datadog operation name in the `operation.name` attribute of the OTLP spans,
+    which Datadog uses as the operation name. This requires the same service name: take
     `service.name` from the existing `DD_SERVICE` or `tags.datadoghq.com/service` value, or from the service name in
     effect today ([S-11](#s-11-align-datadog-unified-service-tagging-with-the-opentelemetry-service-identity)).
     Otherwise, the migrated workload appears as a new APM service.
+  - **Resource names and HTTP tags:** with the OpenTelemetry semantic conventions of
+    [S-01](#s-01-enable-the-opentelemetry-mode-of-the-ddot-sdks), `DD_TRACE_OTEL_SEMANTICS_ENABLED=true`, some
+    resource names and the HTTP tags change:
+
+    | Span                                             | Resource name with the Datadog SDK in its default mode | Resource name with the DDOT SDK                                  |
+    |--------------------------------------------------|--------------------------------------------------------|------------------------------------------------------------------|
+    | HTTP server, with a route of the framework       | `GET /users/{id}`                                      | `GET /users/{id}`, unchanged                                     |
+    | HTTP server, without a route                     | From the URL, for example `GET /users/?`, or `404`     | The method only, for example `GET`                               |
+    | HTTP client                                      | From the URL, for example `GET /users/?`               | The method only, for example `GET`, unless a path mapping matches |
+    | Non-standard HTTP method                         | The method                                             | `_OTHER`, with the method in `http.request.method_original`      |
+
+    The HTTP tags follow the OpenTelemetry semantic conventions, for example for the URL and the method, and the
+    spans with an error status get `error.type`. Before the switch, list the monitors, SLOs, and dashboards of the
+    service that filter on `resource_name` or on the HTTP tags, then, for each of them:
+    - **update it** to the new resource names and tags;
+    - **or, for the HTTP client spans, keep a path in the resource name** with
+      `DD_TRACE_HTTP_CLIENT_PATH_RESOURCE_NAME_MAPPING`, which maps the request paths to resource names, for example
+      `/users/*:/users/?` gives `GET /users/?`
+      ([Java tracer configuration][dd-java-config]).
+
+    Until these are ready, keep the workload on the Datadog SDK in its default mode.
   - **Runtime metrics:** their names change to the OpenTelemetry names, for example `jvm.memory.used` for the JVM.
     Datadog maps them for the service page and the default runtime dashboards
     ([OpenTelemetry runtime metrics][dd-otel-runtime-metrics]). Check the custom monitors and dashboards that use the
