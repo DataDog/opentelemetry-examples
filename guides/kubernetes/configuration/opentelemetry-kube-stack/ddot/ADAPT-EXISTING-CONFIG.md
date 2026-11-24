@@ -360,8 +360,8 @@ configures one OpenTelemetry Collector.
     replica sets, and on nodes when you extract node metadata, such as `k8s.node.uid` or node labels), and the
     `metadata` to extract:
 
-    <!-- snippet-source: file=guides/kubernetes/configuration/opentelemetry-kube-stack/ddot/values.yaml path=.defaultCRConfig.config.processors.k8s_attributes.extract.metadata snippet-path=.processors.k8s_attributes.extract.metadata mode=subset sha=165daa6cefb0 -->
-    <!-- snippet-source: file=guides/kubernetes/configuration/opentelemetry-kube-stack/ddot/values.yaml path=.defaultCRConfig.config.processors.k8s_attributes mode=adapted sha=9ba22a88e1c4 -->
+    <!-- snippet-source: file=guides/kubernetes/configuration/opentelemetry-kube-stack/ddot/values.yaml path=.defaultCRConfig.config.processors.k8s_attributes.extract.metadata snippet-path=.processors.k8s_attributes.extract.metadata mode=subset sha=4221395d5d6f -->
+    <!-- snippet-source: file=guides/kubernetes/configuration/opentelemetry-kube-stack/ddot/values.yaml path=.defaultCRConfig.config.processors.k8s_attributes mode=adapted sha=179ff668cf20 -->
     ```yaml
     processors:
       k8s_attributes:
@@ -678,8 +678,13 @@ environment variable, typically through `OTEL_RESOURCE_ATTRIBUTES=datadog.host.n
   ```
 
   The chart adds a `resource/global` processor with `action: upsert` to every pipeline of the OpenTelemetry
-  Collectors. Without the chart, add a `resource` processor to every pipeline that receives telemetry from the
-  workloads, including the pod logs and metrics pipelines. A `transform` processor with
+  Collectors. The installer's [`values.yaml`][values] sets it to `production`, and the `install` script to its
+  `DEPLOYMENT_ENVIRONMENT_NAME` variable, `production` by default. Before reusing these values, set the environment of
+  each cluster, and remove the entry when workloads carry their own `deployment.environment.name`: with `upsert`, the
+  value overwrites theirs, for example `production` on the workloads of a staging cluster
+  ([S-11](#s-11-align-datadog-unified-service-tagging-with-the-opentelemetry-service-identity)). Without the chart,
+  add a `resource` processor to every pipeline that receives telemetry from the workloads, including the pod logs and
+  metrics pipelines. A `transform` processor with
   `set(resource.attributes["deployment.environment.name"], "<ENVIRONMENT>")` also works.
 
   ```yaml
@@ -832,7 +837,11 @@ environment variable, typically through `OTEL_RESOURCE_ATTRIBUTES=datadog.host.n
      `OpenTelemetryCollector` resource of the OpenTelemetry Operator, otherwise with the
      [OpenTelemetry Collector Helm chart][otel-collector-chart], otherwise with your own deployment mechanism. When
      the DDOT Collector can't be used, the upstream OpenTelemetry Collector Contrib, with the same configuration, is
-     the solution.
+     the solution. With the OpenTelemetry Kube Stack Helm chart, this level deploys the OpenTelemetry Operator, with
+     its custom resource definitions and its admission webhook, which needs [cert-manager][cert-manager] when it isn't
+     installed already, and the DDOT Collectors from the chart's values. It also needs a `datadog-secret` Secret with
+     the Datadog API key in their namespace ([C-01](#c-01-export-to-datadog-with-the-datadog-exporter)). Tell the user
+     about this footprint when they choose between the levels.
   2. **The DDOT Collector bundled in the Datadog Agent DaemonSet,** when an OpenTelemetry Collector DaemonSet deployed
      with the community tools isn't an option. It has the same support of the OpenTelemetry Collector components as
      the standalone DDOT Collector. Add the `k8s_attributes` processor to its ingestion pipelines, and if you can't,
@@ -858,6 +867,25 @@ environment variable, typically through `OTEL_RESOURCE_ATTRIBUTES=datadog.host.n
     can break existing infrastructure monitors and dashboards
     ([S-13](#s-13-migrate-workloads-from-the-datadog-sdks)). Levels 2 and 3 keep the Datadog Agent's infrastructure
     collection unchanged.
+  - **Level 1 for APM only:** when the user adopts level 1 to migrate the SDKs, but wants to keep the Datadog Agent as
+    the source of the pod logs and of the Kubernetes and host metrics, at least during the migration, turn off the
+    collection of the OpenTelemetry Collectors instead of applying
+    [A-01](#a-01-disable-the-features-that-duplicate-the-opentelemetry-collectors). Otherwise, both collect the same
+    logs and metrics, and every log line and every one of these metrics reaches Datadog twice. In the values of the
+    OpenTelemetry Kube Stack Helm chart:
+
+    | Value                                              | Set to  | What it would duplicate                                                                  |
+    |----------------------------------------------------|---------|------------------------------------------------------------------------------------------|
+    | `collectors.daemon.presets.logsCollection.enabled` | `false` | The container logs, which the Datadog Agent tails                                        |
+    | `collectors.daemon.presets.kubeletMetrics.enabled` | `false` | The kubelet, pod, and container metrics                                                  |
+    | `collectors.daemon.presets.hostMetrics.enabled`    | `false` | The host metrics                                                                         |
+    | `collectors.cluster.enabled`                       | `false` | The Kubernetes cluster metrics and objects of the `cluster` OpenTelemetry Collector     |
+    | `kubeStateMetrics.enabled`                         | `false` | The kube-state-metrics deployment that the `cluster` OpenTelemetry Collector scrapes     |
+
+    The `daemon` OpenTelemetry Collector then only receives the OTLP telemetry of the SDKs. Move the logs or the
+    infrastructure metrics later, as a separate step, by turning these values on and applying A-01 together. The
+    OpenTelemetry Collectors then also need a default `deployment.environment.name` for this telemetry, set with
+    `action: insert` ([C-11](#c-11-set-the-deployment-environment)).
 
 ## OpenTelemetry Operator and `Instrumentation` rules
 
@@ -1255,6 +1283,10 @@ OTLP mode without sampling settings, whether they only export the sampled traces
             value: "false"
   ```
 
+- **Requirement:** when no workload of the cluster uses the injection of the OpenTelemetry Operator, for example when
+  the SDKs are in the images, set `instrumentation.enabled: false` in the values of the OpenTelemetry Kube Stack Helm
+  chart: the chart then doesn't create the `Instrumentation` resource, which no workload needs. The OpenTelemetry
+  Operator still deploys the OpenTelemetry Collectors.
 - **Requirement:** add the `admission.datadoghq.com/enabled: "false"` label to the pod template of the workload, as for
   the workloads that the OpenTelemetry Operator instruments
   ([O-05](#o-05-annotate-workloads-and-prevent-double-instrumentation)):
@@ -1387,8 +1419,17 @@ OTLP mode without sampling settings, whether they only export the sampled traces
       Agent keeps tailing the pod logs, and this switch isn't needed.
 
     Keep the `resource.opentelemetry.io/*` annotations on for all the services: they're harmless before the
-    migration, and the OpenTelemetry Collector can use them for the pod logs and metrics of every service. At the end
-    of the migration, turn the switches on by default, then remove them.
+    migration, and the OpenTelemetry Collector can use them for the pod logs and metrics of every service.
+
+    **At the end of the migration,** some services can stay on the Datadog SDK on purpose, for example the ones that
+    need memory or lock profiling ([S-13](#s-13-migrate-workloads-from-the-datadog-sdks)), or whose monitors aren't
+    ready. Turning the switches on by default would move them silently. So, before changing the default:
+    1. list the services that don't set the switches in their own values, and rely on the default;
+    2. set an explicit value for each of them: `true` for the migrated ones, `false` for the ones that stay on the
+       Datadog SDK;
+    3. turn the switches on by default, so that new services start with the DDOT SDK.
+
+    Remove the switches only when no service sets them to `false` anymore.
 
     `openTelemetry.apmSdk.enabled` switches the traces, metrics, and logs of the SDK, and the
     `admission.datadoghq.com/enabled: "false"` label, at once. Start with one canary service, in a non-production
@@ -1396,7 +1437,9 @@ OTLP mode without sampling settings, whether they only export the sampled traces
     ([S-13](#s-13-migrate-workloads-from-the-datadog-sdks) verify), then switch the other services in small groups.
     Check that the OTLP endpoint of the chart is reachable from the namespace of each service before turning its
     switch on, as step 2 of the [instructions for coding agents](#instructions-for-coding-agents) shows: without it,
-    the service stops sending traces.
+    the service stops sending traces. With GitOps, for example Argo CD or Flux, set the switches in the values of each
+    service in Git, and change them only there, also to roll back
+    ([S-13](#s-13-migrate-workloads-from-the-datadog-sdks)).
 
   For example, with value names to map to the ones of your chart:
 
@@ -1495,7 +1538,18 @@ OTLP mode without sampling settings, whether they only export the sampled traces
   example `dd.logs.injection` becomes `DD_LOGS_INJECTION`. Also consider moving the `-Ddd.*` properties that don't
   conflict, such as `-Ddd.logs.injection=true`, to their `DD_*` environment variables, so that the configuration of
   `dd-java-agent` is in one place, as the
-  [application workflow](#3-move-compatible-configuration-to-environment-variables) recommends. Keep the JVM options
+  [application workflow](#3-move-compatible-configuration-to-environment-variables) recommends. When you move them:
+  - put the variables in the container `env` of all the workloads that had the property, not only behind the switch
+    of the DDOT SDK configuration ([S-08](#s-08-configure-the-sdks-of-workloads-without-the-opentelemetry-operator)),
+    so that the workloads still on the Datadog SDK keep the setting;
+  - check that no other definition sets the same variable with another value, such as the chart, an `envFrom`, the
+    image, or the Datadog Cluster Agent's Admission Controller: unlike the system property, the variable doesn't win
+    over them ([S-06](#s-06-enable-optional-datadog-features-per-workload) precedence);
+  - don't carry `-Ddd.profiling.enabled=true` into the configuration of the DDOT SDK, which doesn't support
+    in-process profiling ([S-13](#s-13-migrate-workloads-from-the-datadog-sdks)): remove it from the workloads that
+    move to the DDOT SDK, and keep it on the ones that stay on the Datadog SDK.
+
+  Keep the JVM options
   that don't configure the telemetry, such as memory settings, and the `-Ddatadog.*` properties, which configure the
   tracer's own logging: this guide doesn't require changing them. With
   `-Ddatadog.slf4j.simpleLogger.logFile=System.out`, or with the default, the standard error, the tracer's logs reach
@@ -1977,6 +2031,25 @@ OTLP mode without sampling settings, whether they only export the sampled traces
       [C-02](#c-02-compute-apm-trace-metrics-with-the-datadog-connector-before-any-sampling). The connector sees all
       the traces, so the APM trace metrics stay exact. This is the default recommendation, as for the workloads that
       the OpenTelemetry Operator instruments ([O-04](#o-04-point-the-sdks-at-the-daemon-opentelemetry-collector)).
+      For example, a `probabilistic_sampler` processor that keeps 10% of the traces, in the values of the
+      OpenTelemetry Kube Stack Helm chart. Helm replaces lists, so repeat the `receivers` and `exporters` of the
+      pipeline:
+
+      ```yaml
+      collectors:
+        daemon:
+          config:
+            processors:
+              probabilistic_sampler:
+                sampling_percentage: 10
+            service:
+              pipelines:
+                traces/sampling:
+                  receivers: [datadog/connector]
+                  processors: [probabilistic_sampler]
+                  exporters: [datadog/exporter]
+      ```
+
     - **In the SDK,** with `DD_TRACE_SAMPLE_RATE`, `DD_TRACE_SAMPLING_RULES`, or Remote Configuration sampling, which
       still apply in OTLP mode, with the `DD_TRACE_RATE_LIMIT` limit, 100 traces per second by default. This also
       reduces the network traffic. The SDK only exports the sampled traces, with their sampling probability in the
@@ -2080,9 +2153,14 @@ OTLP mode without sampling settings, whether they only export the sampled traces
   turn `openTelemetry.apmSdk.enabled` and `openTelemetry.podLogs.enabled` off for the workload instead
   ([S-08](#s-08-configure-the-sdks-of-workloads-without-the-opentelemetry-operator)).
 
-  With Helm, set the two values explicitly to `false` in the complete desired values for the release. Don't rely on
-  omitting a canary values file: the previous value can remain in the Helm release or be reintroduced by another
-  values layer.
+  With GitOps, for example Argo CD or Flux, set the two values to `false` in the workload's values in Git, and let the
+  pipeline deploy them: a rollback then takes one pipeline run. Don't change them directly in the cluster, with
+  `helm` or `kubectl`: with self-heal on, Argo CD reverts direct changes to what Git says, and the workload switches
+  back to the DDOT SDK.
+
+  When Helm deploys the release directly, set the two values explicitly to `false` in the complete desired values for
+  the release. Don't rely on omitting a canary values file: the previous value can remain in the Helm release or be
+  reintroduced by another values layer.
 
   ```shell
   helm upgrade <release> <chart> \
@@ -2198,11 +2276,13 @@ in the pods ([S-06](#s-06-enable-optional-datadog-features-per-workload)).
   ```
 
 - **Conflicts:** if the user relies on one of these features for something the OpenTelemetry Collectors don't collect,
-  keep it, and say so in the report. If the user prefers to keep a Datadog Agent feature, disable its equivalent in the
-  OpenTelemetry Collectors instead, rather than collecting the telemetry twice. If `DD_IGNORE_AUTOCONF` is already set, append
-  `kubernetes_state` to its space-separated list. During a migration from the Datadog SDKs, keep `logCollection`
-  enabled until the end, and exclude the migrated workloads pod by pod
-  ([S-13](#s-13-migrate-workloads-from-the-datadog-sdks)).
+  keep it, and say so in the report. If the user prefers to keep a Datadog Agent feature, disable its equivalent in
+  the OpenTelemetry Collectors instead, rather than collecting the telemetry twice. To keep all of them, for example
+  to migrate only the SDKs first, see the values of the "Level 1 for APM only" conflict of
+  [C-14](#c-14-choose-where-the-opentelemetry-collector-runs-on-kubernetes). If `DD_IGNORE_AUTOCONF` is already set,
+  append `kubernetes_state` to its space-separated list.
+  During a migration from the Datadog SDKs, keep `logCollection` enabled until the end, and exclude the migrated
+  workloads pod by pod ([S-13](#s-13-migrate-workloads-from-the-datadog-sdks)).
 
 ### A-02: Keep the Datadog Cluster Agent
 
@@ -2362,6 +2442,7 @@ does not appear.
 [host-profiler]: ./README.md#host-profiler-optional
 [values]: ./values.yaml
 [dd-agent-yaml]: ./datadog-agent.yaml
+[cert-manager]: https://cert-manager.io/
 [dd-helm-chart]: https://github.com/DataDog/helm-charts/tree/main/charts/datadog
 [examples-rendered]: ./examples/default/rendered/
 [troubleshooting]: ./TROUBLESHOOTING.md
