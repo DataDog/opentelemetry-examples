@@ -1278,3 +1278,4 @@ spec:
       volumeMounts:
       - mountPath: /host/var/lib/kubelet/seccomp
         name: host-seccomp
+
