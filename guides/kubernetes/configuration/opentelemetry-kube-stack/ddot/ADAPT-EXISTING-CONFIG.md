@@ -1064,6 +1064,21 @@ in [`values.yaml`][values] list them:
 | [Code Security SCA][dd-sca]                | `DD_APPSEC_SCA_ENABLED=true`                                                           |
 
 - **Conflicts:** if the user's workloads already set any of these, keep their values.
+- **Requirement:** when migrating a workload from the Datadog SDKs
+  ([S-13](#s-13-migrate-workloads-from-the-datadog-sdks)), record the Datadog features enabled for it today, and set
+  the ones of the table above explicitly in its `env`
+  ([S-08](#s-08-configure-the-sdks-of-workloads-without-the-opentelemetry-operator)). Look in three places:
+  - the manifests and the chart values of the workload;
+  - the `-Ddd.*` system properties of Java workloads
+    ([S-09](#s-09-configure-a-java-agent-bundled-in-the-container-image)), such as `-Ddd.appsec.enabled`;
+  - a running pod of the workload, before the switch, which also shows the variables that the Datadog Cluster Agent's
+    Admission Controller injects, for example from the `ddTraceConfigs` of a Single Step Instrumentation target or
+    from a feature of the Datadog Operator:
+    `kubectl get pod <pod> --namespace <namespace> -o yaml | grep -E 'DD_(APPSEC|IAST|PROFILING|DATA_STREAMS|DBM)'`.
+
+  The `admission.datadoghq.com/enabled: "false"` label of S-08 stops these injections: without explicit variables, the
+  migrated workload silently loses these features. For `DD_PROFILING_ENABLED`, see the Continuous Profiler item of
+  S-13.
 - **Precedence:** before changing a variable, find every definition for the workload. The effective order, from highest
   to lowest precedence, is:
   1. the container's `env` in the pod manifest;
@@ -1909,13 +1924,17 @@ OTLP mode without sampling settings, whether they only export the sampled traces
 
     Keep the existing `DD_TRACE_SAMPLE_RATE`, `DD_TRACE_SAMPLING_RULES`, and `-Ddd.trace.sampl*` settings: they still
     apply ([S-09](#s-09-configure-a-java-agent-bundled-in-the-container-image)).
-  - **Continuous Profiler:** it stops for the migrated workloads, because the DDOT SDKs don't support the process-level
-    profiling of the Datadog SDKs yet, such as CPU, memory, and lock profiling. Two options:
-    - **Switch to the DDOT Full Host Profiler,** which profiles the CPU usage of every process of the node with eBPF,
-      and which this guide's `install` script deploys with `DD_HOST_PROFILER_ENABLED=true`
+  - **Continuous Profiler:** it stops for the migrated workloads, because in-process profiling isn't available in the
+    DDOT SDKs, such as the CPU, memory, and lock profiling of the Datadog SDKs. A workload uses it when
+    `DD_PROFILING_ENABLED=true` or `-Ddd.profiling.enabled=true` is set or injected today
+    ([S-06](#s-06-enable-optional-datadog-features-per-workload)). For these workloads:
+    - **Switch to the DDOT Full Host Profiler,** the recommendation. It profiles the CPU usage of every process of the
+      node with eBPF, and this guide's `install` script deploys it with `DD_HOST_PROFILER_ENABLED=true`
       ([host profiler][host-profiler]). The workload can then adopt the OpenTelemetry instrumentation, but with less
-      visibility than the process-level profiler of the Datadog SDKs: there's no memory or lock profiling.
-    - **Keep the workloads that depend on memory or lock profiling on the Datadog SDKs** in their default mode.
+      visibility than the in-process profiler of the Datadog SDKs: there's no memory or lock profiling. Tell the user
+      about this switch in the report, and don't carry `DD_PROFILING_ENABLED` into the configuration of the DDOT SDK.
+    - **Only for the workloads that depend on memory or lock profiling,** keep them on the Datadog SDKs in their
+      default mode.
   - **Trace and log correlation:** keep `DD_LOGS_INJECTION=true` in the DDOT SDKs, the same way as with the Datadog
     SDKs, so that the log lines carry the trace and span IDs, and check that the logs still link to the traces after
     the migration, whichever log path the workload uses ([S-10](#s-10-send-each-log-line-to-datadog-once)).
