@@ -1804,6 +1804,22 @@ OTLP mode without sampling settings, whether they only export the sampled traces
   | [C-12](#c-12-collect-middleware-telemetry-from-the-daemon-opentelemetry-collector-on-the-same-node) | Possible with `receiver_creator` and `k8s_observer`, which need more RBAC. Only when you need it.                                                     |
   | [C-13](#c-13-keep-the-daemon-opentelemetry-collectors-service-node-local) | Doesn't apply: the local Service of the Datadog Agent is already node-local.                                                                                       |
 
+- **With the [`datadog` Helm chart][dd-helm-chart],** the bundled DDOT Collector differs from the Datadog Operator's
+  (read from the chart's source, version 3.276.0, not tested):
+  - **Endpoint:** the local Service is named after the chart's release, the `datadog.fullname` of the chart, or
+    `agents.localService.overrideName`. The chart adds the ports of `datadog.otelCollector.ports`, 4317 and 4318 by
+    default, to this Service, with `internalTrafficPolicy: Local`, on Kubernetes 1.22 or later. Port 8126 of the
+    Datadog Agent is also on it, even with `datadog.apm.portEnabled: false`.
+  - **Image:** the `otel-agent` container uses the `ddot-collector` image, with the tag of `agents.image.tag`, from
+    Datadog Agent 7.67.0 (`datadog.otelCollector.useStandaloneImage: true`, the default). The chart rejects a tag with
+    the `-full` suffix in this mode.
+  - **Configuration:** `datadog.otelCollector.config` replaces the default configuration, as `configData` does.
+  - **RBAC:** when `datadog.otelCollector.config` has a `k8s_attributes` processor, the chart creates the ClusterRole
+    of its pods, namespaces, and ReplicaSets itself (`datadog.otelCollector.rbac.create: true`, the default), so you
+    can skip the third change above. Add `nodes` with `datadog.otelCollector.rbac.rules` if you extract node metadata.
+    The chart doesn't detect the processor in a ConfigMap of `datadog.otelCollector.configMap`: add the rules there.
+  - **Node name:** the chart doesn't give the `otel-agent` container the node name either: add `K8S_NODE_NAME` with
+    `agents.containers.otelAgent.env`, as in the second change above.
 - **Without `k8s_attributes`: the limits of the `infraattributes` processor.** When you can't add `k8s_attributes`
   to the bundled DDOT Collector, its `infraattributes` processor is the only enrichment
   ([`infraattributes` processor][dd-infraattributes]):
@@ -2033,8 +2049,37 @@ and which log layouts to use, so that the logs stay linked to the traces.
 ## Datadog Agent and Datadog Operator rules
 
 These rules use the Datadog Operator's `DatadogAgent` custom resource (`datadoghq.com/v2alpha1`), as in
-[`datadog-agent.yaml`][dd-agent-yaml]. With the `datadog` Helm chart, apply the same changes with the chart's equivalent
-values: this guide doesn't list them, and they aren't tested in this repository.
+[`datadog-agent.yaml`][dd-agent-yaml]. With the [`datadog` Helm chart][dd-helm-chart], apply the same changes with
+the chart values of this table. The table is read from the chart's source, version 3.276.0, and isn't tested in this
+repository (OTEL-3478): report the changes made with the chart as `untested`.
+
+| `DatadogAgent` of the Datadog Operator                         | Values of the `datadog` Helm chart                                                          |
+|----------------------------------------------------------------|---------------------------------------------------------------------------------------------|
+| `spec.global.clusterName`                                      | `datadog.clusterName`                                                                       |
+| `spec.global.tags`                                             | `datadog.tags`                                                                              |
+| `spec.override.nodeAgent.env`                                  | `datadog.env`, for all the containers of the Datadog Agent DaemonSet                        |
+| `spec.override.nodeAgent.containers.agent.env`                 | `agents.containers.agent.env`                                                               |
+| `spec.override.nodeAgent.containers.otel-agent.env`            | `agents.containers.otelAgent.env`                                                           |
+| `spec.override.clusterAgent.env`                               | `clusterAgent.env`                                                                          |
+| `spec.features.otelCollector.enabled`                          | `datadog.otelCollector.enabled`                                                             |
+| `spec.features.otelCollector.conf.configData`                  | `datadog.otelCollector.config`, or an existing ConfigMap with `datadog.otelCollector.configMap` |
+| `spec.features.otlp.receiver.protocols.grpc.enabled`, `.http.enabled` | `datadog.otlp.receiver.protocols.grpc.enabled`, `.http.enabled`                      |
+| `DD_OTLP_CONFIG_LOGS_ENABLED=true`                             | `datadog.otlp.logs.enabled: true`                                                           |
+| `spec.features.logCollection.enabled`                          | `datadog.logs.enabled`, with `datadog.logs.containerCollectAll`                             |
+| `spec.features.kubeStateMetricsCore.enabled`                   | `datadog.kubeStateMetricsCore.enabled`                                                      |
+| `spec.features.orchestratorExplorer.enabled`                   | `datadog.orchestratorExplorer.enabled`                                                      |
+| `spec.features.eventCollection.collectKubernetesEvents`        | `datadog.collectEvents`                                                                     |
+| `spec.features.clusterChecks.enabled`                          | `datadog.clusterChecks.enabled`                                                             |
+| `spec.features.liveProcessCollection.enabled`                  | `datadog.processAgent.processCollection`                                                    |
+| `spec.features.processDiscovery.enabled`                       | `datadog.processAgent.processDiscovery`                                                     |
+| `spec.features.dynamicInstrumentation.enabled`                 | `datadog.dynamicInstrumentationGo.enabled`                                                  |
+| `spec.features.apm.instrumentation.enabled`                    | `datadog.apm.instrumentation.enabled`                                                       |
+| The Datadog Cluster Agent's Admission Controller `mutateUnlabelled` setting | `clusterAgent.admissionController.mutateUnlabelled`                            |
+
+The chart also differs on the bundled DDOT Collector
+([S-12](#s-12-send-otlp-to-the-datadog-agent-instead-of-standalone-opentelemetry-collectors)), and its
+`datadog.profiling.enabled` value makes the Datadog Cluster Agent's Admission Controller inject `DD_PROFILING_ENABLED`
+in the pods ([S-06](#s-06-enable-optional-datadog-features-per-workload)).
 
 ### A-01: Disable the features that duplicate the OpenTelemetry Collectors
 
@@ -2249,6 +2294,7 @@ does not appear.
 [host-profiler]: ./README.md#host-profiler-optional
 [values]: ./values.yaml
 [dd-agent-yaml]: ./datadog-agent.yaml
+[dd-helm-chart]: https://github.com/DataDog/helm-charts/tree/main/charts/datadog
 [examples-rendered]: ./examples/default/rendered/
 [troubleshooting]: ./TROUBLESHOOTING.md
 [architecture]: ./assets/deployment-architecture-diagram_k8s_ddot-with-dd-agent.svg.png
