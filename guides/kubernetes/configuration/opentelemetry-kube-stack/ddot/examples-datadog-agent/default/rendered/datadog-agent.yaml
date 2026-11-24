@@ -453,7 +453,7 @@ data:
     install_method:
       tool: datadog-operator
       tool_version: unknown
-      installer_version: c4da283
+      installer_version: 3f8ddd3
 kind: ConfigMap
 metadata:
   labels:
@@ -764,13 +764,13 @@ spec:
       - name: DD_LOG_FORMAT_JSON
         value: "true"
       image:
-        tag: 7.84.3-jmx
+        tag: 7.86.0-jmx
 ---
 apiVersion: apps/v1
 kind: DaemonSet
 metadata:
   annotations:
-    agent.datadoghq.com/agentspechash: 37eb47dfaf2ecac09f8f2474e523a891
+    agent.datadoghq.com/agentspechash: 1746215019fcc198dfcded4b9f7c50dd
   labels:
     agent.datadoghq.com/component: agent
     agent.datadoghq.com/name: datadog
@@ -797,7 +797,7 @@ spec:
   template:
     metadata:
       annotations:
-        agent.datadoghq.com/configmapshash: 9109d7722ca9ab76
+        agent.datadoghq.com/configmapshash: 31714765140f024f
         container.apparmor.security.beta.kubernetes.io/system-probe: unconfined
       labels:
         agent.datadoghq.com/component: agent
@@ -836,6 +836,12 @@ spec:
           valueFrom:
             fieldRef:
               fieldPath: status.hostIP
+        - name: DD_POD_NAME
+          valueFrom:
+            fieldRef:
+              fieldPath: metadata.name
+        - name: DD_REMOTE_AGENT_CONFIGSTREAM_CONSUMER_ENABLED
+          value: "false"
         - name: DD_CLUSTER_NAME
           value: my-k8s-cluster
         - name: DD_SITE
@@ -884,7 +890,7 @@ spec:
           value: "true"
         - name: DD_IGNORE_AUTOCONF
           value: kubernetes_state
-        image: registry.datadoghq.com/agent:7.84.3-jmx
+        image: registry.datadoghq.com/agent:7.86.0-jmx
         livenessProbe:
           failureThreshold: 6
           httpGet:
@@ -986,6 +992,8 @@ spec:
           valueFrom:
             fieldRef:
               fieldPath: status.hostIP
+        - name: DD_REMOTE_AGENT_CONFIGSTREAM_CONSUMER_ENABLED
+          value: "false"
         - name: DD_CLUSTER_NAME
           value: my-k8s-cluster
         - name: DD_SITE
@@ -1014,7 +1022,7 @@ spec:
           value: "true"
         - name: DD_LOG_FORMAT_JSON
           value: "true"
-        image: registry.datadoghq.com/agent:7.84.3-jmx
+        image: registry.datadoghq.com/agent:7.86.0-jmx
         livenessProbe:
           initialDelaySeconds: 15
           periodSeconds: 15
@@ -1048,6 +1056,8 @@ spec:
         - mountPath: /host/var/run
           name: runtimesocketdir
           readOnly: true
+        - mountPath: /opt/datadog-agent/run
+          name: datadogrun
         - mountPath: /tmp
           name: tmpdir
       - command:
@@ -1070,6 +1080,8 @@ spec:
           valueFrom:
             fieldRef:
               fieldPath: status.hostIP
+        - name: DD_REMOTE_AGENT_CONFIGSTREAM_CONSUMER_ENABLED
+          value: "false"
         - name: DD_CLUSTER_NAME
           value: my-k8s-cluster
         - name: DD_SITE
@@ -1102,7 +1114,7 @@ spec:
           value: "true"
         - name: DD_LOG_FORMAT_JSON
           value: "true"
-        image: registry.datadoghq.com/agent:7.84.3-jmx
+        image: registry.datadoghq.com/agent:7.86.0-jmx
         name: system-probe
         resources: {}
         securityContext:
@@ -1154,7 +1166,7 @@ spec:
         command:
         - bash
         - -c
-        image: registry.datadoghq.com/agent:7.84.3-jmx
+        image: registry.datadoghq.com/agent:7.86.0-jmx
         name: init-volume
         resources: {}
         volumeMounts:
@@ -1191,7 +1203,7 @@ spec:
               fieldPath: status.hostIP
         - name: DD_DISCOVERY_ENABLED
           value: "true"
-        image: registry.datadoghq.com/agent:7.84.3-jmx
+        image: registry.datadoghq.com/agent:7.86.0-jmx
         name: init-config
         resources: {}
         volumeMounts:
@@ -1217,7 +1229,7 @@ spec:
         - cp
         - /etc/config/system-probe-seccomp.json
         - /host/var/lib/kubelet/seccomp/system-probe
-        image: registry.datadoghq.com/agent:7.84.3-jmx
+        image: registry.datadoghq.com/agent:7.86.0-jmx
         name: seccomp-setup
         resources: {}
         volumeMounts:
@@ -1283,7 +1295,7 @@ apiVersion: apps/v1
 kind: Deployment
 metadata:
   annotations:
-    agent.datadoghq.com/agentspechash: 0682e6bc969fbaf9a10d17bc36465ca7
+    agent.datadoghq.com/agentspechash: 84c7a0cdc35489b7845f5455ec999429
   labels:
     agent.datadoghq.com/component: cluster-agent
     agent.datadoghq.com/name: datadog
@@ -1312,7 +1324,7 @@ spec:
   template:
     metadata:
       annotations:
-        agent.datadoghq.com/configmapshash: 2f758221cf2fb51e
+        agent.datadoghq.com/configmapshash: 35018ca3e7356ef1
       labels:
         agent.datadoghq.com/component: cluster-agent
         agent.datadoghq.com/name: datadog
@@ -1421,6 +1433,8 @@ spec:
           value: /var/run/datadog/apm.socket
         - name: DD_APM_INSTRUMENTATION_ENABLED
           value: "false"
+        - name: DD_APM_INSTRUMENTATION_ON_DEMAND
+          value: "true"
         - name: DD_DOGSTATSD_HOST_SOCKET_PATH
           value: /var/run/datadog
         - name: DD_DOGSTATSD_SOCKET
@@ -1431,7 +1445,7 @@ spec:
           value: "true"
         - name: DD_LOG_FORMAT_JSON
           value: "true"
-        image: registry.datadoghq.com/cluster-agent:7.83.0
+        image: registry.datadoghq.com/cluster-agent:7.85.4
         livenessProbe:
           failureThreshold: 6
           httpGet:

@@ -21,26 +21,30 @@ You can also install the **host profiler** collector — a DaemonSet that runs t
 
 ## Quickstart
 
-Configure the installer with environment variables, then run it from this directory:
+Configure the installer with environment variables, then run it:
 
 | Variable | Description | Default |
 |---|---|---|
-| `DD_API_KEY` | Datadog API key. | None (required) |
+| `DD_API_KEY` | Datadog API key. Required. | None |
 | `DD_INSTALL_FLOW` | Installation flow: `upstream` (OTLP/HTTP exporter and upstream OpenTelemetry SDKs) or `ddot` (Datadog exporter, DDOT SDKs, and the Datadog Agent). | None (required) |
 | `DD_SITE` | Datadog site, for example `datadoghq.eu`. | `datadoghq.com` |
 | `K8S_CLUSTER_TYPE` | Kubernetes platform: `eks` (EKS), `gcp` (GKE), `aks` (AKS), or `other`. | `other` |
 | `K8S_CLUSTER_NAME` | Kubernetes cluster name. For `eks`, `gcp`, and `aks`, overrides the auto-detected name. | Auto-detected for `eks`, `gcp`, and `aks`; unset otherwise |
 | `DEPLOYMENT_ENVIRONMENT_NAME` | Value of the `deployment.environment.name` resource attribute. | `production` |
-| `DD_AGENT_ENABLED` | Install the Datadog Agent in the `ddot` flow: `true` or `false`. | `true` |
-| `DD_APP_KEY` | Datadog application key. Enables Fleet Automation for the Datadog Agent. Requires `K8S_CLUSTER_NAME`. | Unset |
+| `DD_AGENT_ENABLED` | Install the Datadog Agent in the `ddot` flow: `true` or `false`. | `true`, or `false` when `DD_COLLECTOR_ENABLED` is `false` |
+| `DD_APP_KEY` | Datadog application key. Enables Fleet Automation for the Datadog Agent. | Unset |
+| `DD_AUTOINSTRUMENTATION_ENABLED` | Enable autoinstrumentation: `true` or `false`. | `true` |
+| `DD_COLLECTOR_ENABLED` | Install the OpenTelemetry Collectors: `true` or `false`. | `true` |
+| `OTEL_EXPORTER_OTLP_ENDPOINT` | OTLP/HTTP endpoint of the Collector that autoinstrumented workloads send telemetry to, for example `http://my-collector.my-namespace.svc.cluster.local:4318`. Required when `DD_COLLECTOR_ENABLED` is `false`. | Unset |
 | `DD_HOST_PROFILER_ENABLED` | Enable the eBPF host profiler: `true` or `false`. See [Host profiler (optional)](#host-profiler-optional). | `false` |
 | `DD_HOST_PROFILER_NETWORK_POLICY` | Host profiler egress NetworkPolicy: `none`, `standard`, or `cilium`. | `none` |
+| `DD_INSTRUMENTATION_TELEMETRY_ENABLED` | Send install telemetry to Datadog when the installation exits: `true` or `false`. See [Install telemetry](#install-telemetry). | `true` |
 
 ```sh
-export DD_API_KEY="<your-datadog-api-key>"
-export DD_INSTALL_FLOW=upstream
-export K8S_CLUSTER_TYPE=eks
-./install
+DD_API_KEY="<your-datadog-api-key>" \
+DD_INSTALL_FLOW=upstream \
+K8S_CLUSTER_TYPE=eks \
+bash -c "$(curl -fsSL https://raw.githubusercontent.com/DataDog/opentelemetry-examples/v0.1.0/guides/kubernetes/configuration/opentelemetry-kube-stack/install)"
 ```
 
 Alternatively, copy `.env.example` to `.env`, fill it in, and load it before running the installer:
@@ -49,16 +53,18 @@ Alternatively, copy `.env.example` to `.env`, fill it in, and load it before run
 cp .env.example .env
 # Edit .env
 source .env
-./install
+bash -c "$(curl -fsSL https://raw.githubusercontent.com/DataDog/opentelemetry-examples/v0.1.0/guides/kubernetes/configuration/opentelemetry-kube-stack/install)"
 ```
+
+When you re-run the installer, variables that are not set, except `DD_API_KEY`, `DD_APP_KEY`, and `OTEL_EXPORTER_OTLP_ENDPOINT`, take their value from the previous run.
 
 For EKS, GKE, and AKS, the installer enables the matching resource-detection preset.
 
 It then:
 
-- creates the `opentelemetry-operator-system` namespace and the `datadog-secret` secret;
+- creates the `opentelemetry-operator-system` namespace and, when it installs the Collectors, the `datadog-secret` secret;
 - installs cert-manager when needed;
-- installs or upgrades the OpenTelemetry Kube Stack Helm chart with `values-otlp-http.yaml` (`upstream`) or `values-ddot.yaml` (`ddot`), and optionally enables the host profiler; and
+- installs or upgrades the OpenTelemetry Kube Stack Helm chart with `upstream/values.yaml` (`upstream`) or `ddot/values.yaml` (`ddot`), and optionally enables the host profiler; and
 - for `ddot`, unless `DD_AGENT_ENABLED=false`, installs or upgrades the Datadog Agent.
 
 ## Install with values files
@@ -106,9 +112,9 @@ EKS, GKE, and AKS enable the appropriate resource detector and automatically det
 mkdir -p deployment
 
 # Choose one:
-cp examples/eks-deployment/values.yaml deployment/values.yaml
-cp examples/gcp-deployment/values.yaml deployment/values.yaml
-cp examples/aks-deployment/values.yaml deployment/values.yaml
+cp upstream/examples/eks-deployment/values.yaml deployment/values.yaml
+cp upstream/examples/gcp-deployment/values.yaml deployment/values.yaml
+cp upstream/examples/aks-deployment/values.yaml deployment/values.yaml
 ```
 
 For other Kubernetes platforms, start with the manual cluster-name example and replace `my-k8s-cluster` and `production`
@@ -116,10 +122,10 @@ with the cluster name and deployment environment. `DD_SITE` continues to be sour
 
 ```sh
 mkdir -p deployment
-cp examples/manually-set-k8s-cluster-name/values.yaml deployment/values.yaml
+cp upstream/examples/manually-set-k8s-cluster-name/values.yaml deployment/values.yaml
 ```
 
-The selected file is an overlay for this directory's base `values-otlp-http.yaml`; add any deployment-specific configuration to
+The selected file is an overlay for this directory's base `upstream/values.yaml`; add any deployment-specific configuration to
 `./deployment/values.yaml`. Install or upgrade the chart with both files:
 
 ```sh
@@ -127,9 +133,9 @@ helm repo add open-telemetry https://open-telemetry.github.io/opentelemetry-helm
 helm repo update
 helm upgrade --install opentelemetry-kube-stack \
   open-telemetry/opentelemetry-kube-stack \
-  --version 0.26.1 \
+  --version 0.27.3 \
   --namespace opentelemetry-operator-system \
-  --values ./values-otlp-http.yaml \
+  --values ./upstream/values.yaml \
   --values ./deployment/values.yaml
 ```
 
@@ -147,7 +153,21 @@ OpenTelemetry Collector then automatically populates `k8s.cluster.name`, unless 
  For other Kubernetes platforms, the
 installer sets `resourceAttributes.k8s.cluster.name` to `K8S_CLUSTER_NAME` if that variable is set.
 
-See `examples/` for rendered values and manifests for each deployment type.
+See `upstream/examples/` for rendered values and manifests for each deployment type.
+
+## Install telemetry
+
+When the installation exits, the installer sends the following to Datadog:
+
+- Exit code
+- Step that failed, if any
+- Whether the installer ran before on the cluster
+- Installer version
+- Install options
+- Operating system
+- Bash, Helm, kubectl, and Kubernetes versions
+
+Nothing is sent on `ddog-gov.com` sites.
 
 ## Resource allocation
 
@@ -157,8 +177,8 @@ Both collectors default to `500m` CPU / `1Gi` memory limits and `200m` CPU / `50
 
 Verified against:
 
-- `opentelemetry-kube-stack` chart `>= 0.26.1`
-- Collector image `otel/opentelemetry-collector-contrib >= 0.163.1` (set in the values files under `opentelemetry-operator.manager.collectorImage`)
+- `opentelemetry-kube-stack` chart `>= 0.27.3`
+- Collector image `otel/opentelemetry-collector-contrib >= 0.165.0` (set in the values files under `opentelemetry-operator.manager.collectorImage`)
 
 [chart]: https://github.com/open-telemetry/opentelemetry-helm-charts/tree/main/charts/opentelemetry-kube-stack
 [cm]: https://cert-manager.io/docs/installation/

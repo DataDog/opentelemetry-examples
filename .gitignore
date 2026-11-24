@@ -33,4 +33,4 @@ apps/astronomy-store/.image-env
 # Datadog installer for DDOT on Kubernetes: Datadog credentials (see .env.example), and the Makefile's work
 # directory (datadog-operator checkout)
 guides/kubernetes/configuration/opentelemetry-kube-stack/ddot/.env
-/guides/kubernetes/configuration/opentelemetry-kube-stack/ddot/tmp/
+/guides/kubernetes/configuration/opentelemetry-kube-stack/tmp/

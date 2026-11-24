@@ -1,0 +1,49 @@
+{
+  "api_version": "v2",
+  "request_type": "traces",
+  "seq_id": 1,
+  "origin": "otel-onboarding-script",
+  "host": {
+    "hostname": "n/a"
+  },
+  "application": {
+    "service_name": "datadog-otel-onboarding-script",
+    "service_version": "v0.0.1-pre",
+    "language_name": "UNKNOWN",
+    "language_version": "n/a",
+    "tracer_version": "n/a"
+  },
+  "payload": {
+    "traces": [
+      [
+        {
+          "service": "datadog-otel-onboarding-script",
+          "name": "otel_onboarding_script",
+          "resource": "otel_onboarding_script",
+          "parent_id": 0,
+          "error": 0,
+          "meta": {
+            "exit_code": "0",
+            "failed_step": "none",
+            "rerun": "false",
+            "version": "v0.0.1-pre",
+            "script_source": "unset",
+            "install_flow": "ddot",
+            "k8s_cluster_type": "other",
+            "dd_agent_enabled": "true",
+            "dd_collector_enabled": "true",
+            "dd_autoinstrumentation_enabled": "true",
+            "dd_host_profiler_enabled": "false",
+            "dd_app_key_used": "false"
+          },
+          "metrics": {
+            "_trace_root": 1,
+            "_top_level": 1,
+            "_dd.top_level": 1,
+            "_sampling_priority_v1": 2
+          }
+        }
+      ]
+    ]
+  }
+}

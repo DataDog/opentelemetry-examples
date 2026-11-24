@@ -8,12 +8,12 @@ opentelemetry-operator:
     collectorImage:
 {{- if .DDOT}}
       #  repository: otel/opentelemetry-collector-contrib
-      #  tag: "0.163.1"
+      #  tag: "0.165.0"
       repository: datadog/ddot-collector
-      tag: 7.86.0-rc.5
+      tag: 7.86.0
 {{- else}}
       repository: otel/opentelemetry-collector-contrib
-      tag: "0.163.1"
+      tag: "0.165.0"
 {{- end}}
 
 kubeStateMetrics:
@@ -38,14 +38,6 @@ defaultCRConfig:
           name: datadog-secret
           key: dd-site
           optional: true
-{{- if .DDOT}}
-    - name: DD_HOSTNAME # FIXME required on K3S with datadog/ddot-collector:7.82.3 to prevent "Error: unable to reliably determine the host name."
-      valueFrom:
-        fieldRef:
-          fieldPath: spec.nodeName
-    - name: DD_OTELCOLLECTOR_CONVERTER_FEATURES
-      value: datadog,pprof,zpages,infraattributes
-{{- end}}
 
   # Starting-point resource allocation. Scale up for large clusters.
   resources:
@@ -71,6 +63,10 @@ defaultCRConfig:
             endpoint: 0.0.0.0:4318
     processors:
       cumulative_to_delta: {}
+      # The kubernetesAttributes preset's metadata list, with container.image.tags instead of the
+      # deprecated container.image.tag, which k8s_attributes doesn't emit when the
+      # processor.k8sattributes.DontEmitV0K8sConventions feature gate is enabled. See
+      # https://github.com/open-telemetry/opentelemetry-helm-charts/issues/2538
       k8s_attributes:
         extract:
           metadata:
@@ -159,6 +155,27 @@ collectors:
     suffix: cluster
     mode: deployment
     replicas: 1
+{{- if .DDOT}}
+
+    # Lists are not merged with defaultCRConfig: repeat DD_API_KEY and DD_SITE.
+    env:
+      - name: DD_API_KEY
+        valueFrom:
+          secretKeyRef:
+            name: datadog-secret
+            key: api-key
+      - name: DD_SITE # e.g. datadoghq.com, us3.datadoghq.com, datadoghq.eu. Defaults to datadoghq.com.
+        valueFrom:
+          secretKeyRef:
+            name: datadog-secret
+            key: dd-site
+            optional: true
+      # No infraattributes: the local tagger only knows the pods
+      # of this pod's node, so cluster-wide data would be tagged
+      # inconsistently.
+      - name: DD_OTELCOLLECTOR_CONVERTER_FEATURES
+        value: "pprof,zpages"
+{{- end}}
 
     presets:
       kubernetesObjects:
@@ -357,6 +374,31 @@ collectors:
   daemon:
     # Disable the chart-default daemon_scrape_configs.yaml Prometheus scrape.
     scrape_configs_file: ""
+{{- if .DDOT}}
+
+    # Lists are not merged with defaultCRConfig: repeat DD_API_KEY and DD_SITE.
+    env:
+      - name: DD_API_KEY
+        valueFrom:
+          secretKeyRef:
+            name: datadog-secret
+            key: api-key
+      - name: DD_SITE # e.g. datadoghq.com, us3.datadoghq.com, datadoghq.eu. Defaults to datadoghq.com.
+        valueFrom:
+          secretKeyRef:
+            name: datadog-secret
+            key: dd-site
+            optional: true
+      # Components the converter adds to the config:
+      #   infraattributes - Datadog container/pod tags from the local tagger
+      #   pprof, zpages   - debug endpoints collected by `otel-agent flare`
+      # Left out: prometheus (self-metrics are looped through OTLP, so its
+      # scrape of :8888 would fail), cumulativetodelta (already declared as
+      # cumulative_to_delta), health_check and datadog (already declared),
+      # ddflare (only used by the Agent's flare in connected mode).
+      - name: DD_OTELCOLLECTOR_CONVERTER_FEATURES
+        value: "infraattributes,pprof,zpages"
+{{- end}}
 
     # Chart's daemon defaults set lower limits; raise to match defaultCRConfig.
     resources:
@@ -743,10 +785,9 @@ collectors:
     # config, presets, and targetAllocator from being merged into this collector.
     inheritDefaultCRConfig: false
 
-    # Host Profiler release candidate image. Update the tag when using a newer RC.
     image:
       repository: datadog/ddot-ebpf
-      tag: 7.86.0-rc.3
+      tag: 7.86.0
 
     env:
       - name: DD_API_KEY
@@ -867,6 +908,38 @@ collectors:
               - site: ${env:DD_SITE:-datadoghq.com}
                 api_key: ${env:DD_API_KEY}
 
+      processors:
+        # The kubernetesAttributes preset's metadata list, with container.image.tags instead of the
+        # deprecated container.image.tag, which k8s_attributes doesn't emit when the
+        # processor.k8sattributes.DontEmitV0K8sConventions feature gate is enabled. See
+        # https://github.com/open-telemetry/opentelemetry-helm-charts/issues/2538
+        k8s_attributes:
+          extract:
+            metadata:
+              - k8s.namespace.name
+              - k8s.pod.name
+              - k8s.pod.uid
+              - k8s.node.name
+              - k8s.pod.start_time
+              - k8s.deployment.name
+              - k8s.replicaset.name
+              - k8s.replicaset.uid
+              - k8s.daemonset.name
+              - k8s.daemonset.uid
+              - k8s.job.name
+              - k8s.job.uid
+              - k8s.container.name
+              - k8s.cronjob.name
+              - k8s.statefulset.name
+              - k8s.statefulset.uid
+              - container.image.tags
+              - container.image.name
+              - k8s.cluster.uid
+              - service.namespace
+              - service.name
+              - service.version
+              - service.instance.id
+
       exporters:
         # Export profiles and metrics to Datadog through OTLP HTTP.
         otlp_http:
@@ -904,9 +977,6 @@ instrumentation:
       value: "http,database,rpc,messaging"
     - name: OTEL_EXPORTER_OTLP_METRICS_TEMPORALITY_PREFERENCE
       value: delta
-    # Node.js defaults to gRPC; use HTTP so every service exports to port 4318.
-    - name: OTEL_EXPORTER_OTLP_PROTOCOL
-      value: http/protobuf
 {{- if .DDOT}}
     ## DDOT SDKs SPECIFIC CONFIGURATION
     ## Enable the OTel Mode on DDOT SDKs
@@ -931,12 +1001,12 @@ instrumentation:
     ## for every instrumented workload, or set them in the env of a workload's containers to configure them
     ## for that workload only (container env takes precedence over this list).
 
-    # Datadog Dynamic Instrumentation (DDI). See https://docs.datadoghq.com/tracing/dd_instrumentation/ .
+    # Datadog Dynamic Instrumentation (DDI). See https://docs.datadoghq.com/tracing/trace_collection/dynamic_instrumentation/ .
     # - name: "DD_DYNAMIC_INSTRUMENTATION_ENABLED"
     #   value: "true"
     # Datadog DBM (Database Monitoring). See https://docs.datadoghq.com/database_monitoring/ .
-    # - name: "DD_DBM_PROPAGATION_MODE" # full, service, disabled
-    #   value: "full"
+    # - name: "DD_DBM_PROPAGATION_MODE" # service, full, disabled
+    #   value: "service"
     # - name: "DD_DBM_TRACE_PREPARED_STATEMENTS"
     #   value: "true"
     # Datadog DSM (Data Streams Monitoring). See https://docs.datadoghq.com/data_streams/ .
@@ -970,8 +1040,8 @@ instrumentation:
     - tracecontext
     - baggage
   dotnet:
-    # image: otel/autoinstrumentation-dotnet:1.17.0
-    image: datadog/dd-otel-autoinstrumentation-dotnet:3.56.0-preview
+    # image: otel/autoinstrumentation-dotnet:1.19.1
+    image: datadog/dd-otel-autoinstrumentation-dotnet:3.59.0-preview
     # Unlike the other languages, .NET needs more setup to instrument an application:
     # - The CORECLR_PROFILER_PATH env variable must be set (matching other languages)
     # - The .NET Tracer's DD_DOTNET_TRACER_HOME env variable must be set
@@ -989,14 +1059,14 @@ instrumentation:
       - name: DD_DOTNET_TRACER_HOME
         value: /otel-auto-instrumentation-dotnet
   java:
-    # image: otel/autoinstrumentation-java:2.32.0
-    image: datadog/dd-otel-autoinstrumentation-java:1.68.0-preview
+    # image: otel/autoinstrumentation-java:2.34.0
+    image: datadog/dd-otel-autoinstrumentation-java:1.69.1-preview
   nodejs:
-    # image: otel/autoinstrumentation-nodejs:0.78.0
-    image: datadog/dd-otel-autoinstrumentation-js:6.20-preview
+    # image: otel/autoinstrumentation-nodejs:0.83.1
+    image: datadog/dd-otel-autoinstrumentation-js:6.26-preview
   python:
-    # image: otel/autoinstrumentation-python:0.66b1
-    image: datadog/dd-otel-autoinstrumentation-python:4.16.1-preview
+    # image: otel/autoinstrumentation-python:0.66b2
+    image: datadog/dd-otel-autoinstrumentation-python:4.17.2-preview
     # For Alpine/musl workloads, add this pod-template annotation (glibc is the default):
     # instrumentation.opentelemetry.io/otel-python-platform: "musl"
     # https://opentelemetry.io/docs/platforms/kubernetes/operator/automatic/#auto-instrumenting-a-python-musl-based-container
@@ -1005,11 +1075,15 @@ instrumentation:
     # volumeLimitSize: 500Mi
 {{- else}}
   dotnet:
-    image: ghcr.io/open-telemetry/opentelemetry-operator/autoinstrumentation-dotnet:1.17.0
+    image: ghcr.io/open-telemetry/opentelemetry-operator/autoinstrumentation-dotnet:1.19.1
   java:
-    image: ghcr.io/open-telemetry/opentelemetry-operator/autoinstrumentation-java:2.32.0
+    image: ghcr.io/open-telemetry/opentelemetry-operator/autoinstrumentation-java:2.34.0
   nodejs:
-    image: ghcr.io/open-telemetry/opentelemetry-operator/autoinstrumentation-nodejs:0.78.0
+    image: ghcr.io/open-telemetry/opentelemetry-operator/autoinstrumentation-nodejs:0.83.1
+    # Upstream Node.js auto-instrumentation 0.78.0 defaults trace export to gRPC; this endpoint uses OTLP/HTTP.
+    env:
+      - name: OTEL_EXPORTER_OTLP_TRACES_PROTOCOL
+        value: http/protobuf
   python:
-    image: ghcr.io/open-telemetry/opentelemetry-operator/autoinstrumentation-python:0.66b1
+    image: ghcr.io/open-telemetry/opentelemetry-operator/autoinstrumentation-python:0.66b2
 {{- end}}

@@ -56,7 +56,7 @@ To export to another observability backend in addition to Datadog, or to modify 
 [Customize the installation](INSTALL.md#customize-the-installation).
 
 Already running an OpenTelemetry Collector, the OpenTelemetry Operator, OpenTelemetry SDKs, or a Datadog Agent? See
-[Adapt an existing configuration for DDOT](ADAPT-EXISTING-CONFIG.md) to adapt them instead of reinstalling. The guide
+[Adapt an existing setup to DDOT](ADAPT-EXISTING-CONFIG.md) to adapt them instead of reinstalling. The guide
 is written so that coding agents can follow it too.
 
 ### Instrument Kubernetes workloads with DDOT SDKs
@@ -144,15 +144,14 @@ Agent's and the OpenTelemetry Collector's telemetry with different (or missing) 
 valid name; when installing manually, use it for both `k8s.cluster.name` and `K8S_CLUSTER_NAME`.
 
 See `examples/` for rendered values and manifests for each deployment type. Regenerate them with
-`make generate-otel-kube-stack-examples`.
+`make generate-examples` in the parent folder, or with `make generate` to also regenerate `values.yaml` from
+`values.yaml.tmpl` first.
 
 The Datadog Agent is installed as its own step, via the Datadog Operator's `DatadogAgent` custom resource
 (`datadog-agent.yaml`), in the `datadog` namespace — see [What this deploys](#what-this-deploys) and
 [Install without the `install` script](INSTALL.md#install-without-the-install-script). See `examples-datadog-agent/`
 for the manifests the Datadog Operator generates from it, rendered offline with the [datadog-operator][dd-operator]'s
-`operator-render` CLI (built on the fly from a shallow clone under `tmp/`). Regenerate it with `make generate-datadog-operator-examples`.
-
-Run `make generate-examples` to regenerate both sets of examples in one step.
+`operator-render` CLI (built on the fly from a shallow clone under `../tmp/`). Regenerate it with `make generate-datadog-operator-examples` in the parent folder.
 
 ## Resource allocation
 
@@ -163,8 +162,8 @@ Kubernetes clusters.
 
 Verified against:
 
-- `opentelemetry-kube-stack` chart `>= 0.26.1`
-- Collector image `datadog/ddot-collector:7.86.0-rc.5` (pinned in values.yaml under
+- `opentelemetry-kube-stack` chart `>= 0.27.3`
+- Collector image `datadog/ddot-collector:7.86.0` (pinned in values.yaml under
   `opentelemetry-operator.manager.collectorImage`)
 
 For operator metrics troubleshooting, see [TROUBLESHOOTING.md](TROUBLESHOOTING.md).

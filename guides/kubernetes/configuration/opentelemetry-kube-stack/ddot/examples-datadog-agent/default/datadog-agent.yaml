@@ -52,4 +52,4 @@ spec:
       - name: DD_LOG_FORMAT_JSON
         value: "true"
       image:
-        tag: 7.84.3-jmx
+        tag: 7.86.0-jmx
