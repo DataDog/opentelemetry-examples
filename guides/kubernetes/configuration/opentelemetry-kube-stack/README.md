@@ -1,4 +1,4 @@
-# kube-stack values.yaml
+# Values files for the OpenTelemetry Kube Stack Helm chart
 
 Reference values files for the [opentelemetry-kube-stack][chart] Helm chart, configured to send Kubernetes telemetry to Datadog. 
 
