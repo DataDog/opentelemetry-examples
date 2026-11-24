@@ -1030,8 +1030,8 @@ environment when the SDK is installed and configured manually.
     value: delta
   ```
 
-- **Why:** the SDKs then export delta metrics, which the OpenTelemetry Collector forwards to Datadog without the memory and CPU cost
-  of cumulative-to-delta conversion.
+- **Why:** `delta` selects delta aggregation temporality for supported instruments, while others remain cumulative as
+  required by the OpenTelemetry specification.
 - **Conflicts:** when another destination requires cumulative temporality, export cumulative metrics and convert only
   the Datadog branch with the OpenTelemetry Collector's `cumulative_to_delta` processor
   ([C-06](#c-06-convert-cumulative-metrics-to-delta)). Size the OpenTelemetry Collector for the processor's state, set an appropriate
@@ -1505,6 +1505,10 @@ OTLP mode without sampling settings, whether they only export the sampled traces
   paths feed the same `logs` pipeline. When the SDK also exports the logs of the application's logging library over
   OTLP, which the Python and .NET DDOT SDKs do (see the table below), every log line that the application also prints
   reaches Datadog twice.
+> **Requirement: inspect the existing log ownership before changing it.** Render the configuration of every
+> OpenTelemetry Collector and Datadog Agent that can collect the workload's logs. Record the matching
+> `file_log.include` and `file_log.exclude` patterns. When an existing receiver already matches the workload, adapt
+> that receiver instead of adding another one.
 - **Fix:** choose one path per workload:
   - **Tail the standard output,** when the application already logs to it. This path collects everything the
     container prints, including the output of libraries that the SDK doesn't instrument. When the SDK exports the
@@ -1538,6 +1542,9 @@ OTLP mode without sampling settings, whether they only export the sampled traces
   [OpenTelemetry API support][dd-otel-api] page.
 - **Conflicts:** don't disable `file_log` for all the pods: it also collects the logs of the workloads that don't
   export logs over OTLP. Record the path chosen for each workload.
+> The `ad.datadoghq.com/logs_exclude: "true"` annotation only stops the Datadog Agent from collecting the container
+> logs. OpenTelemetry `file_log` receivers don't read this annotation. To stop an OpenTelemetry Collector from tailing
+> a workload, change that receiver's `include` or `exclude` patterns.
 - **Verify:** in the Datadog Log Explorer, a log line of the workload appears once, and its logs link to its traces.
 
 ### S-11: Align Datadog Unified Service Tagging with the OpenTelemetry service identity
@@ -1609,6 +1616,10 @@ OTLP mode without sampling settings, whether they only export the sampled traces
   ([S-12](#s-12-send-otlp-to-the-datadog-agent-instead-of-standalone-opentelemetry-collectors)). The OpenTelemetry
   Collectors don't set `service.name` or `service.version`, and the `infraattributes` processor only adds the values
   that the telemetry doesn't have.
+> **Troubleshooting:** when SDK telemetry has the expected `env` but pod logs have the Collector's cluster-wide
+> default, inspect the log pipeline for a `resource` processor that uses `action: upsert` on
+> `deployment.environment.name`. Change the default to `action: insert`, after `k8s_attributes`, so that the workload
+> annotation or resource attribute wins.
 - **Exception:** in pods whose containers have different services, with per-container labels such as
   `tags.datadoghq.com/<container name>.service`, don't set the pod-level `resource.opentelemetry.io/service.name` and
   `resource.opentelemetry.io/service.version` annotations: they'd apply the same values to all the containers. Set the
@@ -1896,6 +1907,12 @@ OTLP mode without sampling settings, whether they only export the sampled traces
     [S-01](#s-01-enable-the-opentelemetry-mode-of-the-ddot-sdks), `DD_TRACE_OTEL_SEMANTICS_ENABLED=true`, some
     resource names and the HTTP tags change:
 
+    The operation name and resource name come from different compatibility paths. The DDOT SDK preserves the Datadog
+    operation name in the `operation.name` OTLP attribute. The resource name follows the OpenTelemetry HTTP semantic
+    conventions. Server spans can use the framework route template, but HTTP client spans normally have no route
+    template and therefore fall back to the method unless a path mapping is configured. This avoids using raw,
+    high-cardinality, or sensitive URL paths. The change happens in the SDK before export, not in the Collector.
+
     | Span                                             | Resource name with the Datadog SDK in its default mode | Resource name with the DDOT SDK                                  |
     |--------------------------------------------------|--------------------------------------------------------|------------------------------------------------------------------|
     | HTTP server, with a route of the framework       | `GET /users/{id}`                                      | `GET /users/{id}`, unchanged                                     |
@@ -2033,6 +2050,28 @@ OTLP mode without sampling settings, whether they only export the sampled traces
   and the workload's `file_log` pattern, so that the Datadog Agent collects its logs again. With a shared Helm chart,
   turn `openTelemetry.apmSdk.enabled` and `openTelemetry.podLogs.enabled` off for the workload instead
   ([S-08](#s-08-configure-the-sdks-of-workloads-without-the-opentelemetry-operator)).
+
+  With Helm, set the two values explicitly to `false` in the complete desired values for the release. Don't rely on
+  omitting a canary values file: the previous value can remain in the Helm release or be reintroduced by another
+  values layer.
+
+  ```shell
+  helm upgrade <release> <chart> \
+    --reuse-values \
+    --set <workload-values-path>.openTelemetry.apmSdk.enabled=false \
+    --set <workload-values-path>.openTelemetry.podLogs.enabled=false
+  ```
+
+  Use `--reset-values` only when the command also supplies every required release override: resetting the release can
+  remove unrelated configuration.
+
+  Check the rendered and running workload:
+  - the OpenTelemetry-mode variables and OTLP endpoint are absent;
+  - the `admission.datadoghq.com/enabled: "false"` label is absent;
+  - the `ad.datadoghq.com/logs_exclude: "true"` annotation is absent;
+  - the Datadog Admission Controller variables and volumes are injected again;
+  - the startup configuration reports that OTLP signals are disabled;
+  - a marked request reaches the Datadog Agent and remains connected to downstream services.
 - **Verify:** for each migrated workload, compare its APM service before and after the migration: the same `service`
   and `env` tags as the values recorded before the switch
   ([S-11](#s-11-align-datadog-unified-service-tagging-with-the-opentelemetry-service-identity)), a `version` tag, the
