@@ -19,6 +19,7 @@ spec:
         instrumentation.opentelemetry.io/inject-sdk: opentelemetry-operator-system/opentelemetry-kube-stack
         resource.opentelemetry.io/service.name: checkout
         resource.opentelemetry.io/service.namespace: astronomy-store
+        resource.opentelemetry.io/datadog.log.source: go
       labels:
         app.kubernetes.io/name: checkout
         # Skip Datadog Single Step Instrumentation if enabled cluster-wide: this pod is
