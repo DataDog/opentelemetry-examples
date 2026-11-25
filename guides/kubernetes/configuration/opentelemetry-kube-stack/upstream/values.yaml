@@ -1,7 +1,10 @@
 clusterName: ""
 
 resourceAttributes:
-  deployment.environment.name: production # overwrite as needed
+  # Set the environment of this cluster. The chart applies resourceAttributes with action: upsert, which overwrites
+  # the deployment.environment.name that workloads set themselves: remove this entry when workloads carry their own
+  # value, and use a resource processor with action: insert instead.
+  deployment.environment.name: production
 
 opentelemetry-operator:
   manager:
