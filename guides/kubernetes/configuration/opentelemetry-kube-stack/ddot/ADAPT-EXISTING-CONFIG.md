@@ -682,7 +682,9 @@ environment variable, typically through `OTEL_RESOURCE_ATTRIBUTES=datadog.host.n
   `DEPLOYMENT_ENVIRONMENT_NAME` variable, `production` by default. Before reusing these values, set the environment of
   each cluster, and remove the entry when workloads carry their own `deployment.environment.name`: with `upsert`, the
   value overwrites theirs, for example `production` on the workloads of a staging cluster
-  ([S-11](#s-11-align-datadog-unified-service-tagging-with-the-opentelemetry-service-identity)). Without the chart,
+  ([S-11](#s-11-align-datadog-unified-service-tagging-with-the-opentelemetry-service-identity)). The chart doesn't
+  support `action: insert` for `resourceAttributes` yet ([opentelemetry-helm-charts#2577][kube-stack-2577]). Without
+  the chart,
   add a `resource` processor to every pipeline that receives telemetry from the workloads, including the pod logs and
   metrics pipelines. A `transform` processor with
   `set(resource.attributes["deployment.environment.name"], "<ENVIRONMENT>")` also works.
@@ -731,7 +733,8 @@ environment variable, typically through `OTEL_RESOURCE_ATTRIBUTES=datadog.host.n
 - **Conflicts:** when both the SDKs and the OpenTelemetry Collector set it, use the same value. With `action: upsert`,
   which the OpenTelemetry Kube Stack Helm chart uses, the OpenTelemetry Collector's value overwrites a different value
   set in the SDK. To use the OpenTelemetry Collector's value as a default that workloads can override, remove
-  `deployment.environment.name` from `resourceAttributes` and use a `resource` processor with `action: insert`. A
+  `deployment.environment.name` from `resourceAttributes` and use a `resource` processor with `action: insert`, until
+  the chart supports it ([opentelemetry-helm-charts#2577][kube-stack-2577]). A
   `transform` processor gets the same result with `where resource.attributes["deployment.environment.name"] == nil`.
   Place that processor after `k8s_attributes` in each pipeline, so that a value from the
   `resource.opentelemetry.io/deployment.environment.name` annotation is already set when the default applies.
@@ -1705,8 +1708,10 @@ OTLP mode without sampling settings, whether they only export the sampled traces
   approval. Report each change as a decision, with the value before and after.
 - **Requirement:** when the workload carries `deployment.environment.name`, the OpenTelemetry Collector doesn't
   overwrite it. Don't set `deployment.environment.name` in the `resourceAttributes` of the OpenTelemetry Kube Stack
-  Helm chart, which uses `action: upsert`. To keep a default for the other workloads, use a `resource` processor with
-  `action: insert`, after `k8s_attributes`, as the conflicts of [C-11](#c-11-set-the-deployment-environment) describe.
+  Helm chart, which uses `action: upsert` and doesn't support `action: insert` yet
+  ([opentelemetry-helm-charts#2577][kube-stack-2577]). To keep a default for the other workloads, use a `resource`
+  processor with `action: insert`, after `k8s_attributes`, as the conflicts of
+  [C-11](#c-11-set-the-deployment-environment) describe.
   The same applies to the bundled DDOT Collector
   ([S-12](#s-12-send-otlp-to-the-datadog-agent-instead-of-standalone-opentelemetry-collectors)). The OpenTelemetry
   Collectors don't set `service.name` or `service.version`, and the `infraattributes` processor only adds the values
@@ -2455,6 +2460,7 @@ does not appear.
 [values]: ./values.yaml
 [dd-agent-yaml]: ./datadog-agent.yaml
 [cert-manager]: https://cert-manager.io/
+[kube-stack-2577]: https://github.com/open-telemetry/opentelemetry-helm-charts/issues/2577
 [dd-helm-chart]: https://github.com/DataDog/helm-charts/tree/main/charts/datadog
 [examples-rendered]: ./examples/default/rendered/
 [troubleshooting]: ./TROUBLESHOOTING.md
