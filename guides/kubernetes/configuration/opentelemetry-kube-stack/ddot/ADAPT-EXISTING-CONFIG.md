@@ -882,8 +882,20 @@ environment variable, typically through `OTEL_RESOURCE_ATTRIBUTES=datadog.host.n
     | `collectors.cluster.enabled`                       | `false` | The Kubernetes cluster metrics and objects of the `cluster` OpenTelemetry Collector     |
     | `kubeStateMetrics.enabled`                         | `false` | The kube-state-metrics deployment that the `cluster` OpenTelemetry Collector scrapes     |
 
-    The `daemon` OpenTelemetry Collector then only receives the OTLP telemetry of the SDKs. Move the logs or the
-    infrastructure metrics later, as a separate step, by turning these values on and applying A-01 together. The
+    When starting from this repository's [`values.yaml`][values], also remove these entries from the local copy of
+    that values file:
+
+    - `collectors.daemon.config.receivers.prometheus/cadvisor`;
+    - `collectors.daemon.config.service.pipelines.metrics/cadvisor`.
+
+    These entries configure cAdvisor collection independently of the presets. Keeping them continues collecting
+    container metrics even when all the values in the table are `false`. If you layer another values file over the
+    reference file, remove these entries from the reference copy too. Render the chart before deploying and check
+    that the `daemon` Collector has no `prometheus/cadvisor` receiver or `metrics/cadvisor` pipeline.
+
+    The `daemon` OpenTelemetry Collector then receives the OTLP telemetry of the SDKs and reports its own health.
+    Move the logs or the infrastructure metrics later, as a separate step: restore their receiver and pipeline
+    configuration, turn on the corresponding values, and apply A-01 together. The
     OpenTelemetry Collectors then also need a default `deployment.environment.name` for this telemetry, set with
     `action: insert` ([C-11](#c-11-set-the-deployment-environment)).
 
