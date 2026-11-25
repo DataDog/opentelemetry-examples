@@ -37,7 +37,8 @@ Contents:
 - [Options of the `install` script](#options-of-the-install-script)
 - [Customize the installation](#customize-the-installation)
   - [Use an overlay values file for the OpenTelemetry Kube Stack Helm chart](#use-an-overlay-values-file-for-the-opentelemetry-kube-stack-helm-chart)
-  - [Copy the configuration files locally and use `--local`](#copy-the-configuration-files-locally-and-use---local)
+  - [Copy the configuration files locally](#copy-the-configuration-files-locally)
+- [Upgrade an installation of the deprecated `ddot/install` script](#upgrade-an-installation-of-the-deprecated-ddotinstall-script)
 - [Changes to the Kubernetes cluster](#changes-to-the-kubernetes-cluster)
 - [Troubleshooting](#troubleshooting)
 - [Uninstalling](#uninstalling)
@@ -67,44 +68,44 @@ On the Kubernetes cluster:
 
 ## 1. Download the script
 
-You don't need to clone the repository: by default, the script downloads its configuration files (`values.yaml`,
-`datadog-agent.yaml`...) from GitHub.
+The installer is the [`install` script of the parent folder](../install), which installs either the DDOT
+components or upstream OpenTelemetry. You don't need to clone the repository: by default, the script downloads its
+configuration files (`ddot/values.yaml`, `ddot/datadog-agent.yaml`...) from GitHub.
 
 ```sh
-curl -fsSL -o install https://raw.githubusercontent.com/DataDog/opentelemetry-examples/v0.1.0/guides/kubernetes/configuration/opentelemetry-kube-stack/ddot/install
+curl -fsSL -o install https://raw.githubusercontent.com/DataDog/opentelemetry-examples/v0.1.0/guides/kubernetes/configuration/opentelemetry-kube-stack/install
 chmod +x install
 ```
+
+> [!NOTE]
+> The `ddot/install` script is deprecated. It runs the parent folder's `install` script with `DD_INSTALL_FLOW=ddot`.
+> See [Upgrade an installation of the deprecated `ddot/install` script](#upgrade-an-installation-of-the-deprecated-ddotinstall-script).
 
 ## 2. Configure the installation
 
 The script reads its configuration from environment variables only. It doesn't prompt for anything, so it can run
-unattended, for example in CI:
+unattended, for example in CI. The variables, their defaults, and how a re-run reuses the values of the previous run are documented in
+[Quickstart](../README.md#quickstart) in the parent folder's README. Set `DD_INSTALL_FLOW=ddot` to install the
+DDOT components. On
+platforms other than EKS, GKE, and AKS, set `K8S_CLUSTER_NAME`, following the
+[Kubernetes cluster name constraints](README.md#kubernetes-cluster-name-constraints).
 
-| Variable                          | Description                                                                                                                         | Default                                                     |
-|:----------------------------------|:------------------------------------------------------------------------------------------------------------------------------------|:------------------------------------------------------------|
-| `DD_API_KEY`                      | Datadog API key.                                                                                                                    | None (required)                                             |
-| `DD_SITE`                         | Datadog site, for example `datadoghq.eu`.                                                                                           | `datadoghq.com`                                             |
-| `K8S_CLUSTER_TYPE`                | Kubernetes platform: `eks` (EKS), `gcp` (GKE), `aks` (AKS), or `other`. `eks`, `gcp`, and `aks` auto-detect the cluster name from the cloud provider. | `other`                                                     |
-| `K8S_CLUSTER_NAME`                | Kubernetes cluster name. For `eks`, `gcp`, and `aks`, overrides the auto-detected name. Must follow the [Kubernetes cluster name constraints](README.md#kubernetes-cluster-name-constraints). | Auto-detected for `eks`, `gcp`, and `aks`; `unknown-k8s-cluster` for `other` |
-| `DEPLOYMENT_ENVIRONMENT_NAME`     | Value of the `deployment.environment.name` resource attribute, set on all telemetry.                                               | `production`                                                |
-| `DD_HOST_PROFILER_ENABLED`        | Deploy the eBPF host profiler on every node: `true` or `false`. Off by default: its pods need eBPF privileges. See [Host profiler (optional)](README.md#host-profiler-optional). | `false`                                                     |
-| `DD_HOST_PROFILER_NETWORK_POLICY` | Host profiler egress NetworkPolicy: `standard` or `cilium` on Kubernetes clusters enforcing NetworkPolicy, `none` otherwise. Only used with the host profiler. | `none`                                                      |
-
-The script validates them before making any change, and prints the resulting configuration.
+The script validates them before making any change.
 
 ```sh
+export DD_INSTALL_FLOW=ddot
 export DD_API_KEY="<your-datadog-api-key>"
 export DD_SITE="datadoghq.com"
 export K8S_CLUSTER_TYPE=eks
 ```
 
 Alternatively, keep the configuration in a `.env` file, starting from
-[`.env.example`](.env.example), and load it before running the script:
+[`.env.example`](../.env.example) with `DD_INSTALL_FLOW=ddot`, and load it before running the script:
 
 ```sh
-curl -fsSL -o .env https://raw.githubusercontent.com/DataDog/opentelemetry-examples/v0.1.0/guides/kubernetes/configuration/opentelemetry-kube-stack/ddot/.env.example
+curl -fsSL -o .env https://raw.githubusercontent.com/DataDog/opentelemetry-examples/v0.1.0/guides/kubernetes/configuration/opentelemetry-kube-stack/.env.example
 chmod 600 .env
-# Edit .env
+# Edit .env, and set DD_INSTALL_FLOW=ddot
 source .env
 ```
 
@@ -118,12 +119,12 @@ Keep `.env` out of version control (the repository's `.gitignore` ignores it).
 
 It then:
 
-- creates the `opentelemetry-operator-system` and `datadog` namespaces;
-- creates the `datadog-secret` secret in both namespaces;
-- installs cert-manager, unless it's already installed (detected by its `certificates.cert-manager.io` CRD);
-- installs or upgrades the Datadog Operator (`datadog/datadog-operator` chart) in the `datadog` namespace;
+- saves the installation options in the `opentelemetry-kube-stack-install-options` ConfigMap, for the next run;
+- creates the `opentelemetry-operator-system` and `datadog` namespaces, and the `datadog-secret` secret in both;
+- installs cert-manager, unless it's already installed;
+- installs or upgrades the Datadog Operator in the `datadog` namespace;
 - applies the `datadog-agent.yaml` `DatadogAgent` custom resource to the `datadog` namespace, substituting the
-  Kubernetes cluster name and site into it;
+  Kubernetes cluster name, the site, and the `env` tag into it;
 - installs or upgrades the OpenTelemetry Kube Stack Helm chart, optionally enabling the `host-profiler` collector in the
   same release. This is the last step, so that the chart's output, at the end of the script's output, is easy to read.
 
@@ -226,16 +227,9 @@ spec:
 
 ## Options of the `install` script
 
-The `install` script accepts the following command-line options and argument. Run `./install --help` for the full
-list.
-
-| Option                  | Use                                                                                                                                     |
-|:------------------------|:----------------------------------------------------------------------------------------------------------------------------------------|
-| `--local`               | Use the configuration files next to the script instead of downloading them, e.g. to test changes from a clone of this repository.       |
-| `--config-url=<url>`    | Download the configuration files from another GitHub folder (`https://github.com/<owner>/<repo>/tree/<branch>/<path>`) or raw base URL. |
-| `<overlay-values.yaml>` | A values file merged on top of the `values.yaml` file of the OpenTelemetry Kube stack Helm chart: a local file, a URL, or a path relative to the configuration folder.                      |
-
-See [Customize the installation](#customize-the-installation) to use the `--local` option and overlay values files.
+The `install` script accepts one optional argument: a local values file merged on top of the `ddot/values.yaml` file of
+the OpenTelemetry Kube Stack Helm chart. See
+[Use an overlay values file](#use-an-overlay-values-file-for-the-opentelemetry-kube-stack-helm-chart).
 
 ## Customize the installation
 
@@ -245,15 +239,13 @@ in one of two ways:
 - [**An overlay values file**](#use-an-overlay-values-file-for-the-opentelemetry-kube-stack-helm-chart) for the
   OpenTelemetry Kube Stack Helm chart. Use it for targeted changes to the collectors, such as exporting to another
   observability backend. You keep receiving the updates to the reference `values.yaml`.
-- [**Local copies of the configuration files**](#copy-the-configuration-files-locally-and-use---local), used with the
-  `--local` option. It gives full control, including over the `DatadogAgent` custom resource (`datadog-agent.yaml`),
+- [**Local copies of the configuration files**](#copy-the-configuration-files-locally). It gives full control, including over the `DatadogAgent` custom resource (`datadog-agent.yaml`),
   but you have to maintain your copies yourself.
 
 ### Use an overlay values file for the OpenTelemetry Kube Stack Helm chart
 
 The script passes the overlay values file to the `helm upgrade --install opentelemetry-kube-stack ...` command after
-the reference `values.yaml`, so its values take precedence. The overlay values file can be a local file, a URL, or a
-path relative to the configuration folder (by default, the folder of this guide on GitHub).
+the reference `values.yaml`, so its values take precedence. The overlay values file must be a local file.
 
 For example, to export the traces of the `daemon` collector to a [Jaeger][jaeger] instance in addition to Datadog,
 use [`examples/export-to-datadog-and-jaeger/values.yaml`](examples/export-to-datadog-and-jaeger/values.yaml):
@@ -274,12 +266,11 @@ collectors:
             exporters: [datadog/connector, otlp/jaeger]
 ```
 
-Then pass it to the script, as a path relative to the configuration folder, or as your own local copy:
+Download it, or write your own, then pass it to the script:
 
 ```sh
-./install examples/export-to-datadog-and-jaeger/values.yaml
-# or
-./install my-overlay-values.yaml
+curl -fsSL -o jaeger-values.yaml https://raw.githubusercontent.com/DataDog/opentelemetry-examples/v0.1.0/guides/kubernetes/configuration/opentelemetry-kube-stack/ddot/examples/export-to-datadog-and-jaeger/values.yaml
+./install jaeger-values.yaml
 ```
 
 - Helm merges maps but **replaces lists**: the overlay's `exporters` list replaces the one of the reference
@@ -289,33 +280,35 @@ Then pass it to the script, as a path relative to the configuration folder, or a
   Jaeger instance in the `jaeger` namespace, without TLS.
 - The same pattern applies to any OTLP-compatible observability backend, and to the `logs` and `metrics` pipelines.
 
-### Copy the configuration files locally and use `--local`
+### Copy the configuration files locally
 
-With `--local`, the script reads all its configuration files from its own folder instead of downloading them. Download
-the script and its configuration files, from the same commit, into one folder:
+The `install` script reads its configuration files from the base URL in the `TESTING_BASE_URL` environment variable
+when it's set, including a `file://` URL. Download the script and its configuration files, from the same tag, keeping
+their folder layout:
 
 ```sh
-CONFIG_RAW_URL=https://raw.githubusercontent.com/DataDog/opentelemetry-examples/v0.1.0/guides/kubernetes/configuration/opentelemetry-kube-stack/ddot
-for file in install values.yaml datadog-agent.yaml host-profiler-rbac-values.yaml \
-    host-profiler-network-policy.yaml host-profiler-cilium-network-policy.yaml; do
-  curl -fsSL -o "$file" "$CONFIG_RAW_URL/$file"
+CONFIG_RAW_URL=https://raw.githubusercontent.com/DataDog/opentelemetry-examples/v0.1.0/guides/kubernetes/configuration/opentelemetry-kube-stack
+for file in install upstream/values.yaml ddot/values.yaml ddot/datadog-agent.yaml \
+    ddot/host-profiler-rbac-values.yaml ddot/host-profiler-network-policy.yaml \
+    ddot/host-profiler-cilium-network-policy.yaml; do
+  curl -fsSL --create-dirs -o "$file" "$CONFIG_RAW_URL/$file"
 done
 chmod +x install
 ```
 
 Modify the local files, mainly:
 
-- `values.yaml`, the values file of the OpenTelemetry Kube Stack Helm chart: the collectors, their pipelines and
+- `ddot/values.yaml`, the values file of the OpenTelemetry Kube Stack Helm chart: the collectors, their pipelines and
   resources, the `Instrumentation` custom resource...
-- `datadog-agent.yaml`, the `DatadogAgent` custom resource from which the Datadog Operator deploys the Datadog Agent: its
+- `ddot/datadog-agent.yaml`, the `DatadogAgent` custom resource from which the Datadog Operator deploys the Datadog Agent: its
   features, resources...
 
-Then run the script with `--local`, optionally with an overlay values file, resolved relative to the current directory:
+Then run the script from that folder, with `TESTING_BASE_URL` pointing at it, and optionally with an overlay values file:
 
 ```sh
-./install --local
+DD_INSTALL_FLOW=ddot TESTING_BASE_URL="file://$PWD" ./install
 # or
-./install --local my-overlay-values.yaml
+DD_INSTALL_FLOW=ddot TESTING_BASE_URL="file://$PWD" ./install my-overlay-values.yaml
 ```
 
 - Keep the `opentelemetry-operator-system` and `datadog` namespaces: the script and the DDOT SDK instrumentation
@@ -326,48 +319,80 @@ Then run the script with `--local`, optionally with an overlay values file, reso
 ## Changes to the Kubernetes cluster
 
 The `install` script modifies the Kubernetes cluster with the following commands, in this order. All of them create or
-update resources: the script never deletes anything from the Kubernetes cluster, so re-running it is safe.
+update resources: the script never deletes anything from the Kubernetes cluster, so re-running it is safe. Every
+resource and Helm release gets the `install.datadoghq.com/installed-by=datadog-otel-onboarding-script` label and
+`install.datadoghq.com/*` provenance annotations. See [Chart version](../README.md#chart-version) for the version of
+the OpenTelemetry Kube Stack Helm chart, and the parent folder's [`install`](../install) script for the other versions.
 
-| # | Command                                                                                                                                              | When                                                                                    | Effect                                                                                                                                                                       |
-|:--|:-----------------------------------------------------------------------------------------------------------------------------------------------------|:----------------------------------------------------------------------------------------|:-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
-| 1 | `kubectl create namespace opentelemetry-operator-system`                                                                                             | Always (warns and continues on failure)                                                 | Creates the namespace of the OpenTelemetry Kube Stack.                                                                                                                       |
-| 2 | `kubectl create namespace datadog`                                                                                                                   | Always (warns and continues on failure)                                                 | Creates the namespace of the Datadog Operator and Agent.                                                                                                                     |
-| 3 | `kubectl create secret generic datadog-secret ... --dry-run=client -o yaml \| kubectl apply -f -`                                                    | Always, once per namespace                                                              | Creates or updates the `datadog-secret` secret with `api-key` and `dd-site`.                                                                                                 |
-| 4 | `helm install cert-manager jetstack/cert-manager --namespace cert-manager --create-namespace --set crds.enabled=true`                                | Only when the `certificates.cert-manager.io` CRD is missing (warns and continues on failure) | Installs cert-manager and its CRDs in the `cert-manager` namespace.                                                                                                     |
-| 5 | `helm upgrade --install datadog-operator datadog/datadog-operator --version 2.28.1 --namespace datadog ...`                                          | Always                                                                                  | Installs or upgrades the Datadog Operator and its CRDs.                                                                                                                      |
-| 6 | `kubectl apply --namespace datadog -f -` (`datadog-agent.yaml`, with the Kubernetes cluster name and site substituted)                               | Always                                                                                  | Creates or updates the `DatadogAgent` custom resource, from which the Datadog Operator deploys the Datadog Agent DaemonSet and the Cluster Agent.                           |
-| 7 | `kubectl apply -f host-profiler-network-policy.yaml` or `kubectl apply -f host-profiler-cilium-network-policy.yaml`                                  | Only with `DD_HOST_PROFILER_ENABLED=true` and `DD_HOST_PROFILER_NETWORK_POLICY=standard` or `cilium` (warns and continues on failure) | Creates or updates the `opentelemetry-kube-stack-host-profiler-egress` NetworkPolicy or CiliumNetworkPolicy in the `opentelemetry-operator-system` namespace. |
-| 8 | `helm upgrade --install opentelemetry-kube-stack open-telemetry/opentelemetry-kube-stack --version 0.26.1 --namespace opentelemetry-operator-system ...` | Always                                                                                  | Installs or upgrades the OpenTelemetry Operator and its CRDs, the `cluster` and `daemon` collectors, and the `Instrumentation` custom resource, plus the `host-profiler` collector and its RBAC (`host-profiler-rbac-values.yaml`) when enabled. |
+| #  | Command                                                                                                                         | When                                                                                                                       | Effect                                                                                                                                                                        |
+|:---|:--------------------------------------------------------------------------------------------------------------------------------|:---------------------------------------------------------------------------------------------------------------------------|:------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
+| 1  | `kubectl create namespace opentelemetry-operator-system`                                                                        | Always (warns and continues on failure)                                                                                     | Creates the namespace of the OpenTelemetry Kube Stack.                                                                                                                        |
+| 2  | `kubectl apply` of the `opentelemetry-kube-stack-install-options` ConfigMap                                                     | Always                                                                                                                     | Saves the installation options, which the next run reuses.                                                                                                                    |
+| 3  | `kubectl apply` of the `datadog-secret` secret in `opentelemetry-operator-system`                                               | Always                                                                                                                     | Creates or updates the secret with `api-key` and `dd-site`, which the OpenTelemetry Collectors' Datadog exporter reads.                                                       |
+| 4  | `helm install cert-manager cert-manager --repo https://charts.jetstack.io --namespace cert-manager --create-namespace ...`       | Always (warns and continues on failure, for example when cert-manager is already installed)                                | Installs cert-manager and its CRDs in the `cert-manager` namespace.                                                                                                           |
+| 5  | `kubectl apply` of `host-profiler-network-policy.yaml` or `host-profiler-cilium-network-policy.yaml`                            | Only with `DD_HOST_PROFILER_ENABLED=true` and `DD_HOST_PROFILER_NETWORK_POLICY=standard` or `cilium` (warns and continues on failure) | Creates or updates the `opentelemetry-kube-stack-host-profiler-egress` NetworkPolicy or CiliumNetworkPolicy in the `opentelemetry-operator-system` namespace.        |
+| 6  | `kubectl create namespace datadog`                                                                                              | Always (warns and continues on failure)                                                                                     | Creates the namespace of the Datadog Operator and Agent.                                                                                                                      |
+| 7  | `kubectl apply` of the `datadog-secret` secret in `datadog`                                                                     | Always                                                                                                                     | Creates or updates the secret with `api-key`, and `app-key` when `DD_APP_KEY` is set.                                                                                         |
+| 8  | `helm upgrade --install datadog-operator datadog-operator --repo https://helm.datadoghq.com --namespace datadog ...`             | Always                                                                                                                     | Installs or upgrades the Datadog Operator and its CRDs, with Fleet Automation when `DD_APP_KEY` is set.                                                                       |
+| 9  | `kubectl apply --namespace datadog -f -` (`datadog-agent.yaml`, with the Kubernetes cluster name, site, and `env` tag substituted) | Always                                                                                                                  | Creates or updates the `DatadogAgent` custom resource, from which the Datadog Operator deploys the Datadog Agent DaemonSet and the Cluster Agent.                            |
+| 10 | `helm upgrade --install opentelemetry-kube-stack opentelemetry-kube-stack --repo https://open-telemetry.github.io/opentelemetry-helm-charts --namespace opentelemetry-operator-system --wait ...` | Always | Installs or upgrades the OpenTelemetry Operator and its CRDs, the `cluster` and `daemon` collectors, and the `Instrumentation` custom resource, plus the `host-profiler` collector and its RBAC (`host-profiler-rbac-values.yaml`) when enabled. |
 
 Before making any change, the script also runs read-only checks and stops on a conflict:
 
-- `helm status` for the legacy `host-profiler` and `ddagent-kube-stack` Helm releases of a previous setup: if found,
-  remove them first with `helm uninstall <release> --namespace opentelemetry-operator-system --wait`.
+- `kubectl get crd` for an OpenTelemetry Operator or a Datadog Operator that the script didn't install.
+- `kubectl auth can-i` for the permissions that the installation needs.
 - `kubectl get` for an `opentelemetry-kube-stack-host-profiler-egress` NetworkPolicy or CiliumNetworkPolicy of a kind
   other than the selected one, left by a previous run: since both policies select the same pods and Kubernetes
   NetworkPolicies are additive, the script asks you to delete it rather than deleting it itself.
-- `kubectl get crd certificates.cert-manager.io`, to skip the cert-manager installation when it's already installed.
 
-On the machine running the script, it also adds the `open-telemetry`, `jetstack`, and `datadog` Helm repositories and
-runs `helm repo update`, and downloads the configuration files to a temporary directory deleted on exit.
+On the machine running the script, it downloads the configuration files to a temporary directory deleted on exit. It leaves your Helm repositories unchanged. When it exits, it sends [install telemetry](../README.md#install-telemetry)
+to Datadog, unless `DD_INSTRUMENTATION_TELEMETRY_ENABLED=false`.
+
+## Upgrade an installation of the deprecated `ddot/install` script
+
+The deprecated `ddot/install` script didn't record its options, and the `install` script refuses to install over an
+OpenTelemetry Operator or a Datadog Operator that it didn't install. Before you run the `install` script on a Kubernetes
+cluster installed with `ddot/install`:
+
+1. Remove the legacy `host-profiler` and `ddagent-kube-stack` Helm releases of earlier setups, if any:
+   `helm uninstall <release> --namespace opentelemetry-operator-system --wait`. The `install` script doesn't check for
+   them, and two eBPF profilers or two Datadog Agent DaemonSets must not run on the same node.
+2. Record the `ddot` flow, so that the `install` script upgrades the installation:
+
+   ```sh
+   kubectl create configmap opentelemetry-kube-stack-install-options \
+     --namespace opentelemetry-operator-system \
+     --from-literal=DD_INSTALL_FLOW=ddot
+   ```
+
+The `ddot/install` script of the `main` branch does both, then runs the `install` script.
+
+On `K8S_CLUSTER_TYPE=other`, `ddot/install` set the Kubernetes cluster name to `unknown-k8s-cluster` when
+`K8S_CLUSTER_NAME` was unset. The `install` script leaves it unset: set `K8S_CLUSTER_NAME` to keep the same name.
 
 ## Troubleshooting
 
-- **`Could not download ...`**: the configuration files couldn't be fetched from GitHub. Check the network access and
-  the `--config-url`, or run from a clone of this repository with `--local`.
+- **`Could not download ...`**: the configuration files couldn't be fetched from GitHub. Check the network access, or
+  [use local copies of the configuration files](#copy-the-configuration-files-locally).
 - **`A host-profiler egress ... from a previous installation conflicts with DD_HOST_PROFILER_NETWORK_POLICY=...`**: a previous run
-  applied the other kind of host-profiler egress NetworkPolicy. Run the `kubectl delete` command in the error message,
+  applied the other kind of host-profiler egress NetworkPolicy. Delete it with
+  `kubectl delete <networkpolicy or ciliumnetworkpolicy> opentelemetry-kube-stack-host-profiler-egress --namespace opentelemetry-operator-system`,
   then re-run the script.
+- **`Found an existing OpenTelemetry Operator installation`** or **`Found an existing Datadog Operator installation`**:
+  the Kubernetes cluster already runs an operator that the script didn't install. If you installed it with the
+  deprecated `ddot/install` script, see
+  [Upgrade an installation of the deprecated `ddot/install` script](#upgrade-an-installation-of-the-deprecated-ddotinstall-script).
+  Otherwise, remove it, or adapt the existing setup instead ([Adapt an existing setup to DDOT](ADAPT-EXISTING-CONFIG.md)).
 
 ## Uninstalling
 
-The companion `uninstall` script removes everything the `install` script deployed. It's meant for development Kubernetes
+The [`uninstall` script of the parent folder](../uninstall) removes everything the `install` script deployed. It's meant for development Kubernetes
 clusters: it also uninstalls cert-manager and deletes the cert-manager, OpenTelemetry, and Datadog Operator CRDs, which
 deletes all their custom resources cluster-wide, including ones the `install` script didn't create. It lists what it
 deletes and asks for confirmation:
 
 ```sh
-curl -fsSL -o uninstall https://raw.githubusercontent.com/DataDog/opentelemetry-examples/v0.1.0/guides/kubernetes/configuration/opentelemetry-kube-stack/ddot/uninstall
+curl -fsSL -o uninstall https://raw.githubusercontent.com/DataDog/opentelemetry-examples/v0.1.0/guides/kubernetes/configuration/opentelemetry-kube-stack/uninstall
 chmod +x uninstall
 ./uninstall
 ```
@@ -451,7 +476,7 @@ helm repo add open-telemetry https://open-telemetry.github.io/opentelemetry-helm
 helm repo update
 helm upgrade --install opentelemetry-kube-stack \
   open-telemetry/opentelemetry-kube-stack \
-  --version 0.26.1 \
+  --version 0.27.3 \
   --namespace opentelemetry-operator-system \
   --values ./values.yaml \
   --values ./deployment/values.yaml
@@ -462,7 +487,7 @@ Alternatively, if you want to enable the `host-profiler` collector:
 ```sh
 helm upgrade --install opentelemetry-kube-stack \
   open-telemetry/opentelemetry-kube-stack \
-  --version 0.26.1 \
+  --version 0.27.3 \
   --namespace opentelemetry-operator-system \
   --set collectors.host-profiler.enabled=true \
   --values ./values.yaml \
@@ -495,7 +520,7 @@ if [[ -n "$K8S_CLUSTER_NAME" ]]; then
 fi
 helm upgrade --install datadog-operator \
   datadog/datadog-operator \
-  --version 2.28.1 \
+  --version 2.33.0 \
   --namespace datadog \
   "${OPERATOR_HELM_ARGS[@]}" \
   --wait --timeout 5m

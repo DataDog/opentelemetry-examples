@@ -1,6 +1,7 @@
 Inspired by the OpenTelemetry Demo. Demonstrates OpenTelemetry automatic instrumentation.
 
-Intended to be used with the `guides/kubernetes/configuration/opentelemetry-kube-stack/ddot/install`
+Intended to be used with the `guides/kubernetes/configuration/opentelemetry-kube-stack/install` script, with
+`DD_INSTALL_FLOW=ddot`.
 
 This demo app is called `astronomy-store` instead of `astronomy-shop` to avoid confusion with the `astronomy-shop` demo
 app that is part of the OpenTelemetry Demo while being similar.
@@ -39,8 +40,8 @@ that the same telemetry works with any backend:
    overlay, which adds Jaeger (`jaeger.jaeger.svc.cluster.local:4317`) to the `daemon` collector's trace exporters:
 
    ```sh
-   cd ../../guides/kubernetes/configuration/opentelemetry-kube-stack/ddot
-   ./install examples/export-to-datadog-and-jaeger/values.yaml
+   cd ../../guides/kubernetes/configuration/opentelemetry-kube-stack
+   DD_INSTALL_FLOW=ddot ./install ddot/examples/export-to-datadog-and-jaeger/values.yaml
    ```
 
 See [`demo-multi-o11y-backends`](demo-multi-o11y-backends) for more about this setup.
