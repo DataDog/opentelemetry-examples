@@ -350,6 +350,7 @@ configures one OpenTelemetry Collector.
   | `k8s.pod.name`                                                                                                                                                                                                                       | Links the pod and container views                                                                     | OpenTelemetry Operator and OpenTelemetry Operator, `k8s_attributes`                                                                                                      |
   | `k8s.container.name`                                                                                                                                                                                                                 | Container name displayed in Datadog                                                                   | OpenTelemetry Operator (`OTEL_RESOURCE_ATTRIBUTES`), `k8s_attributes` for the other workloads                                                                            |
   | `k8s.cluster.name`                                                                                                                                                                                                                   | Kubernetes Explorer, Kubernetes dashboards                                                            | `resource_detection` (EKS, GKE, AKS) or `resourceAttributes` ([C-10](#c-10-use-the-same-kubernetes-cluster-name-everywhere))                                             |
+  | `datadog.log.source`                                                                                                                                                                                                                 | `source` log tag, which selects the Datadog log integration pipeline                                  | `resource.opentelemetry.io/datadog.log.source` annotation, through `k8s_attributes`                                                                                      |
   | `k8s.namespace.name`, `k8s.node.name`, `k8s.pod.uid`, `k8s.deployment.name`, `k8s.replicaset.name`, `k8s.daemonset.name`, `k8s.statefulset.name`, `k8s.job.name`, `k8s.cronjob.name`, `container.image.name`, `container.image.tags` | Kubernetes context of the telemetry                                                                   | `k8s_attributes`                                                                                                                                                         |
 
 - **Fix:** enrich the telemetry in the OpenTelemetry Collector with the `k8s_attributes` processor, in every pipeline that receives
@@ -423,6 +424,22 @@ configures one OpenTelemetry Collector.
     automation, such as the OpenTelemetry Kube Stack Helm chart, sets it in both
     ([C-11](#c-11-set-the-deployment-environment)).
   - **`k8s.node.name`:** set it with the `k8s_attributes` processor, from the pod the telemetry comes from.
+  - **`datadog.log.source`:** set it with the `resource.opentelemetry.io/datadog.log.source` annotation of the pod
+    template. Datadog maps this attribute to the `source` log tag, which activates the matching Datadog
+    [log integration pipeline][dd-log-integration-pipelines], for example `java`, `go`, `python`, `nodejs`, `csharp`,
+    `postgresql`, or `kafka`. Use the source of the integration pipeline that parses the logs of the container: the
+    language of an application, or the middleware, such as a database or a message broker. `k8s_attributes` with
+    `extract.otel_annotations: true` adds the attribute to the logs that the SDKs export over OTLP and to the pod logs
+    that the `daemon` OpenTelemetry Collector tails:
+
+    ```yaml
+    spec:
+      template:
+        metadata:
+          annotations:
+            resource.opentelemetry.io/datadog.log.source: java
+    ```
+
   - **`host.id`, `cloud.provider`, and `cloud.account.id`:** set them whenever the OpenTelemetry Collector can discover them,
     typically with the `resource_detection` processor and the cloud provider's detector (`eks`, `aks`, `gke`...), so
     that Datadog attaches the telemetry to the right host
@@ -2005,7 +2022,8 @@ OTLP mode without sampling settings, whether they only export the sampled traces
     [A-01](#a-01-disable-the-features-that-duplicate-the-opentelemetry-collectors)): the Kubernetes metrics and the pod
     logs then come from the OpenTelemetry Collectors, with OpenTelemetry resource attributes instead of the tags that
     the Datadog Agent sets, such as `kube_namespace` or `source`. Check the monitors, dashboards, and log pipelines that
-    filter on the Datadog Agent's tags before disabling its features.
+    filter on the Datadog Agent's tags before disabling its features. Set the `source` tag with the
+    `datadog.log.source` resource attribute ([C-03](#c-03-enrich-the-telemetry-with-the-resource-attributes-datadog-needs)).
 - **Requirement:** every propagation configuration includes the W3C Trace Context (`tracecontext`) and W3C Baggage
   (`baggage`) styles, in the DDOT SDKs and in the Datadog SDKs that still run in their default mode:
   `DD_TRACE_PROPAGATION_STYLE`, `DD_TRACE_PROPAGATION_STYLE_EXTRACT`, `DD_TRACE_PROPAGATION_STYLE_INJECT`,
@@ -2106,9 +2124,10 @@ OTLP mode without sampling settings, whether they only export the sampled traces
   ([S-11](#s-11-align-datadog-unified-service-tagging-with-the-opentelemetry-service-identity)), a `version` tag, the
   same operation names, and connected traces with the workloads it calls and the ones that call it.
 
-FIXME document the enrichments that the Datadog Agent adds to the pod logs it collects, and that the logs tailed by the
-`daemon` OpenTelemetry Collector don't get, such as the `source` tag, for example `source:java`, which selects the
-Datadog log integration pipelines, and how to restore them.
+FIXME document the other enrichments that the Datadog Agent adds to the pod logs it collects, and that the logs tailed
+by the `daemon` OpenTelemetry Collector don't get, and how to restore them. To restore the `source` tag, which selects
+the Datadog log integration pipelines, see `datadog.log.source` in
+[C-03](#c-03-enrich-the-telemetry-with-the-resource-attributes-datadog-needs).
 
 FIXME document how to parse the pod logs tailed by the `daemon` OpenTelemetry Collector to extract the trace and span
 IDs that Datadog log injection adds, such as `dd.trace_id` and `dd.span_id`, into the trace context of the log records,
@@ -2284,9 +2303,11 @@ Report these as `blocked` when the user's setup depends on them:
   includes that fix, and verify the bridge before removing the block.
 - **Pod logs tailed by the `daemon` OpenTelemetry Collector:** at level 1 of
   [C-14](#c-14-choose-where-the-opentelemetry-collector-runs-on-kubernetes), when the Collector tails the pod logs
-  instead of the Datadog Agent, the logs miss enrichments of the Datadog Agent, such as the `source` tag that selects
-  the Datadog log integration pipelines, and this guide doesn't yet document how to parse the `dd.trace_id` and
-  `dd.span_id` that log injection adds, to keep the logs linked to the traces (FIXMEs of
+  instead of the Datadog Agent, the logs miss enrichments of the Datadog Agent. Set the `source` tag that selects the
+  Datadog log integration pipelines with the `datadog.log.source` resource attribute
+  ([C-03](#c-03-enrich-the-telemetry-with-the-resource-attributes-datadog-needs)). This guide doesn't yet document the
+  other enrichments, nor how to parse the `dd.trace_id` and `dd.span_id` that log injection adds, to keep the logs
+  linked to the traces (FIXMEs of
   [S-13](#s-13-migrate-workloads-from-the-datadog-sdks)). Keep the Datadog Agent tailing the pod logs of the
   workloads that depend on these, and report the move of their logs as `blocked`.
 - **Live Debugger for Go on arm64 with Linux >= 6.18:** Go probes fail to load with
@@ -2391,6 +2412,7 @@ does not appear.
 [otel-k8sattributes-semconv]: https://github.com/open-telemetry/opentelemetry-collector-contrib/blob/main/processor/k8sattributesprocessor/README.md#semantic-conventions-compatibility
 [otel-helm-charts-2538]: https://github.com/open-telemetry/opentelemetry-helm-charts/issues/2538
 [dd-hostname-mapping]: https://docs.datadoghq.com/opentelemetry/mapping/hostname/?tab=datadogexporter
+[dd-log-integration-pipelines]: https://docs.datadoghq.com/logs/log_configuration/pipelines/?tab=source#integration-pipelines
 [dd-collector-setup]: https://docs.datadoghq.com/opentelemetry/setup/collector_exporter/
 [dd-otel-env]: https://docs.datadoghq.com/opentelemetry/config/environment_variable_support/
 [dd-otel-api]: https://docs.datadoghq.com/opentelemetry/instrument/dd_sdks/api_support/
