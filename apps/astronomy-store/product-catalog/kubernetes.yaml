@@ -19,6 +19,7 @@ spec:
         instrumentation.opentelemetry.io/inject-dotnet: opentelemetry-operator-system/opentelemetry-kube-stack
         resource.opentelemetry.io/service.name: product-catalog
         resource.opentelemetry.io/service.namespace: astronomy-store
+        resource.opentelemetry.io/datadog.log.source: csharp
       labels:
         app.kubernetes.io/name: product-catalog
         # Skip Datadog Single Step Instrumentation if enabled cluster-wide: this pod is

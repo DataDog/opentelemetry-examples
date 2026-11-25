@@ -16,6 +16,7 @@ spec:
   template:
     metadata:
       annotations:
+        resource.opentelemetry.io/datadog.log.source: kafka
         # `kafka`: broker JMX metrics.
         # `kafka_consumer`: consumer lag and Datadog Kafka Console (requires Datadog Agent >= 7.84.0).
         # Configured as a regular pod check rather than a cluster check on the Service as
