@@ -39,6 +39,9 @@ spec:
             # `instrumentation.env` of the opentelemetry-kube-stack Helm values.
             - name: DD_RUNTIME_METRICS_ENABLED
               value: "true"
+            # Datadog Profiling. See https://docs.datadoghq.com/profiler/ .
+            - name: DD_PROFILING_ENABLED
+              value: "true"
             # Datadog Dynamic Instrumentation (DDI). See https://docs.datadoghq.com/tracing/trace_collection/dynamic_instrumentation/ .
             - name: DD_DYNAMIC_INSTRUMENTATION_ENABLED
               value: "true"

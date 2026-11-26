@@ -33,6 +33,9 @@ spec:
               value: "true"
             - name: DD_TRACE_REMOVE_INTEGRATION_SERVICE_NAMES_ENABLED
               value: "true"
+            # Datadog Profiling. See https://docs.datadoghq.com/profiler/ .
+            - name: DD_PROFILING_ENABLED
+              value: "true"
             - name: ROLE
               value: producer
             - name: KAFKA_ADDR
@@ -69,6 +72,9 @@ spec:
             - name: DD_DATA_STREAMS_ENABLED
               value: "true"
             - name: DD_TRACE_REMOVE_INTEGRATION_SERVICE_NAMES_ENABLED
+              value: "true"
+            # Datadog Profiling. See https://docs.datadoghq.com/profiler/ .
+            - name: DD_PROFILING_ENABLED
               value: "true"
             - name: ROLE
               value: forwarder
@@ -108,6 +114,9 @@ spec:
             - name: DD_DATA_STREAMS_ENABLED
               value: "true"
             - name: DD_TRACE_REMOVE_INTEGRATION_SERVICE_NAMES_ENABLED
+              value: "true"
+            # Datadog Profiling. See https://docs.datadoghq.com/profiler/ .
+            - name: DD_PROFILING_ENABLED
               value: "true"
             - name: ROLE
               value: consumer
