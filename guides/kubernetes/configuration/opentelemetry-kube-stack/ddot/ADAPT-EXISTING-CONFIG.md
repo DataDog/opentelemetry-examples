@@ -1217,6 +1217,12 @@ in [`values.yaml`][values] list them:
 - **Conflicts:** preserve explicit runtime-metrics disables and existing runtime instrumentation. Ask before enabling disabled
   runtime-metrics collection or adding instrumentation that could duplicate the same measurements.
 
+**Internal follow-up:** [APMAPI-2870](https://datadoghq.atlassian.net/browse/APMAPI-2870) tracks the audit of remaining
+SDK DogStatsD metric paths in Java, Python, Node.js, Go, and .NET and the creation of follow-up issues.
+[APMAPI-2862](https://datadoghq.atlassian.net/browse/APMAPI-2862) tracks native runtime metrics over OTLP.
+Update this section as affected versions and supported delivery paths are verified. Until then, preserve the
+DogStatsD paths required by the workload.
+
 FIXME check in the source code of the other DDOT SDKs (Python, Node.js, Go, .NET, Ruby, PHP) whether runtime
 metrics go over OTLP or DogStatsD in the OpenTelemetry mode, from which version, with which metric names, and whether
 `DD_RUNTIME_METRICS_ENABLED` is needed. Then add a per-language item, as for Java. Also check which sampler they use in
