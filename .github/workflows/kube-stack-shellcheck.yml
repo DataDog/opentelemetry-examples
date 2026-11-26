@@ -25,5 +25,4 @@ jobs:
             guides/kubernetes/configuration/opentelemetry-kube-stack/uninstall \
             guides/kubernetes/configuration/opentelemetry-kube-stack/render-examples \
             guides/kubernetes/configuration/opentelemetry-kube-stack/ddot/install \
-            guides/kubernetes/configuration/opentelemetry-kube-stack/ddot/uninstall \
             .github/workflows/scripts/validate-opentelemetry-kube-stack.sh

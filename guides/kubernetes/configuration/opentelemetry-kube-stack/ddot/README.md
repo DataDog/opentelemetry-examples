@@ -37,18 +37,24 @@ apps (Linux kernel >= 5.17, see [Live Debugger for Go][dd-live-debugger-go]).
 
 ## Quickstart
 
-Download and run the `install` script, the recommended way to install. You don't need to clone the repository: by
-default, the script downloads its configuration files (`values.yaml`, `datadog-agent.yaml`...) from GitHub. It reads
-its configuration from environment variables:
+Download and run the [`install` script of the parent folder](../install) with `DD_INSTALL_FLOW=ddot`, the
+recommended way to install. You don't need to clone the repository: by default, the script downloads its configuration
+files (`ddot/values.yaml`, `ddot/datadog-agent.yaml`...) from GitHub. It reads its configuration from environment
+variables:
 
 ```sh
-curl -fsSL -o install https://raw.githubusercontent.com/DataDog/opentelemetry-examples/v0.1.0/guides/kubernetes/configuration/opentelemetry-kube-stack/ddot/install
+curl -fsSL -o install https://raw.githubusercontent.com/DataDog/opentelemetry-examples/v0.1.0/guides/kubernetes/configuration/opentelemetry-kube-stack/install
 chmod +x install
+export DD_INSTALL_FLOW=ddot
 export DD_API_KEY="<your-datadog-api-key>"
 export DD_SITE="datadoghq.com"
 export K8S_CLUSTER_TYPE=eks # eks, gcp, aks, or other
 ./install
 ```
+
+The `ddot/install` script in this folder is deprecated: use the parent folder's `install` script instead. To upgrade
+a Kubernetes cluster installed with `ddot/install`, see
+[Upgrade an installation of the deprecated `ddot/install` script](INSTALL.md#upgrade-an-installation-of-the-deprecated-ddotinstall-script).
 
 See the [installation guide](INSTALL.md) for the prerequisites, the script's environment variables and options, verification, and
 troubleshooting, and to [install without the `install` script](INSTALL.md#install-without-the-install-script).
