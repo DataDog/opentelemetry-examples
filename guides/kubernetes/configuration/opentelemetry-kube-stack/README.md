@@ -37,7 +37,7 @@ Configure the installer with environment variables, then run it:
 | `DD_COLLECTOR_ENABLED` | Install the OpenTelemetry Collectors: `true` or `false`. | `true` |
 | `OTEL_EXPORTER_OTLP_ENDPOINT` | OTLP/HTTP endpoint of the Collector that autoinstrumented workloads send telemetry to, for example `http://my-collector.my-namespace.svc.cluster.local:4318`. Required when `DD_COLLECTOR_ENABLED` is `false`. | Unset |
 | `DD_HOST_PROFILER_ENABLED` | Enable the eBPF host profiler: `true` or `false`. See [Host profiler (optional)](#host-profiler-optional). | `false` |
-| `DD_HOST_PROFILER_NETWORK_POLICY` | Host profiler egress policy: `none`, `standard`, `cilium`, or `auto`. | `none` |
+| `DD_HOST_PROFILER_NETWORK_POLICY` | Host profiler egress policy: `none`, `standard`, `cilium`, or `auto`. | `auto` on new installs |
 | `DD_INSTRUMENTATION_TELEMETRY_ENABLED` | Send install telemetry to Datadog when the installation exits: `true` or `false`. See [Install telemetry](#install-telemetry). | `true` |
 
 ```sh
@@ -147,10 +147,12 @@ The host profiler is opt-in because its pods need more privileges than the other
 
 Set `DD_HOST_PROFILER_NETWORK_POLICY` to choose its egress policy:
 
-- `none` (default): The installer adds no policy.
+- `none`: The installer adds no policy.
 - `standard`: Applies `ddot/host-profiler-network-policy.yaml`. It allows TCP 443 to any destination and requires a CNI that enforces Kubernetes NetworkPolicy.
 - `cilium`: Applies `ddot/host-profiler-cilium-network-policy.yaml`. It scopes Datadog intake egress by hostname and requires Cilium with DNS policy support.
-- `auto`: On a new install, the installer selects Cilium if Kubernetes discovery lists `CiliumNetworkPolicy`. If discovery succeeds without listing it, the installer selects standard. It checks admission with a server-side dry-run before applying the selected manifest (the Cilium manifest requires `cilium.io/v2`). API discovery and dry-run do not verify traffic enforcement. If discovery or apply fails, the installer warns and does not try another kind.
+- `auto` (default on new installs): The installer selects Cilium if Kubernetes discovery lists `CiliumNetworkPolicy`. If discovery succeeds without listing it, the installer selects standard. It checks admission with a server-side dry-run before applying the selected manifest (the Cilium manifest requires `cilium.io/v2`). API discovery and dry-run do not verify traffic enforcement. If discovery or apply fails, the installer warns and does not try another kind.
+
+On reruns, the installer uses the saved mode unless you set `DD_HOST_PROFILER_NETWORK_POLICY` explicitly. Older installs without a saved mode keep the previous default, `none`.
 
 In `auto`, the installer skips applying the standard policy if it finds any other Kubernetes egress policy in `opentelemetry-operator-system` or can't list policies there. Kubernetes combines policy allows, so adding the standard policy could widen an existing allowlist. This check can skip the standard policy even if the other policy only selects unrelated pods. On reruns, `auto` keeps the previous kind. To switch, remove the previous installer policy if it still exists and select the new mode explicitly.
 

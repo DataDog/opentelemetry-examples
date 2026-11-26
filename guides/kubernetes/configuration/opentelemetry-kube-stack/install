@@ -236,6 +236,13 @@ for option in "${INSTALL_OPTIONS[@]}"; do
     use_previous "$option"
 done
 
+if [[ -z "$PREVIOUS_OPTIONS" ]]; then
+    DD_HOST_PROFILER_NETWORK_POLICY=${DD_HOST_PROFILER_NETWORK_POLICY:-auto}
+else
+    # Installs predating auto may not have saved a mode.
+    DD_HOST_PROFILER_NETWORK_POLICY=${DD_HOST_PROFILER_NETWORK_POLICY:-none}
+fi
+
 INSTALL_OPTIONS_ARGS=()
 for option in "${INSTALL_OPTIONS[@]}"; do
     if [[ -n "${!option:-}" ]]; then
@@ -273,7 +280,6 @@ DD_AGENT_ENABLED=${DD_AGENT_ENABLED:-$DD_COLLECTOR_ENABLED}
 # collector per node with eBPF capabilities. Off by default because of these
 # extra privileges.
 DD_HOST_PROFILER_ENABLED=${DD_HOST_PROFILER_ENABLED:-false}
-DD_HOST_PROFILER_NETWORK_POLICY=${DD_HOST_PROFILER_NETWORK_POLICY:-none}
 
 if [[ "$DD_AUTOINSTRUMENTATION_ENABLED" == "false" && "$DD_COLLECTOR_ENABLED" == "false" ]]; then
     fail "DD_AUTOINSTRUMENTATION_ENABLED and DD_COLLECTOR_ENABLED cannot both be false"

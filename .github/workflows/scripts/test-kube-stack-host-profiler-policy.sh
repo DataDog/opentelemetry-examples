@@ -19,6 +19,7 @@ case "$1 $2 ${3:-}" in
     'get configmap '*)
         case "$SCENARIO" in
             upgrade) printf '%s\n' DD_HOST_PROFILER_NETWORK_POLICY=auto HOST_PROFILER_APPLIED_NETWORK_POLICY=standard ;;
+            legacy-upgrade) echo DD_INSTALL_FLOW=upstream ;;
         esac
         ;;
     'get crd '*) exit 1 ;;
@@ -87,9 +88,6 @@ run_case() {
     : >"$work/calls"
     output=$(
         unset DD_HOST_PROFILER_NETWORK_POLICY
-        if [[ "$scenario" != default && "$scenario" != upgrade ]]; then
-            export DD_HOST_PROFILER_NETWORK_POLICY=auto
-        fi
         PATH="$work:$PATH" SCENARIO="$scenario" CALLS="$work/calls" \
             TESTING_BASE_URL="file://$guide" DD_API_KEY=offline-test DD_INSTALL_FLOW=upstream \
             DD_AGENT_ENABLED=false DD_INSTRUMENTATION_TELEMETRY_ENABLED=false DD_HOST_PROFILER_ENABLED=true \
@@ -114,4 +112,4 @@ run_case existing-egress 'discover policies' 'Skipping the standard Host Profile
 run_case partial-discovery 'discover policies' 'Could not discover the Cilium policy API'
 run_case dry-run-denied $'discover policies\ndry-run cilium' 'without trying a different kind'
 run_case upgrade "$standard_calls" 'Applied the standard Host Profiler policy.'
-run_case default '' 'Installing OpenTelemetry Kube Stack'
+run_case legacy-upgrade '' 'Installing OpenTelemetry Kube Stack'
