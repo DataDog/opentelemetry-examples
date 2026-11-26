@@ -37,7 +37,7 @@ Configure the installer with environment variables, then run it:
 | `DD_COLLECTOR_ENABLED` | Install the OpenTelemetry Collectors: `true` or `false`. | `true` |
 | `OTEL_EXPORTER_OTLP_ENDPOINT` | OTLP/HTTP endpoint of the Collector that autoinstrumented workloads send telemetry to, for example `http://my-collector.my-namespace.svc.cluster.local:4318`. Required when `DD_COLLECTOR_ENABLED` is `false`. | Unset |
 | `DD_HOST_PROFILER_ENABLED` | Enable the eBPF host profiler: `true` or `false`. See [Host profiler (optional)](#host-profiler-optional). | `false` |
-| `DD_HOST_PROFILER_NETWORK_POLICY` | Host profiler egress NetworkPolicy: `none`, `standard`, or `cilium`. | `none` |
+| `DD_HOST_PROFILER_NETWORK_POLICY` | Host profiler egress policy: `none`, `standard`, `cilium`, or `auto`. | `none` |
 | `DD_INSTRUMENTATION_TELEMETRY_ENABLED` | Send install telemetry to Datadog when the installation exits: `true` or `false`. See [Install telemetry](#install-telemetry). | `true` |
 
 ```sh
@@ -143,7 +143,18 @@ helm upgrade --install opentelemetry-kube-stack \
 
 This collector runs the [Datadog host profiler][dd-host-profiler], Datadog's distribution of the [OpenTelemetry eBPF profiler][ebpf-profiler], as a DaemonSet on every node and exports profiles to Datadog's OTLP intake.
 
-The host profiler is opt-in because its pods need more privileges than the other collectors. To enable it, set `DD_HOST_PROFILER_ENABLED=true` before you run the installer. The installer then also applies `ddot/host-profiler-rbac-values.yaml` and, on clusters that enforce NetworkPolicy, the policy that `DD_HOST_PROFILER_NETWORK_POLICY` selects: `ddot/host-profiler-network-policy.yaml` (`standard`, any enforcing CNI) or `ddot/host-profiler-cilium-network-policy.yaml` (`cilium`, FQDN-scoped egress).
+The host profiler is opt-in because its pods need more privileges than the other collectors. Set `DD_HOST_PROFILER_ENABLED=true` before you run the installer. This enables the collector and applies `ddot/host-profiler-rbac-values.yaml`.
+
+Set `DD_HOST_PROFILER_NETWORK_POLICY` to choose its egress policy:
+
+- `none` (default): The installer adds no policy.
+- `standard`: Applies `ddot/host-profiler-network-policy.yaml`. It allows TCP 443 to any destination and requires a CNI that enforces Kubernetes NetworkPolicy.
+- `cilium`: Applies `ddot/host-profiler-cilium-network-policy.yaml`. It scopes Datadog intake egress by hostname and requires Cilium with DNS policy support.
+- `auto`: On a new install, the installer selects Cilium if Kubernetes discovery lists `CiliumNetworkPolicy`. If discovery succeeds without listing it, the installer selects standard. It checks admission with a server-side dry-run before applying the selected manifest (the Cilium manifest requires `cilium.io/v2`). API discovery and dry-run do not verify traffic enforcement. If discovery or apply fails, the installer warns and does not try another kind.
+
+In `auto`, the installer skips applying the standard policy if it finds any other Kubernetes egress policy in `opentelemetry-operator-system` or can't list policies there. Kubernetes combines policy allows, so adding the standard policy could widen an existing allowlist. This check can skip the standard policy even if the other policy only selects unrelated pods. On reruns, `auto` keeps the previous kind. To switch, remove the previous installer policy if it still exists and select the new mode explicitly.
+
+For `auto` before the next tagged installer release, [run the installer from a local checkout](ddot/INSTALL.md#copy-the-configuration-files-locally).
 
 ## Cluster name detection
 
