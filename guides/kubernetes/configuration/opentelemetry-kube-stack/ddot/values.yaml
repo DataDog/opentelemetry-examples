@@ -1,3 +1,6 @@
+# Generated from ../values.yaml.tmpl by "make generate" in the parent folder: don't edit this file.
+# Edit values.yaml.tmpl, then run "make generate" to regenerate upstream/values.yaml, ddot/values.yaml, and the
+# rendered examples.
 clusterName: ""
 
 resourceAttributes:

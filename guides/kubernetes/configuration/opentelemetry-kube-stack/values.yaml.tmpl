@@ -1,3 +1,9 @@
+{{- /*
+Source of upstream/values.yaml and ddot/values.yaml. Edit this template, then run "make generate" in this folder to
+regenerate both values files and the rendered examples. Don't edit the generated values files directly: CI fails
+when they differ from this template. Wrap the DDOT-only content in {{if .DDOT}} ... {{end}}, and use
+{{.Exporter}} for the exporter of the pipelines.
+*/ -}}
 clusterName: ""
 
 resourceAttributes:

@@ -37,6 +37,12 @@ func (m mode) Exporter() string {
 	return "otlp_http"
 }
 
+// header tells readers of the generated files to edit values.yaml.tmpl instead.
+const header = `# Generated from ../values.yaml.tmpl by "make generate" in the parent folder: don't edit this file.
+# Edit values.yaml.tmpl, then run "make generate" to regenerate upstream/values.yaml, ddot/values.yaml, and the
+# rendered examples.
+`
+
 func render(tmpl *template.Template, m mode) error {
 	out, err := os.Create(filepath.Join(guideDir, string(m), "values.yaml"))
 	if err != nil {
@@ -44,6 +50,9 @@ func render(tmpl *template.Template, m mode) error {
 	}
 	defer out.Close()
 
+	if _, err := out.WriteString(header); err != nil {
+		return err
+	}
 	return tmpl.Execute(out, m)
 }
 

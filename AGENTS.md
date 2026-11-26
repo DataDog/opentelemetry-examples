@@ -9,3 +9,12 @@ These rules apply to Markdown documentation in this repository, including README
 - When another source already documents a topic, link to it. Sources to link include the [OpenTelemetry documentation](https://opentelemetry.io/docs/), the [OpenTelemetry Helm charts documentation](https://github.com/open-telemetry/opentelemetry-helm-charts), and the [Datadog documentation](https://docs.datadoghq.com/).
 - Cover each topic in one file in this repository. Link to that file from other files.
 - Refer to configuration that exists in this repository by file and key path, for example "`collectors.daemon.config.exporters` in `values.yaml`". Don't copy it into code blocks or link to line numbers.
+
+# Generated files
+
+Some files in this repository are generated. Edit their source, then regenerate them. CI fails when a generated file
+differs from its source.
+
+- `upstream/values.yaml` and `ddot/values.yaml` in `guides/kubernetes/configuration/opentelemetry-kube-stack/` are
+  generated from `values.yaml.tmpl` in the same folder. Edit `values.yaml.tmpl`, then run `make generate` in that
+  folder. It regenerates both values files and the rendered examples under `upstream/examples/` and `ddot/examples/`.
