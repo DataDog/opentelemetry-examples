@@ -1952,7 +1952,8 @@ OTLP mode without sampling settings, whether they only export the sampled traces
   - **Configuration:** `datadog.otelCollector.config` replaces the default configuration, as `configData` does.
   - **RBAC:** with `k8s_attributes` or `datadog.otelCollector.configMap`, add the permissions from the third change
     above through `datadog.otelCollector.rbac.rules`, including `nodes` when extracting node metadata. Automatic
-    RBAC detection only recognizes the older `k8sattributes` spelling. Check the rendered permissions before deploying.
+    RBAC detection only recognizes the older `k8sattributes` spelling ([helm-charts#3111][dd-helm-charts-3111]).
+    Check the rendered permissions before deploying.
   - **Node name:** the chart doesn't give the `otel-agent` container the node name either: add `K8S_NODE_NAME` with
     `agents.containers.otelAgent.env`, as in the second change above.
 - **Without `k8s_attributes`: the limits of the `infraattributes` processor.** When you can't add `k8s_attributes`
@@ -2498,6 +2499,7 @@ does not appear.
 [cert-manager]: https://cert-manager.io/
 [kube-stack-2577]: https://github.com/open-telemetry/opentelemetry-helm-charts/issues/2577
 [dd-helm-chart]: https://github.com/DataDog/helm-charts/tree/main/charts/datadog
+[dd-helm-charts-3111]: https://github.com/DataDog/helm-charts/issues/3111
 [examples-rendered]: ./examples/default/rendered/
 [troubleshooting]: ./TROUBLESHOOTING.md
 [architecture]: ./assets/deployment-architecture-diagram_k8s_ddot-with-dd-agent.svg.png
