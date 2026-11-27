@@ -308,6 +308,29 @@ if [[ "$DD_INSTALL_FLOW" == "ddot" && "$DD_AGENT_ENABLED" == "true" ]]; then
 fi
 
 VALUES_FILE=$DD_INSTALL_FLOW/values.yaml
+HOST_PROFILER_POLICY_NAME=opentelemetry-kube-stack-host-profiler-egress
+HOST_PROFILER_NAMESPACE=opentelemetry-operator-system
+
+fail_host_profiler_policy_conflict() {
+    local kind=$1 guidance
+    case "$DD_HOST_PROFILER_NETWORK_POLICY" in
+        standard)
+            guidance="If your cluster enforces CiliumNetworkPolicy, we recommend keeping the installed Cilium policy. Its Datadog intake rule limits TCP 443 to Datadog domains, while the requested standard policy allows TCP 443 to any destination. To keep Cilium, remove any existing standard Host Profiler policy before rerunning with DD_HOST_PROFILER_NETWORK_POLICY=cilium."
+            ;;
+        cilium)
+            guidance="Verify that your cluster enforces CiliumNetworkPolicy before switching. We recommend Cilium on those clusters because its Datadog intake rule limits TCP 443 to Datadog domains. The installed standard policy allows TCP 443 to any destination."
+            ;;
+        none)
+            guidance="In 'none' mode, the installer won't apply a replacement Host Profiler egress policy."
+            ;;
+    esac
+    fail "Requested Host Profiler policy mode '$DD_HOST_PROFILER_NETWORK_POLICY' conflicts with the installed egress $kind '$HOST_PROFILER_POLICY_NAME'.
+$guidance
+If you intend to switch, remove the installed policy with the command below, then rerun with DD_HOST_PROFILER_NETWORK_POLICY=$DD_HOST_PROFILER_NETWORK_POLICY.
+Removing the policy can change egress access. If you expect a replacement, verify that it exists and is enforced after rerunning. The installer can finish even if applying the replacement fails.
+  kubectl --context $(printf '%q' "$KUBE_CONTEXT") delete $kind $HOST_PROFILER_POLICY_NAME --namespace $HOST_PROFILER_NAMESPACE"
+}
+
 HOST_PROFILER_NETWORK_POLICY_FILE=""
 HOST_PROFILER_ENABLED_ARGS=()
 if [[ "$DD_HOST_PROFILER_ENABLED" == "true" ]]; then
@@ -323,10 +346,10 @@ if [[ "$DD_HOST_PROFILER_ENABLED" == "true" ]]; then
     esac
     for kind in networkpolicy ciliumnetworkpolicy; do
         [[ "$kind" == "$HOST_PROFILER_NETWORK_POLICY_KIND" ]] && continue
-        if [[ -n "$(kubectl get "$kind" opentelemetry-kube-stack-host-profiler-egress \
-                      --namespace opentelemetry-operator-system \
+        if [[ -n "$(kubectl get "$kind" "$HOST_PROFILER_POLICY_NAME" \
+                      --namespace "$HOST_PROFILER_NAMESPACE" \
                       --ignore-not-found=true -o name 2>/dev/null)" ]]; then
-            fail "A host-profiler egress $kind from a previous installation conflicts with DD_HOST_PROFILER_NETWORK_POLICY=$DD_HOST_PROFILER_NETWORK_POLICY. Clean up the previous installation and re-run this script."
+            fail_host_profiler_policy_conflict "$kind"
         fi
     done
     HOST_PROFILER_ENABLED_ARGS=(
