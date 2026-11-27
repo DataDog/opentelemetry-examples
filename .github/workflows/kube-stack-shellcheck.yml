@@ -25,4 +25,8 @@ jobs:
             guides/kubernetes/configuration/opentelemetry-kube-stack/uninstall \
             guides/kubernetes/configuration/opentelemetry-kube-stack/render-examples \
             guides/kubernetes/configuration/opentelemetry-kube-stack/ddot/install \
-            .github/workflows/scripts/validate-opentelemetry-kube-stack.sh
+            .github/workflows/scripts/validate-opentelemetry-kube-stack.sh \
+            .github/workflows/scripts/test-kube-stack-host-profiler-policy.sh
+
+      - name: Test Host Profiler policy selection
+        run: bash .github/workflows/scripts/test-kube-stack-host-profiler-policy.sh
