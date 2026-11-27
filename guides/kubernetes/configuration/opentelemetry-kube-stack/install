@@ -211,11 +211,12 @@ PREVIOUS_OPTIONS=$(kubectl get configmap "$INSTALL_OPTIONS_CONFIGMAP" \
     -o go-template='{{range $k, $v := .data}}{{$k}}={{$v}}{{"\n"}}{{end}}') \
     || fail "Could not read the options of the previous run from the cluster"
 
+HOST_PROFILER_REMEMBERED_KIND=""
 while IFS= read -r line; do
     key=${line%%=*}
     value=${line#*=}
-    if [[ "$key" == HOST_PROFILER_APPLIED_NETWORK_POLICY ]]; then
-        PREVIOUS_HOST_PROFILER_APPLIED_NETWORK_POLICY=$value
+    if [[ "$key" == HOST_PROFILER_REMEMBERED_KIND && ( "$value" == standard || "$value" == cilium ) ]]; then
+        HOST_PROFILER_REMEMBERED_KIND=$value
     fi
     for option in "${INSTALL_OPTIONS[@]}"; do
         if [[ "$key" == "$option" ]]; then
@@ -326,40 +327,38 @@ get_host_profiler_policy() {
 }
 
 select_host_profiler_policy() {
-    local resources cilium_api=false standard cilium="" previous=${PREVIOUS_HOST_PROFILER_APPLIED_NETWORK_POLICY:-}
+    local resources default_kind=standard standard cilium="" live_kind
+    local kind=$HOST_PROFILER_REMEMBERED_KIND
     # Discovery can print partial results and still fail. Do not use those results.
     if ! resources=$(kubectl api-resources --api-group=cilium.io --namespaced -o name --request-timeout=10s); then
         echo "WARNING: Could not discover the Cilium policy API. Leaving Host Profiler policies unchanged." >&2
         return 1
     fi
     if grep -Fxq 'ciliumnetworkpolicies.cilium.io' <<<"$resources"; then
-        cilium_api=true
+        default_kind=cilium
     fi
     if ! standard=$(get_host_profiler_policy networkpolicies.v1.networking.k8s.io) ||
-       { [[ "$cilium_api" == true ]] &&
+       { [[ "$default_kind" == cilium ]] &&
          ! cilium=$(get_host_profiler_policy ciliumnetworkpolicies.v2.cilium.io); }; then
         echo "WARNING: Could not check existing Host Profiler policies. Leaving them unchanged." >&2
         return 1
     fi
 
-    if [[ -z "$previous" && "${PREVIOUS_DD_HOST_PROFILER_NETWORK_POLICY:-}" == cilium && "$cilium_api" == false ]]; then
-        previous=cilium
-    fi
-    if [[ "$previous" == cilium && "$cilium_api" == false ]]; then
-        echo "WARNING: The previous Host Profiler policy used Cilium, but its policy API is unavailable. Choose a different mode explicitly to migrate." >&2
+    if [[ "$kind" == cilium && "$default_kind" != cilium ]]; then
+        echo "WARNING: The remembered Host Profiler policy kind is Cilium, but its policy API is unavailable. Choose a different mode explicitly to migrate." >&2
         return 1
     fi
-    if [[ ( -n "$standard" && ( -n "$cilium" || "$previous" == cilium ) ) ||
-          ( -n "$cilium" && "$previous" == standard ) ]]; then
-        echo "WARNING: Conflicting Host Profiler policy kinds. Leaving both kinds unchanged. Resolve the conflict before rerunning." >&2
-        return 1
-    fi
-
-    if [[ "$cilium_api" == true && -z "$standard" && "$previous" != standard ]]; then
-        echo cilium
-    else
-        echo standard
-    fi
+    for live_kind in "${standard:+standard}" "${cilium:+cilium}"; do
+        [[ -n "$live_kind" ]] || continue
+        if [[ -n "$kind" && "$kind" != "$live_kind" ]]; then
+            echo "WARNING: Conflicting Host Profiler policy kinds. Leaving policies unchanged. Resolve the conflict before rerunning. Choose a different mode explicitly to migrate." >&2
+            return 1
+        fi
+        kind=$live_kind
+    done
+    # Remember live policies even if reapplying fails, but don't remember a guess.
+    HOST_PROFILER_REMEMBERED_KIND=$kind
+    HOST_PROFILER_POLICY_MODE=${kind:-$default_kind}
 }
 
 can_apply_standard_host_profiler_policy() {
@@ -371,7 +370,7 @@ can_apply_standard_host_profiler_policy() {
         echo "WARNING: Could not list existing Kubernetes egress policies. Skipping the standard Host Profiler policy." >&2
         return 1
     elif [[ -n "$candidates" ]]; then
-        echo "WARNING: Skipping the standard Host Profiler policy because other Kubernetes egress policies exist in $HOST_PROFILER_NAMESPACE: $(paste -sd ' ' <<<"$candidates")." >&2
+        echo "WARNING: Skipping the standard Host Profiler policy because other Kubernetes egress policies exist in $HOST_PROFILER_NAMESPACE: $(paste -sd ' ' - <<<"$candidates")." >&2
         return 1
     fi
     echo "WARNING: The standard Host Profiler policy allows DNS (TCP/UDP 53), TCP 443, and TCP 10250 to any destination. Verify that your CNI enforces NetworkPolicy." >&2
@@ -383,7 +382,7 @@ if [[ "$DD_HOST_PROFILER_ENABLED" == "true" ]]; then
     HOST_PROFILER_NETWORK_POLICY_KIND=""
     HOST_PROFILER_POLICY_MODE=$DD_HOST_PROFILER_NETWORK_POLICY
     if [[ "$HOST_PROFILER_POLICY_MODE" == auto ]]; then
-        if HOST_PROFILER_POLICY_MODE=$(select_host_profiler_policy); then
+        if select_host_profiler_policy; then
             echo "Host Profiler network policy auto selected: $HOST_PROFILER_POLICY_MODE"
         else
             HOST_PROFILER_POLICY_MODE=none
@@ -409,9 +408,8 @@ if [[ "$DD_HOST_PROFILER_ENABLED" == "true" ]]; then
         -f "$SCRIPT_DIR/ddot/host-profiler-rbac-values.yaml"
     )
 fi
-if [[ ( "$DD_HOST_PROFILER_NETWORK_POLICY" == auto || "$DD_HOST_PROFILER_ENABLED" == false ) &&
-      -n "${PREVIOUS_HOST_PROFILER_APPLIED_NETWORK_POLICY:-}" ]]; then
-    INSTALL_OPTIONS_ARGS+=(--from-literal="HOST_PROFILER_APPLIED_NETWORK_POLICY=$PREVIOUS_HOST_PROFILER_APPLIED_NETWORK_POLICY")
+if [[ -n "$HOST_PROFILER_REMEMBERED_KIND" ]]; then
+    INSTALL_OPTIONS_ARGS+=(--from-literal="HOST_PROFILER_REMEMBERED_KIND=$HOST_PROFILER_REMEMBERED_KIND")
 fi
 
 STEP="Check Permissions"
@@ -523,10 +521,10 @@ if [[ -n "$HOST_PROFILER_NETWORK_POLICY_FILE" ]]; then
         else
             echo "WARNING: Could not apply the host-profiler egress NetworkPolicy (is Cilium installed if you chose the Cilium policy?). Continuing..."
         fi
-    elif [[ "$DD_HOST_PROFILER_NETWORK_POLICY" == auto ]]; then
+    else
         echo "Applied the $HOST_PROFILER_POLICY_MODE Host Profiler policy."
         kubectl patch configmap "$INSTALL_OPTIONS_CONFIGMAP" --namespace "$HOST_PROFILER_NAMESPACE" \
-          --type merge -p "{\"data\":{\"HOST_PROFILER_APPLIED_NETWORK_POLICY\":\"$HOST_PROFILER_POLICY_MODE\"}}" \
+          --type merge -p "{\"data\":{\"HOST_PROFILER_REMEMBERED_KIND\":\"$HOST_PROFILER_POLICY_MODE\"}}" \
           || echo "WARNING: Could not record the applied Host Profiler policy kind." >&2
     fi
 fi
