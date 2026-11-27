@@ -1619,7 +1619,7 @@ OTLP mode without sampling settings, whether they only export the sampled traces
 
 ### S-10: Send each log line to Datadog once
 
-- **Requirement:** each workload's logs reach Datadog through one path: either the `daemon` OpenTelemetry Collector or
+- **Requirement:** each log record reaches Datadog through one path: either the `daemon` OpenTelemetry Collector or
   the Datadog Agent tailing the container's standard output and error, or OTLP export from the SDK. The reference
   configuration does both by default: the `file_log` receiver of the `daemon` OpenTelemetry Collector tails the logs of
   every pod, with `include: [/var/log/pods/*/*/*.log]` and no `exclude`, and S-01 sets `DD_LOGS_OTEL_ENABLED=true`. Both
@@ -1630,7 +1630,7 @@ OTLP mode without sampling settings, whether they only export the sampled traces
   OpenTelemetry Collector and Datadog Agent that can collect the workload's logs. Record the matching
   `file_log.include` and `file_log.exclude` patterns. When an existing receiver already matches the workload, adapt
   that receiver instead of adding another one.
-- **Fix:** choose one path per workload:
+- **Fix:** choose a path for each log stream of the workload:
   - **Tail the standard output,** when the application already logs to it. This path collects everything the
     container prints, including the output of libraries that the SDK doesn't instrument. When the SDK exports the
     events of the application's logging library over OTLP, set `DD_LOGS_OTEL_ENABLED=false` in the workload's
@@ -1666,7 +1666,10 @@ OTLP mode without sampling settings, whether they only export the sampled traces
 - **Conflicts:** the `ad.datadoghq.com/logs_exclude: "true"` annotation only stops the Datadog Agent from collecting
   the container logs. OpenTelemetry `file_log` receivers don't read this annotation. To stop an OpenTelemetry
   Collector from tailing a workload, change that receiver's `include` or `exclude` patterns.
-- **Verify:** in the Datadog Log Explorer, a log line of the workload appears once, and its logs link to its traces.
+- **Verify:** emit a marked record through the application's existing logging library and check that it appears
+  once in Datadog Log Explorer and links to its trace. Test OpenTelemetry Logs API records separately when the
+  application emits them. A successful API probe doesn't establish that Logback or another logging library's events
+  are exported over OTLP. Record the verified path for each log stream.
 
 ### S-11: Align Datadog Unified Service Tagging with the OpenTelemetry service identity
 
@@ -1938,8 +1941,7 @@ OTLP mode without sampling settings, whether they only export the sampled traces
   | [C-12](#c-12-collect-middleware-telemetry-from-the-daemon-opentelemetry-collector-on-the-same-node) | Possible with `receiver_creator` and `k8s_observer`, which need more RBAC. Only when you need it.                                                     |
   | [C-13](#c-13-keep-the-daemon-opentelemetry-collectors-service-node-local) | Doesn't apply: the local Service of the Datadog Agent is already node-local.                                                                                       |
 
-- **With the [`datadog` Helm chart][dd-helm-chart],** the bundled DDOT Collector differs from the Datadog Operator's
-  (read from the chart's source, version 3.276.0, not tested):
+- **With the [`datadog` Helm chart][dd-helm-chart],** the bundled DDOT Collector differs from the Datadog Operator's:
   - **Endpoint:** the local Service is named after the chart's release, the `datadog.fullname` of the chart, or
     `agents.localService.overrideName`. The chart adds the ports of `datadog.otelCollector.ports`, 4317 and 4318 by
     default, to this Service, with `internalTrafficPolicy: Local`, on Kubernetes 1.22 or later. Port 8126 of the
@@ -1948,10 +1950,9 @@ OTLP mode without sampling settings, whether they only export the sampled traces
     Datadog Agent 7.67.0 (`datadog.otelCollector.useStandaloneImage: true`, the default). The chart rejects a tag with
     the `-full` suffix in this mode.
   - **Configuration:** `datadog.otelCollector.config` replaces the default configuration, as `configData` does.
-  - **RBAC:** when `datadog.otelCollector.config` has a `k8s_attributes` processor, the chart creates the ClusterRole
-    of its pods, namespaces, and ReplicaSets itself (`datadog.otelCollector.rbac.create: true`, the default), so you
-    can skip the third change above. Add `nodes` with `datadog.otelCollector.rbac.rules` if you extract node metadata.
-    The chart doesn't detect the processor in a ConfigMap of `datadog.otelCollector.configMap`: add the rules there.
+  - **RBAC:** with `k8s_attributes` or `datadog.otelCollector.configMap`, add the permissions from the third change
+    above through `datadog.otelCollector.rbac.rules`, including `nodes` when extracting node metadata. Automatic
+    RBAC detection only recognizes the older `k8sattributes` spelling. Check the rendered permissions before deploying.
   - **Node name:** the chart doesn't give the `otel-agent` container the node name either: add `K8S_NODE_NAME` with
     `agents.containers.otelAgent.env`, as in the second change above.
 - **Without `k8s_attributes`: the limits of the `infraattributes` processor.** When you can't add `k8s_attributes`
@@ -2057,6 +2058,14 @@ OTLP mode without sampling settings, whether they only export the sampled traces
     Datadog maps them for the service page and the default runtime dashboards
     ([OpenTelemetry runtime metrics][dd-otel-runtime-metrics]). Check the custom monitors and dashboards that use the
     Datadog names ([S-07](#s-07-enable-runtime-metrics-where-supported)).
+  - **Custom DogStatsD metrics:** converting the application's DogStatsD calls to OpenTelemetry API calls is a
+    separate change from adopting DDOT SDKs. Before reusing a metric name, compare its
+    [Datadog metric type][dd-metric-types] with the [OTLP metric mapping][dd-otlp-metric-types]: DogStatsD counters
+    are stored as `RATE`, while OTLP monotonic sums map to `COUNT`. Existing queries can then report different
+    counts even when the OpenTelemetry Collector receives the expected delta.
+    Check the metric metadata and the existing queries with a known number of increments. If they aren't compatible,
+    keep the application's DogStatsD sender until its migration is ready, or use a separate OTLP metric name and
+    update the queries. Preserve the existing metric metadata while native workloads and their consumers rely on it.
   - **Trace sampling and ingestion:** the sampling rates of the Datadog Agent, which target about 10 traces per
     second per Datadog Agent, no longer apply. The Datadog Agent returns them in its responses to the traces that the
     Datadog SDKs send to port 8126, and the SDKs don't send traces there in OTLP mode. Remote Configuration doesn't
@@ -2535,6 +2544,8 @@ does not appear.
 [dd-trace-context-propagation]: https://docs.datadoghq.com/tracing/trace_collection/trace_context_propagation/
 [dd-runtime-metrics]: https://docs.datadoghq.com/tracing/metrics/runtime_metrics/
 [dd-otel-runtime-metrics]: https://docs.datadoghq.com/opentelemetry/integrations/runtime_metrics/
+[dd-metric-types]: https://docs.datadoghq.com/metrics/types/
+[dd-otlp-metric-types]: https://docs.datadoghq.com/opentelemetry/reference/otlp_metric_types/
 [dd-deployment-tracking]: https://docs.datadoghq.com/tracing/services/deployment_tracking/
 [otel-go]: https://opentelemetry.io/docs/languages/go/
 [otel-sdk-env-vars]: https://opentelemetry.io/docs/specs/otel/configuration/sdk-environment-variables/
